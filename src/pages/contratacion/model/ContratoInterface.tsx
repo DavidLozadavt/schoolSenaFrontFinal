@@ -1,0 +1,35 @@
+export interface ContratoInterface {
+  salario_id?: any;
+  id?: number;
+  fechaContratacion: any;
+  horaSistema?: string;
+  perfilProfesional: string;
+  otrosi: string;
+  periodoPago?: string;
+  idpersona?: number;
+  idtipoContrato: string;
+  fechaSistema: string;
+  observacion: string;
+  fechaFinalContrato: any;
+  valorTotalContrato: string;
+  objetoContrato: string;
+  sueldo: string;
+  rol: any;
+  idPension?: string;
+  idSalud?: string;
+  idArl?: string;
+  idCajaCompensacion?: string;
+  idCesantias?: string;
+  tipoCuentaBancaria?: string;
+  idBanco?: string;
+  numeroCuentaBancaria?: string;
+  observacionPreocupacional?: string;
+  idArea?: string;
+  idTipoCotizante?: string;
+  idSubTipoCotizante?: string;
+  tipoComisiones?: string;
+  idActividadRiesgo?: string;
+  idTarifaRiesgo?: string;
+  tipoSalario?:string;
+  idGrupoNomina?: string;
+}
