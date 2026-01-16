@@ -640,6 +640,23 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
+    title: 'Gestión SENA',
+    icon: 'teacher',
+    requiredPermissions: ['GESTION_REGIONAL'],
+    children: [
+      {
+        title: 'Gestión Regional',
+        path: '/gestion-academica/configuracion/programas',
+        requiredPermissions: ['GESTION_REGIONAL']
+      },
+      {
+        title: 'Gestión Aprendices',
+        path: '/gestion-academica/configuracion/programas',
+        requiredPermissions: ['GESTION_APRENDIZ']
+      }
+    ]
+  },
+  {
     title: 'Authentication',
     icon: 'security-user',
     children: [

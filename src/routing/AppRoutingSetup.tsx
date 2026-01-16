@@ -912,6 +912,22 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/tarifas/tarifas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_REGIONAL']}>
+                <TarifasPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aprendizJornada"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_APRENDIZ']}>
+                <PerfilPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />
