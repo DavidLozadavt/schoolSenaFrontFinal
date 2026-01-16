@@ -103,144 +103,104 @@ const Login = () => {
   };
 
   return (
-    <div className="card max-w-[370px] w-full" style={{ border: '2px solid aquamarine' }}>
-      <form
-        className="card-body flex flex-col gap-5 p-10"
-        onSubmit={formik.handleSubmit}
-        noValidate
-      >
-        <div className="text-center mb-2.5">
-          <h3 className="text-lg font-semibold text-gray-900 leading-none mb-2.5">Iniciar sesión</h3>
-          {/* <div className="flex items-center justify-center font-medium">
-            <span className="text-2sm text-gray-600 me-1.5">Need an account?</span>
-            <Link
-              to={currentLayout?.name === 'auth-branded' ? '/auth/signup' : '/auth/classic/signup'}
-              className="text-2sm link"
-            >
-              Sign up
-            </Link>
-          </div> */}
-        </div>
+  <div
+    className="card max-w-[380px] w-full rounded-2xl border border-gray-200 bg-white shadow-md"
+    style={{ border: '1px solid #e5e7eb' }} // no se elimina, solo se suaviza
+  >
+    <form
+      className="card-body flex flex-col gap-6 p-10"
+      onSubmit={formik.handleSubmit}
+      noValidate
+    >
+      <div className="text-center mb-3">
+        <h3 className="text-xl font-semibold text-gray-900 leading-tight">
+          Iniciar sesión
+        </h3>
+        <p className="text-sm text-gray-500 mt-1">
+          Ingresa tus credenciales para continuar
+        </p>
+      </div>
 
-        {/* <div className="grid grid-cols-2 gap-2.5">
-          <a href="#" className="btn btn-light btn-sm justify-center">
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/google.svg')}
-              className="size-3.5 shrink-0"
-            />
-            Use Google
-          </a>
-
-          <a href="#" className="btn btn-light btn-sm justify-center">
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/apple-black.svg')}
-              className="size-3.5 shrink-0 dark:hidden"
-            />
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/apple-white.svg')}
-              className="size-3.5 shrink-0 light:hidden"
-            />
-            Use Apple
-          </a>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="border-t border-gray-200 w-full"></span>
-          <span className="text-2xs text-gray-500 font-medium uppercase">Or</span>
-          <span className="border-t border-gray-200 w-full"></span>
-        </div> */}
-
-        {/* <div className="flex gap-2.5 border border-primary-clarity rounded-md p-3 bg-primary-light">
-          <KeenIcon icon="information-2" style="solid" className="text-primary text-lg" />
-          <div className="text-gray-700 text-xs">
-            Use <span className="font-semibold text-gray-900">demo@keenthemes.com</span> username
-            with <span className="font-semibold text-gray-900">demo1234</span> password.
-          </div>
-        </div> */}
-
-        <div className="flex flex-col gap-1">
-          <label className="form-label text-gray-900">Correo eletrónico</label>
-          <label className="input">
-            <input
-              placeholder="Enter username"
-              autoComplete="off"
-              {...formik.getFieldProps('email')}
-              className={clsx('form-control', {
-                'is-invalid': formik.touched.email && formik.errors.email
-              })}
-            />
-          </label>
-          {formik.touched.email && formik.errors.email && (
-            <span role="alert" className="text-danger text-xs mt-1">
-              {formik.errors.email}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-1">
-            <label className="form-label text-gray-900">Contraseña</label>
-            {/* <Link
-              to={
-                currentLayout?.name === 'auth-branded'
-                  ? '/auth/reset-password'
-                  : '/auth/classic/reset-password'
-              }
-              className="text-2sm link shrink-0"
-            >
-              Forgot Password?
-            </Link> */}
-          </div>
-          <label className="input">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter Password"
-              autoComplete="off"
-              {...formik.getFieldProps('password')}
-              className={clsx('form-control', {
-                'is-invalid': formik.touched.password && formik.errors.password
-              })}
-            />
-            <button className="btn btn-icon" onClick={togglePassword}>
-              <KeenIcon icon="eye" className={clsx('text-gray-500', { hidden: showPassword })} />
-              <KeenIcon
-                icon="eye-slash"
-                className={clsx('text-gray-500', { hidden: !showPassword })}
-              />
-            </button>
-          </label>
-          {formik.touched.password && formik.errors.password && (
-            <span role="alert" className="text-danger text-xs mt-1">
-              {formik.errors.password}
-            </span>
-          )}
-        </div>
-
-        {/* <label className="checkbox-group">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-gray-700">
+          Correo electrónico
+        </label>
+        <label className="relative">
           <input
-            className="checkbox checkbox-sm"
-            type="checkbox"
-            {...formik.getFieldProps('remember')}
+            placeholder="correo@ejemplo.com"
+            autoComplete="off"
+            {...formik.getFieldProps('email')}
+            className={clsx(
+              'w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 outline-none transition',
+              'focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20',
+              {
+                'border-red-500 focus:ring-red-500/20':
+                  formik.touched.email && formik.errors.email
+              }
+            )}
           />
-          <span className="checkbox-label">Remember me</span>
-        </label> */}
-
-        <button
-          type="submit"
-          className="btn btn-primary flex justify-center grow"
-          disabled={loading || formik.isSubmitting}
-        >
-          {loading ? 'Por favor espera...' : 'Iniciar sesión'}
-        </button>
-
-        {formik.status && (
-          <div className="text-danger text-xs mt-1" role="alert">
-            {formik.status}
-          </div>
+        </label>
+        {formik.touched.email && formik.errors.email && (
+          <span role="alert" className="text-red-500 text-xs">
+            {formik.errors.email}
+          </span>
         )}
-      </form>
-    </div>
-  );
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-gray-700">
+          Contraseña
+        </label>
+        <label className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="••••••••"
+            autoComplete="off"
+            {...formik.getFieldProps('password')}
+            className={clsx(
+              'w-full rounded-lg border px-3 py-2.5 pr-10 text-sm text-gray-900 outline-none transition',
+              'focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20',
+              {
+                'border-red-500 focus:ring-red-500/20':
+                  formik.touched.password && formik.errors.password
+              }
+            )}
+          />
+          <button
+            className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+            onClick={togglePassword}
+          >
+            <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
+            <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
+          </button>
+        </label>
+        {formik.touched.password && formik.errors.password && (
+          <span role="alert" className="text-red-500 text-xs">
+            {formik.errors.password}
+          </span>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading || formik.isSubmitting}
+        className={clsx(
+          'mt-2 flex h-11 items-center justify-center rounded-lg text-sm font-medium text-white',
+          'bg-orange-500 hover:bg-orange-700 transition disabled:opacity-60 disabled:cursor-not-allowed'
+        )}
+      >
+        {loading ? 'Por favor espera…' : 'Iniciar sesión'}
+      </button>
+
+      {formik.status && (
+        <div className="text-red-500 text-xs text-center mt-2" role="alert">
+          {formik.status}
+        </div>
+      )}
+    </form>
+  </div>
+);
+
 };
 
 export { Login };
