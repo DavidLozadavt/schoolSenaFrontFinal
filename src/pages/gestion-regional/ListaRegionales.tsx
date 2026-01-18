@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataGrid } from '@/components';
 import { ColumnDef } from '@tanstack/react-table';
 import { KeenIcon } from '@/components';
+import FormularioUpRegional from './FormularioUpRegional';
 
 interface Departamento {
   id: number;
@@ -11,7 +12,7 @@ interface Departamento {
 }
 
 interface Regional {
-  id: number;
+  id: string;
   nombre: string;
   telefono: string;
   direccion: string;
@@ -19,10 +20,15 @@ interface Regional {
   departamento: Departamento;
 }
 
-
 const ListaRegionales = () => {
   const [loading, setLoading] = useState(true);
   const [regionales, setRegionales] = useState<Regional[]>([]);
+
+  //Actualización de la regional:
+  const [idRegional, setIdRegional] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  //Para actualizar la Data una vez ocurra un vambio:
+  const [evento, setEvento] = useState<boolean>(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,7 +43,7 @@ const ListaRegionales = () => {
     };
 
     loadData();
-  }, []);
+  }, [evento]);
 
   const columns = useMemo<ColumnDef<Regional>[]>(
     () => [
@@ -45,9 +51,7 @@ const ListaRegionales = () => {
         accessorKey: 'nombre',
         header: () => 'Regional',
         cell: (info) => (
-          <span className="font-medium text-gray-800">
-            {info.getValue() as string}
-          </span>
+          <span className="font-medium text-gray-800">{info.getValue() as string}</span>
         ),
         meta: { className: 'min-w-[220px]' }
       },
@@ -65,30 +69,27 @@ const ListaRegionales = () => {
         id: 'departamento',
         header: () => 'Departamento',
         accessorFn: (row) => row.departamento?.descripcion,
-        cell: (info) => (
-          <span className="text-gray-700">
-            {info.getValue() as string || '—'}
-          </span>
-        ),
+        cell: (info) => <span className="text-gray-700">{(info.getValue() as string) || '—'}</span>,
         meta: { className: 'min-w-[160px]' }
       },
       {
-      id: 'edit',
-      header: () => 'Editar',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <button
-          title="Editar regional"
-          className="btn btn-sm btn-icon btn-clear text-blue-600 hover:text-blue-500"
-          onClick={() =>
-            console.log(row.id)
-          }
-        >
-          <KeenIcon icon="notepad-edit" />
-        </button>
-      ),
-      meta: { className: 'w-[80px]' }
-    }
+        id: 'edit',
+        header: () => 'Editar',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <button
+            title="Editar regional"
+            className="btn btn-sm btn-icon btn-clear text-blue-600 hover:text-blue-500"
+            onClick={() => {
+              setIdRegional(row.original.id);
+              setIsModalOpen(true);
+            }}
+          >
+            <KeenIcon icon="notepad-edit" />
+          </button>
+        ),
+        meta: { className: 'w-[80px]' }
+      }
     ],
     []
   );
@@ -96,14 +97,8 @@ const ListaRegionales = () => {
   if (loading) {
     return (
       <div className="flex flex-col gap-3 justify-center items-center animate-pulse h-full">
-        <img
-          src="https://admin.virtualt.org/default/logoweb.png"
-          alt="Logo"
-          className="h-14"
-        />
-        <div className="text-gray-500 font-medium text-sm">
-          Cargando regionales...
-        </div>
+        <img src="https://admin.virtualt.org/default/logoweb.png" alt="Logo" className="h-14" />
+        <div className="text-gray-500 font-medium text-sm">Cargando regionales...</div>
       </div>
     );
   }
@@ -115,12 +110,17 @@ const ListaRegionales = () => {
       </div>
 
       <div className="card-body">
-        <DataGrid
-          columns={columns}
-          data={regionales}
-          pagination={{ size: 10 }}
-        />
+        <DataGrid key={JSON.stringify(regionales)} columns={columns} data={regionales} pagination={{ size: 10 }} />
       </div>
+      {isModalOpen && (
+        <FormularioUpRegional
+          idRegional={idRegional}
+          setIdRegional={setIdRegional}
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+          setEvento={setEvento}
+        />
+      )}
     </div>
   );
 };
