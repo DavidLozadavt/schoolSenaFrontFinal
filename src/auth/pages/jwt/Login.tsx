@@ -103,103 +103,118 @@ const Login = () => {
   };
 
   return (
-  <div
-    className="card max-w-[380px] w-full rounded-2xl border border-gray-200 bg-white shadow-md"
-    style={{ border: '1px solid #e5e7eb' }} // no se elimina, solo se suaviza
-  >
-    <form
-      className="card-body flex flex-col gap-6 p-10"
-      onSubmit={formik.handleSubmit}
-      noValidate
+  <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
+    <div
+      className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200"
+      style={{ border: '1px solid #e5e7eb' }} // se mantiene
     >
-      <div className="text-center mb-3">
-        <h3 className="text-xl font-semibold text-gray-900 leading-tight">
-          Iniciar sesión
-        </h3>
-        <p className="text-sm text-gray-500 mt-1">
-          Ingresa tus credenciales para continuar
-        </p>
-      </div>
+      <form
+        className="flex flex-col gap-6 px-6 py-10 sm:px-10"
+        onSubmit={formik.handleSubmit}
+        noValidate
+      >
+        {/* Header */}
+        <div className="text-center flex flex-col items-center gap-2">
+          <img
+            src="https://admin.virtualt.org/default/logoweb.png"
+            alt="Logo"
+            className={loading ?'animate-pulse  h-14 object-contain': 'h-14 object-contain'}
+          />
+          <h3 className="text-2xl font-semibold text-gray-900">
+            Iniciar sesión
+          </h3>
+          <p className="text-sm text-gray-500">
+            Ingresa tus credenciales para continuar
+          </p>
+        </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-700">
-          Correo electrónico
-        </label>
-        <label className="relative">
+        {/* Email */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            Correo electrónico
+          </label>
           <input
             placeholder="correo@ejemplo.com"
             autoComplete="off"
             {...formik.getFieldProps('email')}
             className={clsx(
-              'w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 outline-none transition',
-              'focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20',
+              'w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all',
+              'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
+              'hover:border-gray-400',
               {
                 'border-red-500 focus:ring-red-500/20':
                   formik.touched.email && formik.errors.email
               }
             )}
           />
-        </label>
-        {formik.touched.email && formik.errors.email && (
-          <span role="alert" className="text-red-500 text-xs">
-            {formik.errors.email}
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-700">
-          Contraseña
-        </label>
-        <label className="relative">
-          <input
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            autoComplete="off"
-            {...formik.getFieldProps('password')}
-            className={clsx(
-              'w-full rounded-lg border px-3 py-2.5 pr-10 text-sm text-gray-900 outline-none transition',
-              'focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20',
-              {
-                'border-red-500 focus:ring-red-500/20':
-                  formik.touched.password && formik.errors.password
-              }
-            )}
-          />
-          <button
-            className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
-            onClick={togglePassword}
-          >
-            <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
-            <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
-          </button>
-        </label>
-        {formik.touched.password && formik.errors.password && (
-          <span role="alert" className="text-red-500 text-xs">
-            {formik.errors.password}
-          </span>
-        )}
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading || formik.isSubmitting}
-        className={clsx(
-          'mt-2 flex h-11 items-center justify-center rounded-lg text-sm font-medium text-white',
-          'bg-orange-500 hover:bg-orange-700 transition disabled:opacity-60 disabled:cursor-not-allowed'
-        )}
-      >
-        {loading ? 'Por favor espera…' : 'Iniciar sesión'}
-      </button>
-
-      {formik.status && (
-        <div className="text-red-500 text-xs text-center mt-2" role="alert">
-          {formik.status}
+          {formik.touched.email && formik.errors.email && (
+            <span className="text-xs text-red-500">
+              {formik.errors.email}
+            </span>
+          )}
         </div>
-      )}
-    </form>
+
+        {/* Password */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            Contraseña
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              autoComplete="off"
+              {...formik.getFieldProps('password')}
+              className={clsx(
+                'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
+                'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
+                'hover:border-gray-400',
+                {
+                  'border-red-500 focus:ring-red-500/20':
+                    formik.touched.password && formik.errors.password
+                }
+              )}
+            />
+            <button
+              onClick={togglePassword}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
+            >
+              <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
+              <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
+            </button>
+          </div>
+          {formik.touched.password && formik.errors.password && (
+            <span className="text-xs text-red-500">
+              {formik.errors.password}
+            </span>
+          )}
+        </div>
+
+        {/* Button */}
+        <button
+          type="submit"
+          disabled={loading || formik.isSubmitting}
+          className={clsx(
+            'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all',
+            'bg-orange-500 hover:bg-orange-700',
+            'focus:outline-none focus:ring-4 focus:ring-orange-500/30',
+            'disabled:opacity-60 disabled:cursor-not-allowed'
+          )}
+        >
+          {loading ? 'Por favor espera…' : 'Iniciar sesión'}
+        </button>
+
+        {/* Error */}
+        {formik.status && (
+          <div className="text-center text-xs text-red-500">
+            {formik.status}
+          </div>
+        )}
+      </form>
+    </div>
   </div>
 );
+
 
 };
 
