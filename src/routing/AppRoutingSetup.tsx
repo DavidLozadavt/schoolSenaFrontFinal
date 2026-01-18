@@ -100,6 +100,7 @@ import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
+import Regionales from '@/pages/gestion-regional/Regionales';
 
 // Componentes temporales para pruebas
 
@@ -913,10 +914,10 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
-            path="/tarifas/tarifas"
+            path="/regionales"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_REGIONAL']}>
-                <TarifasPage />
+                <Regionales />
               </ProtectedRoute>
             }
           />

@@ -646,7 +646,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     children: [
       {
         title: 'Gestión Regional',
-        path: '/gestion-academica/configuracion/programas',
+        path: '/regionales',
         requiredPermissions: ['GESTION_REGIONAL']
       },
       {
