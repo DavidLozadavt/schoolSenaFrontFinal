@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import axios from 'axios';
@@ -12,15 +12,21 @@ interface Props {
 }
 
 interface FormValues {
-  nombre: string;
-  telefono: string;
+  razonSocial: string;
+  nit: string;
+  representanteLegal: string;
   direccion: string;
+  email: string;
+  digitoVerificacion: number;
 }
 
 const validationSchema = Yup.object({
-  nombre: Yup.string(),
-  telefono: Yup.string(),
-  direccion: Yup.string()
+  razonSocial: Yup.string(),
+  nit: Yup.string(),
+  representanteLegal: Yup.string(),
+  direccion: Yup.string(),
+  email: Yup.string().email('Email inválido'),
+  digitoVerificacion: Yup.number().typeError('Debe ser un número')
 });
 
 const FormularioUpRegional: React.FC<Props> = ({
@@ -31,64 +37,91 @@ const FormularioUpRegional: React.FC<Props> = ({
   setEvento
 }) => {
   const formik = useFormik<FormValues>({
+    enableReinitialize: true, // 👈 IMPORTANTÍSIMO
     initialValues: {
-      nombre: '',
-      telefono: '',
-      direccion: ''
+      razonSocial: '',
+      nit: '',
+      representanteLegal: '',
+      direccion: '',
+      email: '',
+      digitoVerificacion: 0
     },
     validationSchema,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { setSubmitting }) => {
       try {
+        // Enviar solo campos modificados
         const payload = Object.fromEntries(
-          Object.entries(values).filter(([_, value]) => value !== '')
+          Object.entries(values).filter(([_, value]) => value !== '' && value !== 0)
         );
 
         await axios.patch(`regional/${idRegional}`, payload);
-        alert('Actualizado');
-        setEvento(prev =>!prev);
-      } catch (error) {
-        alert('Error al actualizar la regional');
+
+        alert('Regional actualizada correctamente');
+        setEvento((prev) => !prev);
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'Error al actualizar la regional');
       } finally {
+        setSubmitting(false);
         setIsModalOpen(false);
         setIdRegional('');
       }
     }
   });
 
+  useEffect(() => {
+    if (!idRegional) return;
+
+    const loadRegional = async () => {
+      try {
+        const res = await axios.get(`regional/${idRegional}`);
+        formik.setValues(res.data.data);
+      } catch (error) {
+        alert('Error al cargar la regional');
+      }
+    };
+
+    loadRegional();
+  }, [idRegional]);
+
   if (!isModalOpen) return null;
   return (
     <div>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6 relative">
+          {/* Botón cerrar */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsModalOpen(false);
+              setIdRegional('');
+              formik.resetForm();
+            }}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
+          >
+            ✕
+          </button>
+
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Editar regional</h2>
 
           <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4">
-            {/* Nombre */}
+            {/* Razón Social */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Nombre</label>
+              <label className="text-sm font-medium text-gray-700">Razón Social</label>
               <input
                 type="text"
-                {...formik.getFieldProps('nombre')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                {...formik.getFieldProps('razonSocial')}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
               />
-              {formik.touched.nombre && formik.errors.nombre && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.nombre}</p>
-              )}
             </div>
 
-            {/* Teléfono */}
+            {/* Representante Legal */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Teléfono</label>
+              <label className="text-sm font-medium text-gray-700">Representante Legal</label>
               <input
                 type="text"
-                {...formik.getFieldProps('telefono')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                {...formik.getFieldProps('representanteLegal')}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
               />
-              {formik.touched.telefono && formik.errors.telefono && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.telefono}</p>
-              )}
             </div>
 
             {/* Dirección */}
@@ -97,32 +130,27 @@ const FormularioUpRegional: React.FC<Props> = ({
               <input
                 type="text"
                 {...formik.getFieldProps('direccion')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm"
               />
-              {formik.touched.direccion && formik.errors.direccion && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.direccion}</p>
-              )}
             </div>
 
-            {/* Acciones */}
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm
-                hover:bg-blue-700 transition"
-              >
-                Actualizar
-              </button>
+            {/* Email */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                {...formik.getFieldProps('email')}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
             </div>
+            <button
+              type="submit"
+              disabled={formik.isSubmitting}
+              className={`px-4 py-2 rounded-lg text-sm text-white transition
+              ${formik.isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
+              {formik.isSubmitting ? 'Actualizando...' : 'Actualizar'}
+            </button>
           </form>
         </div>
       </div>

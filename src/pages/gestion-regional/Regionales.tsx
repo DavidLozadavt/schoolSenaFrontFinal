@@ -47,9 +47,11 @@ const Regionales = () => {
         </button>
       </div>
       {isModalOpen && (
-        <FormularioRegional isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} />
+        <FormularioRegional isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} setEvento={setEvento}/>
       )}
+      <div className='p-1'>
       <ListaRegionales searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
+      </div>
     </div>
   );
 };
