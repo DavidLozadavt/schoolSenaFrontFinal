@@ -83,7 +83,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
     },
     {
       accessorKey: 'representanteLegal',
-      header: () => 'Representante Legal',
+      header: () => 'Director general',
       meta: { className: 'min-w-[200px]' }
     },
     {

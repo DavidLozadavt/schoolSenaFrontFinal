@@ -116,7 +116,7 @@ const FormularioUpRegional: React.FC<Props> = ({
 
             {/* Representante Legal */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Representante Legal</label>
+              <label className="text-sm font-medium text-gray-700">Director General</label>
               <input
                 type="text"
                 {...formik.getFieldProps('representanteLegal')}

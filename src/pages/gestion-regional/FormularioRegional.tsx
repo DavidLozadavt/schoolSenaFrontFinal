@@ -20,7 +20,7 @@ interface FormValues {
 const validationSchema = Yup.object({
   razonSocial: Yup.string().required('La razón social es obligatoria'),
   nit: Yup.string().required('El NIT es obligatorio'),
-  representanteLegal: Yup.string().required('El representante legal es obligatorio'),
+  representanteLegal: Yup.string().required('El director general es obligatorio'),
   direccion: Yup.string().required('La dirección es obligatoria'),
   email: Yup.string().email('Email inválido').required('El email es obligatorio'),
   digitoVerificacion: Yup.number()
@@ -91,7 +91,7 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
 
           {/* Representante Legal */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Representante Legal</label>
+            <label className="text-sm font-medium text-gray-700">Director general</label>
             <input
               type="text"
               {...formik.getFieldProps('representanteLegal')}
