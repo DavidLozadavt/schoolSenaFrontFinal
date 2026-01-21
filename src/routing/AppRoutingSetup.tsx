@@ -101,6 +101,7 @@ import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
 import Regionales from '@/pages/gestion-regional/Regionales';
+import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion';
 
 // Componentes temporales para pruebas
 
@@ -926,6 +927,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_APRENDIZ']}>
                 <PerfilPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/centrosFormacion"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <CentrosFormacion />
               </ProtectedRoute>
             }
           />

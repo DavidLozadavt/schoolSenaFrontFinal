@@ -640,7 +640,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Gestión SENA',
+    title: 'Gestión Regional',
     icon: 'teacher',
     requiredPermissions: ['GESTION_REGIONAL'],
     children: [
@@ -654,6 +654,18 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gestion-academica/configuracion/programas',
         requiredPermissions: ['GESTION_APRENDIZ']
       }
+    ]
+  },
+  {
+    title: 'Gestión Centros',
+    icon: 'teacher',
+    requiredPermissions: ['GESTION_CENTROS_FORMACION'],
+    children: [
+      {
+        title: 'Gestión Centro Formación',
+        path: '/centrosFormacion',
+        requiredPermissions: ['GESTION_REGIONAL']
+      },
     ]
   },
   {
