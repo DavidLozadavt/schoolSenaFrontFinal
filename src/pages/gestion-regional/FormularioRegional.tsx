@@ -1,11 +1,18 @@
 import axios from 'axios';
 import { useFormik } from 'formik';
+import { useEffect, useState } from 'react';
 import * as Yup from 'yup';
+import Select from 'react-select';
 
 interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+interface Ciudades {
+  id: number;
+  descripcion: string;
 }
 
 interface FormValues {
@@ -15,6 +22,7 @@ interface FormValues {
   direccion: string;
   email: string;
   digitoVerificacion: number;
+  idCiudad: number;
 }
 
 const validationSchema = Yup.object({
@@ -25,7 +33,12 @@ const validationSchema = Yup.object({
   email: Yup.string().email('Email inválido').required('El email es obligatorio'),
   digitoVerificacion: Yup.number()
     .typeError('Debe ser un número')
-    .required('El dígito de verificación es obligatorio')
+    .min(1, 'Debe ser entre 1 y 9')
+    .max(9, 'Debe ser entre 1 y 9')
+    .required('El dígito de verificación es obligatorio'),
+  idCiudad: Yup.number()
+    .typeError('Debe seleccionar una ciudad')
+    .required('La ciudad es obligatoria')
 });
 
 const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
@@ -36,10 +49,11 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
       representanteLegal: '',
       direccion: '',
       email: '',
-      digitoVerificacion: 0
+      digitoVerificacion: 0,
+      idCiudad: null as any
     },
     validationSchema,
-    onSubmit: async (values,{setSubmitting}) => {
+    onSubmit: async (values, { setSubmitting }) => {
       try {
         await axios.post('regional', values);
 
@@ -48,11 +62,24 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
         setEvento((prev) => !prev);
       } catch (error: any) {
         alert(error.response?.data?.message || 'Error al guardar la empresa');
-      } finally{
+      } finally {
         setSubmitting(false);
       }
     }
   });
+  const [ciudades, setCiudades] = useState<Ciudades[]>([]);
+  useEffect(() => {
+    const loadData = async () => {
+      const res = await axios.get('ciudades');
+      setCiudades(res.data);
+    };
+    loadData();
+  }, []);
+
+  const options = ciudades.map((val) => ({
+    value: val.id,
+    label: val.descripcion
+  }));
 
   if (!isModalOpen) return null;
 
@@ -62,6 +89,20 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Crear regional</h2>
 
         <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4">
+          {/* Ciudad */}
+
+          <div>
+            <label className="text-sm font-medium text-gray-700">Ciudad</label>
+            <Select
+              options={options}
+              isClearable
+              placeholder="Seleccione una ciudad"
+              value={options.find((option) => option.value === formik.values.idCiudad) || null}
+              onChange={(option) => {
+                formik.setFieldValue('idCiudad', option ? option.value : null);
+              }}
+            />
+          </div>
           {/* Razón Social */}
           <div>
             <label className="text-sm font-medium text-gray-700">Razón Social</label>

@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import axios from 'axios';
+import Select from 'react-select';
 
 interface Props {
   idRegional: string;
@@ -11,6 +12,10 @@ interface Props {
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+interface Ciudades {
+  id: number;
+  descripcion: string;
+}
 interface FormValues {
   razonSocial: string;
   nit: string;
@@ -18,6 +23,7 @@ interface FormValues {
   direccion: string;
   email: string;
   digitoVerificacion: number;
+  idCiudad: number;
 }
 
 const validationSchema = Yup.object({
@@ -26,7 +32,14 @@ const validationSchema = Yup.object({
   representanteLegal: Yup.string(),
   direccion: Yup.string(),
   email: Yup.string().email('Email inválido'),
-  digitoVerificacion: Yup.number().typeError('Debe ser un número')
+  digitoVerificacion: Yup.number()
+    .typeError('Debe ser un número')
+    .min(1, 'Debe ser entre 1 y 9')
+    .max(9, 'Debe ser entre 1 y 9')
+    .required('El dígito de verificación es obligatorio'),
+  idCiudad: Yup.number()
+    .typeError('Debe seleccionar una ciudad')
+    .required('La ciudad es obligatoria')
 });
 
 const FormularioUpRegional: React.FC<Props> = ({
@@ -37,14 +50,15 @@ const FormularioUpRegional: React.FC<Props> = ({
   setEvento
 }) => {
   const formik = useFormik<FormValues>({
-    enableReinitialize: true, // 👈 IMPORTANTÍSIMO
+    enableReinitialize: true,
     initialValues: {
       razonSocial: '',
       nit: '',
       representanteLegal: '',
       direccion: '',
       email: '',
-      digitoVerificacion: 0
+      digitoVerificacion: 0,
+      idCiudad: null as any
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
@@ -83,6 +97,20 @@ const FormularioUpRegional: React.FC<Props> = ({
     loadRegional();
   }, [idRegional]);
 
+  const [ciudades, setCiudades] = useState<Ciudades[]>([]);
+  useEffect(() => {
+    const loadData = async () => {
+      const res = await axios.get('ciudades');
+      setCiudades(res.data);
+    };
+    loadData();
+  }, []);
+
+  const options = ciudades.map((val) => ({
+    value: val.id,
+    label: val.descripcion
+  }));
+
   if (!isModalOpen) return null;
   return (
     <div>
@@ -104,6 +132,20 @@ const FormularioUpRegional: React.FC<Props> = ({
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Editar regional</h2>
 
           <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4">
+            {/* Ciudad */}
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Ciudad</label>
+              <Select
+                options={options}
+                isClearable
+                placeholder="Seleccione una ciudad"
+                value={options.find((option) => option.value === formik.values.idCiudad) || null}
+                onChange={(option) => {
+                  formik.setFieldValue('idCiudad', option ? option.value : null);
+                }}
+              />
+            </div>
             {/* Razón Social */}
             <div>
               <label className="text-sm font-medium text-gray-700">Razón Social</label>
@@ -142,6 +184,18 @@ const FormularioUpRegional: React.FC<Props> = ({
                 {...formik.getFieldProps('email')}
                 className="w-full rounded-lg border px-3 py-2 text-sm"
               />
+            </div>
+            {/* Dígito de Verificación */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Dígito Verificación</label>
+              <input
+                type="number"
+                {...formik.getFieldProps('digitoVerificacion')}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.digitoVerificacion && formik.errors.digitoVerificacion && (
+                <p className="text-xs text-red-500">{formik.errors.digitoVerificacion}</p>
+              )}
             </div>
             <button
               type="submit"
