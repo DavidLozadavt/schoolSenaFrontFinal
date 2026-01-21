@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import FormularioRegional from './FormularioRegional';
 import ListaRegionales from './ListaRegionales';
-import axios from 'axios';
-import Select from 'react-select';
 
 interface Ciudades {
   id: number;
@@ -14,19 +12,6 @@ const Regionales = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
-  const [ciudades, setCiudades] = useState<Ciudades[]>([]);
-  useEffect(() => {
-    const loadData = async () => {
-      const res = await axios.get('ciudades');
-      setCiudades(res.data);
-    };
-    loadData();
-  }, []);
-
-  const options = ciudades.map((val) => ({
-    value: val.id,
-    label: val.descripcion
-  }));
   return (
     <div className="relative z-10 flex flex-col items-center w-full h-screen">
       {/** titulo */}
@@ -66,18 +51,6 @@ const Regionales = () => {
           </span>
         </button>
       </div>
-      <div className="flex items-center justify-between w-full max-w-5xl gap-6 px-4 py-3 mx-auto mb-8 bg-white rounded-lg shadow">
-        {/** Filtros */}
-        <div className="flex flex-col w-64">
-          <label className="mb-2 text-sm font-semibold text-gray-700">Filtro por ciudad</label>
-          <Select
-            options={options}
-            onChange={(e) => setSearchTerm(e?.label as string)}
-            className="text-sm"
-          />
-        </div>
-      </div>
-
       {isModalOpen && (
         <FormularioRegional
           isModalOpen={isModalOpen}
