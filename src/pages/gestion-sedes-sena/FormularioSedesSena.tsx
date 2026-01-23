@@ -44,9 +44,37 @@ interface FormValues {
 }
 
 const validationSchema = Yup.object({
-  nombre: Yup.string().required('El nombre es obligatorio'),
+  nombre: Yup.string()
+    .trim()
+    .min(3, 'Debe tener al menos 3 caracteres')
+    .max(100, 'Máximo 100 caracteres')
+    .required('El nombre es obligatorio'),
   ciudad: Yup.object().nullable().required('La ciudad es obligatoria'),
-  responsable: Yup.object().nullable().required('El responsable es obligatorio')
+
+  responsable: Yup.object().nullable().required('El responsable es obligatorio'),
+
+  empresa: Yup.object().nullable().required('La regional es obligatoria'),
+  jefeInmediato: Yup.string()
+    .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'Solo letras')
+    .nullable()
+    .required('El jefe inmediato es obligatorio'),
+  direccion: Yup.string()
+    .trim()
+    .min(5, 'Dirección muy corta')
+    .required('La dirección es obligatoria'),
+  descripcion: Yup.string()
+    .max(250, 'Máximo 250 caracteres')
+    .nullable()
+    .required('La descripción es obligatoria'),
+
+  email: Yup.string().email('Correo inválido').required('El correo es obligatorio'),
+  telefono: Yup.string()
+    .matches(/^[0-9]+$/, 'Solo números')
+    .min(7, 'Debe tener al menos 7 dígitos')
+    .max(10, 'Máximo 10 dígitos').required('El ctelefono es obligatorio'),
+  celular: Yup.string()
+    .matches(/^[0-9]+$/, 'Solo números')
+    .length(10, 'Debe tener 10 dígitos').required('El celular es obligatorio')
 });
 
 const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
@@ -154,13 +182,22 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
             {/* Ciudad */}
             <div>
               <label className="text-sm font-medium text-gray-700">Ciudad</label>
+
               <Select
                 options={options}
                 placeholder="Selecciona la ciudad..."
                 isClearable
                 value={formik.values.ciudad}
-                onChange={(value) => formik.setFieldValue('ciudad', value)}
+                onChange={(value) => {
+                  formik.setFieldValue('ciudad', value);
+                }}
+                onBlur={() => formik.setFieldTouched('ciudad', true)}
+                classNamePrefix="react-select"
               />
+
+              {formik.touched.ciudad && formik.errors.ciudad && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.ciudad}</p>
+              )}
             </div>
 
             {/* Regional */}
@@ -173,6 +210,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 value={formik.values.empresa}
                 onChange={(value) => formik.setFieldValue('empresa', value)}
               />
+              {formik.touched.empresa && formik.errors.empresa && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.empresa}</p>
+              )}
             </div>
 
             {/* Responsable de la Sede */}
@@ -185,6 +225,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 value={formik.values.responsable}
                 onChange={(value) => formik.setFieldValue('responsable', value)}
               />
+              {formik.touched.responsable && formik.errors.responsable && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.responsable}</p>
+              )}
             </div>
 
             {/* Imagen */}
@@ -208,9 +251,18 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
               <input
                 type="text"
                 {...formik.getFieldProps('nombre')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-            focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none
+                  ${
+                    formik.touched.nombre && formik.errors.nombre
+                      ? 'border-red-500'
+                      : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                  }
+                `}
               />
+
+              {formik.touched.nombre && formik.errors.nombre && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.nombre}</p>
+              )}
             </div>
 
             {/* Jefe inmediato */}
@@ -222,6 +274,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.jefeInmediato && formik.errors.jefeInmediato && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.jefeInmediato}</p>
+              )}
             </div>
 
             {/* Dirección */}
@@ -233,6 +288,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.direccion && formik.errors.direccion && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.direccion}</p>
+              )}
             </div>
             {/* Descripcion */}
             <div>
@@ -243,6 +301,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.descripcion && formik.errors.descripcion && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.descripcion}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -254,6 +315,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.email && formik.errors.email && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.email}</p>
+              )}
             </div>
 
             {/* Teléfono */}
@@ -265,6 +329,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.telefono && formik.errors.telefono && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.telefono}</p>
+              )}
             </div>
 
             {/* Celular */}
@@ -276,6 +343,9 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
             focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.celular && formik.errors.celular && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.celular}</p>
+              )}
             </div>
           </div>
 
