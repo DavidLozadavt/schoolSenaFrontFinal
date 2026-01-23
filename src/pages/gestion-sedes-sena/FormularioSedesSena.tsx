@@ -71,10 +71,12 @@ const validationSchema = Yup.object({
   telefono: Yup.string()
     .matches(/^[0-9]+$/, 'Solo números')
     .min(7, 'Debe tener al menos 7 dígitos')
-    .max(10, 'Máximo 10 dígitos').required('El ctelefono es obligatorio'),
+    .max(10, 'Máximo 10 dígitos')
+    .required('El ctelefono es obligatorio'),
   celular: Yup.string()
     .matches(/^[0-9]+$/, 'Solo números')
-    .length(10, 'Debe tener 10 dígitos').required('El celular es obligatorio')
+    .length(10, 'Debe tener 10 dígitos')
+    .required('El celular es obligatorio')
 });
 
 const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
