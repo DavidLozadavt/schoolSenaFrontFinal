@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { DataGrid, KeenIcon } from '@/components';
-import { ColumnDef } from '@tanstack/react-table';
+import { useNavigate } from 'react-router-dom';
+import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { ContratoInterface } from './model/ContratoInterface';
 import clsx from 'clsx';
+import { CommonAvatar } from '@/partials/common/CommonAvatar';
+import { User, Calendar, Folder, CreditCard, ChevronRight } from 'lucide-react';
 
 interface ContratosContentProps {
   reload: boolean;
@@ -15,195 +16,20 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   const [contratos, setContratos] = useState<ContratoInterface[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState(() => {
     return localStorage.getItem(storageFilterId) || '';
   });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleContrato = useCallback((id: number) => {
-    navigate(`/gestion-contratos/contratos/contrato`,  {state: id });
+    navigate(`/gestion-contratos/contratos/contrato`, { state: id });
   }, [navigate]);
-
-  const columns = useMemo<ColumnDef<ContratoInterface>[]>(
-    () => [
-      {
-        accessorFn: (row) => row.id,
-        id: 'id',
-        header: () => 'Código',
-        enableSorting: true,
-        cell: (info) => <span className="text-gray-700">{info.row.original.id}</span>,
-        meta: {
-          className: 'w-[80px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-      {
-        accessorFn: (row) => row.fechaContratacion,
-        id: 'fechaInicio',
-        header: () => 'Incio de Contrato',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.fechaContratacion}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[160px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-      {
-        accessorFn: (row) => row.fechaFinalContrato,
-        id: 'fechaFin',
-        header: () => 'Fin de Contrato',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.fechaFinalContrato}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[150px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-
-      {
-        accessorFn: (row) => row?.persona?.nombre1,
-        id: 'nombre',
-        header: () => 'Nombre',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.persona?.nombre1} {info.row.original.persona?.apellido1}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[200px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-      {
-        accessorFn: (row) => row.persona?.identificacion,
-        id: 'identificacion',
-        header: () => 'Identificación',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.persona?.identificacion}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[150px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-
-      {
-        accessorFn: (row) => row.salario?.rol.name,
-        id: 'rol',
-        header: () => 'Cargo',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.salario?.rol.name}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[150px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },{
-        accessorFn: (row) => row.area?.nombre,
-        id: 'rol',
-        header: () => 'Area',
-        enableSorting: true,
-        cell: (info) => (
-          <Link
-            className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-            to="#"
-          >
-            {info.row.original.area?.nombre}
-          </Link>
-        ),
-        meta: {
-          className: 'min-w-[140px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },
-
-      {
-        accessorFn: (row) => row.estado?.estado,
-        id: 'estado',
-        header: () => 'Estado',
-        enableSorting: true,
-        cell: (info) => {
-          const estado = info.row.original?.estado?.estado;
-      
-          return (
-            <Link
-              className="leading-none font-medium text-sm text-gray-900 hover:text-primary"
-              to="#"
-            >
-              <span
-                className={clsx('badge badge-outline', {
-                  'badge-danger': estado === 'INTERRUMPIDO',
-                  'badge-primary': estado === 'ACTIVO',
-                  'badge-warning': estado === 'ADICION DE CONTRATO',
-                
-                })}
-              >
-                {estado}
-              </span>
-            </Link>
-          );
-        },
-        meta: {
-          className: 'min-w-[110px]',
-          cellClassName: 'text-gray-700 font-normal'
-        }
-      },  
-
-
-      {
-        id: 'see',
-        header: () => '',
-        enableSorting: false,
-        cell: ({ row }) => (
-          <button
-            className="btn btn-sm btn-icon btn-clear btn-light"
-            onClick={() => handleContrato(row.original.id)}
-          >
-            <KeenIcon icon="eye" />
-          </button>
-        ),
-        meta: {
-          className: 'w-[55px]'
-        }
-      }
-     
-    ],
-    [handleContrato]
-  );
 
   useEffect(() => {
     localStorage.setItem(storageFilterId, searchTerm);
+    setCurrentPage(0);
   }, [searchTerm]);
 
   const fetchContratos = async () => {
@@ -222,65 +48,289 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     fetchContratos();
   }, [reload]);
 
-  const handleAfterSave = () => {
-    fetchContratos();
-    setIsModalOpen(false);
-  };
-
   const filteredData = useMemo(() => {
     if (!searchTerm) return contratos;
 
+    const searchLower = searchTerm.toLowerCase();
     return contratos.filter(
       (contrato) =>
-        contrato.fechaContratacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato?.fechaFinalContrato?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato.persona?.nombre1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato.persona?.apellido1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato.persona?.identificacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato.estado?.estado.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contrato.salario?.rol.name.toLowerCase().includes(searchTerm.toLowerCase())
+        contrato.persona?.nombre1?.toLowerCase().includes(searchLower) ||
+        contrato.persona?.apellido1?.toLowerCase().includes(searchLower) ||
+        contrato.persona?.identificacion?.toLowerCase().includes(searchLower) ||
+        contrato.id?.toString().includes(searchLower) ||
+        contrato.estado?.estado?.toLowerCase().includes(searchLower) ||
+        contrato.salario?.rol?.name?.toLowerCase().includes(searchLower)
     );
   }, [searchTerm, contratos]);
 
-  if (loading) {
-    return <div>Cargando...</div>;
-  }
+  // Paginación
+  const pageCount = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = currentPage * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = filteredData.slice(startIndex, endIndex);
 
-  if (error) {
-    return <div>{error}</div>;
-  }
+  const handlePageClick = (event: { selected: number }) => {
+    setCurrentPage(event.selected);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  return (
-    <div className="card card-grid min-w-full">
-      <div className="card-header flex-wrap py-5">
-        <h3 className="card-title">Contratos</h3>
-        <div className="flex gap-6">
-          <div className="relative">
-            <KeenIcon
-              icon="magnifier"
-              className="leading-none text-md text-gray-500 absolute top-1/2 left-0 -translate-y-1/2 ml-3"
-            />
-            <input
-              type="text"
-              placeholder="Buscar Contratos"
-              className="input input-sm pl-8"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getEstadoBadgeClass = (estado: string | undefined) => {
+    if (!estado) return 'badge-success';
+    const estadoUpper = estado.toUpperCase();
+    if (estadoUpper === 'ACTIVO') return 'badge-success';
+    if (estadoUpper === 'INTERRUMPIDO') return 'badge-danger';
+    if (estadoUpper === 'ADICION DE CONTRATO' || estadoUpper.includes('ADICION')) return 'badge-warning';
+    return 'badge-success';
+  };
+
+  const getNombreCompleto = (contrato: ContratoInterface) => {
+    const nombre1 = contrato.persona?.nombre1 || '';
+    const nombre2 = contrato.persona?.nombre2 || '';
+    const apellido1 = contrato.persona?.apellido1 || '';
+    const apellido2 = contrato.persona?.apellido2 || '';
+    return `${nombre1} ${nombre2} ${apellido1} ${apellido2}`.trim().toUpperCase();
+  };
+
+  const renderItem = (contrato: ContratoInterface, index: number) => {
+    const estado = contrato.estado?.estado || 'ACTIVO';
+    const nombreCompleto = getNombreCompleto(contrato);
+    const fotoUrl = contrato.persona?.rutaFotoUrl;
+
+    return (
+      <div
+        key={contrato.id || index}
+        className="card cursor-pointer hover:shadow-xl transition-all duration-300 group hover:scale-[1.02]"
+        onClick={() => handleContrato(contrato.id!)}
+      >
+        <div className="card-body p-6">
+          {/* Header con avatar, nombre y estado */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Avatar cuadrado con bordes redondeados */}
+              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center border border-gray-200">
+                {fotoUrl ? (
+                  <CommonAvatar
+                    className="w-full h-full"
+                    image={fotoUrl}
+                    imageClass="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <User className="w-6 h-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                  {nombreCompleto}
+                </h4>
+              </div>
+            </div>
+            <span
+              className={clsx(
+                'badge shrink-0 text-xs font-medium',
+                estado.toUpperCase() === 'ACTIVO'
+                  ? 'bg-green-50 text-green-600 border border-green-200'
+                  : 'badge-outline ' + getEstadoBadgeClass(estado)
+              )}
+            >
+              {estado}
+            </span>
+          </div>
+
+          {/* Código del contrato */}
+          <div className="mb-4">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Código:</span> {contrato.id}
+            </p>
+          </div>
+
+          {/* Información con iconos */}
+          <div className="space-y-2.5 mb-4">
+            {/* Identificación */}
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <CreditCard className="w-4 h-4 text-gray-500 shrink-0" />
+              <span className="truncate text-sm">
+                {contrato.persona?.identificacion || 'N/A'}
+              </span>
+            </div>
+
+            {/* Rol */}
+            {contrato.salario?.rol?.name && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <User className="w-4 h-4 text-gray-500 shrink-0" />
+                <span className="truncate text-sm">{contrato.salario.rol.name}</span>
+              </div>
+            )}
+
+            {/* Área/Departamento */}
+            {contrato.area?.nombre && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Folder className="w-4 h-4 text-gray-500 shrink-0" />
+                <span className="truncate text-sm">{contrato.area.nombre}</span>
+              </div>
+            )}
+
+            {/* Fechas */}
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+              <span className="truncate text-sm">
+                {formatDate(contrato.fechaContratacion)} -{' '}
+                {contrato.fechaFinalContrato
+                  ? formatDate(contrato.fechaFinalContrato)
+                  : 'Indefinido'}
+              </span>
+            </div>
+          </div>
+
+          {/* Link ver más */}
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-active transition-colors duration-300 w-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleContrato(contrato.id!);
               }}
-            />
+            >
+              Ver más información
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
+    );
+  };
 
-      <div className="card-body">
-        <DataGrid
-          key={JSON.stringify(filteredData)}
-          columns={columns}
-          data={filteredData}
-          pagination={{ size: 10 }}
-        />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-gray-500">Cargando contratos...</div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-danger">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-w-full">
+      {/* Header con búsqueda */}
+      <div className="mb-6">
+        <div className="relative">
+          <KeenIcon
+            icon="magnifier"
+            className="leading-none text-md text-gray-500 absolute top-1/2 left-0 -translate-y-1/2 ml-3 z-10"
+          />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, identificación o código..."
+            className="input input-sm pl-10 w-full max-w-md"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Grid de tarjetas */}
+      {currentData.length === 0 ? (
+        <div className="card card-grid">
+          <div className="card-body text-center py-12">
+            <p className="text-gray-500">No se encontraron contratos</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-7.5">
+            {currentData.map((contrato, index) => renderItem(contrato, index))}
+          </div>
+
+          {/* Paginación */}
+          <div className="card-footer mt-3 justify-center md:justify-between flex-col md:flex-row gap-3 text-gray-600 text-2sm font-medium">
+            <div className="flex items-center gap-2">
+              Mostrando
+              <select
+                className="select select-sm w-16"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(0);
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              Por página
+            </div>
+            <div className="flex items-center gap-4 order-1 md:order-2">
+              <span>
+                {startIndex + 1} - {Math.min(endIndex, filteredData.length)} de {filteredData.length}
+              </span>
+              <div className="pagination flex gap-2">
+                <button
+                  className="btn"
+                  disabled={currentPage === 0}
+                  onClick={() => handlePageClick({ selected: currentPage - 1 } as any)}
+                >
+                  <KeenIcon icon="left" />
+                </button>
+                {Array.from({ length: Math.min(5, pageCount) }, (_, i) => {
+                  let pageNum;
+                  if (pageCount <= 5) {
+                    pageNum = i;
+                  } else if (currentPage < 3) {
+                    pageNum = i;
+                  } else if (currentPage > pageCount - 4) {
+                    pageNum = pageCount - 5 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={clsx('btn', {
+                        'btn-primary': currentPage === pageNum,
+                        'btn-light': currentPage !== pageNum
+                      })}
+                      onClick={() => handlePageClick({ selected: pageNum } as any)}
+                    >
+                      {pageNum + 1}
+                    </button>
+                  );
+                })}
+                <button
+                  className="btn"
+                  disabled={currentPage >= pageCount - 1}
+                  onClick={() => handlePageClick({ selected: currentPage + 1 } as any)}
+                >
+                  <KeenIcon icon="right" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
