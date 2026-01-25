@@ -15,6 +15,7 @@ export interface ContratoInterface {
   sueldo?: string;
 
   persona?: {
+    id?: number;
     nombre1: string;
     nombre2: string;
     apellido1: string;
@@ -26,6 +27,8 @@ export interface ContratoInterface {
     sexo: string;
     rh: string;
     celular: string;
+    telefonoFijo?: string;
+    rutaFotoUrl?: string;
   };
   estado?: {
     estado: string;
@@ -40,6 +43,7 @@ export interface ContratoInterface {
   };
 
   area?:{
+    id?: string | number;
     nombre?: string;
   };
   
@@ -61,4 +65,42 @@ export interface ContratoInterface {
 
   archivoContrato?:any
   otrosContratos?:any
+
+  // Seguridad Social
+  pension?: {
+    id?: number;
+    nombre?: string;
+  };
+  salud?: {
+    id?: number;
+    nombre?: string;
+  };
+  arl?: {
+    id?: number;
+    nombre?: string;
+  };
+  cajaCompensacion?: {
+    id?: number;
+    nombre?: string;
+  };
+  cesantias?: {
+    id?: number;
+    nombre?: string;
+  };
+
+  // Información Académica
+  idNivelEducativo?: number;
+  nivelEducativo?: {
+    id?: number;
+    nombre?: string;
+  };
+  areasConocimiento?: Array<{
+    id?: number;
+    nombreAreaConocimiento?: string;
+  }>;
+  programas?: Array<{
+    id?: number;
+    nombrePrograma?: string;
+    codigoPrograma?: string;
+  }>;
 }
