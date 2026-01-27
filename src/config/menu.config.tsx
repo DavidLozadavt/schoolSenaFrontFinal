@@ -671,6 +671,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/sedesSena',
         requiredPermissions: ['GESTION_REGIONAL']
       },
+      {
+        title: 'Gestión fichas',
+        path: '/fichas',
+        requiredPermissions: ['GESTION_REGIONAL']
+      },
     ]
   },
   {
