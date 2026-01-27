@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Program } from '../types';
 import { AsignarTiposDocumentoModal } from './documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './documentos/VerDocumentosFichaModal';
+import MallaCurricular from './malla-curricular/MallaCurricular';
+import { DocumentosProgramaModal } from './documentos';
 
 interface Ficha {
   id: number;
@@ -37,6 +39,8 @@ export const ProgramacionFichasModal = ({
   const [asignarFicha, setAsignarFicha] = useState<Ficha | null>(null);
   const [verFicha, setVerFicha] = useState<Ficha | null>(null);
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
+  const [isMallaOpen, setIsMallaOpen] = useState(false);
+  const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -217,6 +221,24 @@ export const ProgramacionFichasModal = ({
                             <div className="flex gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-coal-100">
                               <button
                                 type="button"
+                                onClick={() => setIsMallaOpen(true)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                              >
+                                <i className="ki-outline ki-book-open text-sm"></i>
+                                Malla
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsDocumentosOpen(true)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                              >
+                                <i className="ki-outline ki-files text-sm"></i>
+                                Documentos
+                              </button>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
                                 onClick={() => setAsignarFicha(ficha)}
                                 className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
                               >
@@ -320,6 +342,18 @@ export const ProgramacionFichasModal = ({
         isOpen={!!verFicha}
         onClose={() => setVerFicha(null)}
         ficha={verFicha}
+      />
+
+      <MallaCurricular
+        isOpen={isMallaOpen}
+        onClose={() => setIsMallaOpen(false)}
+        program={program}
+      />
+
+      <DocumentosProgramaModal
+        isOpen={isDocumentosOpen}
+        onClose={() => setIsDocumentosOpen(false)}
+        program={program}
       />
     </>
   );

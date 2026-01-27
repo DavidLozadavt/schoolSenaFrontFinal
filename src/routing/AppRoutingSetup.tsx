@@ -97,6 +97,7 @@ import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
+import { ProgramacionFichasPage } from '@/pages/programas-academicos/ProgramacionFichasPage';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
@@ -776,6 +777,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/programas/:programId/fichas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ProgramacionFichasPage />
               </ProtectedRoute>
             }
           />
