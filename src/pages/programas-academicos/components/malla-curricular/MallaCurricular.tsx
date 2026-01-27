@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MallaCurricularProps } from '../../types';
 import AsignarMateria from './AsignarMateria';
+import { AsignarTiposDocumentoModal } from '../documentos/AsignarTiposDocumentoModal';
+import { VerDocumentosFichaModal } from '../documentos/VerDocumentosFichaModal';
 
 interface Recurso {
   id: number;
@@ -42,6 +44,10 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
 
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState('');
+  const [fichas, setFichas] = useState<any[]>([]);
+  const [loadingFichas, setLoadingFichas] = useState(false);
+  const [asignarTiposFicha, setAsignarTiposFicha] = useState<any | null>(null);
+  const [verDocsFicha, setVerDocsFicha] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchConfiguracion = async () => {
@@ -60,8 +66,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           // SINCRONIZACIÓN INICIAL CON LA BASE DE DATOS
           if (data.detalle) {
             setSelectedPeriodo(data.detalle.idPeriodo);
-            // Priorizamos idTipoGrado del objeto programa para el selector
-            setSelectedTipoGrado(data.detalle.programa.idTipoGrado || '');
+            // Priorizamos idTipoGrado del objeto programa para el selector (puede no existir)
+            setSelectedTipoGrado(data.detalle.programa?.idTipoGrado || data.detalle.programa?.tipo_grado?.id || '');
           }
         } catch (error: any) {
           console.error("Error cargando malla:", error);
@@ -73,6 +79,26 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     };
 
     fetchConfiguracion();
+  }, [isOpen, program?.id]);
+
+  useEffect(() => {
+    const fetchFichas = async () => {
+      if (!isOpen || !program?.id) return;
+      setLoadingFichas(true);
+      try {
+        const res = await axios.get(`programa/${program.id}/fichas`);
+        if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
+          setFichas(res.data.data);
+        } else {
+          setFichas([]);
+        }
+      } catch {
+        setFichas([]);
+      } finally {
+        setLoadingFichas(false);
+      }
+    };
+    fetchFichas();
   }, [isOpen, program?.id]);
 
   if (!isOpen || !program) return null;
@@ -140,7 +166,10 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
             <div className="p-4 mb-6 border border-danger/30 bg-danger/10 rounded-xl text-danger text-center font-bold text-xs uppercase italic animate-pulse">
               <i className="ki-outline ki-information-2 mr-2"></i> {errorApi}
             </div>
-          ) : (
+          ) : null}
+
+          {!errorApi ? (
+            <>
             <div className="flex flex-col items-stretch justify-between gap-4 p-4 mb-6 bg-white border border-gray-300 shadow-sm xl:flex-row dark:bg-coal-300 rounded-xl dark:border-gray-dark-100">
               <div className="grid flex-grow grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-2">
 
@@ -210,7 +239,53 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                 </button>
               </div>
             </div>
-          )}
+
+          {/* Fichas del programa – Asignar líder (flujo separado de documentos) */}
+          <div className="mb-6">
+            <h4 className="mb-3 text-xs font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3">
+              Fichas del programa
+            </h4>
+            {loadingFichas ? (
+              <div className="flex justify-center py-6">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : fichas.length === 0 ? (
+              <p className="py-4 text-sm italic text-gray-500 dark:text-gray-400">
+                No hay fichas para este programa.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {fichas.map((f) => (
+                  <div
+                    key={f.id}
+                    className="flex flex-wrap items-center justify-between gap-2 p-4 rounded-xl border border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-300"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800 dark:text-white">
+                        {f.grado?.nombreGrado ?? `Ficha #${f.id}`}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAsignarTiposFicha(f)}
+                        className="px-2 py-1 text-xs font-bold uppercase rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                      >
+                        Asignar tipos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVerDocsFicha(f)}
+                        className="px-2 py-1 text-xs font-bold uppercase rounded-lg bg-gray-200 dark:bg-coal-400 text-gray-700 dark:text-gray-200 hover:bg-gray-300"
+                      >
+                        Ver documentos
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Grid de Niveles Académicos */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -238,6 +313,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
               </div>
             ))}
           </div>
+            </>
+          ) : null}
         </div>
 
         {/* Footer */}
@@ -256,6 +333,18 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
       </div>
 
       <AsignarMateria isOpen={isMateriaModalOpen} onClose={() => setIsMateriaModalOpen(false)} nivelId={selectedNivelId} />
+
+      <AsignarTiposDocumentoModal
+        isOpen={!!asignarTiposFicha}
+        onClose={() => setAsignarTiposFicha(null)}
+        onSave={() => setAsignarTiposFicha(null)}
+        ficha={asignarTiposFicha}
+      />
+      <VerDocumentosFichaModal
+        isOpen={!!verDocsFicha}
+        onClose={() => setVerDocsFicha(null)}
+        ficha={verDocsFicha}
+      />
     </div>
   );
 };
