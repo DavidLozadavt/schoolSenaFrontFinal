@@ -226,6 +226,9 @@ const ContratacionPage = () => {
   const [entidadesCesantias, setEntidadesCesantias] = useState<any[]>([]);
   const [entidadesCajaCompensacion, setEntidadesCajaCompensacion] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [nivelesEducativos, setNivelesEducativos] = useState<any[]>([]);
+  const [areasConocimiento, setAreasConocimiento] = useState<any[]>([]);
+  const [selectedAreasConocimiento, setSelectedAreasConocimiento] = useState<number[]>([]);
   const [formDataUbicacion, setFormDataUbicacion] = useState<PersonaInterface>({
     departamentoU: '',
     ciudadU: '',
@@ -279,7 +282,8 @@ const ContratacionPage = () => {
     idActividadRiesgo: '',
     idTarifaRiesgo: '',
     tipoSalario: '',
-    idGrupoNomina: ''
+    idGrupoNomina: '',
+    idNivelEducativo: ''
   });
 
   const steps = [
@@ -318,7 +322,11 @@ const ContratacionPage = () => {
     const { name } = e.target;
     let { value } = e.target;
 
-    value = value.toUpperCase();
+    // No convertir a mayúsculas los campos numéricos (IDs)
+    const numericFields = ['idciudadNac', 'departamento', 'idtipoIdentificacion'];
+    if (!numericFields.includes(name)) {
+      value = value.toUpperCase();
+    }
 
     const error = validateFieldPersona(name, value);
 
@@ -333,7 +341,16 @@ const ContratacionPage = () => {
     }));
 
     if (name === 'departamento') {
-      fetchCiudades(value);
+      // Limpiar ciudades anteriores y ciudad seleccionada cuando cambia el departamento
+      setCiudades([]);
+      setFormDataPersona((prevData) => ({
+        ...prevData,
+        idciudadNac: ''
+      }));
+      // Llamar a fetchCiudades con el valor como número
+      if (value) {
+        fetchCiudades(Number(value));
+      }
     }
   };
 
@@ -571,7 +588,9 @@ const ContratacionPage = () => {
           idTipoCotizante: formDataContrato.idTipoCotizante,
           idSubTipoCotizante: formDataContrato.idSubTipoCotizante,
           tipoSalario: formDataContrato.tipoSalario,
-          idGrupoNomina: formDataContrato.idGrupoNomina
+          idGrupoNomina: formDataContrato.idGrupoNomina,
+          idNivelEducativo: formDataContrato.idNivelEducativo,
+          areasConocimiento: selectedAreasConocimiento
         };
 
         axios
@@ -693,8 +712,11 @@ const ContratacionPage = () => {
       tipoComisiones: '',
       idActividadRiesgo: '',
       idTarifaRiesgo: '',
-      tipoSalario: ''
+      tipoSalario: '',
+      idGrupoNomina: '',
+      idNivelEducativo: ''
     });
+    setSelectedAreasConocimiento([]);
     setFotoUrl('');
     setSelectedFiles({});
     setSelectedFilePersona(null);
@@ -977,12 +999,19 @@ const ContratacionPage = () => {
 
   const fetchCiudades = async (idDepartamento: number) => {
     try {
+      if (!idDepartamento || idDepartamento === 0) {
+        setCiudades([]);
+        return;
+      }
       const response = await axios.get(`ciudades/departamento/${idDepartamento}`);
-      setCiudades(response.data);
+      if (response.data && Array.isArray(response.data)) {
+        setCiudades(response.data);
+      } else {
+        setCiudades([]);
+      }
     } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+      console.error('Error al cargar ciudades:', error);
+      setCiudades([]);
     }
   };
 
@@ -1005,6 +1034,30 @@ const ContratacionPage = () => {
       console.error('Error fetching areas:', error);
     }
   };
+
+  const fetchNivelesEducativos = async () => {
+    try {
+      const response = await axios.get('programas_recursos_crear');
+      if (response.data?.data?.niveles_educativos) {
+        setNivelesEducativos(response.data.data.niveles_educativos);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const fetchAreasConocimiento = async () => {
+    try {
+      const response = await axios.get('areas_conocimiento');
+      if (response.data) {
+        setAreasConocimiento(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error('Error al cargar áreas de conocimiento:', error);
+      setAreasConocimiento([]);
+    }
+  };
+
 
   const [tarifas, setTarifas] = useState<any[]>([]);
 
@@ -1142,6 +1195,8 @@ const ContratacionPage = () => {
     fetchGruposNomina();
     fetchTarifas();
     fetchRiesgos();
+    fetchNivelesEducativos();
+    fetchAreasConocimiento();
   }, []);
 
   return (
@@ -1174,275 +1229,304 @@ const ContratacionPage = () => {
       <Container>
         {loading && <Spinner />}
 
-        <div data-stepper="true">
+        <div data-stepper="true" className="max-w-5xl mx-auto">
           <div className="card">
-            <div className="card-header flex justify-between items-center gap-4 py-6">
-              {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className={`flex gap-2.5 items-center ${currentStep === step.id ? 'active' : ''}`}
-                >
-                  <div
-                    className={`rounded-full size-10 flex items-center justify-center text-md font-semibold ${
-                      currentStep === step.id
-                        ? 'bg-primary text-primary-inverse'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {currentStep > step.id ? (
-                      <i className="ki-outline ki-check text-xl"></i>
-                    ) : (
-                      step.id
+            {/* Indicador de progreso horizontal */}
+            <div className="card-header border-b border-gray-200 py-4 px-8">
+              <div className="flex items-center">
+                {steps.map((step, index) => (
+                  <React.Fragment key={step.id}>
+                    <div className="flex items-center flex-shrink-0">
+                      <div
+                        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${
+                          currentStep === step.id
+                            ? 'bg-primary text-white'
+                            : currentStep > step.id
+                            ? 'bg-success text-white'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}
+                      >
+                        {currentStep > step.id ? (
+                          <i className="ki-outline ki-check text-sm"></i>
+                        ) : (
+                          step.id
+                        )}
+                      </div>
+                      <div className="ml-2 flex flex-col">
+                        <span
+                          className={`text-xs font-medium whitespace-nowrap ${
+                            currentStep === step.id
+                              ? 'text-primary'
+                              : currentStep > step.id
+                              ? 'text-gray-700'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {step.title}
+                        </span>
+                        <span
+                          className={`text-xs whitespace-nowrap ${
+                            currentStep >= step.id ? 'text-gray-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {step.subtitle}
+                        </span>
+                      </div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-4 min-w-[60px] ${
+                          currentStep > step.id ? 'bg-primary' : 'bg-gray-200'
+                        }`}
+                      />
                     )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <h4
-                      className={`text-sm font-medium ${currentStep >= step.id ? 'text-gray-900' : 'text-gray-600'}`}
-                    >
-                      {step.title}
-                    </h4>
-                    <span
-                      className={`text-2sm ${currentStep >= step.id ? 'text-gray-700' : 'text-gray-400'}`}
-                    >
-                      {step.subtitle}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
 
-            <div className="card-body py-8">
+            <div className="card-body py-5 px-8">
               {currentStep === 1 && (
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-5">Información Personal</h2>
                   <form>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Tipo Identificación *
-                        </label>
-                        <select
-                          name="idtipoIdentificacion"
-                          value={formDataPersona.idtipoIdentificacion}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una Opción</option>
-                          {tipoIdentificaciones.map((tipoIdentificacion) => (
-                            <option key={tipoIdentificacion.id} value={tipoIdentificacion.id}>
-                              {tipoIdentificacion.codigo}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.idtipoIdentificacion && (
-                          <p className="text-red-500 text-sm mt-1">{errors.idtipoIdentificacion}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Identificación *</label>
-                        <input
-                          type="text"
-                          name="identificacion"
-                          placeholder="Ingrese su identificación"
-                          value={formDataPersona.identificacion}
-                          onChange={handleChangeFormPerson}
-                          onBlur={() => fetchContrato(formDataPersona.identificacion)}
-                          className={`input ${errors.identificacion ? 'border-red-500' : ''}`}
-                        />
-                        {errors.identificacion && (
-                          <p className="text-red-500 text-sm mt-1">{errors.identificacion}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
-                        <input
-                          type="text"
-                          name="nombre1"
-                          placeholder="Ingrese su primer nombre"
-                          value={formDataPersona.nombre1}
-                          onChange={handleChangeFormPerson}
-                          className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
-                        />
-                        {errors.nombre1 && (
-                          <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Segundo Nombre</label>
-                        <input
-                          type="text"
-                          placeholder="Ingrese su segundo nombre"
-                          name="nombre2"
-                          value={formDataPersona.nombre2}
-                          onChange={handleChangeFormPerson}
-                          className="input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
-                        <input
-                          type="text"
-                          name="apellido1"
-                          placeholder="Ingrese su primer apellido"
-                          value={formDataPersona.apellido1}
-                          onChange={handleChangeFormPerson}
-                          className="input"
-                        />{' '}
-                        {errors.apellido1 && (
-                          <p className="text-red-500 text-sm mt-1">{errors.apellido1}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Segundo Apellido</label>
-                        <input
-                          type="text"
-                          name="apellido2"
-                          placeholder="Ingrese su segundo apellido"
-                          value={formDataPersona.apellido2}
-                          onChange={handleChangeFormPerson}
-                          className="input"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Sexo *</label>
-                        <select
-                          name="sexo"
-                          value={formDataPersona.sexo}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una Opción</option>
-
-                          <option value="F">FEMENINO</option>
-                          <option value="M">MASCULINO</option>
-                          <option value="O">OTRO</option>
-                        </select>
-                        {errors.sexo && <p className="text-red-500 text-sm mt-1">{errors.sexo}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Rh *</label>
-                        <select
-                          name="rh"
-                          value={formDataPersona.rh}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una Opción</option>
-
-                          <option value="A+">A POSITIVO</option>
-                          <option value="A-">A NEGATIVO</option>
-                          <option value="AB+">AB POSTITIVO</option>
-                          <option value="AB-">AB NEGATIVO</option>
-                          <option value="B+">B POSITIVO</option>
-                          <option value="B-">B NEGATIVO</option>
-                          <option value="O+">O POSITIVO</option>
-                          <option value="O-">O NEGATIVO</option>
-                        </select>
-                        {errors.rh && <p className="text-red-500 text-sm mt-1">{errors.rh}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Departamento de Nacimiento *
-                        </label>
-                        <select
-                          name="departamento"
-                          value={formDataPersona.departamento}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione un departamento</option>
-                          {departamentos.map((departamento) => (
-                            <option key={departamento.id} value={departamento.id}>
-                              {departamento.descripcion} - {departamento.codigo}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.departamento && (
-                          <p className="text-red-500 text-sm mt-1">{errors.departamento}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Ciudad de Nacimiento *
-                        </label>
-                        <select
-                          name="idciudadNac"
-                          value={formDataPersona.idciudadNac}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una ciudad</option>
-                          {ciudades.map((ciudad) => (
-                            <option key={ciudad.id} value={ciudad.id}>
-                              {ciudad.descripcion} - {ciudad.codigo}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.idciudadNac && (
-                          <p className="text-red-500 text-sm mt-1">{errors.idciudadNac}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Fecha de Nacimiento *
-                        </label>
-                        <input
-                          type="date"
-                          name="fechaNac"
-                          value={formDataPersona.fechaNac}
-                          onChange={handleChangeFormPerson}
-                          className="input"
-                          max={new Date().toISOString().split('T')[0]}
-                        />
-
-                        {errors.fechaNac && (
-                          <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Foto *</label>
-
-                        {!selectedFilePersona && !fotoUrl ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 gap-x-8">
+                      {/* Columna Izquierda */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Tipo de Documento *
+                          </label>
+                          <select
+                            name="idtipoIdentificacion"
+                            value={formDataPersona.idtipoIdentificacion}
+                            onChange={handleChangeFormPerson}
+                            className="select text-sm h-9 w-full"
+                          >
+                            <option value="">Seleccione una opción</option>
+                            {tipoIdentificaciones.map((tipoIdentificacion) => (
+                              <option key={tipoIdentificacion.id} value={tipoIdentificacion.id}>
+                                {tipoIdentificacion.codigo}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.idtipoIdentificacion && (
+                            <p className="text-red-500 text-xs mt-1">{errors.idtipoIdentificacion}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Primer Nombre *
+                          </label>
                           <input
-                            type="file"
-                            name="rutaFoto"
-                            onChange={handleFilePersonaChange}
-                            className="file-input"
+                            type="text"
+                            name="nombre1"
+                            placeholder="Ingrese el primer nombre"
+                            value={formDataPersona.nombre1}
+                            onChange={handleChangeFormPerson}
+                            className={`input text-sm h-9 w-full ${errors.nombre1 ? 'border-red-500' : ''}`}
                           />
-                        ) : selectedFilePersona ? (
-                          <div className="flex items-center">
-                            <p className="text-sm input flex justify-between w-full items-center">
-                              {selectedFilePersona.name}
-                              <span
-                                onClick={handleFilePersonaDelete}
-                                className="ml-2 cursor-pointer"
-                              >
+                          {errors.nombre1 && (
+                            <p className="text-red-500 text-xs mt-1">{errors.nombre1}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Primer Apellido *
+                          </label>
+                          <input
+                            type="text"
+                            name="apellido1"
+                            placeholder="Ingrese el primer apellido"
+                            value={formDataPersona.apellido1}
+                            onChange={handleChangeFormPerson}
+                            className={`input text-sm h-9 w-full ${errors.apellido1 ? 'border-red-500' : ''}`}
+                          />
+                          {errors.apellido1 && (
+                            <p className="text-red-500 text-xs mt-1">{errors.apellido1}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Fecha de Nacimiento *
+                          </label>
+                          <input
+                            type="date"
+                            name="fechaNac"
+                            value={formDataPersona.fechaNac}
+                            onChange={handleChangeFormPerson}
+                            className={`input text-sm h-9 w-full ${errors.fechaNac ? 'border-red-500' : ''}`}
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                          {errors.fechaNac && (
+                            <p className="text-red-500 text-xs mt-1">{errors.fechaNac}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Departamento de Nacimiento *
+                          </label>
+                          <select
+                            name="departamento"
+                            value={formDataPersona.departamento}
+                            onChange={handleChangeFormPerson}
+                            className="select text-sm h-9 w-full"
+                          >
+                            <option value="">Seleccione un departamento</option>
+                            {departamentos.map((departamento) => (
+                              <option key={departamento.id} value={departamento.id}>
+                                {departamento.descripcion} - {departamento.codigo}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.departamento && (
+                            <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Grupo Sanguíneo *
+                          </label>
+                          <select
+                            name="rh"
+                            value={formDataPersona.rh}
+                            onChange={handleChangeFormPerson}
+                            className="select text-sm h-9 w-full"
+                          >
+                            <option value="">Seleccione una opción</option>
+                            <option value="A+">A POSITIVO</option>
+                            <option value="A-">A NEGATIVO</option>
+                            <option value="AB+">AB POSTITIVO</option>
+                            <option value="AB-">AB NEGATIVO</option>
+                            <option value="B+">B POSITIVO</option>
+                            <option value="B-">B NEGATIVO</option>
+                            <option value="O+">O POSITIVO</option>
+                            <option value="O-">O NEGATIVO</option>
+                          </select>
+                          {errors.rh && <p className="text-red-500 text-xs mt-1">{errors.rh}</p>}
+                        </div>
+                      </div>
+
+                      {/* Columna Derecha */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Número de Documento *
+                          </label>
+                          <input
+                            type="text"
+                            name="identificacion"
+                            placeholder="Ingrese el número de documento"
+                            value={formDataPersona.identificacion}
+                            onChange={handleChangeFormPerson}
+                            onBlur={() => fetchContrato(formDataPersona.identificacion)}
+                            className={`input text-sm h-9 w-full ${errors.identificacion ? 'border-red-500' : ''}`}
+                          />
+                          {errors.identificacion && (
+                            <p className="text-red-500 text-xs mt-1">{errors.identificacion}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Segundo Nombre
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ingrese el segundo nombre"
+                            name="nombre2"
+                            value={formDataPersona.nombre2}
+                            onChange={handleChangeFormPerson}
+                            className="input text-sm h-9 w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Segundo Apellido
+                          </label>
+                          <input
+                            type="text"
+                            name="apellido2"
+                            placeholder="Ingrese el segundo apellido"
+                            value={formDataPersona.apellido2}
+                            onChange={handleChangeFormPerson}
+                            className="input text-sm h-9 w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Género *
+                          </label>
+                          <select
+                            name="sexo"
+                            value={formDataPersona.sexo}
+                            onChange={handleChangeFormPerson}
+                            className="select text-sm h-9 w-full"
+                          >
+                            <option value="">Seleccione una opción</option>
+                            <option value="F">FEMENINO</option>
+                            <option value="M">MASCULINO</option>
+                            <option value="O">OTRO</option>
+                          </select>
+                          {errors.sexo && <p className="text-red-500 text-xs mt-1">{errors.sexo}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                            Ciudad de Nacimiento *
+                          </label>
+                          <select
+                            name="idciudadNac"
+                            value={formDataPersona.idciudadNac}
+                            onChange={handleChangeFormPerson}
+                            className="select text-sm h-9 w-full"
+                          >
+                            <option value="">Seleccione una ciudad</option>
+                            {ciudades.map((ciudad) => (
+                              <option key={ciudad.id} value={ciudad.id}>
+                                {ciudad.descripcion} - {ciudad.codigo}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.idciudadNac && (
+                            <p className="text-red-500 text-xs mt-1">{errors.idciudadNac}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto *</label>
+                          {!selectedFilePersona && !fotoUrl ? (
+                            <input
+                              type="file"
+                              name="rutaFoto"
+                              onChange={handleFilePersonaChange}
+                              className="file-input"
+                            />
+                          ) : selectedFilePersona ? (
+                            <div className="flex items-center">
+                              <p className="text-sm input flex justify-between w-full items-center">
+                                {selectedFilePersona.name}
+                                <span
+                                  onClick={handleFilePersonaDelete}
+                                  className="ml-2 cursor-pointer"
+                                >
+                                  <KeenIcon icon="trash" />
+                                </span>
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <img
+                                src={fotoUrl}
+                                alt="Foto cargada"
+                                className="w-24 h-24 object-cover rounded mr-4 border"
+                              />
+                              <span onClick={() => setFotoUrl('')} className="ml-2 cursor-pointer">
                                 <KeenIcon icon="trash" />
                               </span>
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <img
-                              src={fotoUrl}
-                              alt="Foto cargada"
-                              className="w-24 h-24 object-cover rounded mr-4 border"
-                            />
-                            <span onClick={() => setFotoUrl('')} className="ml-2 cursor-pointer">
-                              <KeenIcon icon="trash" />
-                            </span>
-                          </div>
-                        )}
-
-                        {errors['rutaFoto'] && (
-                          <p className="text-red-500 text-sm mt-1">{errors['rutaFoto']}</p>
-                        )}
+                            </div>
+                          )}
+                          {errors['rutaFoto'] && (
+                            <p className="text-red-500 text-xs mt-1">{errors['rutaFoto']}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </form>
@@ -1554,6 +1638,7 @@ const ContratacionPage = () => {
               )}
               {currentStep === 3 && (
                 <div>
+                  {/* 1. Fechas y Configuración */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                     <div>
                       <label className="block text-sm font-medium mb-2">
@@ -1620,7 +1705,8 @@ const ContratacionPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                  {/* 2. Información Laboral */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Área</label>
                       <select
@@ -1706,7 +1792,7 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo de Salario </label>
+                      <label className="block text-sm font-medium mb-2">Tipo de Salario *</label>
                       <select
                         name="tipoSalario"
                         value={formDataContrato.tipoSalario}
@@ -1720,33 +1806,11 @@ const ContratacionPage = () => {
                           </option>
                         ))}
                       </select>
-                       {errorsContrato.tipoSalario && (
+                      {errorsContrato.tipoSalario && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.tipoSalario}</p>
                       )}
                     </div>
 
-
-                      <div>
-                      <label className="block text-sm font-medium mb-2">Grupo </label>
-                      <select
-                        name="idGrupoNomina"
-                        value={formDataContrato.idGrupoNomina}
-                        onChange={handleChangeFormContrato}
-                        className="select w-4/4 mr-2"
-                      >
-                        <option value="">Seleccione una Opción</option>
-                           {gruposNomina.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.nombreGrupo} 
-                            </option>
-                          ))}
-                      </select>
-                       {errorsContrato.idGrupoNomina && (
-                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                     <div>
                       <label className="block text-sm font-medium mb-2">Periodo de Pago *</label>
                       <select
@@ -1766,36 +1830,67 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium mb-2">Grupo</label>
+                      <select
+                        name="idGrupoNomina"
+                        value={formDataContrato.idGrupoNomina}
+                        onChange={handleChangeFormContrato}
+                        className="select w-4/4 mr-2"
+                      >
+                        <option value="">Seleccione una Opción</option>
+                        {gruposNomina.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.nombreGrupo}
+                          </option>
+                        ))}
+                      </select>
+                      {errorsContrato.idGrupoNomina && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
+                    <div>
                       <label className="block text-sm font-medium mb-2">Objeto contrato *</label>
                       <textarea
                         rows={5}
                         name="objetoContrato"
-                        placeholder="Ingrese el objeto de contrato"
+                        placeholder="Describa el objeto del contrato (máximo 500 caracteres)"
                         value={formDataContrato.objetoContrato}
                         onChange={handleChangeFormContrato}
                         className="textarea"
+                        maxLength={500}
                       ></textarea>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formDataContrato.objetoContrato?.length || 0}/500 caracteres
+                      </p>
                       {errorsContrato.objetoContrato && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.objetoContrato}</p>
                       )}
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium mb-2">Observación</label>
-
                       <textarea
                         className="textarea"
                         name="observacion"
-                        placeholder="Ingrese una obervacion "
+                        placeholder="Observaciones adicionales (máximo 500 caracteres)"
                         value={formDataContrato.observacion}
                         onChange={handleChangeFormContrato}
                         rows={5}
+                        maxLength={500}
                       ></textarea>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formDataContrato.observacion?.length || 0}/500 caracteres
+                      </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                  {/* 3. Seguridad Social */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo Cotizante</label>
+                      <label className="block text-sm font-medium mb-2">Tipo Cotizante *</label>
                       <div className="flex items-center">
                         <select
                           name="idTipoCotizante"
@@ -1803,14 +1898,14 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {tiposCotizante.map((tipo) => (
                             <option key={tipo.id} value={tipo.id}>
                               {tipo.codigo} - {tipo.tipoCotizante}
                             </option>
                           ))}
                         </select>
-                      </div>{' '}
+                      </div>
                       {errorsContrato.idTipoCotizante && (
                         <p className="text-red-500 text-sm mt-1">
                           {errorsContrato.idTipoCotizante}
@@ -1819,7 +1914,7 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Sub Tipo Cotizante</label>
+                      <label className="block text-sm font-medium mb-2">Sub Tipo Cotizante *</label>
                       <div className="flex items-center">
                         <select
                           name="idSubTipoCotizante"
@@ -1827,7 +1922,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {subTiposCotizante.map((tipo) => (
                             <option key={tipo.id} value={tipo.id}>
                               {tipo.codigo} - {tipo.nombreSubTipo}
@@ -1838,14 +1933,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Pensión</label>
+                      <label className="block text-sm font-medium mb-2">Pensión *</label>
                       <select
                         name="idPension"
                         value={formDataContrato.idPension}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesPension.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1855,14 +1950,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Salud</label>
+                      <label className="block text-sm font-medium mb-2">Salud *</label>
                       <select
                         name="idSalud"
                         value={formDataContrato.idSalud}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesEPS.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1872,14 +1967,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Arl</label>
+                      <label className="block text-sm font-medium mb-2">ARL *</label>
                       <select
                         name="idArl"
                         value={formDataContrato.idArl}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesArl.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1889,14 +1984,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Riesgo Arl</label>
+                      <label className="block text-sm font-medium mb-2">Riesgo ARL *</label>
                       <select
                         name="idTarifaRiesgo"
                         value={formDataContrato.idTarifaRiesgo}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {tarifas.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nivel} - {res.porcentajeCotizacion}%
@@ -1916,7 +2011,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {riesgos.map((res) => (
                             <option key={res.id} value={res.id}>
                               {res.codigo} - {res.clase}
@@ -1933,14 +2028,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Caja de Compensación</label>
+                      <label className="block text-sm font-medium mb-2">Caja de Compensación *</label>
                       <select
                         name="idCajaCompensacion"
                         value={formDataContrato.idCajaCompensacion}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesCajaCompensacion.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1950,14 +2045,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Cesantías </label>
+                      <label className="block text-sm font-medium mb-2">Cesantías</label>
                       <select
                         name="idCesantias"
                         value={formDataContrato.idCesantias}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione una opción</option>
                         {entidadesCesantias.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1965,10 +2060,13 @@ const ContratacionPage = () => {
                         ))}
                       </select>
                     </div>
+                  </div>
 
+                  {/* 4. Información Bancaria */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Tipo de Cuenta Bancaria{' '}
+                        Tipo de Cuenta *
                       </label>
                       <select
                         name="tipoCuentaBancaria"
@@ -1976,7 +2074,7 @@ const ContratacionPage = () => {
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {tiposCuentaBancaria.map((tipo, index) => (
                           <option key={index} value={tipo}>
                             {tipo}
@@ -1984,11 +2082,9 @@ const ContratacionPage = () => {
                         ))}
                       </select>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-3">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Banco</label>
+                      <label className="block text-sm font-medium mb-2">Banco *</label>
                       <div className="flex items-center">
                         <select
                           name="idBanco"
@@ -1996,7 +2092,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {bancos.map((res) => (
                             <option key={res.id} value={res.id}>
                               {res.nombre}
@@ -2017,7 +2113,7 @@ const ContratacionPage = () => {
                       <input
                         type="text"
                         name="numeroCuentaBancaria"
-                        placeholder="Ingrese el número de cuenta"
+                        placeholder="Número de cuenta"
                         value={formDataContrato.numeroCuentaBancaria}
                         onChange={handleChangeFormContrato}
                         className="input"
@@ -2033,86 +2129,197 @@ const ContratacionPage = () => {
                       <label className="block text-sm font-medium mb-2">
                         Observación Preocupacional
                       </label>
-
                       <textarea
                         className="textarea"
                         name="observacionPreocupacional"
-                        placeholder="Ingrese una obervación preocupacional "
+                        placeholder="Observaciones preocupacionales (máximo 500 caracteres)"
                         value={formDataContrato.observacionPreocupacional}
                         onChange={handleChangeFormContrato}
                         rows={5}
+                        maxLength={500}
                       ></textarea>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formDataContrato.observacionPreocupacional?.length || 0}/500 caracteres
+                      </p>
                     </div>
+                  </div>
 
+                  {/* 5. Información Adicional */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo Comisión</label>
+                      <label className="block text-sm font-medium mb-2">Tipo Comisión *</label>
                       <select
                         name="tipoComisiones"
                         value={formDataContrato.tipoComisiones}
                         onChange={handleChangeFormContrato}
                         className="select"
                       >
-                        <option value="">Seleccione una Opción</option>
-
+                        <option value="">Seleccione</option>
                         <option value="ESCALA DE VENTAS">ESCALA DE VENTAS</option>
                         <option value="PORCENTAJE FIJO">PORCENTAJE FIJO</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 mb-2 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Nivel Educativo *</label>
+                      {nivelesEducativos && nivelesEducativos.length > 0 ? (
+                        <>
+                          <div className="flex flex-wrap gap-2">
+                            {nivelesEducativos.map((nivel) => {
+                              const isSelected = formDataContrato.idNivelEducativo === nivel.id || formDataContrato.idNivelEducativo === String(nivel.id);
+                              return (
+                                <button
+                                  key={nivel.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormDataContrato((prev) => ({
+                                      ...prev,
+                                      idNivelEducativo: nivel.id
+                                    }));
+                                  }}
+                                  className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                                    isSelected
+                                      ? 'bg-blue-50 border-primary text-primary font-semibold'
+                                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                                  }`}
+                                >
+                                  {nivel.nombre}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-500 p-2">Cargando niveles educativos...</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Áreas de Conocimiento</label>
+                      <div className="flex flex-wrap gap-2">
+                        {areasConocimiento && areasConocimiento.length > 0 ? areasConocimiento.map((area) => {
+                          const isSelected = selectedAreasConocimiento.includes(area.id);
+                          return (
+                            <button
+                              key={area.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedAreasConocimiento(selectedAreasConocimiento.filter(id => id !== area.id));
+                                } else {
+                                  setSelectedAreasConocimiento([...selectedAreasConocimiento, area.id]);
+                                }
+                              }}
+                              className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                                isSelected
+                                  ? 'bg-blue-50 border-primary text-primary font-semibold'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                              }`}
+                            >
+                              {area.nombreAreaConocimiento}
+                            </button>
+                          );
+                        }) : (
+                          <p className="text-xs text-gray-500 p-2">Cargando áreas de conocimiento...</p>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {selectedAreasConocimiento.length} área(s) seleccionada(s)
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
               {currentStep === 4 && (
                 <div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                    {documentosContratos.map((documento) => (
-                      <div key={documento.id} className="mb-1">
-                        <label className="block text-sm font-medium mb-1">
-                          {documento.tipoDocumento.tituloDocumento} *
-                        </label>
-                        {!selectedFiles[documento.id] ? (
-                          <input
-                            type="file"
-                            name={`file-${documento.id}`}
-                            onChange={(e) => handleFileChange(e, documento.id)}
-                            className="file-input"
-                          />
-                        ) : (
-                          <div className="flex items-center">
-                            <p className="text-sm input flex justify-between w-full items-center">
-                              {selectedFiles[documento.id]?.name}
-                              <span
-                                onClick={() => handleFileDelete(documento.id)}
-                                className="ml-auto cursor-pointer"
-                              >
-                                <KeenIcon icon="trash" />
-                              </span>
-                            </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                    {documentosContratos.map((documento) => {
+                      const isRequired = documento.obligatorio !== false;
+                      const hasFile = selectedFiles[documento.id];
+                      const fileName = hasFile ? selectedFiles[documento.id]?.name : '';
+                      
+                      return (
+                        <div
+                          key={documento.id}
+                          className="bg-gray-50 rounded-lg p-3 border border-gray-200 relative"
+                        >
+                          {/* Ícono de nube en la esquina superior derecha */}
+                          <div className="absolute top-2 right-2">
+                            <i className="ki-outline ki-cloud text-success text-base"></i>
                           </div>
-                        )}
 
-                        {fileErrors[documento.id] && (
-                          <p className="text-red-500 text-xs mt-1">Este documento es requerido.</p>
-                        )}
-                      </div>
-                    ))}
+                          {/* Título */}
+                          <div className="mb-2 pr-6">
+                            <label className="block text-xs font-bold text-gray-800">
+                              {documento.tipoDocumento?.tituloDocumento || documento.tituloDocumento}
+                              {isRequired && <span className="text-red-500 ml-1">*</span>}
+                            </label>
+                          </div>
+
+                          {/* Área de selección de archivo */}
+                          {!hasFile ? (
+                            <label className="block cursor-pointer">
+                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors bg-white">
+                                <input
+                                  type="file"
+                                  name={`file-${documento.id}`}
+                                  onChange={(e) => handleFileChange(e, documento.id)}
+                                  className="hidden"
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                />
+                                <p className="text-xs text-gray-500">
+                                  Haga clic para seleccionar archivo
+                                </p>
+                              </div>
+                            </label>
+                          ) : (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-white">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-700 truncate">
+                                    {fileName}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleFileDelete(documento.id)}
+                                  className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                                  type="button"
+                                >
+                                  <KeenIcon icon="trash" className="text-sm" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Mensaje de error */}
+                          {fileErrors[documento.id] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              Este documento es requerido.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="card-footer py-4 flex justify-between">
+            <div className="card-footer py-3 px-6 border-t border-gray-200 flex justify-between">
               <button
-                className={`btn btn-light ${currentStep === 1 ? 'hidden' : ''}`}
+                className={`btn btn-light text-sm py-2 px-4 ${currentStep === 1 ? 'hidden' : ''}`}
                 onClick={handleBack}
               >
                 Anterior
               </button>
               {currentStep < steps.length ? (
-                <button className="btn btn-light" onClick={handleNext}>
+                <button className="btn btn-primary text-sm py-2 px-4" onClick={handleNext}>
                   Siguiente
                 </button>
               ) : (
-                <button onClick={handleSaveContrato} className="btn btn-primary">
+                <button onClick={handleSaveContrato} className="btn btn-primary text-sm py-2 px-4">
                   Guardar
                 </button>
               )}
