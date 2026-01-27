@@ -45,10 +45,16 @@ interface FormValues {
   idRegional: number;
   estado: string;
   idSede: number;
-  fechaInicialClases: string;
-  fechaFinalClases: string;
   idJornada: number;
   codigo: string;
+  fechaInicialClases: string;
+  fechaFinalClases: string;
+  fechaInicialPlanMejoramiento: string;
+  fechaFinalPlanMejoramiento: string;
+  fechaInicialInscripciones: string;
+  fechaFinalInscripciones: string;
+  fechaInicialMatriculas: string;
+  fechaFinalMatriculas: string;
 }
 
 const validationSchema = Yup.object({
@@ -114,7 +120,38 @@ const validationSchema = Yup.object({
     .typeError('Debe seleccionar una jornada')
     .required('Debe seleccionar una jornada'),
 
-  codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres')
+  codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
+
+  fechaInicialPlanMejoramiento: Yup.string().required(
+    'La fecha inicial del plan de mejoramiento es obligatoria'
+  ),
+
+  fechaFinalPlanMejoramiento: Yup.string()
+    .required('La fecha final del plan de mejoramiento es obligatoria')
+    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+      const { fechaInicialPlanMejoramiento } = this.parent;
+      return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
+    }),
+
+  fechaInicialInscripciones: Yup.string().required(
+    'La fecha inicial de inscripciones es obligatoria'
+  ),
+
+  fechaFinalInscripciones: Yup.string()
+    .required('La fecha final de inscripciones es obligatoria')
+    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+      const { fechaInicialInscripciones } = this.parent;
+      return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
+    }),
+
+  fechaInicialMatriculas: Yup.string().required('La fecha inicial de matrículas es obligatoria'),
+
+  fechaFinalMatriculas: Yup.string()
+    .required('La fecha final de matrículas es obligatoria')
+    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+      const { fechaInicialMatriculas } = this.parent;
+      return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
+    })
 });
 
 const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
@@ -130,7 +167,13 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
       fechaInicialClases: '',
       fechaFinalClases: '',
       idJornada: 0,
-      codigo: ''
+      codigo: '',
+      fechaInicialPlanMejoramiento: '',
+      fechaFinalPlanMejoramiento: '',
+      fechaInicialInscripciones: '',
+      fechaFinalInscripciones: '',
+      fechaInicialMatriculas: '',
+      fechaFinalMatriculas: ''
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
@@ -256,12 +299,12 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
                 options={optionsRegionales}
                 placeholder="Seleccione la regional"
                 isClearable
-                value={optionsPeriodos.find((o) => o.value === formik.values.idRegional)}
+                value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
                 onChange={(option) => formik.setFieldValue('idRegional', option?.value || 0)}
                 onBlur={() => formik.setFieldTouched('idRegional', true)}
               />
-              {formik.touched.idPeriodo && formik.errors.idPeriodo && (
-                <p className="text-red-500 text-xs">{formik.errors.idPeriodo}</p>
+              {formik.touched.idRegional && formik.errors.idRegional && (
+                <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
               )}
             </div>
 
@@ -382,6 +425,114 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
               {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
               )}
+            </div>
+            {/* Fecha inicial inscripciones */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Fecha inicio de inscripciones
+              </label>
+              <input
+                type="date"
+                name="fechaInicialInscripciones"
+                value={formik.values.fechaInicialInscripciones}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaInicialInscripciones &&
+                formik.errors.fechaInicialInscripciones && (
+                  <p className="text-red-500 text-xs">{formik.errors.fechaInicialInscripciones}</p>
+                )}
+            </div>
+
+            {/* Fecha final inscripciones */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Fecha final de inscripciones
+              </label>
+              <input
+                type="date"
+                name="fechaFinalInscripciones"
+                value={formik.values.fechaFinalInscripciones}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaFinalInscripciones && formik.errors.fechaFinalInscripciones && (
+                <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>
+              )}
+            </div>
+            {/* Fecha inicial matrículas */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Fecha inicio de matrículas
+              </label>
+              <input
+                type="date"
+                name="fechaInicialMatriculas"
+                value={formik.values.fechaInicialMatriculas}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaInicialMatriculas && formik.errors.fechaInicialMatriculas && (
+                <p className="text-red-500 text-xs">{formik.errors.fechaInicialMatriculas}</p>
+              )}
+            </div>
+
+            {/* Fecha final matrículas */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Fecha final de matrículas</label>
+              <input
+                type="date"
+                name="fechaFinalMatriculas"
+                value={formik.values.fechaFinalMatriculas}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && (
+                <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
+              )}
+            </div>
+            {/* Fecha inicial plan de mejoramiento */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Fecha inicio plan de mejoramiento
+              </label>
+              <input
+                type="date"
+                name="fechaInicialPlanMejoramiento"
+                value={formik.values.fechaInicialPlanMejoramiento}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaInicialPlanMejoramiento &&
+                formik.errors.fechaInicialPlanMejoramiento && (
+                  <p className="text-red-500 text-xs">
+                    {formik.errors.fechaInicialPlanMejoramiento}
+                  </p>
+                )}
+            </div>
+
+            {/* Fecha final plan de mejoramiento */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Fecha final plan de mejoramiento
+              </label>
+              <input
+                type="date"
+                name="fechaFinalPlanMejoramiento"
+                value={formik.values.fechaFinalPlanMejoramiento}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.fechaFinalPlanMejoramiento &&
+                formik.errors.fechaFinalPlanMejoramiento && (
+                  <p className="text-red-500 text-xs">{formik.errors.fechaFinalPlanMejoramiento}</p>
+                )}
             </div>
           </div>
 
