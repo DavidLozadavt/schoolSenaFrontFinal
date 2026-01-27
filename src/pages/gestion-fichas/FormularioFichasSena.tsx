@@ -9,6 +9,8 @@ interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowToast:(showToast:boolean) => void;
+  setMessageToast:(messageToast:string) => void;
 }
 
 interface Jornada {
@@ -154,7 +156,7 @@ const validationSchema = Yup.object({
     })
 });
 
-const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
+const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento, setShowToast, setMessageToast }) => {
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
@@ -183,8 +185,8 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
         );
 
         await axios.post('fichas', payload);
-
-        alert('ficha creada correctamente');
+        setMessageToast('Ficha creada')
+        setShowToast(true);
         setEvento((prev) => !prev);
       } catch (error: any) {
         alert(error.response?.data?.message || 'Error al actualizar la ficha');
