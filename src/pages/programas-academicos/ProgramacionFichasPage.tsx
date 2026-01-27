@@ -5,22 +5,38 @@ import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTipos
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
+import CrearFicha from './components/CrearFicha';
 
 interface Ficha {
   id: number;
-  idPrograma: number;
-  idGrado: number;
-  cupos: number;
-  grado: {
+  codigo: string;
+  porcentajeEjecucion: number;
+
+  jornada?: {
     id: number;
-    nombreGrado: string;
-    numeroGrado: number;
-  } | null;
-  programa: {
+    nombreJornada: string;
+  };
+
+  sede?: {
     id: number;
-    nombrePrograma: string;
-    codigoPrograma: string;
-  } | null;
+    nombre: string;
+  };
+
+  regional?: {
+    id: number;
+    razonSocial: string;
+  };
+
+  asignacion?: {
+    id: number;
+    estado: string;
+    fechaInicialClases: string;
+    fechaFinalClases: string;
+    programa?: {
+      id: number;
+      nombrePrograma: string;
+    };
+  };
 }
 
 interface Program {
@@ -35,7 +51,7 @@ interface Program {
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
-  
+
   const [program, setProgram] = useState<Program | null>(null);
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,10 +60,13 @@ export const ProgramacionFichasPage = () => {
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  //Creacion de ficha:
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const loadProgram = async () => {
     if (!programId) return;
@@ -62,7 +81,7 @@ export const ProgramacionFichasPage = () => {
             codigo: p.codigoPrograma,
             nivel: p.nivel?.nombreNivel || 'N/A',
             formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
-            status: p.estado?.nombre || 'ACTIVO',
+            status: p.estado?.nombre || 'ACTIVO'
           });
         }
       }
@@ -75,8 +94,8 @@ export const ProgramacionFichasPage = () => {
     if (!programId) return;
     setLoading(true);
     try {
-      const res = await axios.get(`/programa/${programId}/fichas`);
-      if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
+      const res = await axios.get(`fichas/programa/${programId}`);
+      if (res.status === 200) {
         setFichas(res.data.data);
       } else {
         setFichas([]);
@@ -115,11 +134,17 @@ export const ProgramacionFichasPage = () => {
         {/* Breadcrumbs */}
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
           <nav className="text-sm text-gray-600 dark:text-gray-400">
-            <span className="hover:text-primary cursor-pointer" onClick={() => navigate('/gestion-academica/configuracion/programas')}>
+            <span
+              className="hover:text-primary cursor-pointer"
+              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+            >
               Programas
             </span>
             <span className="mx-2">/</span>
-            <span className="hover:text-primary cursor-pointer" onClick={() => navigate('/gestion-academica/configuracion/programas')}>
+            <span
+              className="hover:text-primary cursor-pointer"
+              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+            >
               Gestión de programas
             </span>
             <span className="mx-2">/</span>
@@ -168,11 +193,19 @@ export const ProgramacionFichasPage = () => {
             <button
               type="button"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+              onClick={() => setIsModalOpen(true)}
             >
               <i className="ki-outline ki-plus text-lg"></i>
               Crear Ficha
             </button>
           </div>
+          {isModalOpen && (
+            <CrearFicha
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
+              programaId={programId}
+            />
+          )}
 
           {loading ? (
             <div className="flex justify-center py-12">
@@ -209,30 +242,46 @@ export const ProgramacionFichasPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                                  {ficha.grado?.nombreGrado ?? `Ficha ${ficha.id}`}
+                                  Ficha {ficha.codigo}
                                 </h3>
-                                <span className={`px-2 py-1 text-xs font-bold uppercase rounded ${
-                                  ficha.id % 4 === 0 
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' 
-                                    : 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-                                }`}>
-                                  {ficha.id % 4 === 0 ? 'En formación' : 'Activa'}
+                                <span
+                                  className={`px-2 py-1 text-xs font-bold uppercase rounded ${
+                                    ficha.asignacion?.estado === 'EN CURSO'
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                                  }`}
+                                >
+                                  {ficha.asignacion?.estado || 'N/A'}
                                 </span>
                               </div>
-                              
+
                               {/* Información en fila */}
                               <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-calendar text-xs"></i>
-                                  <span>Inicio: —</span>
+                                  <span>
+                                    Inicio:{' '}
+                                    {ficha.asignacion?.fechaInicialClases
+                                      ? new Date(
+                                          ficha.asignacion.fechaInicialClases
+                                        ).toLocaleDateString()
+                                      : '—'}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-calendar-tick text-xs"></i>
-                                  <span>Fin: —</span>
+                                  <span>
+                                    Fin:{' '}
+                                    {ficha.asignacion?.fechaFinalClases
+                                      ? new Date(
+                                          ficha.asignacion.fechaFinalClases
+                                        ).toLocaleDateString()
+                                      : '—'}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-time text-xs"></i>
-                                  <span>Jornada: —</span>
+                                  <span>Jornada: {ficha.jornada?.nombreJornada || '—'}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-clock text-xs"></i>
@@ -244,7 +293,7 @@ export const ProgramacionFichasPage = () => {
                             {/* Líder y Botón Asignar */}
                             <div className="flex items-center gap-3">
                               <span className="text-sm text-gray-600 dark:text-gray-400">
-                                Sin líder asignado
+                                {ficha.idInstructorLider ? 'Líder asignado' : 'Sin líder asignado'}
                               </span>
                               <button
                                 type="button"
@@ -260,7 +309,9 @@ export const ProgramacionFichasPage = () => {
                               onClick={() => toggleExpandirFicha(ficha.id)}
                               className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                             >
-                              <i className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}></i>
+                              <i
+                                className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}
+                              ></i>
                             </button>
                           </div>
                         </div>
@@ -271,75 +322,55 @@ export const ProgramacionFichasPage = () => {
                         <div className="px-4 pb-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
                           <div className="pt-4 grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Sede</p>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Sede
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.sede?.nombre || '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Jornada
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.jornada?.nombreJornada || '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Fecha de inicio
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.asignacion?.fechaInicialClases
+                                  ? new Date(
+                                      ficha.asignacion.fechaInicialClases
+                                    ).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Fecha de Finalización
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.asignacion?.fechaFinalClases
+                                  ? new Date(ficha.asignacion.fechaFinalClases).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Horario de inicio
+                              </p>
                               <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Jornada</p>
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                                Horario de Finalización
+                              </p>
                               <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
                             </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Fecha de inicio</p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Fecha de Finalización</p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de inicio</p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de Finalización</p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                            </div>
-                          </div>
-                          
-                          {/* Botones de Acción */}
-                          <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-coal-100">
-                            <button
-                              type="button"
-                              onClick={() => setIsMallaOpen(true)}
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500 hover:text-white transition-colors flex items-center gap-2"
-                            >
-                              <i className="ki-outline ki-book-open"></i>
-                              Malla
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsDocumentosOpen(true)}
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition-colors flex items-center gap-2"
-                            >
-                              <i className="ki-outline ki-files"></i>
-                              Documentos
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setAsignarFicha(ficha)}
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
-                            >
-                              Asignar tipos
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setVerFicha(ficha)}
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-gray-200 dark:bg-coal-400 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-coal-300 transition-colors"
-                            >
-                              Ver documentos
-                            </button>
-                            <button
-                              type="button"
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white transition-colors ml-auto"
-                            >
-                              Actualizar Ficha
-                            </button>
-                            <button
-                              type="button"
-                              className="px-4 py-2 text-xs font-bold uppercase rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                            >
-                              Eliminar Ficha
-                            </button>
                           </div>
                         </div>
                       )}
@@ -352,7 +383,9 @@ export const ProgramacionFichasPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-600 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Mostrando</span>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                      Mostrando
+                    </span>
                     <select
                       value={itemsPerPage}
                       onChange={(e) => {

@@ -1,16 +1,13 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
-import { ESTADOS_APERTURA } from './estados';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 
 interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
-  setEvento: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowToast:(showToast:boolean) => void;
-  setMessageToast:(messageToast:string) => void;
+  programaId: string | undefined;
 }
 
 interface Jornada {
@@ -43,9 +40,7 @@ interface Regionales {
 interface FormValues {
   observacion: string;
   idPeriodo: number;
-  idPrograma: number;
   idRegional: number;
-  estado: string;
   idSede: number;
   idJornada: number;
   codigo: string;
@@ -66,42 +61,9 @@ const validationSchema = Yup.object({
     .typeError('Debe seleccionar un periodo')
     .required('Debe seleccionar un periodo'),
 
-  idPrograma: Yup.number()
-    .typeError('Debe seleccionar un programa')
-    .required('Debe seleccionar un programa'),
-
   idRegional: Yup.number()
     .typeError('Debe seleccionar una regional')
     .required('Debe seleccionar una regional'),
-
-  estado: Yup.string()
-    .required('Debe seleccionar un estado')
-    .oneOf(
-      [
-        'ACTIVO',
-        'INACTIVO',
-        'OCULTO',
-        'PENDIENTE',
-        'RECHAZADO',
-        'APROBADO',
-        'CANCELADO',
-        'REPROBADO',
-        'CERRADO',
-        'ACEPTADO',
-        'LEIDO',
-        'EN ESPERA',
-        'INSCRIPCION',
-        'MATRICULADO',
-        'ABIERTO',
-        'EN CURSO',
-        'POR ACTUALIZAR',
-        'CURSANDO',
-        'ENTREVISTA',
-        'SIN ENTREVISTA',
-        'JUSTIFICADO'
-      ],
-      'Estado inválido'
-    ),
 
   idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
 
@@ -125,11 +87,11 @@ const validationSchema = Yup.object({
   codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
   fechaInicialPlanMejoramiento: Yup.string().required(
-    'La fecha inicial del plan de mejoramiento es obligatoria'
+    'La fecha inicial de la etapa productiva es obligatoria'
   ),
 
   fechaFinalPlanMejoramiento: Yup.string()
-    .required('La fecha final del plan de mejoramiento es obligatoria')
+    .required('La fecha final de la etapa productiva es obligatoria')
     .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
       const { fechaInicialPlanMejoramiento } = this.parent;
       return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
@@ -156,15 +118,13 @@ const validationSchema = Yup.object({
     })
 });
 
-const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento, setShowToast, setMessageToast }) => {
+const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }) => {
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
       observacion: '',
       idPeriodo: 0,
-      idPrograma: 0,
       idRegional: 0,
-      estado: '',
       idSede: 0,
       fechaInicialClases: '',
       fechaFinalClases: '',
@@ -180,14 +140,20 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        const payload = Object.fromEntries(
+        const filteredValues = Object.fromEntries(
           Object.entries(values).filter(([_, value]) => value !== '' && value !== 0)
         );
 
+        // Agregar idPrograma al payload
+        const payload = {
+          ...filteredValues,
+          idPrograma: Number(programaId)
+        };
+
+        console.log(payload);
+
+        // Enviar al backend
         await axios.post('fichas', payload);
-        setMessageToast('Ficha creada')
-        setShowToast(true);
-        setEvento((prev) => !prev);
       } catch (error: any) {
         alert(error.response?.data?.message || 'Error al actualizar la ficha');
       } finally {
@@ -199,21 +165,18 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [sedes, setSedes] = useState<Sedes[]>([]);
-  const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
   useEffect(() => {
     const loadData = async () => {
-      const [jornadaRes, periodosRes, sedesRes, programasRes, regionalesRes] = await Promise.all([
+      const [jornadaRes, periodosRes, sedesRes, regionalesRes] = await Promise.all([
         axios.get('jornadas/agrupadas'),
         axios.get('periodos'),
         axios.get('sedesSena'),
-        axios.get('programas'),
         axios.get('regional')
       ]);
       setJornadas(jornadaRes.data.data);
       setPeriodos(periodosRes.data);
       setSedes(sedesRes.data);
-      setProgramas(programasRes.data.data);
       setRegionales(regionalesRes.data);
     };
     loadData();
@@ -231,10 +194,6 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
   const optionsSedes = sedes.map((val) => ({
     value: val.id,
     label: val.nombre
-  }));
-  const optionsProgramas = programas.map((val) => ({
-    value: val.id,
-    label: val.nombrePrograma
   }));
   const optionsRegionales = regionales.map((val) => ({
     value: val.id,
@@ -260,6 +219,47 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
 
         <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Información académica</h3>
+            </div>
+            {/* Código */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Código de la ficha</label>
+              <input
+                type="text"
+                name="codigo"
+                value={formik.values.codigo}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              />
+              {formik.touched.codigo && formik.errors.codigo && (
+                <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
+              )}
+            </div>
+            {/** Observación */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Observación</label>
+              <textarea
+                name="observacion"
+                value={formik.values.observacion}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                rows={4}
+                maxLength={1000}
+                className="w-full rounded-lg border px-3 py-2 text-sm resize-y"
+                placeholder="Escriba la observación (máx. 1000 caracteres)"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>
+                  {formik.touched.observacion && formik.errors.observacion && (
+                    <span className="text-red-500">{formik.errors.observacion}</span>
+                  )}
+                </span>
+                <span>{formik.values.observacion.length}/1000</span>
+              </div>
+            </div>
+
             {/* Jornada */}
             <div>
               <label className="text-sm font-medium text-gray-700">Jornada</label>
@@ -293,6 +293,10 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
                 <p className="text-red-500 text-xs">{formik.errors.idPeriodo}</p>
               )}
             </div>
+            {/* Ubicación */}
+            <div className="md:col-span-2 mt-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Ubicación</h3>
+            </div>
             {/* Regional */}
             <div>
               <label className="text-sm font-medium text-gray-700">Regional</label>
@@ -307,39 +311,6 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
               />
               {formik.touched.idRegional && formik.errors.idRegional && (
                 <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
-              )}
-            </div>
-
-            {/* Programa */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Programa</label>
-              <Select
-                options={optionsProgramas}
-                placeholder="Seleccione el programa"
-                isClearable
-                value={optionsProgramas.find((o) => o.value === formik.values.idPrograma)}
-                onChange={(option) => formik.setFieldValue('idPrograma', option?.value || 0)}
-                onBlur={() => formik.setFieldTouched('idPrograma', true)}
-              />
-              {formik.touched.idPrograma && formik.errors.idPrograma && (
-                <p className="text-red-500 text-xs">{formik.errors.idPrograma}</p>
-              )}
-            </div>
-
-            {/* Estado */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Estado</label>
-
-              <Select
-                options={ESTADOS_APERTURA}
-                placeholder="Seleccione estado"
-                isClearable
-                value={ESTADOS_APERTURA.find((o) => o.value === formik.values.estado)}
-                onChange={(option) => formik.setFieldValue('estado', option?.value || '')}
-                onBlur={() => formik.setFieldTouched('estado', true)}
-              />
-              {formik.touched.estado && formik.errors.estado && (
-                <p className="text-red-500 text-xs">{formik.errors.estado}</p>
               )}
             </div>
 
@@ -360,47 +331,18 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
               )}
             </div>
 
-            {/* Código */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Código de la ficha</label>
-              <input
-                type="text"
-                name="codigo"
-                value={formik.values.codigo}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
-              />
-              {formik.touched.codigo && formik.errors.codigo && (
-                <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
-              )}
+            {/* Fecha inicial clases */}
+            {/* Fechas del proceso */}
+            <div className="md:col-span-2 mt-6">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Fechas del proceso</h3>
             </div>
 
-            {/* Observación */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Observación</label>
-              <textarea
-                name="observacion"
-                value={formik.values.observacion}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                rows={4}
-                maxLength={1000}
-                className="w-full rounded-lg border px-3 py-2 text-sm resize-y"
-                placeholder="Escriba la observación (máx. 1000 caracteres)"
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>
-                  {formik.touched.observacion && formik.errors.observacion && (
-                    <span className="text-red-500">{formik.errors.observacion}</span>
-                  )}
-                </span>
-                <span>{formik.values.observacion.length}/1000</span>
-              </div>
+            {/* Clases */}
+            <div className="md:col-span-2">
+              <p className="text-xs font-medium text-gray-600 mb-1">Clases</p>
             </div>
-            {/* Fecha inicial clases */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Fecha inicio de clases</label>
+              <label className="text-sm text-gray-700">Inicio</label>
               <input
                 type="date"
                 name="fechaInicialClases"
@@ -415,7 +357,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
             </div>
             {/* Fecha final clases */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Fecha final de clases</label>
+              <label className="text-sm text-gray-700">Fin</label>
               <input
                 type="date"
                 name="fechaFinalClases"
@@ -428,11 +370,13 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
               )}
             </div>
+            {/* Inscripciones */}
+            <div className="md:col-span-2 mt-3">
+              <p className="text-xs font-medium text-gray-600 mb-1">Inscripciones</p>
+            </div>
             {/* Fecha inicial inscripciones */}
             <div>
-              <label className="text-sm font-medium text-gray-700">
-                Fecha inicio de inscripciones
-              </label>
+              <label className="text-sm text-gray-700">Inicio</label>
               <input
                 type="date"
                 name="fechaInicialInscripciones"
@@ -449,9 +393,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
 
             {/* Fecha final inscripciones */}
             <div>
-              <label className="text-sm font-medium text-gray-700">
-                Fecha final de inscripciones
-              </label>
+              <label className="text-sm text-gray-700">Fin</label>
               <input
                 type="date"
                 name="fechaFinalInscripciones"
@@ -464,11 +406,13 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>
               )}
             </div>
+            {/* Matrículas */}
+            <div className="md:col-span-2 mt-3">
+              <p className="text-xs font-medium text-gray-600 mb-1">Matrículas</p>
+            </div>
             {/* Fecha inicial matrículas */}
             <div>
-              <label className="text-sm font-medium text-gray-700">
-                Fecha inicio de matrículas
-              </label>
+              <label className="text-sm text-gray-700">Inicio</label>
               <input
                 type="date"
                 name="fechaInicialMatriculas"
@@ -484,7 +428,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
 
             {/* Fecha final matrículas */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Fecha final de matrículas</label>
+              <label className="text-sm text-gray-700">Fin</label>
               <input
                 type="date"
                 name="fechaFinalMatriculas"
@@ -497,11 +441,13 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
               )}
             </div>
-            {/* Fecha inicial plan de mejoramiento */}
+            {/* Etapa productiva */}
+            <div className="md:col-span-2 mt-3">
+              <p className="text-xs font-medium text-gray-600 mb-1">Etapa productiva</p>
+            </div>
+            {/* Fecha inicial etapa productiva */}
             <div>
-              <label className="text-sm font-medium text-gray-700">
-                Fecha inicio plan de mejoramiento
-              </label>
+              <label className="text-sm text-gray-700">Inicio</label>
               <input
                 type="date"
                 name="fechaInicialPlanMejoramiento"
@@ -520,9 +466,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
 
             {/* Fecha final plan de mejoramiento */}
             <div>
-              <label className="text-sm font-medium text-gray-700">
-                Fecha final plan de mejoramiento
-              </label>
+              <label className="text-sm text-gray-700">Fin</label>
               <input
                 type="date"
                 name="fechaFinalPlanMejoramiento"
@@ -563,4 +507,4 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
   );
 };
 
-export default FormularioFichasSena;
+export default CrearFicha;
