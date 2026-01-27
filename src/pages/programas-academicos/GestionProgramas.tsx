@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
 import ConfirmarEliminar from './components/ConfirmarEliminar';
@@ -7,7 +8,6 @@ import { Program } from './types';
 import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
-import { ProgramacionFichasModal } from './components/ProgramacionFichasModal';
 
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   'PREESCOLAR': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
@@ -25,6 +25,7 @@ export const GestionProgramas = ({
 }: {
   onActionComplete?: () => void;
 }) => {
+  const navigate = useNavigate();
 
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [selectedMallaProgram, setSelectedMallaProgram] = useState<Program | null>(null);
@@ -38,8 +39,6 @@ export const GestionProgramas = ({
   const [selectedInfoProgram, setSelectedInfoProgram] = useState<Program | null>(null);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
   const [selectedDocumentosProgram, setSelectedDocumentosProgram] = useState<Program | null>(null);
-  const [isProgramacionFichasOpen, setIsProgramacionFichasOpen] = useState(false);
-  const [selectedProgramacionProgram, setSelectedProgramacionProgram] = useState<Program | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -170,8 +169,8 @@ export const GestionProgramas = ({
   };
 
   const handleOpenProgramacionFichas = (program: Program) => {
-    setSelectedProgramacionProgram(program);
-    setIsProgramacionFichasOpen(true);
+    // Navegar a la página de programación de fichas
+    navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas`);
   };
 
   return (
@@ -227,77 +226,72 @@ export const GestionProgramas = ({
               <div className="flex-1 overflow-y-auto pb-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {paginatedPrograms.map((program) => (
-                    <div key={program.id} className="group [perspective:1000px]">
-                      <div className="relative w-full h-[380px] transition-transform duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] shadow-xl rounded-xl">
-                        {/* FRONT CARD */}
-                        <div className="absolute inset-0 [backface-visibility:hidden] rounded-xl overflow-hidden border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400">
-                          <div className="relative h-48 overflow-hidden">
-                            <img src={program.imageUrl} alt="" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                            <div className="absolute top-3 right-3">
-                              <span className="px-3 py-1 font-extrabold uppercase rounded-md text-[10px] bg-blue-600 text-white tracking-wider shadow-sm">{program.nivel}</span>
-                            </div>
-                            <div className="absolute bottom-3 left-3 right-3">
-                              <h3 className="text-sm font-bold text-white leading-tight uppercase line-clamp-2">{program.name}</h3>
-                            </div>
+                    <div key={program.id} className="w-full h-auto shadow-xl rounded-xl border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 overflow-hidden hover:shadow-2xl transition-shadow">
+                      {/* Imagen del programa */}
+                      <div className="relative h-48 overflow-hidden">
+                        <img src={program.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute top-3 right-3">
+                          <span className="px-3 py-1 font-extrabold uppercase rounded-md text-[10px] bg-blue-600 text-white tracking-wider shadow-sm">{program.nivel}</span>
+                        </div>
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <h3 className="text-sm font-bold text-white leading-tight uppercase line-clamp-2">{program.name}</h3>
+                        </div>
+                      </div>
+
+                      {/* Contenido de la tarjeta */}
+                      <div className="p-4 flex flex-col">
+                        {/* Información básica */}
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2">
+                            <i className="text-gray-400 ki-outline ki-hashtag text-xs"></i>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{program.codigo}</span>
                           </div>
-                          <div className="p-4 flex flex-col h-[calc(380px-12rem)]">
-                            <div className="flex-1 space-y-2 mb-3">
-                              <div className="flex items-center gap-2">
-                                <i className="text-gray-400 ki-outline ki-hashtag text-xs"></i>
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{program.codigo}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <i className="text-gray-400 ki-outline ki-book text-xs"></i>
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{program.formacion}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <i className="text-gray-400 ki-outline ki-information text-xs"></i>
-                                <span className={`text-xs font-bold uppercase ${program.status === 'ACTIVO' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'}`}>{program.status}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleOpenProgramacionFichas(program)}
-                              className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors"
-                            >
-                              Ver Programación de Fichas →
-                            </button>
+                          <div className="flex items-center gap-2">
+                            <i className="text-gray-400 ki-outline ki-book text-xs"></i>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{program.formacion}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <i className="text-gray-400 ki-outline ki-information text-xs"></i>
+                            <span className={`text-xs font-bold uppercase ${program.status === 'ACTIVO' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'}`}>{program.status}</span>
                           </div>
                         </div>
 
-                        {/* BACK CARD */}
-                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] bg-[#f8f9fa] dark:bg-coal-400 rounded-xl p-5 flex flex-col border border-gray-300 dark:border-coal-100 shadow-inner">
-                          <div className="flex justify-between mb-4">
-                            <button title="Periodos abiertos" className="flex items-center justify-center w-8 h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95"><i className="text-lg ki-outline ki-entrance-right"></i></button>
-                            <button title="Malla curricular" onClick={() => openMallaModal(program)} className="flex items-center justify-center w-8 h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95"><i className="text-lg ki-outline ki-book-open"></i></button>
-                            <button title="Configurar pagos" className="flex items-center justify-center w-8 h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95"><i className="text-lg ki-outline ki-setting-2"></i></button>
-                            <button title="Configurar documentos" onClick={() => handleOpenDocumentos(program)} className="flex items-center justify-center w-8 h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95"><i className="text-lg ki-outline ki-files"></i></button>
-                          </div>
-                          <div className="flex-grow space-y-3 mb-4">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-300 uppercase tracking-tighter">Código</span>
-                              <span className="text-[11px] font-bold text-gray-700 dark:text-white leading-none">{program.codigo}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-300 uppercase tracking-tighter">Formación</span>
-                              <span className="text-[11px] font-bold text-gray-700 dark:text-white leading-none">{program.formacion}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-300 uppercase tracking-tighter">Estado</span>
-                              <span className="text-[11px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wide">{program.status}</span>
-                            </div>
-                          </div>
-                          <div className="flex justify-between gap-2 pt-3 mt-auto border-t border-gray-100 dark:border-coal-200">
-                            <button onClick={() => openEditModal(program)} title="Actualizar" className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105">
-                              <i className="ki-outline ki-arrows-loop"></i>
-                            </button>
-                            <button onClick={() => openDeleteConfirm(program)} title="Eliminar" className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105">
-                              <i className="ki-outline ki-trash"></i>
-                            </button>
-                            <button title="Información" onClick={() => handleOpenInfo(program)} className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105">
-                              <i className="ki-outline ki-eye"></i>
-                            </button>
-                          </div>
+                        {/* Botones de acción rápida */}
+                        <div className="grid grid-cols-4 gap-2 mb-4">
+                          <button title="Periodos abiertos" className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
+                            <i className="text-sm ki-outline ki-entrance-right"></i>
+                          </button>
+                          <button title="Malla curricular" onClick={() => openMallaModal(program)} className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
+                            <i className="text-sm ki-outline ki-book-open"></i>
+                          </button>
+                          <button title="Configurar pagos" className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
+                            <i className="text-sm ki-outline ki-setting-2"></i>
+                          </button>
+                          <button title="Configurar documentos" onClick={() => handleOpenDocumentos(program)} className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
+                            <i className="text-sm ki-outline ki-files"></i>
+                          </button>
+                        </div>
+
+                        {/* Botón principal */}
+                        <button
+                          onClick={() => handleOpenProgramacionFichas(program)}
+                          className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors mb-3"
+                        >
+                          Ver Programación de Fichas →
+                        </button>
+
+                        {/* Botones de acción secundaria */}
+                        <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
+                          <button onClick={() => openEditModal(program)} title="Actualizar" className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105">
+                            <i className="text-sm ki-outline ki-arrows-loop"></i>
+                          </button>
+                          <button onClick={() => openDeleteConfirm(program)} title="Eliminar" className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105">
+                            <i className="text-sm ki-outline ki-trash"></i>
+                          </button>
+                          <button title="Información" onClick={() => handleOpenInfo(program)} className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105">
+                            <i className="text-sm ki-outline ki-eye"></i>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -387,12 +381,6 @@ export const GestionProgramas = ({
         isOpen={isDocumentosOpen}
         onClose={() => { setIsDocumentosOpen(false); setSelectedDocumentosProgram(null); }}
         program={selectedDocumentosProgram}
-      />
-
-      <ProgramacionFichasModal
-        isOpen={isProgramacionFichasOpen}
-        onClose={() => { setIsProgramacionFichasOpen(false); setSelectedProgramacionProgram(null); }}
-        program={selectedProgramacionProgram}
       />
     </div>
 

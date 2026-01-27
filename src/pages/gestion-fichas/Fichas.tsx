@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import FormularioFichasSena from './FormularioFichasSena';
 import ListaFichas from './ListaFichas';
+import Toast from '../programas-academicos/components/Toast';
 
 const Fichas: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
+
+  //Toast:
+  const [messageToast, setMessageToast] = useState<string>('')
+  const [showToast, setShowToast] = useState<boolean>(false);
+
   return (
     <div className="relative z-10 flex flex-col items-center w-full h-screen">
       {/** titulo */}
@@ -51,11 +57,14 @@ const Fichas: React.FC = () => {
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}
+          setShowToast={setShowToast}
+          setMessageToast={setMessageToast}
         />
       )}
       <div className="p-1">
         <ListaFichas searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
       </div>
+      <Toast message={messageToast}  isOpen={showToast} onClose={() => setShowToast(false)} />
     </div>
   );
 };
