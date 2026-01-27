@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import FormularioFichasSena from './FormularioFichasSena';
+import ListaFichas from './ListaFichas';
 
 const Fichas: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -52,6 +53,9 @@ const Fichas: React.FC = () => {
           setEvento={setEvento}
         />
       )}
+      <div className="p-1">
+        <ListaFichas searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
+      </div>
     </div>
   );
 };
