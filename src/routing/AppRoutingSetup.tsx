@@ -102,6 +102,7 @@ import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
 import Regionales from '@/pages/gestion-regional/Regionales';
 import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion';
+import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 
 // Componentes temporales para pruebas
 
@@ -935,6 +936,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
                 <CentrosFormacion />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sedesSena"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <SedesSena />
               </ProtectedRoute>
             }
           />

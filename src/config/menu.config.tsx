@@ -666,6 +666,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/centrosFormacion',
         requiredPermissions: ['GESTION_REGIONAL']
       },
+      {
+        title: 'Gestión Sedes',
+        path: '/sedesSena',
+        requiredPermissions: ['GESTION_REGIONAL']
+      },
     ]
   },
   {
