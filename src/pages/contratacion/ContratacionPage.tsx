@@ -8,8 +8,9 @@ import {
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 import axios from 'axios';
+import Select from 'react-select'
 
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useContext, useEffect, useState } from 'react';
 import { PersonaInterface } from './model/PersonaInterface';
 import { ContratoInterface } from './model/ContratoInterface';
 import { validateFieldPersona } from './utils/validationPersona';
@@ -24,6 +25,7 @@ import { ModalLinksAntecedentes } from '../contratos/ModalLinksAntecedentes';
 import { ModalInfoDocumentos } from '../contratos/ModalInfoDocumentos';
 import { BancoModal } from './BancoModal';
 import { RiesgosProfesionalesModal } from './RiesgosProfesionalesModal';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface FormErrors {
   [key: string]: string;
@@ -742,6 +744,22 @@ const ContratacionPage = () => {
     setSelectedFilePersona(null);
     setCurrentStep(1);
   };
+
+  const authContext = useContext(AuthContext);
+
+  const [centroFormacion, setCentroFormacion] = useState<any[]>([])
+  useEffect(()=>{
+    const loadCentros = async () =>{
+      const res = await axios.get(`centrosFormacion/regional/${authContext?.empresa?.id}`)
+      setCentroFormacion(res.data.data)
+    }
+    loadCentros()
+  },[authContext?.empresa?.id])
+
+  const optionsCF = centroFormacion.map((val)=>({
+    value:val.id,
+    label:`${val.nombre}, ${val.empresa.razonSocial}, ${val.ciudad.descripcion}`
+  }))
 
   const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
@@ -1728,6 +1746,12 @@ const ContratacionPage = () => {
                         ))}
                       </select>
                     </div>
+                    {/** Centro de formación */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Centro de formación</label>
+                      <Select className='select w-4/4 mr-2' options={optionsCF}/>
+                    </div>
+
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Cargo *</label>

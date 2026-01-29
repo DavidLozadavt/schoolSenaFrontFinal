@@ -168,15 +168,13 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
   const [regionales, setRegionales] = useState<Regionales[]>([]);
   useEffect(() => {
     const loadData = async () => {
-      const [jornadaRes, periodosRes, sedesRes, regionalesRes] = await Promise.all([
+      const [jornadaRes, periodosRes, regionalesRes] = await Promise.all([
         axios.get('jornadas/agrupadas'),
         axios.get('periodos'),
-        axios.get('sedesSena'),
         axios.get('regional')
       ]);
       setJornadas(jornadaRes.data.data);
       setPeriodos(periodosRes.data);
-      setSedes(sedesRes.data);
       setRegionales(regionalesRes.data);
     };
     loadData();
@@ -191,6 +189,28 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
     label: `${val.nombrePeriodo} fecha inicio: ${val.fechaInicial} fecha fin: ${val.fechaFinal}`
   }));
 
+  useEffect(() => {
+    const loadSedes = async () => {
+      if (!formik.values.idRegional) {
+        setSedes([]);
+        formik.setFieldValue('idSede', 0);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`sedes/regional/${formik.values.idRegional}`);
+
+        setSedes(res.data.data);
+        formik.setFieldValue('idSede', 0); // reset sede
+      } catch (error) {
+        console.error('Error cargando sedes', error);
+        setSedes([]);
+      }
+    };
+
+    loadSedes();
+  }, [formik.values.idRegional]);
+
   const optionsSedes = sedes.map((val) => ({
     value: val.id,
     label: val.nombre
@@ -199,28 +219,55 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
     value: val.id,
     label: val.razonSocial
   }));
+
+  const [codigo, setCodigo] = useState<string>(''); // valor del input
+  const [codigoExist, setCodigoExist] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!codigo) return;
+
+    const verify = async () => {
+      try {
+        const res = await axios.get(`ficha/validar-codigo/${codigo}`);
+        setCodigoExist(res.data.existe);
+      } catch (error) {
+        console.error('Error verificando código:', error);
+        setCodigoExist(false);
+      }
+    };
+
+    verify();
+  }, [codigo]);
+
   if (!isModalOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 transition-opacity duration-300">
       <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Botón cerrar */}
         <button
           type="button"
+          aria-label="Cerrar modal"
           onClick={() => {
             setIsModalOpen(false);
             formik.resetForm();
           }}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
+          className="absolute top-3 right-3 p-2 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-full transition-colors"
         >
           ✕
         </button>
-        {/* Header fijo */}
-        <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">Crear Ficha</h2>
 
-        <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
+        {/* Header fijo */}
+        <h2 className="sticky top-0 z-10 bg-white px-6 py-4 border-b shadow-sm">Crear Ficha</h2>
+
+        <form
+          onSubmit={formik.handleSubmit}
+          className="p-6 overflow-y-auto max-h-[70vh] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Información académica</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
+                Información académica
+              </h3>
             </div>
             {/* Código */}
             <div>
@@ -229,10 +276,16 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 type="text"
                 name="codigo"
                 value={formik.values.codigo}
-                onChange={formik.handleChange}
+                onChange={(e) => {
+                  formik.handleChange(e);
+                  setCodigo(e.target.value);
+                }}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
+              {codigoExist && (
+                <div className="text-red-500 text-xs">Este código ya esta en uso</div>
+              )}
               {formik.touched.codigo && formik.errors.codigo && (
                 <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
               )}
@@ -256,7 +309,11 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                     <span className="text-red-500">{formik.errors.observacion}</span>
                   )}
                 </span>
-                <span>{formik.values.observacion.length}/1000</span>
+                <span
+                  className={`text-xs ${formik.values.observacion.length > 1000 ? 'text-red-500' : 'text-gray-500'}`}
+                >
+                  {formik.values.observacion.length}/1000
+                </span>
               </div>
             </div>
 
@@ -295,7 +352,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             </div>
             {/* Ubicación */}
             <div className="md:col-span-2 mt-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Ubicación</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">Ubicación</h3>
             </div>
             {/* Regional */}
             <div>
@@ -320,7 +377,14 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
 
               <Select
                 options={optionsSedes}
-                placeholder="Seleccione la sede"
+                placeholder={
+                  !formik.values.idRegional
+                    ? 'Seleccione primero una regional'
+                    : sedes.length === 0
+                      ? 'No hay sedes para esta regional'
+                      : 'Seleccione la sede'
+                }
+                isDisabled={!formik.values.idRegional || sedes.length === 0}
                 isClearable
                 value={optionsSedes.find((o) => o.value === formik.values.idSede)}
                 onChange={(option) => formik.setFieldValue('idSede', option?.value || 0)}
@@ -334,12 +398,14 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             {/* Fecha inicial clases */}
             {/* Fechas del proceso */}
             <div className="md:col-span-2 mt-6">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Fechas del proceso</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
+                Fechas del proceso
+              </h3>
             </div>
 
             {/* Clases */}
             <div className="md:col-span-2">
-              <p className="text-xs font-medium text-gray-600 mb-1">Clases</p>
+              <p className="text-xs font-bold mb-1">Etapa electiva</p>
             </div>
             <div>
               <label className="text-sm text-gray-700">Inicio</label>
@@ -349,7 +415,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaInicialClases}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>
@@ -364,7 +430,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaFinalClases}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
@@ -372,7 +438,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             </div>
             {/* Inscripciones */}
             <div className="md:col-span-2 mt-3">
-              <p className="text-xs font-medium text-gray-600 mb-1">Inscripciones</p>
+              <p className="text-xs font-bold mb-1">Inscripciones</p>
             </div>
             {/* Fecha inicial inscripciones */}
             <div>
@@ -383,7 +449,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaInicialInscripciones}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaInicialInscripciones &&
                 formik.errors.fechaInicialInscripciones && (
@@ -400,7 +466,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaFinalInscripciones}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaFinalInscripciones && formik.errors.fechaFinalInscripciones && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>
@@ -408,7 +474,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             </div>
             {/* Matrículas */}
             <div className="md:col-span-2 mt-3">
-              <p className="text-xs font-medium text-gray-600 mb-1">Matrículas</p>
+              <p className="text-xs font-bold mb-1">Matrículas</p>
             </div>
             {/* Fecha inicial matrículas */}
             <div>
@@ -419,7 +485,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaInicialMatriculas}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaInicialMatriculas && formik.errors.fechaInicialMatriculas && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaInicialMatriculas}</p>
@@ -435,7 +501,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaFinalMatriculas}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
@@ -443,7 +509,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             </div>
             {/* Etapa productiva */}
             <div className="md:col-span-2 mt-3">
-              <p className="text-xs font-medium text-gray-600 mb-1">Etapa productiva</p>
+              <p className="text-xs font-bold mb-1">Etapa productiva</p>
             </div>
             {/* Fecha inicial etapa productiva */}
             <div>
@@ -454,7 +520,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaInicialPlanMejoramiento}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaInicialPlanMejoramiento &&
                 formik.errors.fechaInicialPlanMejoramiento && (
@@ -473,7 +539,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 value={formik.values.fechaFinalPlanMejoramiento}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               {formik.touched.fechaFinalPlanMejoramiento &&
                 formik.errors.fechaFinalPlanMejoramiento && (
@@ -487,7 +553,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+              className="px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
             >
               Cancelar
             </button>
@@ -495,8 +561,8 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             <button
               type="submit"
               disabled={formik.isSubmitting}
-              className={`px-4 py-2 rounded-lg text-sm text-white transition
-              ${formik.isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm text-white transition-colors duration-200
+    ${formik.isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'}`}
             >
               {formik.isSubmitting ? 'Guardando...' : 'Guardar ficha'}
             </button>
