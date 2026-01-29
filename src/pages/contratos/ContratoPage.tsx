@@ -27,6 +27,7 @@ import { ModalUpdatePerson } from './ModalUpdatePerson';
 import { ModalUpdateContract } from './ModalUpdateContract';
 import { ModalUpdateBankData } from './ModalUpdateBankData';
 import { ModalUpdateSeguridadSocial } from './ModalUpdateSeguridadSocial';
+import { ModalUpdateFotoPerfil } from './ModalUpdateFotoPerfil';
 
 const ContratoPage = () => {
   const { currentLayout } = useLayout();
@@ -43,6 +44,7 @@ const ContratoPage = () => {
   const [isModalUpdateContractDataOpen, setIsModalUpdateContractDataOpen] = useState(false);
   const [isModalUpdateBankDataOpen, setIsModalUpdateBankDataOpen] = useState(false);
   const [isModalUpdateSeguridadSocialOpen, setIsModalUpdateSeguridadSocialOpen] = useState(false);
+  const [isModalUpdateFotoPerfilOpen, setIsModalUpdateFotoPerfilOpen] = useState(false);
   const [entidadSeleccionada, setEntidadSeleccionada] = useState({
     tipo: null,
     nombre: ''
@@ -74,6 +76,7 @@ const ContratoPage = () => {
     setIsModalUpdateContractDataOpen(false);
     setIsModalUpdateBankDataOpen(false);
     setIsModalUpdateSeguridadSocialOpen(false);
+    setIsModalUpdateFotoPerfilOpen(false);
   };
 
   const handleOpenModalEntidad = (tipo: any, nombre: any) => {
@@ -97,12 +100,21 @@ const ContratoPage = () => {
   }, [fetchContrato]);
 
   const image = (
-    <div className="flex items-center justify-center rounded-full border-2 border-success-clarity bg-light h-[100px] w-[100px]">
+    <button
+      type="button"
+      onClick={() => setIsModalUpdateFotoPerfilOpen(true)}
+      className="flex items-center justify-center rounded-full border-2 border-success-clarity bg-light h-[100px] w-[100px] hover:opacity-80 transition-opacity cursor-pointer"
+      title="Haz clic para cambiar la foto de perfil"
+    >
       <img
-        src={contrato.persona?.rutaFotoUrl}
+        src={contrato.persona?.rutaFotoUrl || '/media/images/default/user.svg'}
         className="w-full h-full object-cover rounded-full"
+        alt="Foto de perfil"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = '/media/images/default/user.svg';
+        }}
       />
-    </div>
+    </button>
   );
 
   return (
@@ -219,7 +231,7 @@ const ContratoPage = () => {
                   </div>
                 </div>
 
-                <AssignedPrograms contrato={contrato} onSave={fetchContrato} />
+                <AcademicLevel contrato={contrato} onSave={fetchContrato} />
 
                 <TrazabilityContract title="Trazabilidad del Contrato" contrato={contrato} />
               </div>
@@ -271,7 +283,7 @@ const ContratoPage = () => {
                     </div>
                   </div>
 
-                  <AcademicLevel contrato={contrato} onSave={fetchContrato} />
+                  <AssignedPrograms contrato={contrato} onSave={fetchContrato} />
 
                   <KnowledgeAreas contrato={contrato} onSave={fetchContrato} />
 
@@ -379,6 +391,13 @@ const ContratoPage = () => {
           <ModalUpdateSeguridadSocial
             open={isModalUpdateSeguridadSocialOpen}
             onClose={() => setIsModalUpdateSeguridadSocialOpen(false)}
+            contrato={contrato}
+            onSave={handleAfterSave}
+          />
+
+          <ModalUpdateFotoPerfil
+            open={isModalUpdateFotoPerfilOpen}
+            onClose={() => setIsModalUpdateFotoPerfilOpen(false)}
             contrato={contrato}
             onSave={handleAfterSave}
           />

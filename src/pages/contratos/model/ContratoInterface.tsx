@@ -6,6 +6,7 @@ export interface ContratoInterface {
   perfilProfesional?: string;
   otrosi?: string;
   periodoPago?: string;
+  horasmes?: number | string;
   idpersona?: string;
   idtipoContrato?: string;
   observacion?: string;

@@ -6,11 +6,13 @@ import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFi
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
 import CrearFicha from './components/CrearFicha';
+import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 
 interface Ficha {
   id: number;
   codigo: string;
   porcentajeEjecucion: number;
+  idInstructorLider?: number | null;
 
   jornada?: {
     id: number;
@@ -60,6 +62,7 @@ export const ProgramacionFichasPage = () => {
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
+  const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -297,6 +300,7 @@ export const ProgramacionFichasPage = () => {
                               </span>
                               <button
                                 type="button"
+                                onClick={() => setFichaAsignarLider(ficha)}
                                 className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                               >
                                 Asignar
@@ -453,6 +457,17 @@ export const ProgramacionFichasPage = () => {
         isOpen={isDocumentosOpen}
         onClose={() => setIsDocumentosOpen(false)}
         program={program}
+      />
+
+      <AsignarInstructorLiderModal
+        isOpen={!!fichaAsignarLider}
+        onClose={() => setFichaAsignarLider(null)}
+        fichaId={fichaAsignarLider?.id || 0}
+        programaNombre={fichaAsignarLider?.asignacion?.programa?.nombrePrograma}
+        onSuccess={() => {
+          loadFichas();
+          setFichaAsignarLider(null);
+        }}
       />
     </>
   );

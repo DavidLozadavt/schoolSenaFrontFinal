@@ -28,6 +28,11 @@ export const validateContratoField = (name: string, value: string | number): str
       if (!value) return 'El grupo de nómina es requerido';
       break;
 
+    case 'horasmes':
+      if (!value) return 'Las horas al mes son requeridas';
+      if (!/^\d+$/.test(String(value))) return 'Las horas al mes deben ser un número entero';
+      break;
+
     case 'valorTotalContrato':
       if (!value) return 'El valor total del contrato es requerido';
       break;

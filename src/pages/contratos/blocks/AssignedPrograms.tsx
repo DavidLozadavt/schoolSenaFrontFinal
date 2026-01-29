@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import axios from 'axios';
@@ -24,13 +24,16 @@ interface Programa {
   fichas?: number;
 }
 
+
 const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const [programas, setProgramas] = useState<Programa[]>([]);
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const { enqueueSnackbar } = useSnackbar();
 
+  // Cargar programas al montar el componente
   useEffect(() => {
     fetchProgramas();
     if (contrato?.programas && Array.isArray(contrato.programas)) {
@@ -46,6 +49,7 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
 
   const fetchProgramas = async () => {
     try {
+      setLoading(true);
       const response = await axios.get('programas_contratacion');
       if (response.data) {
         const programasMapeados = response.data.map((p: any) => ({
@@ -55,8 +59,8 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           descripcionPrograma: p.descripcionPrograma,
           nivel: p.nivel,
           tipoFormacion: p.tipoFormacion,
-          duracion: '24 meses', // TODO: Obtener de la API cuando esté disponible
-          fichas: Math.floor(Math.random() * 5) + 1 // TODO: Obtener de la API cuando esté disponible
+          duracion: null,
+          fichas: 0
         }));
         setProgramas(programasMapeados);
       }
@@ -108,17 +112,30 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const selectedCount = selectedPrograms.length;
   const allSelected = selectedPrograms.length === programas.length && programas.length > 0;
 
+  // Filtrar programas por término de búsqueda
+  const filteredProgramas = useMemo(() => {
+    if (!searchTerm) return programas;
+    const term = searchTerm.toLowerCase();
+    return programas.filter(
+      (programa) =>
+        programa.nombrePrograma.toLowerCase().includes(term) ||
+        programa.codigoPrograma.toLowerCase().includes(term) ||
+        programa.descripcionPrograma?.toLowerCase().includes(term)
+    );
+  }, [programas, searchTerm]);
+
+
   return (
     <div className="card">
       <div className="card-header">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <KeenIcon icon="book" className="text-base text-primary" />
             <h3 className="card-title text-sm">Programas Asignados</h3>
           </div>
           <button
             onClick={handleSelectAll}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors ml-4"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
           >
             {allSelected ? (
               <>
@@ -136,15 +153,41 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
       </div>
 
       <div className="card-body py-3">
+        {/* Barra de búsqueda */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Buscar Programa
+          </label>
+          <div className="relative">
+            <KeenIcon
+              icon="magnifier"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nombre, código o descripción..."
+              className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+        </div>
+
         {loading ? (
           <div className="text-center py-4">
             <p className="text-xs text-gray-500">Cargando programas...</p>
+          </div>
+        ) : filteredProgramas.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-xs text-gray-500">
+              {searchTerm ? 'No se encontraron programas con ese criterio' : 'No hay programas disponibles'}
+            </p>
           </div>
         ) : (
           <>
             <div className="max-h-[350px] overflow-y-auto pr-2">
               <div className="space-y-2">
-                {programas.map((programa) => {
+                {filteredProgramas.map((programa) => {
                   const isSelected = selectedPrograms.includes(programa.id);
                   return (
                     <label
@@ -171,9 +214,11 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                               <span>
                                 <span className="font-medium">Acrónimo:</span> {programa.codigoPrograma}
                               </span>
-                              <span>
-                                <span className="font-medium">Duración:</span> {programa.duracion || 'N/A'}
-                              </span>
+                              {programa.duracion && (
+                                <span>
+                                  <span className="font-medium">Duración:</span> {programa.duracion}
+                                </span>
+                              )}
                               <span>
                                 <span className="font-medium">Tipo:</span>{' '}
                                 {programa.tipoFormacion?.nombreTipoFormacion || programa.nivel?.nombreNivel || 'N/A'}
