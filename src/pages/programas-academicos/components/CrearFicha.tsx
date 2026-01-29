@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
+import FormularioInfraestructura from '@/pages/gestion-infraestructura/FormularioInfraestructura';
 
 interface Props {
   isModalOpen: boolean;
@@ -37,12 +38,19 @@ interface Regionales {
   razonSocial: string;
 }
 
+interface Ambientes {
+  id: number;
+  nombreInfraestructura: string;
+  capacidad: number;
+}
+
 interface FormValues {
   observacion: string;
   idPeriodo: number;
   idRegional: number;
   idSede: number;
   idJornada: number;
+  idInfraestructura: number;
   codigo: string;
   fechaInicialClases: string;
   fechaFinalClases: string;
@@ -66,6 +74,8 @@ const validationSchema = Yup.object({
     .required('Debe seleccionar una regional'),
 
   idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
+
+  idInfraestructura: Yup.number().nullable(),
 
   fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
 
@@ -126,6 +136,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
       idPeriodo: 0,
       idRegional: 0,
       idSede: 0,
+      idInfraestructura: 0,
       fechaInicialClases: '',
       fechaFinalClases: '',
       idJornada: 0,
@@ -219,9 +230,39 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
     value: val.id,
     label: val.razonSocial
   }));
+  const [evento, setEvento] = useState<boolean>(false);
+  const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
+  useEffect(() => {
+    const loadAmbientes = async () => {
+      if (!formik.values.idSede) {
+        setAmbientes([]);
+        formik.setFieldValue('idInfraestructura', 0);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`sedes/${formik.values.idSede}/infraestructuras`);
+
+        setAmbientes(res.data.data);
+        formik.setFieldValue('idInfraestructura', 0); // reset ambiente
+      } catch (error) {
+        console.error('Error cargando los ambientes', error);
+        setSedes([]);
+      }
+    };
+
+    loadAmbientes();
+  }, [formik.values.idSede, formik.values.idRegional, evento]);
+
+  const optionsAmbientes = ambientes.map((val) => ({
+    value: val.id,
+    label: val.nombreInfraestructura
+  }));
 
   const [codigo, setCodigo] = useState<string>(''); // valor del input
   const [codigoExist, setCodigoExist] = useState<boolean>(false);
+
+  const [showAmbienteForm, setShowAmbienteForm] = useState<boolean>(false);
 
   useEffect(() => {
     if (!codigo) return;
@@ -392,6 +433,61 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
               />
               {formik.touched.idSede && formik.errors.idSede && (
                 <p className="text-red-500 text-xs">{formik.errors.idSede}</p>
+              )}
+            </div>
+
+            {/* Ambiente */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Ambiente</label>
+
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    options={optionsAmbientes}
+                    placeholder={
+                      !formik.values.idSede
+                        ? 'Seleccione primero una sede'
+                        : ambientes.length === 0
+                          ? 'No hay ambientes para esta sede'
+                          : 'Seleccione el ambiente'
+                    }
+                    isDisabled={!formik.values.idSede || ambientes.length === 0}
+                    isClearable
+                    value={optionsAmbientes.find(
+                      (o) => o.value === formik.values.idInfraestructura
+                    )}
+                    onChange={(option) =>
+                      formik.setFieldValue('idInfraestructura', option?.value || 0)
+                    }
+                    onBlur={() => formik.setFieldTouched('idInfraestructura', true)}
+                  />
+                </div>
+
+                {/* Botón + */}
+                <button
+                  type="button"
+                  disabled={!formik.values.idSede}
+                  onClick={() => setShowAmbienteForm(true)}
+                  className="
+                    h-[38px] w-[38px]
+                    flex items-center justify-center
+                    border border-gray-300 rounded-md
+                    text-lg font-medium
+                    text-gray-600
+                    bg-white
+                    hover:border-blue-500 hover:text-blue-600
+                    focus:outline-none focus:ring-2 focus:ring-blue-500
+                    disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed
+                    transition
+                  "
+                  title="Agregar ambiente"
+                >
+                  +
+                </button>
+              </div>
+
+              {formik.touched.idInfraestructura && formik.errors.idInfraestructura && (
+                <p className="text-red-500 text-xs mt-1">{formik.errors.idInfraestructura}</p>
               )}
             </div>
 
@@ -569,6 +665,13 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
           </div>
         </form>
       </div>
+        {showAmbienteForm && (
+          <FormularioInfraestructura
+            isModalOpen={showAmbienteForm}
+            setIsModalOpen={setShowAmbienteForm}
+            setEvento={setEvento}
+          />
+        )}
     </div>
   );
 };

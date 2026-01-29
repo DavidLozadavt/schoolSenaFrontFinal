@@ -105,6 +105,7 @@ import Regionales from '@/pages/gestion-regional/Regionales';
 import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion';
 import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
+import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 
 // Componentes temporales para pruebas
 
@@ -962,6 +963,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
                 <Fichas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambientes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Infraestructura />
               </ProtectedRoute>
             }
           />
