@@ -676,6 +676,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/fichas',
         requiredPermissions: ['GESTION_REGIONAL']
       },
+      {
+        title: 'Gestión Ambientes',
+        path: '/ambientes',
+        requiredPermissions: ['GESTION_REGIONAL']
+      },
     ]
   },
   {
