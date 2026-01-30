@@ -168,6 +168,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
       },
       {
+        title: 'Migración de datos',
+        path: '/empresa/migracion-datos',
+        requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
+      },
+      {
         title: ' Gestion Puntos de Venta',
         path: '/gestion-punto-de-ventas/punto-ventas',
         requiredPermissions: ['GESTION_PUNTO_VENTAS']
