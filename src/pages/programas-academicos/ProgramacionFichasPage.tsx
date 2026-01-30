@@ -6,11 +6,14 @@ import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFi
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
 import CrearFicha from './components/CrearFicha';
+import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
+import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
 
 interface Ficha {
   id: number;
   codigo: string;
   porcentajeEjecucion: number;
+  idInstructorLider?: number | null;
 
   jornada?: {
     id: number;
@@ -37,6 +40,18 @@ interface Ficha {
       nombrePrograma: string;
     };
   };
+
+  instructorLider?: {
+    id: number;
+    persona?: {
+      id: number;
+      nombre1: string;
+      nombre2?: string;
+      apellido1: string;
+      apellido2?: string;
+      rutaFotoUrl?: string;
+    };
+  };
 }
 
 interface Program {
@@ -60,6 +75,14 @@ export const ProgramacionFichasPage = () => {
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
+  const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
+
+  // Estados para edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [fichaIdToEdit, setFichaIdToEdit] = useState<number | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [messageToast, setMessageToast] = useState('');
+  const [evento, setEvento] = useState(false);
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,6 +120,7 @@ export const ProgramacionFichasPage = () => {
       const res = await axios.get(`fichas/programa/${programId}`);
       if (res.status === 200) {
         setFichas(res.data.data);
+        console.log('Fichas cargadas:', res.data.data);
       } else {
         setFichas([]);
       }
@@ -112,7 +136,17 @@ export const ProgramacionFichasPage = () => {
       loadProgram();
       loadFichas();
     }
-  }, [programId]);
+  }, [programId, evento]); // Agregado 'evento' para recargar al editar
+
+  // Auto-cierre del toast
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   // Cálculos de paginación
   const totalPages = Math.ceil(fichas.length / itemsPerPage);
@@ -126,6 +160,28 @@ export const ProgramacionFichasPage = () => {
 
   const toggleExpandirFicha = (id: number) => {
     setFichaExpandida(fichaExpandida === id ? null : id);
+  };
+
+  // Función para editar ficha
+  const handleEditarFicha = (fichaId: number) => {
+    console.log('✏️ Editando ficha:', fichaId);
+    setFichaIdToEdit(fichaId);
+    setIsEditModalOpen(true);
+  };
+
+  // Función para eliminar ficha
+  const handleEliminarFicha = async (fichaId: number) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta ficha?')) {
+      try {
+        await axios.delete(`fichas/${fichaId}`);
+        setMessageToast('Ficha eliminada correctamente');
+        setShowToast(true);
+        setEvento((prev) => !prev);
+      } catch (error: any) {
+        setMessageToast(error.response?.data?.message || 'Error al eliminar la ficha');
+        setShowToast(true);
+      }
+    }
   };
 
   return (
@@ -189,7 +245,7 @@ export const ProgramacionFichasPage = () => {
                 Gestiona las fichas del programa y asigna líderes
               </p>
             </div>
-            {/* Botón Crear Ficha - Ubicado en la parte superior derecha */}
+            {/* Botón Crear Ficha */}
             <button
               type="button"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
@@ -199,6 +255,7 @@ export const ProgramacionFichasPage = () => {
               Crear Ficha
             </button>
           </div>
+          
           {isModalOpen && (
             <CrearFicha
               isModalOpen={isModalOpen}
@@ -220,7 +277,7 @@ export const ProgramacionFichasPage = () => {
             </div>
           ) : (
             <>
-              {/* Lista de Fichas - Filas Horizontales */}
+              {/* Lista de Fichas */}
               <div className="space-y-3 mb-6">
                 {paginatedFichas.map((ficha) => {
                   const expandida = fichaExpandida === ficha.id;
@@ -229,13 +286,36 @@ export const ProgramacionFichasPage = () => {
                       key={ficha.id}
                       className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg shadow-sm overflow-hidden transition-all hover:shadow-md"
                     >
-                      {/* Fila Principal - Colapsada */}
+                      {/* Fila Principal */}
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            {/* Icono */}
-                            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg">
-                              <i className="text-blue-600 dark:text-blue-400 ki-outline ki-file text-lg"></i>
+                            {/* Foto del instructor */}
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden">
+                              {ficha.instructorLider?.persona?.rutaFotoUrl ? (
+                                <img
+                                  src={ficha.instructorLider.persona.rutaFotoUrl}
+                                  alt={`${ficha.instructorLider.persona.nombre1} ${ficha.instructorLider.persona.apellido1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              {ficha.idInstructorLider && (
+                                <div 
+                                  className={`absolute inset-0 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-sm ${ficha.instructorLider?.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
+                                >
+                                  {ficha.instructorLider?.persona ? (
+                                    `${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase()
+                                  ) : (
+                                    '?'
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             {/* Información Principal */}
@@ -243,6 +323,11 @@ export const ProgramacionFichasPage = () => {
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
                                   Ficha {ficha.codigo}
+                                  {ficha.idInstructorLider && ficha.instructorLider?.persona && (
+                                    <span className="font-normal text-gray-600 dark:text-gray-400 ml-2">
+                                      - {ficha.instructorLider.persona.nombre1 || ''} {ficha.instructorLider.persona.apellido1 || ''}
+                                    </span>
+                                  )}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${
@@ -262,9 +347,7 @@ export const ProgramacionFichasPage = () => {
                                   <span>
                                     Inicio:{' '}
                                     {ficha.asignacion?.fechaInicialClases
-                                      ? new Date(
-                                          ficha.asignacion.fechaInicialClases
-                                        ).toLocaleDateString()
+                                      ? new Date(ficha.asignacion.fechaInicialClases).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
@@ -273,19 +356,13 @@ export const ProgramacionFichasPage = () => {
                                   <span>
                                     Fin:{' '}
                                     {ficha.asignacion?.fechaFinalClases
-                                      ? new Date(
-                                          ficha.asignacion.fechaFinalClases
-                                        ).toLocaleDateString()
+                                      ? new Date(ficha.asignacion.fechaFinalClases).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-time text-xs"></i>
                                   <span>Jornada: {ficha.jornada?.nombreJornada || '—'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <i className="ki-outline ki-clock text-xs"></i>
-                                  <span>Horario: —</span>
                                 </div>
                               </div>
                             </div>
@@ -297,6 +374,7 @@ export const ProgramacionFichasPage = () => {
                               </span>
                               <button
                                 type="button"
+                                onClick={() => setFichaAsignarLider(ficha)}
                                 className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                               >
                                 Asignar
@@ -309,9 +387,7 @@ export const ProgramacionFichasPage = () => {
                               onClick={() => toggleExpandirFicha(ficha.id)}
                               className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                             >
-                              <i
-                                className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}
-                              ></i>
+                              <i className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}></i>
                             </button>
                           </div>
                         </div>
@@ -343,9 +419,7 @@ export const ProgramacionFichasPage = () => {
                               </p>
                               <p className="text-sm text-gray-700 dark:text-gray-300">
                                 {ficha.asignacion?.fechaInicialClases
-                                  ? new Date(
-                                      ficha.asignacion.fechaInicialClases
-                                    ).toLocaleDateString()
+                                  ? new Date(ficha.asignacion.fechaInicialClases).toLocaleDateString()
                                   : '—'}
                               </p>
                             </div>
@@ -361,16 +435,32 @@ export const ProgramacionFichasPage = () => {
                             </div>
                             <div>
                               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                                Horario de inicio
+                                Regional
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                                Horario de Finalización
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.regional?.razonSocial || '—'}
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
                             </div>
+                          </div>
+
+                          {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
+                          <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
+                            <button
+                              type="button"
+                              onClick={() => handleEditarFicha(ficha.id)}
+                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <i className="ki-outline ki-notepad-edit"></i>
+                              Editar Ficha
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEliminarFicha(ficha.id)}
+                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <i className="ki-outline ki-trash"></i>
+                              Eliminar Ficha
+                            </button>
                           </div>
                         </div>
                       )}
@@ -454,6 +544,43 @@ export const ProgramacionFichasPage = () => {
         onClose={() => setIsDocumentosOpen(false)}
         program={program}
       />
+
+      <AsignarInstructorLiderModal
+        isOpen={!!fichaAsignarLider}
+        onClose={() => setFichaAsignarLider(null)}
+        fichaId={fichaAsignarLider?.id || 0}
+        programaNombre={fichaAsignarLider?.asignacion?.programa?.nombrePrograma}
+        onSuccess={() => {
+          loadFichas();
+          setFichaAsignarLider(null);
+        }}
+      />
+
+      {/* Modal de Edición */}
+      <EditarFicha
+        isModalOpen={isEditModalOpen}
+        setIsModalOpen={setIsEditModalOpen}
+        fichaId={fichaIdToEdit}
+        setEvento={setEvento}
+        setShowToast={setShowToast}
+        setMessageToast={setMessageToast}
+      />
+
+      {/* Toast de notificación */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-[200]">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in">
+            <i className="text-xl ki-solid ki-check-circle"></i>
+            <span className="font-medium">{messageToast}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:text-gray-200 transition-colors"
+            >
+              <i className="ki-solid ki-cross text-lg"></i>
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,4 +1,5 @@
 export interface ContratoInterface {
+  idNivelEducativo: any;
   salario_id?: any;
   id?: number;
   fechaContratacion: any;
@@ -32,4 +33,6 @@ export interface ContratoInterface {
   idTarifaRiesgo?: string;
   tipoSalario?:string;
   idGrupoNomina?: string;
+  horasmes?: string;
+  idCentroFormacion?: string;
 }

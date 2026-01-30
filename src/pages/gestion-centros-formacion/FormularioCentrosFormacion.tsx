@@ -90,7 +90,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
     onSubmit: async (values, {setSubmitting}) => {
       console.log(values)
       try {
-        await axios.post('centrosFormacion', {
+        await axios.post('centrosFormacion/user', {
           ...values,
           idCiudad: values.ciudad?.value,
           idEmpresa: values.empresa?.value

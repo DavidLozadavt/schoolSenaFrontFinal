@@ -34,6 +34,25 @@ interface FormErrors {
 const tiposCuentaBancaria = ['CUENTA DE AHORROS', 'CUENTA CORRIENTE'];
 const tipoSalario = ['INTEGRAL', 'FIJO', 'VARIABLE'];
 
+// Estilos para scroll suave y delicado en áreas de conocimiento
+const contratacionScrollStyles = `
+  .contratacion-areas-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
 const tiposCotizante = [
   { id: 1, codigo: '1', tipoCotizante: 'DEPENDIENTE' },
   { id: 2, codigo: '2', tipoCotizante: 'SERVICIO DOMÉSTICO' },
@@ -225,7 +244,6 @@ const ContratacionPage = () => {
   const [entidadesArl, setEntidadesArl] = useState<any[]>([]);
   const [entidadesEPS, setEntidadeEPS] = useState<any[]>([]);
   const [entidadesPension, setEntidadesPension] = useState<any[]>([]);
-  const [entidadesCesantias, setEntidadesCesantias] = useState<any[]>([]);
   const [entidadesCajaCompensacion, setEntidadesCajaCompensacion] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [nivelesEducativos, setNivelesEducativos] = useState<any[]>([]);
@@ -272,7 +290,6 @@ const ContratacionPage = () => {
     idSalud: '',
     idArl: '',
     idCajaCompensacion: '',
-    idCesantias: '',
     tipoCuentaBancaria: '',
     idBanco: '',
     numeroCuentaBancaria: '',
@@ -285,7 +302,9 @@ const ContratacionPage = () => {
     idTarifaRiesgo: '',
     tipoSalario: '',
     idGrupoNomina: '',
-    idNivelEducativo: ''
+    horasmes: '',
+    idNivelEducativo: '',
+    idCentroFormacion: ''
   });
 
   const steps = [
@@ -359,7 +378,10 @@ const ContratacionPage = () => {
   const handleChangeFormContrato = (e: any) => {
     const { name } = e.target;
     let { value } = e.target;
-    value = value.toUpperCase();
+    // No convertir a mayúsculas campos numéricos o idCentroFormacion
+    if (name !== 'idCentroFormacion' && !name.startsWith('id') && name !== 'horasmes' && name !== 'sueldo' && name !== 'valorTotalContrato') {
+      value = value.toUpperCase();
+    }
 
     setFormDataContrato((prevState) => ({
       ...prevState,
@@ -490,6 +512,12 @@ const ContratacionPage = () => {
       newErrors.idGrupoNomina = 'El grupo de nómina es requerido';
     }
 
+    if (!formDataContrato.horasmes) {
+      newErrors.horasmes = 'Las horas al mes son requeridas';
+    } else if (!/^\d+$/.test(formDataContrato.horasmes)) {
+      newErrors.horasmes = 'Las horas al mes deben ser un número entero';
+    }
+
     if (formDataContrato.idtipoContrato !== '6' && !formDataContrato.valorTotalContrato) {
       newErrors.valorTotalContrato = 'El valor total del contrato es requerido';
     }
@@ -504,6 +532,10 @@ const ContratacionPage = () => {
 
     if (!formDataContrato.idTipoCotizante) {
       newErrors.idTipoCotizante = 'El tipo de cotizante es requerido';
+    }
+
+    if (!formDataContrato.idNivelEducativo) {
+      newErrors.idNivelEducativo = 'El nivel educativo es requerido';
     }
 
     if (
@@ -527,6 +559,13 @@ const ContratacionPage = () => {
 
     if (Object.keys(missingFiles).length > 0) {
       setFileErrors(missingFiles);
+      const documentosFaltantes = documentosContratos
+        .filter((doc) => missingFiles[doc.id])
+        .map((doc) => doc.tipoDocumento?.tituloDocumento || doc.tituloDocumento)
+        .join(', ');
+      enqueueSnackbar(`Faltan los siguientes documentos: ${documentosFaltantes}`, {
+        variant: 'error'
+      });
       return;
     }
     setLoading(true);
@@ -578,11 +617,9 @@ const ContratacionPage = () => {
           idArl: formDataContrato.idArl,
           idSalud: formDataContrato.idSalud,
           idCajaCompensacion: formDataContrato.idCajaCompensacion,
-          idCesantias: formDataContrato.idCesantias,
           tipoCuentaBancaria: formDataContrato.tipoCuentaBancaria,
           idBanco: formDataContrato.idBanco,
           numeroCuentaBancaria: formDataContrato.numeroCuentaBancaria,
-          observacionPreocupacional: formDataContrato.observacionPreocupacional,
           idCaja: formDataContrato.idArea,
           tipoComisiones: formDataContrato.tipoComisiones,
           idActividadRiesgo: formDataContrato.idActividadRiesgo,
@@ -591,7 +628,9 @@ const ContratacionPage = () => {
           idSubTipoCotizante: formDataContrato.idSubTipoCotizante,
           tipoSalario: formDataContrato.tipoSalario,
           idGrupoNomina: formDataContrato.idGrupoNomina,
+          horasmes: formDataContrato.horasmes ? Number(formDataContrato.horasmes) : undefined,
           idNivelEducativo: formDataContrato.idNivelEducativo,
+          idCentroFormacion: formDataContrato.idCentroFormacion,
           areasConocimiento: selectedAreasConocimiento
         };
 
@@ -648,16 +687,21 @@ const ContratacionPage = () => {
           })
           .catch((error) => {
             setLoading(false);
-            enqueueSnackbar('Error al guardar el contrato.', {
+            // Mensaje amigable para el usuario cuando falla la creación del contrato
+            enqueueSnackbar('No se pudo crear el contrato. Por favor, intente nuevamente.', {
               variant: 'error'
             });
+            // Detalle técnico solo en consola para diagnóstico
+            console.error('Error al guardar el contrato:', error);
           });
       })
       .catch((error) => {
         setLoading(false);
-        enqueueSnackbar('Error al guardar la persona.', {
+        const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Error al guardar la persona.';
+        enqueueSnackbar(errorMessage, {
           variant: 'error'
         });
+        console.error('Error al guardar la persona:', error);
       });
   };
 
@@ -703,7 +747,6 @@ const ContratacionPage = () => {
       idArl: '',
       idPension: '',
       idCajaCompensacion: '',
-      idCesantias: '',
       tipoCuentaBancaria: '',
       idBanco: '',
       numeroCuentaBancaria: '',
@@ -716,7 +759,9 @@ const ContratacionPage = () => {
       idTarifaRiesgo: '',
       tipoSalario: '',
       idGrupoNomina: '',
-      idNivelEducativo: ''
+      horasmes: '',
+      idNivelEducativo: '',
+      idCentroFormacion: ''
     });
     setSelectedAreasConocimiento([]);
     setFotoUrl('');
@@ -836,10 +881,6 @@ const ContratacionPage = () => {
 
     if (currentStep === 1) {
       validationErrors = validatePerson();
-
-      if (!selectedFilePersona && !fotoUrl) {
-        validationErrors['rutaFoto'] = 'Por favor, seleccione una foto.';
-      }
     } else if (currentStep === 2) {
       validationErrors = validateUbicacion();
     } else if (currentStep === 3) {
@@ -971,16 +1012,6 @@ const ContratacionPage = () => {
     }
   };
 
-  const fetchEntidadesCesantias = async () => {
-    try {
-      const response = await axios.get('entidades/cesantias');
-      setEntidadesCesantias(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchBancos = async () => {
     try {
@@ -1207,7 +1238,6 @@ const ContratacionPage = () => {
     fetchEntidadesEPS();
     fetchEntidadesPension();
     fetchEntidadesCajaCompensacion();
-    fetchEntidadesCesantias();
     fetchBancos();
     fetchAreas();
     fetchGruposNomina();
@@ -1219,6 +1249,7 @@ const ContratacionPage = () => {
 
   return (
     <Fragment>
+      <style>{contratacionScrollStyles}</style>
       {currentLayout?.name === 'demo1-layout' && (
         <Container>
           <Toolbar>
@@ -1509,7 +1540,7 @@ const ContratacionPage = () => {
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto *</label>
+                          <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto</label>
                           {!selectedFilePersona && !fotoUrl ? (
                             <input
                               type="file"
@@ -1744,7 +1775,19 @@ const ContratacionPage = () => {
                     {/** Centro de formación */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Centro de formación</label>
-                      <Select className='select w-4/4 mr-2' options={optionsCF}/>
+                      <select
+                        name="idCentroFormacion"
+                        value={formDataContrato.idCentroFormacion}
+                        onChange={handleChangeFormContrato}
+                        className="select w-4/4 mr-2"
+                      >
+                        <option value="">Seleccione un centro de formación</option>
+                        {optionsCF.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
 
@@ -1854,7 +1897,7 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Grupo</label>
+                      <label className="block text-sm font-medium mb-2">Grupo de nómina *</label>
                       <select
                         name="idGrupoNomina"
                         value={formDataContrato.idGrupoNomina}
@@ -1872,10 +1915,26 @@ const ContratacionPage = () => {
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
                       )}
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Horas al mes *</label>
+                      <input
+                        type="number"
+                        name="horasmes"
+                        min={0}
+                        value={formDataContrato.horasmes || ''}
+                        onChange={handleChangeFormContrato}
+                        className="input"
+                        placeholder="Ingrese las horas al mes"
+                      />
+                      {errorsContrato.horasmes && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.horasmes}</p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
-                    <div>
+                    <div className="lg:col-span-3">
                       <label className="block text-sm font-medium mb-2">Objeto contrato *</label>
                       <textarea
                         rows={5}
@@ -1892,22 +1951,6 @@ const ContratacionPage = () => {
                       {errorsContrato.objetoContrato && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.objetoContrato}</p>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Observación</label>
-                      <textarea
-                        className="textarea"
-                        name="observacion"
-                        placeholder="Observaciones adicionales (máximo 500 caracteres)"
-                        value={formDataContrato.observacion}
-                        onChange={handleChangeFormContrato}
-                        rows={5}
-                        maxLength={500}
-                      ></textarea>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formDataContrato.observacion?.length || 0}/500 caracteres
-                      </p>
                     </div>
                   </div>
 
@@ -2068,22 +2111,6 @@ const ContratacionPage = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Cesantías</label>
-                      <select
-                        name="idCesantias"
-                        value={formDataContrato.idCesantias}
-                        onChange={handleChangeFormContrato}
-                        className="select w-4/4 mr-2"
-                      >
-                        <option value="">Seleccione una opción</option>
-                        {entidadesCesantias.map((res) => (
-                          <option key={res.id} value={res.id}>
-                            {res.nombre} - {res.codigo}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
 
                   {/* 4. Información Bancaria */}
@@ -2150,26 +2177,12 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Observación Preocupacional
-                      </label>
-                      <textarea
-                        className="textarea"
-                        name="observacionPreocupacional"
-                        placeholder="Observaciones preocupacionales (máximo 500 caracteres)"
-                        value={formDataContrato.observacionPreocupacional}
-                        onChange={handleChangeFormContrato}
-                        rows={5}
-                        maxLength={500}
-                      ></textarea>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formDataContrato.observacionPreocupacional?.length || 0}/500 caracteres
-                      </p>
+                      {/* Campo de observación preocupacional removido a solicitud */}
                     </div>
                   </div>
 
                   {/* 5. Información Adicional */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Tipo Comisión *</label>
                       <select
@@ -2183,81 +2196,121 @@ const ContratacionPage = () => {
                         <option value="PORCENTAJE FIJO">PORCENTAJE FIJO</option>
                       </select>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Nivel Educativo *</label>
-                      {nivelesEducativos && nivelesEducativos.length > 0 ? (
-                        <>
-                          <div className="flex flex-wrap gap-2">
-                            {nivelesEducativos.map((nivel) => {
-                              const isSelected = formDataContrato.idNivelEducativo === nivel.id || formDataContrato.idNivelEducativo === String(nivel.id);
-                              return (
-                                <button
-                                  key={nivel.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setFormDataContrato((prev) => ({
-                                      ...prev,
-                                      idNivelEducativo: nivel.id
-                                    }));
-                                  }}
-                                  className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                                    isSelected
-                                      ? 'bg-blue-50 border-primary text-primary font-semibold'
-                                      : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                                  }`}
-                                >
-                                  {nivel.nombre}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-xs text-gray-500 p-2">Cargando niveles educativos...</p>
+                      <select
+                        name="idNivelEducativo"
+                        value={formDataContrato.idNivelEducativo ?? ''}
+                        onChange={handleChangeFormContrato}
+                        className="select"
+                      >
+                        <option value="">Seleccione</option>
+                        {nivelesEducativos && nivelesEducativos.length > 0 ? (
+                          nivelesEducativos.map((nivel) => (
+                            <option key={nivel.id} value={nivel.id}>
+                              {nivel.nombre}
+                            </option>
+                          ))
+                        ) : null}
+                      </select>
+                      {errorsContrato.idNivelEducativo && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idNivelEducativo}</p>
                       )}
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Áreas de Conocimiento</label>
-                      <div className="flex flex-wrap gap-2">
-                        {areasConocimiento && areasConocimiento.length > 0 ? areasConocimiento.map((area) => {
-                          const isSelected = selectedAreasConocimiento.includes(area.id);
-                          return (
-                            <button
-                              key={area.id}
-                              type="button"
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedAreasConocimiento(selectedAreasConocimiento.filter(id => id !== area.id));
-                                } else {
-                                  setSelectedAreasConocimiento([...selectedAreasConocimiento, area.id]);
-                                }
+                  {/* Áreas de Conocimiento - Sección separada abajo */}
+                  <div className="mb-2 mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Áreas de Conocimiento</label>
+                      <button
+                        onClick={() => {
+                          if (selectedAreasConocimiento.length === areasConocimiento.length) {
+                            setSelectedAreasConocimiento([]);
+                          } else {
+                            setSelectedAreasConocimiento(areasConocimiento.map((area) => area.id));
+                          }
+                        }}
+                        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+                      >
+                        {selectedAreasConocimiento.length === areasConocimiento.length && areasConocimiento.length > 0 ? (
+                          <>
+                            <KeenIcon icon="check-circle" className="text-sm" />
+                            Deseleccionar Todos
+                          </>
+                        ) : (
+                          <>
+                            <KeenIcon icon="check-circle" className="text-sm" />
+                            Seleccionar Todos
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="card">
+                      <div className="card-body py-3 px-3">
+                        {areasConocimiento && areasConocimiento.length > 0 ? (
+                          <>
+                            <div 
+                              className="contratacion-areas-scroll max-h-[400px] overflow-y-auto pr-2 scroll-smooth"
+                              style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#cbd5e1 #f1f5f9',
                               }}
-                              className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                                isSelected
-                                  ? 'bg-blue-50 border-primary text-primary font-semibold'
-                                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                              }`}
                             >
-                              {area.nombreAreaConocimiento}
-                            </button>
-                          );
-                        }) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-1">
+                                {areasConocimiento.map((area) => {
+                                  const isSelected = selectedAreasConocimiento.includes(area.id);
+                                  return (
+                                    <label
+                                      key={area.id}
+                                      className={`flex items-start gap-3 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                                        isSelected
+                                          ? 'bg-blue-50 border-primary'
+                                          : 'bg-white border-gray-300 hover:border-gray-400'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => {
+                                          const newSelected = isSelected
+                                            ? selectedAreasConocimiento.filter((id) => id !== area.id)
+                                            : [...selectedAreasConocimiento, area.id];
+                                          setSelectedAreasConocimiento(newSelected);
+                                        }}
+                                        className="w-4 h-4 mt-0.5 text-primary border-gray-300 rounded focus:ring-primary flex-shrink-0"
+                                      />
+                                      <div className="flex-1">
+                                        <p className={`text-xs font-semibold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                                          {area.nombreAreaConocimiento}
+                                        </p>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-gray-200">
+                              <div className="flex items-center justify-center bg-blue-50 rounded-lg px-3 py-2">
+                                <p className="text-xs font-semibold text-primary">
+                                  {selectedAreasConocimiento.length} área{selectedAreasConocimiento.length !== 1 ? 's' : ''} seleccionada{selectedAreasConocimiento.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
                           <p className="text-xs text-gray-500 p-2">Cargando áreas de conocimiento...</p>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {selectedAreasConocimiento.length} área(s) seleccionada(s)
-                      </p>
                     </div>
                   </div>
                 </div>
               )}
               {currentStep === 4 && (
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Documentos del Contrato</h2>
+                  <p className="text-sm text-gray-600 mb-5">Adjunte los documentos requeridos para completar la contratación del instructor</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                     {documentosContratos.map((documento) => {
                       const isRequired = documento.obligatorio !== false;
