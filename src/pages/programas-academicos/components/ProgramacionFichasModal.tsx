@@ -5,22 +5,49 @@ import { AsignarTiposDocumentoModal } from './documentos/AsignarTiposDocumentoMo
 import { VerDocumentosFichaModal } from './documentos/VerDocumentosFichaModal';
 import MallaCurricular from './malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './documentos';
+import EditarFicha from './EditarFicha';
 
+// Interfaz corregida según los datos del backend
 interface Ficha {
   id: number;
-  idPrograma: number;
-  idGrado: number;
-  cupos: number;
-  grado: {
+  idJornada: number;
+  idAsignacion: number;
+  codigo: string;
+  idInstructorLider: number | null;
+  documento: string | null;
+  idAprendizVocero: number | null;
+  idAprendizSuplente: number | null;
+  idInfraestructura: number | null;
+  idSede: number;
+  idRegional: number;
+  porcentajeEjecucion: number;
+  created_at: string;
+  updated_at: string;
+  jornada: {
     id: number;
-    nombreGrado: string;
-    numeroGrado: number;
-  } | null;
-  programa: {
+    nombreJornada: string;
+  };
+  sede: {
     id: number;
-    nombrePrograma: string;
-    codigoPrograma: string;
-  } | null;
+    nombre: string;
+  };
+  regional: {
+    id: number;
+    razonSocial: string;
+    rutaLogoUrl: string;
+  };
+  asignacion: {
+    id: number;
+    estado: string;
+    fechaInicialClases: string;
+    fechaFinalClases: string;
+    idPrograma: number;
+    programa: {
+      id: number;
+      nombrePrograma: string;
+    };
+  };
+  instructor_lider: any | null;
 }
 
 interface ProgramacionFichasModalProps {
@@ -32,7 +59,7 @@ interface ProgramacionFichasModalProps {
 export const ProgramacionFichasModal = ({
   isOpen,
   onClose,
-  program,
+  program
 }: ProgramacionFichasModalProps) => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +68,14 @@ export const ProgramacionFichasModal = ({
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
-  
+
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [fichaIdToEdit, setFichaIdToEdit] = useState<number | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [messageToast, setMessageToast] = useState('');
+  const [evento, setEvento] = useState(false);
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
@@ -51,12 +85,14 @@ export const ProgramacionFichasModal = ({
     setLoading(true);
     try {
       const res = await axios.get(`programa/${program.id}/fichas`);
-      if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
+
+      if (Array.isArray(res.data?.data)) {
         setFichas(res.data.data);
       } else {
         setFichas([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error cargando fichas:', error);
       setFichas([]);
     } finally {
       setLoading(false);
@@ -71,7 +107,17 @@ export const ProgramacionFichasModal = ({
       setFichaExpandida(null);
       setCurrentPage(1);
     }
-  }, [isOpen, program?.id]);
+  }, [isOpen, program?.id, evento]);
+
+  // Auto-cierre del toast
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   // Cálculos de paginación
   const totalPages = Math.ceil(fichas.length / itemsPerPage);
@@ -87,12 +133,46 @@ export const ProgramacionFichasModal = ({
     setFichaExpandida(fichaExpandida === id ? null : id);
   };
 
+  // Función para abrir el modal de edición
+  const handleEditarFicha = (fichaId: number) => {
+    console.log('🔵 Abriendo modal de edición para ficha:', fichaId);
+    setFichaIdToEdit(fichaId);
+    setIsEditModalOpen(true);
+  };
+
+  // Función para eliminar ficha
+  const handleEliminarFicha = async (fichaId: number) => {
+    if (window.confirm('¿Está seguro de eliminar esta ficha?')) {
+      try {
+        await axios.delete(`fichas/${fichaId}`);
+        setMessageToast('Ficha eliminada correctamente');
+        setShowToast(true);
+        setEvento((prev) => !prev);
+      } catch (error: any) {
+        setMessageToast(error.response?.data?.message || 'Error al eliminar la ficha');
+        setShowToast(true);
+      }
+    }
+  };
+
+  // Función para formatear fechas
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
       <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div className="relative w-full max-w-7xl max-h-[90vh] flex flex-col bg-white dark:bg-coal-600 rounded-xl shadow-lg border border-gray-200 dark:border-coal-100 overflow-hidden">
+        <div className="relative w-full max-w-7xl max-h-[90vh] flex flex-col bg-white dark:bg-coal-600 rounded-xl shadow-lg border border-gray-200 dark:border-coal-100">
+          {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200 flex-shrink-0">
             <div>
               <h2 className="text-base font-bold uppercase tracking-wider text-gray-800 dark:text-white">
@@ -110,6 +190,8 @@ export const ProgramacionFichasModal = ({
               <i className="text-lg ki-filled ki-cross" />
             </button>
           </div>
+
+          {/* Body con scroll */}
           <div className="flex-1 overflow-y-auto p-5">
             {loading ? (
               <div className="flex justify-center py-12">
@@ -124,147 +206,178 @@ export const ProgramacionFichasModal = ({
               </div>
             ) : (
               <>
-                {/* Grid de Tarjetas Verticales */}
+                {/* Grid de Tarjetas */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                   {paginatedFichas.map((ficha) => {
                     const expandida = fichaExpandida === ficha.id;
+                    
                     return (
                       <div
                         key={ficha.id}
-                        className="bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg"
+                        className="bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-xl shadow-md hover:shadow-lg transition-shadow"
                       >
                         {/* Header de la tarjeta */}
                         <div className="p-4 border-b border-gray-200 dark:border-coal-100">
                           <div className="flex items-center justify-between mb-2">
                             <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                              {ficha.grado?.nombreGrado ?? `Ficha #${ficha.id}`}
+                              Ficha {ficha.codigo}
                             </h3>
-                            <span className="px-2 py-1 text-xs font-bold uppercase rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                              En formación
+                            <span className="px-2 py-1 text-xs font-bold uppercase rounded bg-green-100 text-green-600 dark:bg-green-700 dark:text-green-400">
+                              {ficha.asignacion?.estado || 'En formación'}
                             </span>
                           </div>
                         </div>
 
-                        {/* Contenido de la tarjeta */}
+                        {/* Información básica */}
                         <div className="p-4 space-y-3">
                           <div className="flex items-center gap-2">
                             <i className="text-gray-400 ki-outline ki-calendar text-sm"></i>
                             <div>
                               <p className="text-xs text-gray-500 dark:text-gray-400">Inicio</p>
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">—</p>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {formatDate(ficha.asignacion?.fechaInicialClases)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <i className="text-gray-400 ki-outline ki-calendar-tick text-sm"></i>
                             <div>
                               <p className="text-xs text-gray-500 dark:text-gray-400">Fin</p>
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">—</p>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {formatDate(ficha.asignacion?.fechaFinalClases)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <i className="text-gray-400 ki-outline ki-time text-sm"></i>
                             <div>
                               <p className="text-xs text-gray-500 dark:text-gray-400">Jornada</p>
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">—</p>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {ficha.jornada?.nombreJornada || '—'}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <i className="text-gray-400 ki-outline ki-clock text-sm"></i>
+                            <i className="text-gray-400 ki-outline ki-geolocation text-sm"></i>
                             <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Horario</p>
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">—</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Sede</p>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {ficha.sede?.nombre || '—'}
+                              </p>
                             </div>
                           </div>
                         </div>
 
-                        {/* Botón expandir/colapsar */}
+                        {/* Botón expandir */}
                         <div className="px-4 pb-4">
                           <button
                             type="button"
                             onClick={() => toggleExpandirFicha(ficha.id)}
                             className="w-full py-2 text-xs font-bold uppercase text-primary hover:bg-primary/10 rounded-lg transition-colors"
                           >
-                            {expandida ? 'Ocultar detalles' : 'Ver detalles'}
+                            {expandida ? 'Ocultar opciones' : 'Ver opciones'}
                             <i className={`ml-2 ki-outline ${expandida ? 'ki-up' : 'ki-down'}`}></i>
                           </button>
                         </div>
 
-                        {/* Contenido expandido */}
+                        {/* Sección expandida con TODOS los botones */}
                         {expandida && (
-                          <div className="px-4 pb-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
-                            <div className="pt-4 space-y-3">
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Sede</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
+                          <div className="border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
+                            <div className="p-4 space-y-3">
+                              {/* Info adicional */}
+                              <div className="mb-4">
+                                <div className="mb-2">
+                                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+                                    Regional
+                                  </p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    {ficha.regional?.razonSocial || '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+                                    Programa
+                                  </p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    {ficha.asignacion?.programa?.nombrePrograma || '—'}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Jornada</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
+
+                              {/* TODOS LOS BOTONES EN UNA GRID */}
+                              <div className="grid grid-cols-2 gap-2">
+                                {/* Botón 1: Malla */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('📚 Malla curricular');
+                                    setIsMallaOpen(true);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white transition-colors"
+                                >
+                                  📚 Malla
+                                </button>
+
+                                {/* Botón 2: Documentos */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('📄 Documentos programa');
+                                    setIsDocumentosOpen(true);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white transition-colors"
+                                >
+                                  📄 Docs
+                                </button>
+
+                                {/* Botón 3: Asignar tipos */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('📋 Asignar tipos');
+                                    setAsignarFicha(ficha);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors"
+                                >
+                                  📋 Asignar
+                                </button>
+
+                                {/* Botón 4: Ver documentos */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('👁️ Ver documentos ficha');
+                                    setVerFicha(ficha);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                                >
+                                  👁️ Ver
+                                </button>
+
+                                {/* Botón 5: ACTUALIZAR - ESTE ES EL IMPORTANTE */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('✏️ EDITAR FICHA ID:', ficha.id);
+                                    handleEditarFicha(ficha.id);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                >
+                                  ✏️ Editar
+                                </button>
+
+                                {/* Botón 6: ELIMINAR */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    console.log('🗑️ ELIMINAR FICHA ID:', ficha.id);
+                                    handleEliminarFicha(ficha.id);
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                                >
+                                  🗑️ Borrar
+                                </button>
                               </div>
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Fecha de inicio</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Fecha de Finalización</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de inicio</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de Finalización</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-coal-100">
-                              <button
-                                type="button"
-                                onClick={() => setIsMallaOpen(true)}
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500 hover:text-white transition-colors flex items-center justify-center gap-1"
-                              >
-                                <i className="ki-outline ki-book-open text-sm"></i>
-                                Malla
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setIsDocumentosOpen(true)}
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition-colors flex items-center justify-center gap-1"
-                              >
-                                <i className="ki-outline ki-files text-sm"></i>
-                                Documentos
-                              </button>
-                            </div>
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                type="button"
-                                onClick={() => setAsignarFicha(ficha)}
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
-                              >
-                                Asignar tipos
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setVerFicha(ficha)}
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-gray-200 dark:bg-coal-400 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-coal-300 transition-colors"
-                              >
-                                Ver documentos
-                              </button>
-                            </div>
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                type="button"
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
-                              >
-                                Actualizar Ficha
-                              </button>
-                              <button
-                                type="button"
-                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                              >
-                                Eliminar Ficha
-                              </button>
                             </div>
                           </div>
                         )}
@@ -277,7 +390,9 @@ export const ProgramacionFichasModal = ({
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Mostrando</span>
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        Mostrando
+                      </span>
                       <select
                         value={itemsPerPage}
                         onChange={(e) => {
@@ -316,6 +431,8 @@ export const ProgramacionFichasModal = ({
               </>
             )}
           </div>
+
+          {/* Footer */}
           <div className="flex items-center justify-end px-5 py-4 border-t border-gray-200 dark:border-coal-100 flex-shrink-0">
             <button
               type="button"
@@ -328,6 +445,7 @@ export const ProgramacionFichasModal = ({
         </div>
       </div>
 
+      {/* Modales */}
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
         onClose={() => setAsignarFicha(null)}
@@ -355,6 +473,32 @@ export const ProgramacionFichasModal = ({
         onClose={() => setIsDocumentosOpen(false)}
         program={program}
       />
+
+      {/* Modal de edición */}
+      <EditarFicha
+        isModalOpen={isEditModalOpen}
+        setIsModalOpen={setIsEditModalOpen}
+        fichaId={fichaIdToEdit}
+        setEvento={setEvento}
+        setShowToast={setShowToast}
+        setMessageToast={setMessageToast}
+      />
+
+      {/* Toast */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-[200]">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in">
+            <i className="text-xl ki-solid ki-check-circle"></i>
+            <span className="font-medium">{messageToast}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:text-gray-200 transition-colors"
+            >
+              <i className="ki-solid ki-cross text-lg"></i>
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };
