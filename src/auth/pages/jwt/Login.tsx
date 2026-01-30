@@ -54,18 +54,10 @@ const Login = () => {
   useEffect(() => {
     requestPermission();
 
-  
     onMessage(messaging, (payload) => {
       console.log('Mensaje recibido: ', payload);
     });
   }, [requestPermission]);
-    useEffect(() => {
-      requestPermission();
-  
-      onMessage(messaging, (payload) => {
-      
-      });
-    }, [requestPermission]);
 
 
 

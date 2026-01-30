@@ -6,11 +6,13 @@ import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFi
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
 import CrearFicha from './components/CrearFicha';
+import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 
 interface Ficha {
   id: number;
   codigo: string;
   porcentajeEjecucion: number;
+  idInstructorLider?: number | null;
 
   jornada?: {
     id: number;
@@ -37,6 +39,18 @@ interface Ficha {
       nombrePrograma: string;
     };
   };
+
+  instructorLider?: {
+    id: number;
+    persona?: {
+      id: number;
+      nombre1: string;
+      nombre2?: string;
+      apellido1: string;
+      apellido2?: string;
+      rutaFotoUrl?: string;
+    };
+  };
 }
 
 interface Program {
@@ -60,6 +74,7 @@ export const ProgramacionFichasPage = () => {
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
+  const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,6 +112,14 @@ export const ProgramacionFichasPage = () => {
       const res = await axios.get(`fichas/programa/${programId}`);
       if (res.status === 200) {
         setFichas(res.data.data);
+        // Debug: verificar datos del instructor
+        console.log('Fichas cargadas:', res.data.data);
+        res.data.data.forEach((ficha: any) => {
+          if (ficha.instructorLider) {
+            console.log('Instructor líder:', ficha.instructorLider);
+            console.log('Persona:', ficha.instructorLider.persona);
+          }
+        });
       } else {
         setFichas([]);
       }
@@ -233,9 +256,33 @@ export const ProgramacionFichasPage = () => {
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            {/* Icono */}
-                            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg">
-                              <i className="text-blue-600 dark:text-blue-400 ki-outline ki-file text-lg"></i>
+                            {/* Foto del instructor líder o iniciales por defecto */}
+                            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden">
+                              {ficha.instructorLider?.persona?.rutaFotoUrl ? (
+                                <img
+                                  src={ficha.instructorLider.persona.rutaFotoUrl}
+                                  alt={`${ficha.instructorLider.persona.nombre1} ${ficha.instructorLider.persona.apellido1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Si la imagen falla, ocultar y mostrar iniciales
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              {ficha.idInstructorLider && (
+                                <div 
+                                  className={`absolute inset-0 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-sm ${ficha.instructorLider?.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
+                                >
+                                  {ficha.instructorLider?.persona ? (
+                                    `${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase()
+                                  ) : (
+                                    '?'
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             {/* Información Principal */}
@@ -243,6 +290,16 @@ export const ProgramacionFichasPage = () => {
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
                                   Ficha {ficha.codigo}
+                                  {ficha.idInstructorLider && ficha.instructorLider?.persona && (
+                                    <span className="font-normal text-gray-600 dark:text-gray-400 ml-2">
+                                      - {ficha.instructorLider.persona.nombre1 || ''} {ficha.instructorLider.persona.apellido1 || ''}
+                                    </span>
+                                  )}
+                                  {ficha.idInstructorLider && !ficha.instructorLider?.persona && (
+                                    <span className="font-normal text-gray-400 ml-2 text-xs">
+                                      (Cargando...)
+                                    </span>
+                                  )}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${
@@ -297,6 +354,7 @@ export const ProgramacionFichasPage = () => {
                               </span>
                               <button
                                 type="button"
+                                onClick={() => setFichaAsignarLider(ficha)}
                                 className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                               >
                                 Asignar
@@ -453,6 +511,17 @@ export const ProgramacionFichasPage = () => {
         isOpen={isDocumentosOpen}
         onClose={() => setIsDocumentosOpen(false)}
         program={program}
+      />
+
+      <AsignarInstructorLiderModal
+        isOpen={!!fichaAsignarLider}
+        onClose={() => setFichaAsignarLider(null)}
+        fichaId={fichaAsignarLider?.id || 0}
+        programaNombre={fichaAsignarLider?.asignacion?.programa?.nombrePrograma}
+        onSuccess={() => {
+          loadFichas();
+          setFichaAsignarLider(null);
+        }}
       />
     </>
   );

@@ -64,7 +64,7 @@ const LayoutProvider = ({ children }: PropsWithChildren) => {
     setData(LAYOUTS_CONFIGS_KEY, Object.fromEntries(storedLayouts));
   };
 
-  const [currentLayout, setCurrentLayout] = useState();
+  const [currentLayout, setCurrentLayout] = useState<any>(null);
 
   return (
     <LayoutContext.Provider

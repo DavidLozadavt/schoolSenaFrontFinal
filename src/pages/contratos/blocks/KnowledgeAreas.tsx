@@ -91,14 +91,14 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
   return (
     <div className="card">
       <div className="card-header">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <KeenIcon icon="abstract-26" className="text-base text-primary" />
             <h3 className="card-title text-sm">Áreas de Conocimiento</h3>
           </div>
           <button
             onClick={handleSelectAll}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors ml-4"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
           >
             {allSelected ? (
               <>
