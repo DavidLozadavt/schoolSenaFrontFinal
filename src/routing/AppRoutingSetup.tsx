@@ -50,6 +50,7 @@ import CajaPage from '@/pages/puntos-de-venta/Caja/CajaPage';
 import PosTiendaPage from '@/pages/Pos/PosTiendaPage';
 import { PosPage } from '@/pages/Pos/components/PosPage';
 import { ConfiguracionEmpresaPage } from '@/pages/configuracion-empresa/ConfiguracionEmpresaPage';
+import MigracionDatosPage from '@/pages/migracion-datos/MigracionDatosPage';
 import { UsuariosPage } from '@/pages/usuarios/UsuariosPage';
 import { PerfilPage } from '@/pages/perfil/PerfilPage';
 import { TipoContratoPage } from '@/pages/tipo-contrato/TipoContratoPage';
@@ -697,6 +698,15 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_EMPRESA']}>
                 <ConfiguracionEmpresaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/empresa/migracion-datos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_EMPRESA']}>
+                <MigracionDatosPage />
               </ProtectedRoute>
             }
           />
