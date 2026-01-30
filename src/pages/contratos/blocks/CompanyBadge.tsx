@@ -48,7 +48,11 @@ const CompanyBadge = ({ title, contrato, onSave }: ICommunityBadgesProps) => {
           
           <div className="flex-1">
             <p className="text-sm font-bold text-gray-900 mb-1">{contrato?.empresa?.razonSocial || 'SENA'}</p>
-            <p className="text-xs text-gray-600 mb-3">Servicio Nacional de Aprendizaje</p>
+            {contrato?.persona?.usuario?.centroFormacion?.nombre ? (
+              <p className="text-xs text-gray-600 mb-3">
+                {contrato.persona.usuario.centroFormacion.nombre}
+              </p>
+            ) : null}
             <p className="text-xs font-bold text-gray-900 mb-1">
               NIT: {contrato?.empresa?.nit || 'N/A'}{contrato?.empresa?.digitoVerificacion ? `-${contrato.empresa.digitoVerificacion}` : ''}
             </p>
@@ -66,6 +70,7 @@ const CompanyBadge = ({ title, contrato, onSave }: ICommunityBadgesProps) => {
         empresa={contrato?.empresa}
         contratoId={contrato?.id}
         area={contrato?.area}
+        contrato={contrato}
         onSave={() => {
           if (onSave) {
             onSave();

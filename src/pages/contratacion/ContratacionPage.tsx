@@ -284,7 +284,8 @@ const ContratacionPage = () => {
     tipoSalario: '',
     idGrupoNomina: '',
     horasmes: '',
-    idNivelEducativo: ''
+    idNivelEducativo: '',
+    idCentroFormacion: ''
   });
 
   const steps = [
@@ -358,7 +359,10 @@ const ContratacionPage = () => {
   const handleChangeFormContrato = (e: any) => {
     const { name } = e.target;
     let { value } = e.target;
-    value = value.toUpperCase();
+    // No convertir a mayúsculas campos numéricos o idCentroFormacion
+    if (name !== 'idCentroFormacion' && !name.startsWith('id') && name !== 'horasmes' && name !== 'sueldo' && name !== 'valorTotalContrato') {
+      value = value.toUpperCase();
+    }
 
     setFormDataContrato((prevState) => ({
       ...prevState,
@@ -607,6 +611,7 @@ const ContratacionPage = () => {
           idGrupoNomina: formDataContrato.idGrupoNomina,
           horasmes: formDataContrato.horasmes ? Number(formDataContrato.horasmes) : undefined,
           idNivelEducativo: formDataContrato.idNivelEducativo,
+          idCentroFormacion: formDataContrato.idCentroFormacion,
           areasConocimiento: selectedAreasConocimiento
         };
 
@@ -736,7 +741,8 @@ const ContratacionPage = () => {
       tipoSalario: '',
       idGrupoNomina: '',
       horasmes: '',
-      idNivelEducativo: ''
+      idNivelEducativo: '',
+      idCentroFormacion: ''
     });
     setSelectedAreasConocimiento([]);
     setFotoUrl('');
@@ -1749,7 +1755,19 @@ const ContratacionPage = () => {
                     {/** Centro de formación */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Centro de formación</label>
-                      <Select className='select w-4/4 mr-2' options={optionsCF}/>
+                      <select
+                        name="idCentroFormacion"
+                        value={formDataContrato.idCentroFormacion}
+                        onChange={handleChangeFormContrato}
+                        className="select w-4/4 mr-2"
+                      >
+                        <option value="">Seleccione un centro de formación</option>
+                        {optionsCF.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
 

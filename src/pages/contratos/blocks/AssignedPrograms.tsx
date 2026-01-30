@@ -51,7 +51,12 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
     try {
       setLoading(true);
       const response = await axios.get('programas_contratacion');
-      if (response.data) {
+      console.log('Programas recibidos:', response.data);
+      if (response.data && Array.isArray(response.data)) {
+        if (response.data.length === 0) {
+          console.warn('No hay programas disponibles para esta empresa. Verifique que existan programas con idCompany correspondiente.');
+          enqueueSnackbar('No hay programas disponibles para esta empresa', { variant: 'warning' });
+        }
         const programasMapeados = response.data.map((p: any) => ({
           id: p.id,
           nombrePrograma: p.nombrePrograma,
@@ -63,10 +68,15 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           fichas: 0
         }));
         setProgramas(programasMapeados);
+      } else {
+        console.warn('La respuesta de programas no es un array:', response.data);
+        setProgramas([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar programas:', error);
+      console.error('Detalles del error:', error.response?.data || error.message);
       enqueueSnackbar('Error al cargar programas', { variant: 'error' });
+      setProgramas([]);
     } finally {
       setLoading(false);
     }

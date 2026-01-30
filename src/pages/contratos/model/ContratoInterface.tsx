@@ -30,6 +30,19 @@ export interface ContratoInterface {
     celular: string;
     telefonoFijo?: string;
     rutaFotoUrl?: string;
+    usuario?: {
+      idCentroFormacion?: number;
+      centroFormacion?: {
+        id: number;
+        nombre: string;
+        ciudad?: {
+          descripcion: string;
+        };
+        empresa?: {
+          razonSocial: string;
+        };
+      };
+    };
   };
   estado?: {
     estado: string;

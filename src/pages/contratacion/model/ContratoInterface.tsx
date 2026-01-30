@@ -34,4 +34,5 @@ export interface ContratoInterface {
   tipoSalario?:string;
   idGrupoNomina?: string;
   horasmes?: string;
+  idCentroFormacion?: string;
 }

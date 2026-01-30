@@ -13,6 +13,7 @@ interface Instructor {
     apellido1: string;
     apellido2?: string;
     identificacion: string;
+    rutaFotoUrl?: string;
   };
   nivelEducativo?: {
     id: number;
@@ -176,8 +177,26 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
                     }`}
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-sm">
-                        {getIniciales(instructor)}
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                        {instructor.persona?.rutaFotoUrl ? (
+                          <img
+                            src={instructor.persona.rutaFotoUrl}
+                            alt={getNombreCompleto(instructor)}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Si la imagen falla, ocultar y mostrar iniciales
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`absolute inset-0 flex items-center justify-center text-gray-600 font-semibold text-sm ${instructor.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
+                        >
+                          {getIniciales(instructor)}
+                        </div>
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900">
@@ -186,26 +205,24 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
                         <p className="text-xs text-gray-500 mt-1">
                           ID: {instructor.persona.identificacion}
                         </p>
-                        {instructor.nivelEducativo && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            Nivel: {instructor.nivelEducativo.nombre}
-                          </p>
-                        )}
                         {instructor.areasConocimiento && instructor.areasConocimiento.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {instructor.areasConocimiento.slice(0, 3).map((area) => (
-                              <span
-                                key={area.id}
-                                className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
-                              >
-                                {area.nombreAreaConocimiento}
-                              </span>
-                            ))}
-                            {instructor.areasConocimiento.length > 3 && (
-                              <span className="px-2 py-0.5 text-xs text-gray-500">
-                                +{instructor.areasConocimiento.length - 3} más
-                              </span>
-                            )}
+                          <div className="mt-1">
+                            <p className="text-xs text-gray-600 mb-1">Áreas de conocimiento:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {instructor.areasConocimiento.slice(0, 3).map((area) => (
+                                <span
+                                  key={area.id}
+                                  className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
+                                >
+                                  {area.nombreAreaConocimiento}
+                                </span>
+                              ))}
+                              {instructor.areasConocimiento.length > 3 && (
+                                <span className="px-2 py-0.5 text-xs text-gray-500">
+                                  +{instructor.areasConocimiento.length - 3} más
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
