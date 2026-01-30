@@ -24,6 +24,24 @@ interface Programa {
   fichas?: number;
 }
 
+// Estilos para scroll suave y delicado
+const programsScrollStyles = `
+  .programs-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .programs-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .programs-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .programs-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
 
 const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const [programas, setProgramas] = useState<Programa[]>([]);
@@ -136,8 +154,10 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
 
 
   return (
-    <div className="card">
-      <div className="card-header">
+    <>
+      <style>{programsScrollStyles}</style>
+      <div className="card">
+        <div className="card-header">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <KeenIcon icon="book" className="text-base text-primary" />
@@ -195,8 +215,14 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           </div>
         ) : (
           <>
-            <div className="max-h-[350px] overflow-y-auto pr-2">
-              <div className="space-y-2">
+            <div 
+              className="programs-scroll max-h-[350px] overflow-y-auto pr-2 scroll-smooth"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cbd5e1 #f1f5f9',
+              }}
+            >
+              <div className="space-y-2 pb-1">
                 {filteredProgramas.map((programa) => {
                   const isSelected = selectedPrograms.includes(programa.id);
                   return (
@@ -257,6 +283,7 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
