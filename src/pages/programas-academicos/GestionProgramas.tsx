@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
@@ -8,6 +8,7 @@ import { Program } from './types';
 import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { DocumentosProgramaModal } from './components/documentos';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   'PREESCOLAR': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
@@ -34,6 +35,7 @@ export const GestionProgramas = ({
     setSelectedMallaProgram(program);
     setIsMallaOpen(true);
   };
+  const authContext = useContext(AuthContext);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [selectedInfoProgram, setSelectedInfoProgram] = useState<Program | null>(null);
@@ -58,7 +60,7 @@ export const GestionProgramas = ({
 
   useEffect(() => {
     fetchProgramas();
-  }, []);
+  }, [authContext?.empresa.id]);
 
   const mapBackendToUi = (p: any): Program => {
     const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
@@ -82,7 +84,7 @@ export const GestionProgramas = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/programas');
+      const response = await axios.get(`programasporRegional/${authContext?.empresa?.id}`);
       if (response.data.status === 'success') {
         setPrograms(response.data.data.map(mapBackendToUi));
       }
