@@ -4,7 +4,7 @@ import { Program } from '../types';
 import { AsignarTiposDocumentoModal } from './documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './documentos/VerDocumentosFichaModal';
 import MallaCurricular from './malla-curricular/MallaCurricular';
-import { DocumentosProgramaModal } from './documentos';
+import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 import EditarFicha from './EditarFicha';
 
 // Interfaz corregida según los datos del backend
@@ -67,7 +67,7 @@ export const ProgramacionFichasModal = ({
   const [verFicha, setVerFicha] = useState<Ficha | null>(null);
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
-  const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
+  const [isTiposDocumentoOpen, setIsTiposDocumentoOpen] = useState(false);
 
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -303,81 +303,66 @@ export const ProgramacionFichasModal = ({
                                   </p>
                                 </div>
                               </div>
-
-                              {/* TODOS LOS BOTONES EN UNA GRID */}
-                              <div className="grid grid-cols-2 gap-2">
-                                {/* Botón 1: Malla */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('📚 Malla curricular');
-                                    setIsMallaOpen(true);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white transition-colors"
-                                >
-                                  📚 Malla
-                                </button>
-
-                                {/* Botón 2: Documentos */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('📄 Documentos programa');
-                                    setIsDocumentosOpen(true);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white transition-colors"
-                                >
-                                  📄 Docs
-                                </button>
-
-                                {/* Botón 3: Asignar tipos */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('📋 Asignar tipos');
-                                    setAsignarFicha(ficha);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors"
-                                >
-                                  📋 Asignar
-                                </button>
-
-                                {/* Botón 4: Ver documentos */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('👁️ Ver documentos ficha');
-                                    setVerFicha(ficha);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
-                                >
-                                  👁️ Ver
-                                </button>
-
-                                {/* Botón 5: ACTUALIZAR - ESTE ES EL IMPORTANTE */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('✏️ EDITAR FICHA ID:', ficha.id);
-                                    handleEditarFicha(ficha.id);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                                >
-                                  ✏️ Editar
-                                </button>
-
-                                {/* Botón 6: ELIMINAR */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    console.log('🗑️ ELIMINAR FICHA ID:', ficha.id);
-                                    handleEliminarFicha(ficha.id);
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                                >
-                                  🗑️ Borrar
-                                </button>
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Fecha de Finalización</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
                               </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de inicio</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Horario de Finalización</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">—</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-coal-100">
+                              <button
+                                type="button"
+                                onClick={() => setIsMallaOpen(true)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                              >
+                                <i className="ki-outline ki-book-open text-sm"></i>
+                                Malla
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsDocumentosOpen(true)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                              >
+                                <i className="ki-outline ki-files text-sm"></i>
+                                Documentos
+                              </button>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setAsignarFicha(ficha)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
+                              >
+                                Asignar tipos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setVerFicha(ficha)}
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-gray-200 dark:bg-coal-400 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-coal-300 transition-colors"
+                              >
+                                Ver documentos
+                              </button>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
+                              >
+                                Actualizar Ficha
+                              </button>
+                              <button
+                                type="button"
+                                className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                              >
+                                Eliminar Ficha
+                              </button>
                             </div>
                           </div>
                         )}
@@ -468,10 +453,9 @@ export const ProgramacionFichasModal = ({
         program={program}
       />
 
-      <DocumentosProgramaModal
-        isOpen={isDocumentosOpen}
-        onClose={() => setIsDocumentosOpen(false)}
-        program={program}
+      <TiposDocumentoModal
+        isOpen={isTiposDocumentoOpen}
+        onClose={() => setIsTiposDocumentoOpen(false)}
       />
 
       {/* Modal de edición */}
