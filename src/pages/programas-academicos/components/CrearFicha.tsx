@@ -87,20 +87,6 @@ const validationSchema = Yup.object({
 
   codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
-  fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
-
-  fechaFinalClases: Yup.string()
-    .required('La fecha final de clases es obligatoria')
-    .test(
-      'fin-clases-after-inicio',
-      'La fecha final debe ser mayor o igual a la fecha inicial de clases',
-      function (value) {
-        const { fechaInicialClases } = this.parent;
-        if (!value || !fechaInicialClases) return true;
-        return toDate(value)! >= toDate(fechaInicialClases)!;
-      }
-    ),
-
   fechaInicialInscripciones: Yup.string().required(
     'La fecha inicial de inscripciones es obligatoria'
   ),
@@ -141,7 +127,7 @@ const validationSchema = Yup.object({
     )
     .test(
       'fin-matriculas-before-clases',
-      'La fecha final de matrículas debe ser menor a la fecha inicial de clases',
+      'La fecha final de matrículas debe ser menor a la fecha inicial de la etapa electiva',
       function (value) {
         const { fechaInicialClases } = this.parent;
         if (!value || !fechaInicialClases) return true;
@@ -149,11 +135,25 @@ const validationSchema = Yup.object({
       }
     ),
 
+  fechaInicialClases: Yup.string().required('La fecha inicial de etapa electiva es obligatoria'),
+
+  fechaFinalClases: Yup.string()
+    .required('La fecha final de etapa electiva es obligatoria')
+    .test(
+      'fin-clases-after-inicio',
+      'La fecha final debe ser mayor o igual a la fecha inicial de etapa electiva',
+      function (value) {
+        const { fechaInicialClases } = this.parent;
+        if (!value || !fechaInicialClases) return true;
+        return toDate(value)! >= toDate(fechaInicialClases)!;
+      }
+    ),
+
   fechaInicialPlanMejoramiento: Yup.string()
-    .required('La fecha inicial del plan de mejoramiento es obligatoria')
+    .required('La fecha inicial de la etapa productiva es obligatoria')
     .test(
       'plan-after-clases',
-      'La fecha inicial del plan de mejoramiento debe ser posterior al fin de clases',
+      'La fecha inicial de la etapa productiva debe ser posterior al fin de etapa electiva',
       function (value) {
         const { fechaFinalClases } = this.parent;
         if (!value || !fechaFinalClases) return true;
@@ -162,10 +162,10 @@ const validationSchema = Yup.object({
     ),
 
   fechaFinalPlanMejoramiento: Yup.string()
-    .required('La fecha final del plan de mejoramiento es obligatoria')
+    .required('La fecha final de la etapa productiva es obligatoria')
     .test(
       'plan-fin-after-inicio',
-      'La fecha final debe ser mayor o igual a la fecha inicial del plan de mejoramiento',
+      'La fecha final debe ser mayor o igual a la fecha inicial de la etapa productiva',
       function (value) {
         const { fechaInicialPlanMejoramiento } = this.parent;
         if (!value || !fechaInicialPlanMejoramiento) return true;
@@ -565,39 +565,6 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
               </h3>
             </div>
 
-            {/* Clases */}
-            <div className="md:col-span-2">
-              <p className="text-xs font-bold mb-1">Etapa electiva</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-700">Inicio</label>
-              <input
-                type="date"
-                name="fechaInicialClases"
-                value={formik.values.fechaInicialClases}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              />
-              {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && (
-                <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>
-              )}
-            </div>
-            {/* Fecha final clases */}
-            <div>
-              <label className="text-sm text-gray-700">Fin</label>
-              <input
-                type="date"
-                name="fechaFinalClases"
-                value={formik.values.fechaFinalClases}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              />
-              {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
-                <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
-              )}
-            </div>
             {/* Inscripciones */}
             <div className="md:col-span-2 mt-3">
               <p className="text-xs font-bold mb-1">Inscripciones</p>
@@ -667,6 +634,40 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
               />
               {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && (
                 <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
+              )}
+            </div>
+
+            {/* Clases */}
+            <div className="md:col-span-2">
+              <p className="text-xs font-bold mb-1">Etapa electiva</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-700">Inicio</label>
+              <input
+                type="date"
+                name="fechaInicialClases"
+                value={formik.values.fechaInicialClases}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              />
+              {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && (
+                <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>
+              )}
+            </div>
+            {/* Fecha final clases */}
+            <div>
+              <label className="text-sm text-gray-700">Fin</label>
+              <input
+                type="date"
+                name="fechaFinalClases"
+                value={formik.values.fechaFinalClases}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              />
+              {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
+                <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
               )}
             </div>
             {/* Etapa productiva */}
@@ -761,9 +762,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 </span>
               </div>
 
-              <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
-                Examinar
-              </span>
+              <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">Examinar</span>
 
               <input
                 id="documento"
