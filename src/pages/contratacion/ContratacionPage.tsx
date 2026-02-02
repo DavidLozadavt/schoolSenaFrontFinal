@@ -34,6 +34,25 @@ interface FormErrors {
 const tiposCuentaBancaria = ['CUENTA DE AHORROS', 'CUENTA CORRIENTE'];
 const tipoSalario = ['INTEGRAL', 'FIJO', 'VARIABLE'];
 
+// Estilos para scroll suave y delicado en áreas de conocimiento
+const contratacionScrollStyles = `
+  .contratacion-areas-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
 const tiposCotizante = [
   { id: 1, codigo: '1', tipoCotizante: 'DEPENDIENTE' },
   { id: 2, codigo: '2', tipoCotizante: 'SERVICIO DOMÉSTICO' },
@@ -1230,6 +1249,7 @@ const ContratacionPage = () => {
 
   return (
     <Fragment>
+      <style>{contratacionScrollStyles}</style>
       {currentLayout?.name === 'demo1-layout' && (
         <Container>
           <Toolbar>
@@ -2231,8 +2251,14 @@ const ContratacionPage = () => {
                       <div className="card-body py-3 px-3">
                         {areasConocimiento && areasConocimiento.length > 0 ? (
                           <>
-                            <div className="max-h-[400px] overflow-y-auto pr-2">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div 
+                              className="contratacion-areas-scroll max-h-[400px] overflow-y-auto pr-2 scroll-smooth"
+                              style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#cbd5e1 #f1f5f9',
+                              }}
+                            >
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-1">
                                 {areasConocimiento.map((area) => {
                                   const isSelected = selectedAreasConocimiento.includes(area.id);
                                   return (
