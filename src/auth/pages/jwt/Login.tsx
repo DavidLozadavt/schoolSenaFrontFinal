@@ -7,7 +7,6 @@ import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
-import { token } from 'stylis';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
@@ -80,7 +79,7 @@ const Login = () => {
           localStorage.removeItem('email');
         }
 
-        navigate('/');
+        navigate('/perfil');
       } catch {
         setStatus('Los datos de inicio de sesión son incorrectos.');
         setSubmitting(false);
@@ -98,14 +97,14 @@ const Login = () => {
   <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
     <div
       className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200"
-      style={{ border: '1px solid #e5e7eb' }} // se mantiene
+      style={{ border: '1px solid #e5e7eb' }}
     >
       <form
         className="flex flex-col gap-6 px-6 py-10 sm:px-10"
         onSubmit={formik.handleSubmit}
         noValidate
       >
-        {/* Header */}
+
         <div className="text-center flex flex-col items-center gap-2">
           <img
             src="https://admin.virtualt.org/default/logoweb.png"
@@ -120,7 +119,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-gray-700">
             Correo electrónico
@@ -146,7 +144,6 @@ const Login = () => {
           )}
         </div>
 
-        {/* Password */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-gray-700">
             Contraseña
@@ -182,7 +179,6 @@ const Login = () => {
           )}
         </div>
 
-        {/* Button */}
         <button
           type="submit"
           disabled={loading || formik.isSubmitting}
@@ -196,12 +192,20 @@ const Login = () => {
           {loading ? 'Por favor espera…' : 'Iniciar sesión'}
         </button>
 
-        {/* Error */}
         {formik.status && (
           <div className="text-center text-xs text-red-500">
             {formik.status}
           </div>
         )}
+
+        <div className="flex items-center justify-center">
+          <Link 
+            to="/auth/classic/reset-password"
+            className="text-xs text-gray-600 hover:text-primary font-medium"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
       </form>
     </div>
   </div>

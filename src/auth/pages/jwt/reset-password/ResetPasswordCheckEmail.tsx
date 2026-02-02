@@ -1,54 +1,49 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-import { toAbsoluteUrl } from '@/utils';
 import { useLayout } from '@/providers';
 
 const ResetPasswordCheckEmail = () => {
   const { currentLayout } = useLayout();
+  const [email, setEmail] = useState<string>('');
+
+  useEffect(() => {
+    sessionStorage.removeItem('resetEmail');
+    sessionStorage.removeItem('resetToken');
+    
+    const storedEmail = sessionStorage.getItem('resetEmail') || '';
+    setEmail(storedEmail);
+  }, []);
 
   return (
-    <div className="card max-w-[440px] w-full">
-      <div className="card-body p-10">
-        <div className="flex justify-center py-10">
-          <img
-            src={toAbsoluteUrl('/media/illustrations/30.svg')}
-            className="dark:hidden max-h-[130px]"
-            alt=""
-          />
-          <img
-            src={toAbsoluteUrl('/media/illustrations/30-dark.svg')}
-            className="light:hidden max-h-[130px]"
-            alt=""
-          />
-        </div>
-
-        <h3 className="text-lg font-medium text-gray-900 text-center mb-3">Check your email</h3>
-        <div className="text-2sm text-center text-gray-700 mb-7.5">
-          Please click the link sent to your email
-          <a href="#" className="text-2sm text-gray-800 font-medium hover:text-primary-active">
-            bob@reui.io
-          </a>
-          <br />
-          to reset your password. Thank you
-        </div>
-
-        <div className="flex justify-center mb-5">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200">
+        <div className="flex flex-col gap-6 px-6 py-10 sm:px-10">
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <span className="text-4xl text-green-600">✓</span>
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-900 text-center mb-2">
+              ¡Contraseña restablecida!
+            </h3>
+            <div className="text-sm text-center text-gray-600 mb-6">
+              <p className="mb-3">
+                Tu contraseña ha sido cambiada exitosamente.
+              </p>
+              <p>
+                Ahora puedes iniciar sesión con tu nueva contraseña.
+              </p>
+            </div>
+          </div>
+          
           <Link
             to={
               currentLayout?.name === 'auth-branded'
-                ? '/auth/reset-password/changed'
-                : '/auth/classic/reset-password/changed'
+                ? '/auth/login'
+                : '/auth/classic/login'
             }
-            className="btn btn-primary flex justify-center"
+            className="h-12 rounded-xl text-sm font-medium text-white bg-orange-500 hover:bg-orange-700 transition flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-orange-500/30"
           >
-            Skip for now
-          </Link>
-        </div>
-
-        <div className="flex items-center justify-center gap-1">
-          <span className="text-xs text-gray-600">Didn’t receive an email?</span>
-          <Link to="/auth/classic/reset-password/enter-email" className="text-xs font-medium link">
-            Resend
+            Iniciar sesión
           </Link>
         </div>
       </div>
