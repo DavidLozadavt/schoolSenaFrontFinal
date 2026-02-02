@@ -465,7 +465,7 @@ export const ProgramacionFichasPage = () => {
                               <div className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg p-4 hover:shadow-md transition-shadow">
                                 <div className="flex items-center gap-4">
                                   <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-500/20 rounded-lg flex items-center justify-center">
-                                    <i className="ki-outline ki-file text-red-600 dark:text-red-400 text-2xl"></i>
+                                    <i className="ki-outline ki-document text-red-600 dark:text-red-400 text-2xl"></i>
                                   </div>
                                   <div className="flex-1">
                                     <p className="text-sm font-medium text-gray-800 dark:text-white">
@@ -484,17 +484,6 @@ export const ProgramacionFichasPage = () => {
                                       <i className="ki-outline ki-eye"></i>
                                       Ver Documento
                                     </button>
-
-                                    <a
-                                      href={ficha.documento!}
-                                      download
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="px-4 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                    >
-                                      <i className="ki-outline ki-download"></i>
-                                      Descargar
-                                    </a>
                                   </div>
                                 </div>
                               </div>
