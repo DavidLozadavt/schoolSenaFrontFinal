@@ -61,6 +61,7 @@ interface FormValues {
   fechaInicialMatriculas: string;
   fechaFinalMatriculas: string;
   porcentajeEjecucion: number;
+  documento: File | null;
 }
 
 const toDate = (date?: string) => (date ? new Date(date) : null);
@@ -176,7 +177,18 @@ const validationSchema = Yup.object({
     .typeError('Debe ser un número')
     .min(1, 'No puede ser menor que 1')
     .max(100, 'No puede ser mayor que 100')
+    .nullable(),
+
+  documento: Yup.mixed()
     .nullable()
+    .test('fileType', 'Solo se permiten archivos PDF', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.type === 'application/pdf';
+    })
+    .test('fileSize', 'El archivo no puede superar los 5MB', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.size <= 5 * 1024 * 1024;
+    })
 });
 
 const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }) => {
@@ -198,27 +210,29 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
       fechaFinalInscripciones: '',
       fechaInicialMatriculas: '',
       fechaFinalMatriculas: '',
-      porcentajeEjecucion: 100
+      porcentajeEjecucion: 100,
+      documento: null
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        const filteredValues = Object.fromEntries(
-          Object.entries(values).filter(([_, value]) => value !== '' && value !== 0)
-        );
+        const formData = new FormData();
 
-        // Agregar idPrograma al payload
-        const payload = {
-          ...filteredValues,
-          idPrograma: Number(programaId)
-        };
+        Object.entries(values).forEach(([key, value]) => {
+          if (value !== null && value !== '' && value !== 0) {
+            formData.append(key, value as any);
+          }
+        });
 
-        console.log(payload);
+        formData.append('idPrograma', String(programaId));
 
-        // Enviar al backend
-        await axios.post('fichas', payload);
+        await axios.post('fichas', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
       } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al actualizar la ficha');
+        alert(error.response?.data?.message || 'Error al crear la ficha');
       } finally {
         setSubmitting(false);
         setIsModalOpen(false);
@@ -696,7 +710,6 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
             </div>
             {/* Porcentaje de ejecución */}
             <div>
-              {/* Porcentaje de ejecución*/}
               <div className="md:col-span-2 mt-3">
                 <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
               </div>
@@ -720,6 +733,57 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
                 <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
               )}
             </div>
+          </div>
+          {/** Documento PDF */}
+          <div className="md:col-span-2 mt-4">
+            <p className="text-xs font-bold mb-2 text-gray-800">
+              Documento de la ficha <span className="text-gray-500">(PDF)</span>
+            </p>
+
+            <label
+              htmlFor="documento"
+              className="
+      flex items-center justify-between gap-4
+      w-full px-4 py-3
+      border-2 border-dashed rounded-xl
+      cursor-pointer
+      transition
+      hover:border-blue-500 hover:bg-blue-50
+      focus-within:border-blue-500
+    "
+            >
+              <div className="flex items-center gap-3">
+                📄
+                <span className="text-sm text-gray-700">
+                  {formik.values.documento
+                    ? formik.values.documento.name
+                    : 'Seleccionar archivo PDF'}
+                </span>
+              </div>
+
+              <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
+                Examinar
+              </span>
+
+              <input
+                id="documento"
+                type="file"
+                accept="application/pdf"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] || null;
+                  formik.setFieldValue('documento', file);
+                }}
+                className="hidden"
+              />
+            </label>
+
+            {/* Hint */}
+            <p className="text-xs text-gray-500 mt-1">Solo archivos PDF · Máx 5MB</p>
+
+            {/* Error */}
+            {formik.touched.documento && formik.errors.documento && (
+              <p className="text-red-500 text-xs mt-1">{formik.errors.documento}</p>
+            )}
           </div>
 
           {/* Botones */}

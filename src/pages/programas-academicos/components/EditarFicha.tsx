@@ -67,6 +67,7 @@ interface FormValues {
   fechaFinalMatriculas: string;
   tipoCalificacion?: string;
   porcentajeEjecucion: null;
+  documento: File | null;
 }
 
 const toDate = (date?: string) => (date ? new Date(date) : null);
@@ -187,7 +188,18 @@ const validationSchema = Yup.object({
     .typeError('Debe ser un número')
     .min(1, 'No puede ser menor que 1')
     .max(100, 'No puede ser mayor que 100')
+    .nullable(),
+
+  documento: Yup.mixed()
     .nullable()
+    .test('fileType', 'Solo se permiten archivos PDF', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.type === 'application/pdf';
+    })
+    .test('fileSize', 'El archivo no puede superar los 5MB', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.size <= 5 * 1024 * 1024;
+    })
 });
 
 const ESTADOS_APERTURA = [
@@ -244,16 +256,24 @@ const EditarFicha: React.FC<Props> = ({
       fechaInicialMatriculas: '',
       fechaFinalMatriculas: '',
       tipoCalificacion: 'NUMERICO',
-      porcentajeEjecucion: null
+      porcentajeEjecucion: null,
+      documento: null
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        const filteredValues = Object.fromEntries(
-          Object.entries(values).filter(([_, value]) => value !== '' && value !== 0)
-        );
+        const formData = new FormData();
+        Object.entries(values).forEach(([key, value]) => {
+          if (value !== null && value !== '' && value !== 0) {
+            formData.append(key, value as any);
+          }
+        });
 
-        await axios.put(`fichas/${fichaId}`, filteredValues);
+        await axios.post(`fichas/${fichaId}?_method=PUT`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
 
         setMessageToast('Ficha actualizada correctamente');
         setShowToast(true);
@@ -318,7 +338,8 @@ const EditarFicha: React.FC<Props> = ({
 
             idInfraestructura: ficha.idInfraestructura || 0,
             tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
-            porcentajeEjecucion: ficha.porcentajeEjecucion
+            porcentajeEjecucion: ficha.porcentajeEjecucion,
+            documento: null
           });
         } catch (error: any) {
           setMessageToast(error.response?.data?.message || 'Error al cargar la ficha');
@@ -826,6 +847,37 @@ const EditarFicha: React.FC<Props> = ({
 
               {formik.touched.porcentajeEjecucion && formik.errors.porcentajeEjecucion && (
                 <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
+              )}
+            </div>
+
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-gray-700">
+                Documento de la ficha (PDF)
+              </label>
+
+              <label className="flex items-center justify-between gap-3 px-4 py-2 mt-1 border rounded-lg cursor-pointer hover:border-blue-500 transition">
+                <span className="text-sm text-gray-600 truncate">
+                  {formik.values.documento?.name || 'Seleccionar archivo PDF'}
+                </span>
+
+                <span className="text-xs px-3 py-1 rounded-md bg-blue-50 text-blue-600">
+                  Examinar
+                </span>
+
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] || null;
+                    formik.setFieldValue('documento', file);
+                  }}
+                />
+              </label>
+
+              {formik.touched.documento && formik.errors.documento && (
+                <p className="text-red-500 text-xs">{formik.errors.documento}</p>
               )}
             </div>
 
