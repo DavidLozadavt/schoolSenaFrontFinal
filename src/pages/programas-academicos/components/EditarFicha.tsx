@@ -66,7 +66,11 @@ interface FormValues {
   fechaInicialMatriculas: string;
   fechaFinalMatriculas: string;
   tipoCalificacion?: string;
+  porcentajeEjecucion: null;
+  documento: File | null;
 }
+
+const toDate = (date?: string) => (date ? new Date(date) : null);
 
 const validationSchema = Yup.object({
   observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
@@ -88,36 +92,25 @@ const validationSchema = Yup.object({
   idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
 
   idInfraestructura: Yup.number().nullable(),
-
-  fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
-
-  fechaFinalClases: Yup.string()
-    .required('La fecha final de clases es obligatoria')
-    .test(
-      'after-or-equal',
-      'La fecha final debe ser mayor o igual a la fecha inicial',
-      function (value) {
-        const { fechaInicialClases } = this.parent;
-        return !value || !fechaInicialClases || value >= fechaInicialClases;
-      }
-    ),
-
   idJornada: Yup.number()
     .typeError('Debe seleccionar una jornada')
     .required('Debe seleccionar una jornada'),
 
   codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
-  fechaInicialPlanMejoramiento: Yup.string().required(
-    'La fecha inicial de la etapa productiva es obligatoria'
-  ),
+  fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
 
-  fechaFinalPlanMejoramiento: Yup.string()
-    .required('La fecha final de la etapa productiva es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialPlanMejoramiento } = this.parent;
-      return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
-    }),
+  fechaFinalClases: Yup.string()
+    .required('La fecha final de clases es obligatoria')
+    .test(
+      'fin-clases-after-inicio',
+      'La fecha final debe ser mayor o igual a la fecha inicial de clases',
+      function (value) {
+        const { fechaInicialClases } = this.parent;
+        if (!value || !fechaInicialClases) return true;
+        return toDate(value)! >= toDate(fechaInicialClases)!;
+      }
+    ),
 
   fechaInicialInscripciones: Yup.string().required(
     'La fecha inicial de inscripciones es obligatoria'
@@ -125,18 +118,87 @@ const validationSchema = Yup.object({
 
   fechaFinalInscripciones: Yup.string()
     .required('La fecha final de inscripciones es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialInscripciones } = this.parent;
-      return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-    }),
+    .test(
+      'fin-inscripciones-after-inicio',
+      'La fecha final debe ser mayor o igual a la fecha inicial de inscripciones',
+      function (value) {
+        const { fechaInicialInscripciones } = this.parent;
+        if (!value || !fechaInicialInscripciones) return true;
+        return toDate(value)! >= toDate(fechaInicialInscripciones)!;
+      }
+    )
+    .test(
+      'fin-inscripciones-before-matriculas',
+      'La fecha final de inscripciones debe ser menor a la fecha inicial de matrículas',
+      function (value) {
+        const { fechaInicialMatriculas } = this.parent;
+        if (!value || !fechaInicialMatriculas) return true;
+        return toDate(value)! < toDate(fechaInicialMatriculas)!;
+      }
+    ),
 
   fechaInicialMatriculas: Yup.string().required('La fecha inicial de matrículas es obligatoria'),
 
   fechaFinalMatriculas: Yup.string()
     .required('La fecha final de matrículas es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialMatriculas } = this.parent;
-      return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
+    .test(
+      'fin-matriculas-after-inicio',
+      'La fecha final debe ser mayor o igual a la fecha inicial de matrículas',
+      function (value) {
+        const { fechaInicialMatriculas } = this.parent;
+        if (!value || !fechaInicialMatriculas) return true;
+        return toDate(value)! >= toDate(fechaInicialMatriculas)!;
+      }
+    )
+    .test(
+      'fin-matriculas-before-clases',
+      'La fecha final de matrículas debe ser menor a la fecha inicial de clases',
+      function (value) {
+        const { fechaInicialClases } = this.parent;
+        if (!value || !fechaInicialClases) return true;
+        return toDate(value)! < toDate(fechaInicialClases)!;
+      }
+    ),
+
+  fechaInicialPlanMejoramiento: Yup.string()
+    .required('La fecha inicial del plan de mejoramiento es obligatoria')
+    .test(
+      'plan-after-clases',
+      'La fecha inicial del plan de mejoramiento debe ser posterior al fin de clases',
+      function (value) {
+        const { fechaFinalClases } = this.parent;
+        if (!value || !fechaFinalClases) return true;
+        return toDate(value)! > toDate(fechaFinalClases)!;
+      }
+    ),
+
+  fechaFinalPlanMejoramiento: Yup.string()
+    .required('La fecha final del plan de mejoramiento es obligatoria')
+    .test(
+      'plan-fin-after-inicio',
+      'La fecha final debe ser mayor o igual a la fecha inicial del plan de mejoramiento',
+      function (value) {
+        const { fechaInicialPlanMejoramiento } = this.parent;
+        if (!value || !fechaInicialPlanMejoramiento) return true;
+        return toDate(value)! >= toDate(fechaInicialPlanMejoramiento)!;
+      }
+    ),
+
+  porcentajeEjecucion: Yup.number()
+    .typeError('Debe ser un número')
+    .min(1, 'No puede ser menor que 1')
+    .max(100, 'No puede ser mayor que 100')
+    .nullable(),
+
+  documento: Yup.mixed()
+    .nullable()
+    .test('fileType', 'Solo se permiten archivos PDF', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.type === 'application/pdf';
+    })
+    .test('fileSize', 'El archivo no puede superar los 5MB', (value) => {
+      if (!value) return true;
+      return value instanceof File && value.size <= 5 * 1024 * 1024;
     })
 });
 
@@ -168,6 +230,11 @@ const EditarFicha: React.FC<Props> = ({
   const [eventoAmbiente, setEventoAmbiente] = useState<boolean>(false);
   const [showAmbienteForm, setShowAmbienteForm] = useState<boolean>(false);
 
+  const normalizeDate = (date?: string | null) => {
+    if (!date) return '';
+    return date.split('T')[0]; // corta horas
+  };
+
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
@@ -188,16 +255,25 @@ const EditarFicha: React.FC<Props> = ({
       fechaFinalInscripciones: '',
       fechaInicialMatriculas: '',
       fechaFinalMatriculas: '',
-      tipoCalificacion: 'NUMERICO'
+      tipoCalificacion: 'NUMERICO',
+      porcentajeEjecucion: null,
+      documento: null
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        const filteredValues = Object.fromEntries(
-          Object.entries(values).filter(([_, value]) => value !== '' && value !== 0)
-        );
+        const formData = new FormData();
+        Object.entries(values).forEach(([key, value]) => {
+          if (value !== null && value !== '' && value !== 0) {
+            formData.append(key, value as any);
+          }
+        });
 
-        await axios.put(`fichas/${fichaId}`, filteredValues);
+        await axios.post(`fichas/${fichaId}?_method=PUT`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
 
         setMessageToast('Ficha actualizada correctamente');
         setShowToast(true);
@@ -249,18 +325,21 @@ const EditarFicha: React.FC<Props> = ({
             idRegional: ficha.idRegional || 0,
             estado: apertura.estado || '',
             idSede: apertura.idSede || 0,
-            fechaInicialClases: apertura.fechaInicialClases || '',
-            fechaFinalClases: apertura.fechaFinalClases || '',
             idJornada: ficha.idJornada || 0,
             codigo: ficha.codigo || '',
-            fechaInicialPlanMejoramiento: apertura.fechaInicialPlanMejoramiento || '',
-            fechaFinalPlanMejoramiento: apertura.fechaFinalPlanMejoramiento || '',
-            fechaInicialInscripciones: apertura.fechaInicialInscripciones || '',
-            fechaFinalInscripciones: apertura.fechaFinalInscripciones || '',
-            fechaInicialMatriculas: apertura.fechaInicialMatriculas || '',
-            fechaFinalMatriculas: apertura.fechaFinalMatriculas || '',
+            fechaInicialClases: normalizeDate(apertura.fechaInicialClases),
+            fechaFinalClases: normalizeDate(apertura.fechaFinalClases),
+            fechaInicialInscripciones: normalizeDate(apertura.fechaInicialInscripciones),
+            fechaFinalInscripciones: normalizeDate(apertura.fechaFinalInscripciones),
+            fechaInicialMatriculas: normalizeDate(apertura.fechaInicialMatriculas),
+            fechaFinalMatriculas: normalizeDate(apertura.fechaFinalMatriculas),
+            fechaInicialPlanMejoramiento: normalizeDate(apertura.fechaInicialPlanMejoramiento),
+            fechaFinalPlanMejoramiento: normalizeDate(apertura.fechaFinalPlanMejoramiento),
+
             idInfraestructura: ficha.idInfraestructura || 0,
-            tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO'
+            tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
+            porcentajeEjecucion: ficha.porcentajeEjecucion,
+            documento: null
           });
         } catch (error: any) {
           setMessageToast(error.response?.data?.message || 'Error al cargar la ficha');
@@ -651,7 +730,9 @@ const EditarFicha: React.FC<Props> = ({
                 />
                 {formik.touched.fechaInicialInscripciones &&
                   formik.errors.fechaInicialInscripciones && (
-                    <p className="text-red-500 text-xs">{formik.errors.fechaInicialInscripciones}</p>
+                    <p className="text-red-500 text-xs">
+                      {formik.errors.fechaInicialInscripciones}
+                    </p>
                   )}
               </div>
               <div>
@@ -664,9 +745,10 @@ const EditarFicha: React.FC<Props> = ({
                   onBlur={formik.handleBlur}
                   className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                 />
-                {formik.touched.fechaFinalInscripciones && formik.errors.fechaFinalInscripciones && (
-                  <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>
-                )}
+                {formik.touched.fechaFinalInscripciones &&
+                  formik.errors.fechaFinalInscripciones && (
+                    <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>
+                  )}
               </div>
 
               {/* Matrículas */}
@@ -740,6 +822,63 @@ const EditarFicha: React.FC<Props> = ({
                     </p>
                   )}
               </div>
+            </div>
+            {/* Porcentaje de ejecución */}
+            <div>
+              {/* Porcentaje de ejecución*/}
+              <div className="md:col-span-2 mt-3">
+                <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
+              </div>
+
+              <input
+                type="number"
+                name="porcentajeEjecucion"
+                min={1}
+                max={100}
+                value={formik.values.porcentajeEjecucion ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  formik.setFieldValue('porcentajeEjecucion', value === '' ? null : Number(value));
+                }}
+                onBlur={formik.handleBlur}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                placeholder="Ej: 75"
+              />
+
+              {formik.touched.porcentajeEjecucion && formik.errors.porcentajeEjecucion && (
+                <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
+              )}
+            </div>
+
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-gray-700">
+                Documento de la ficha (PDF)
+              </label>
+
+              <label className="flex items-center justify-between gap-3 px-4 py-2 mt-1 border rounded-lg cursor-pointer hover:border-blue-500 transition">
+                <span className="text-sm text-gray-600 truncate">
+                  {formik.values.documento?.name || 'Seleccionar archivo PDF'}
+                </span>
+
+                <span className="text-xs px-3 py-1 rounded-md bg-blue-50 text-blue-600">
+                  Examinar
+                </span>
+
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] || null;
+                    formik.setFieldValue('documento', file);
+                  }}
+                />
+              </label>
+
+              {formik.touched.documento && formik.errors.documento && (
+                <p className="text-red-500 text-xs">{formik.errors.documento}</p>
+              )}
             </div>
 
             {/* Botones */}
