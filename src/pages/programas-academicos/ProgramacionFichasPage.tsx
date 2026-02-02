@@ -13,6 +13,7 @@ interface Ficha {
   codigo: string;
   porcentajeEjecucion: number;
   idInstructorLider?: number | null;
+  documento?: string | null;
 
   jornada?: {
     id: number;
@@ -114,15 +115,23 @@ export const ProgramacionFichasPage = () => {
   const loadFichas = async () => {
     if (!programId) return;
     setLoading(true);
+
     try {
       const res = await axios.get(`fichas/programa/${programId}`);
-      if (res.status === 200) {
-        setFichas(res.data.data);
-        console.log('Fichas cargadas:', res.data.data);
+      const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
+
+      if (res.status === 200 && Array.isArray(res.data.data)) {
+        const fichasConDocumento = res.data.data.map((ficha: any) => ({
+          ...ficha,
+          documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
+        }));
+
+        setFichas(fichasConDocumento);
       } else {
         setFichas([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error cargando fichas', error);
       setFichas([]);
     } finally {
       setLoading(false);
@@ -253,7 +262,7 @@ export const ProgramacionFichasPage = () => {
               Crear Ficha
             </button>
           </div>
-          
+
           {isModalOpen && (
             <CrearFicha
               isModalOpen={isModalOpen}
@@ -304,14 +313,12 @@ export const ProgramacionFichasPage = () => {
                                 />
                               ) : null}
                               {ficha.idInstructorLider && (
-                                <div 
+                                <div
                                   className={`absolute inset-0 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-sm ${ficha.instructorLider?.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
                                 >
-                                  {ficha.instructorLider?.persona ? (
-                                    `${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase()
-                                  ) : (
-                                    '?'
-                                  )}
+                                  {ficha.instructorLider?.persona
+                                    ? `${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase()
+                                    : '?'}
                                 </div>
                               )}
                             </div>
@@ -323,7 +330,8 @@ export const ProgramacionFichasPage = () => {
                                   Ficha {ficha.codigo}
                                   {ficha.idInstructorLider && ficha.instructorLider?.persona && (
                                     <span className="font-normal text-gray-600 dark:text-gray-400 ml-2">
-                                      - {ficha.instructorLider.persona.nombre1 || ''} {ficha.instructorLider.persona.apellido1 || ''}
+                                      - {ficha.instructorLider.persona.nombre1 || ''}{' '}
+                                      {ficha.instructorLider.persona.apellido1 || ''}
                                     </span>
                                   )}
                                 </h3>
@@ -345,7 +353,9 @@ export const ProgramacionFichasPage = () => {
                                   <span>
                                     Inicio:{' '}
                                     {ficha.asignacion?.fechaInicialClases
-                                      ? new Date(ficha.asignacion.fechaInicialClases).toLocaleDateString()
+                                      ? new Date(
+                                          ficha.asignacion.fechaInicialClases
+                                        ).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
@@ -354,7 +364,9 @@ export const ProgramacionFichasPage = () => {
                                   <span>
                                     Fin:{' '}
                                     {ficha.asignacion?.fechaFinalClases
-                                      ? new Date(ficha.asignacion.fechaFinalClases).toLocaleDateString()
+                                      ? new Date(
+                                          ficha.asignacion.fechaFinalClases
+                                        ).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
@@ -385,7 +397,9 @@ export const ProgramacionFichasPage = () => {
                               onClick={() => toggleExpandirFicha(ficha.id)}
                               className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                             >
-                              <i className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}></i>
+                              <i
+                                className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}
+                              ></i>
                             </button>
                           </div>
                         </div>
@@ -417,7 +431,9 @@ export const ProgramacionFichasPage = () => {
                               </p>
                               <p className="text-sm text-gray-700 dark:text-gray-300">
                                 {ficha.asignacion?.fechaInicialClases
-                                  ? new Date(ficha.asignacion.fechaInicialClases).toLocaleDateString()
+                                  ? new Date(
+                                      ficha.asignacion.fechaInicialClases
+                                    ).toLocaleDateString()
                                   : '—'}
                               </p>
                             </div>
@@ -440,6 +456,63 @@ export const ProgramacionFichasPage = () => {
                               </p>
                             </div>
                           </div>
+                          {ficha.documento ? (
+                            <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                                <i className="ki-outline ki-document"></i>
+                                Documento de la Ficha
+                              </h4>
+                              <div className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-500/20 rounded-lg flex items-center justify-center">
+                                    <i className="ki-outline ki-file text-red-600 dark:text-red-400 text-2xl"></i>
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-800 dark:text-white">
+                                      Documento Principal
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Formato PDF
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => window.open(ficha.documento!, '_blank')}
+                                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                    >
+                                      <i className="ki-outline ki-eye"></i>
+                                      Ver Documento
+                                    </button>
+
+                                    <a
+                                      href={ficha.documento!}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-4 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                    >
+                                      <i className="ki-outline ki-download"></i>
+                                      Descargar
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                                <i className="ki-outline ki-document"></i>
+                                Documento de la Ficha
+                              </h4>
+                              <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
+                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
+                                  <i className="ki-outline ki-information-2"></i>
+                                  No hay documento adjunto para esta ficha
+                                </p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
                           <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
