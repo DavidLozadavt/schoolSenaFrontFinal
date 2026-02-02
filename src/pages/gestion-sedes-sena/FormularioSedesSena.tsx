@@ -3,11 +3,13 @@ import { useFormik } from 'formik';
 import React, { useEffect, useState } from 'react';
 import * as Yup from 'yup';
 import Select from 'react-select';
+import ModalError from './ModalError';
 
 interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  showToast: (message: string) => void;
 }
 
 interface Persona {
@@ -35,9 +37,9 @@ interface CentroFormacion {
   id: number;
   nombre: string;
   direccion: string;
-  ciudad:{
-    descripcion:string
-  }
+  ciudad: {
+    descripcion: string;
+  };
 }
 
 interface FormValues {
@@ -99,11 +101,20 @@ const validationSchema = Yup.object({
     .required('El celular es obligatorio')
 });
 
-const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
+const FormularioSedesSena: React.FC<Props> = ({
+  isModalOpen,
+  setIsModalOpen,
+  setEvento,
+  showToast
+}) => {
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   const [regionales, setRegionales] = useState<Empresa[]>([]);
   const [centrosFormacion, setCentrosFormacion] = useState<CentroFormacion[]>([]); // ← NUEVO ESTADO
   const [responsable, setResponsable] = useState<Responsable[]>([]);
+
+  // Manejar el error:
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -177,13 +188,17 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
           headers: { 'Content-Type': 'multipart/form-data' }
         });
 
-        alert('Sede creada correctamente');
+        showToast('Sede creada correctamente');
         setEvento((prev) => !prev);
         resetForm();
         setIsModalOpen(false);
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 'Error al registrar la sede';
-        alert(errorMessage);
+        const message =
+          error.response?.data?.message ||
+          'No se pudo crear la sede. Verifica la información e intenta nuevamente.';
+
+        setErrorMessage(message);
+        setErrorOpen(true);
       } finally {
         setSubmitting(false);
       }
@@ -449,6 +464,7 @@ const FormularioSedesSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, set
           </div>
         </form>
       </div>
+      <ModalError isOpen={errorOpen} message={errorMessage} onClose={() => setErrorOpen(false)} />
     </div>
   );
 };

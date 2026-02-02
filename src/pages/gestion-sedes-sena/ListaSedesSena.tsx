@@ -61,8 +61,6 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-
-
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -77,6 +75,11 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
 
     loadData();
   }, [evento]);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
 
   const filteredSedes = useMemo(() => {
     if (!searchTerm) return sedes;
@@ -125,7 +128,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
       </div>
     );
   }
-  
+
   const eliminarSede = async () => {
     if (!sedeAEliminar) return;
 
@@ -221,6 +224,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             setEvento={setEvento}
+            showToast={showToast}
           />
         </div>
       )}

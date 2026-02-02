@@ -11,13 +11,12 @@ const SedesSena: React.FC = () => {
 
   //Toast para el success
   const [toastOpen, setToastOpen] = useState(false);
-const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
 
-const showToast = (message: string) => {
-  setToastMessage(message);
-  setToastOpen(true);
-};
-
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
@@ -69,15 +68,8 @@ const showToast = (message: string) => {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ListaSedesSena searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
       </div>
-
-...
-
-<Toast
-  isOpen={toastOpen}
-  message={toastMessage}
-  onClose={() => setToastOpen(false)}
-/>
-
+      ...
+      <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </div>
   );
 };
