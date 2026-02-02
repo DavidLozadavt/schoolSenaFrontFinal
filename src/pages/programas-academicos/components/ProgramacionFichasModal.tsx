@@ -4,7 +4,7 @@ import { Program } from '../types';
 import { AsignarTiposDocumentoModal } from './documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './documentos/VerDocumentosFichaModal';
 import MallaCurricular from './malla-curricular/MallaCurricular';
-import { DocumentosProgramaModal } from './documentos';
+import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 
 interface Ficha {
   id: number;
@@ -40,7 +40,7 @@ export const ProgramacionFichasModal = ({
   const [verFicha, setVerFicha] = useState<Ficha | null>(null);
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
-  const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
+  const [isTiposDocumentoOpen, setIsTiposDocumentoOpen] = useState(false);
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,7 +229,7 @@ export const ProgramacionFichasModal = ({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setIsDocumentosOpen(true)}
+                                onClick={() => setIsTiposDocumentoOpen(true)}
                                 className="flex-1 px-3 py-2 text-xs font-bold uppercase rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition-colors flex items-center justify-center gap-1"
                               >
                                 <i className="ki-outline ki-files text-sm"></i>
@@ -350,10 +350,9 @@ export const ProgramacionFichasModal = ({
         program={program}
       />
 
-      <DocumentosProgramaModal
-        isOpen={isDocumentosOpen}
-        onClose={() => setIsDocumentosOpen(false)}
-        program={program}
+      <TiposDocumentoModal
+        isOpen={isTiposDocumentoOpen}
+        onClose={() => setIsTiposDocumentoOpen(false)}
       />
     </>
   );

@@ -4,7 +4,6 @@ import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
-import { DocumentosProgramaModal } from './components/documentos';
 import CrearFicha from './components/CrearFicha';
 
 interface Ficha {
@@ -59,7 +58,6 @@ export const ProgramacionFichasPage = () => {
   const [verFicha, setVerFicha] = useState<Ficha | null>(null);
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
-  const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -446,12 +444,6 @@ export const ProgramacionFichasPage = () => {
       <MallaCurricular
         isOpen={isMallaOpen}
         onClose={() => setIsMallaOpen(false)}
-        program={program}
-      />
-
-      <DocumentosProgramaModal
-        isOpen={isDocumentosOpen}
-        onClose={() => setIsDocumentosOpen(false)}
         program={program}
       />
     </>

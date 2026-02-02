@@ -7,7 +7,7 @@ import Toast from './components/Toast';
 import { Program } from './types';
 import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
-import { DocumentosProgramaModal } from './components/documentos';
+import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   'PREESCOLAR': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
@@ -37,8 +37,7 @@ export const GestionProgramas = ({
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [selectedInfoProgram, setSelectedInfoProgram] = useState<Program | null>(null);
-  const [isDocumentosOpen, setIsDocumentosOpen] = useState(false);
-  const [selectedDocumentosProgram, setSelectedDocumentosProgram] = useState<Program | null>(null);
+  const [isTiposDocumentoOpen, setIsTiposDocumentoOpen] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -131,6 +130,8 @@ export const GestionProgramas = ({
     }
   };
 
+  const openTiposDocumentoModal = () => setIsTiposDocumentoOpen(true);
+
   const openEditModal = (program: Program) => {
     setProgramToEdit(program);
     setIsModalOpen(true);
@@ -161,11 +162,6 @@ export const GestionProgramas = ({
   const handleOpenInfo = (program: Program) => {
     setSelectedInfoProgram(program);
     setIsInfoOpen(true);
-  };
-
-  const handleOpenDocumentos = (program: Program) => {
-    setSelectedDocumentosProgram(program);
-    setIsDocumentosOpen(true);
   };
 
   const handleOpenProgramacionFichas = (program: Program) => {
@@ -268,7 +264,7 @@ export const GestionProgramas = ({
                           <button title="Configurar pagos" className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
                             <i className="text-sm ki-outline ki-setting-2"></i>
                           </button>
-                          <button title="Configurar documentos" onClick={() => handleOpenDocumentos(program)} className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
+                          <button title="Configurar documentos" type="button" onClick={openTiposDocumentoModal} className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all">
                             <i className="text-sm ki-outline ki-files"></i>
                           </button>
                         </div>
@@ -377,10 +373,9 @@ export const GestionProgramas = ({
         program={selectedInfoProgram}
       />
 
-      <DocumentosProgramaModal
-        isOpen={isDocumentosOpen}
-        onClose={() => { setIsDocumentosOpen(false); setSelectedDocumentosProgram(null); }}
-        program={selectedDocumentosProgram}
+      <TiposDocumentoModal
+        isOpen={isTiposDocumentoOpen}
+        onClose={() => setIsTiposDocumentoOpen(false)}
       />
     </div>
 
