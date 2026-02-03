@@ -31,7 +31,7 @@ interface Props {
   onDelete?: () => void;
 }
 
-const SedeCard: React.FC<Props> = ({ sede, onEdit, onInfo, onDelete }) => {
+const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
   return (
     <div
       className="

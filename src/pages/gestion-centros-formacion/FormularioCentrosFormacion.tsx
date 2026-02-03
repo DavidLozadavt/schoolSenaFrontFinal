@@ -8,6 +8,7 @@ interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  showToast: (message:string) => void;
 }
 
 interface Ciudades {
@@ -44,7 +45,8 @@ const validationSchema = Yup.object({
 const FormularioCentrosFormacion: React.FC<Props> = ({
   isModalOpen,
   setIsModalOpen,
-  setEvento
+  setEvento,
+  showToast
 }) => {
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   const [regionales, setRegionales] = useState<Empresa[]>([]);
@@ -95,7 +97,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
           idCiudad: values.ciudad?.value,
           idEmpresa: values.empresa?.value
         });
-        alert('Centro de formación creado correctamente');
+        showToast('Centro de formación creado correctamente');
         setIsModalOpen(false);
         setEvento((prev) => !prev);
       } catch (error: any) {
