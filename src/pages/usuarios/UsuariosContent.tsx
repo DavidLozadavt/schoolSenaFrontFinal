@@ -187,7 +187,14 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
 
   const renderItem = (item: any, index: number) => {
     const estado = item?.estado?.estado;
+    const persona = item?.user?.persona;
 
+    const nombreCompleto = persona
+      ? `${persona.nombre1 ?? ''} ${persona.apellido1 ?? ''}`.trim()
+      : 'Centro de formación';
+
+    const identificacion = persona?.identificacion ?? '—';
+    const foto = persona?.rutaFotoUrl;
     return (
       <div key={index} className="card flex flex-col items-center p-5 lg:py-10 relative">
         {estado && (
@@ -206,30 +213,24 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
         )}
 
         <div className="mb-3.5">
-          {item?.user?.persona.rutaFotoUrl && (
-            <div className="w-20 h-20 rounded-full overflow-hidden relative">
-              <CommonAvatar
-                className="w-full h-full object-cover"
-                image={item?.user?.persona.rutaFotoUrl}
-                imageClass="w-full h-full object-cover"
-              />
-            </div>
-          )}
+          <div className="w-20 h-20 rounded-full overflow-hidden relative">
+            <CommonAvatar
+              className="w-full h-full object-cover"
+              image={foto}
+              fallback={nombreCompleto.charAt(0)}
+              imageClass="w-full h-full object-cover"
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-center gap-1.5 mb-2">
-          <a
-            href="#"
-            className="hover:text-primary-active text-base leading-5 font-medium text-gray-900"
-          >
-            {item?.user?.persona.nombre1} {item?.user?.persona.apellido1}
-          </a>
+          <span className="hover:text-primary-active text-base leading-5 font-medium text-gray-900">
+            {nombreCompleto}
+          </span>
         </div>
 
         <div className="flex items-center justify-center gap-1.5 mb-1">
-          <span className="text-gray-600 text-sm font-medium">
-            {item?.user?.persona.identificacion}
-          </span>
+          <span className="text-gray-600 text-sm font-medium">{identificacion}</span>
         </div>
 
         <a href="#" className="text-gray-700 text-sm hover:text-primary-active">
@@ -245,13 +246,16 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
             <KeenIcon icon="toggle-on" />
           </button>
 
-          <button
-            className="btn btn-sm btn-secondary"
-            title="Editar Usuario"
-            onClick={() => handleEdit(item)}
-          >
-            <KeenIcon icon="pencil" />
-          </button>
+          {persona && (
+            <button
+              className="btn btn-sm btn-secondary"
+              title="Editar Usuario"
+              onClick={() => handleEdit(item)}
+            >
+              <KeenIcon icon="pencil" />
+            </button>
+          )}
+
           <button
             title="Eliminar Usuario"
             className="btn btn-sm btn-danger"
