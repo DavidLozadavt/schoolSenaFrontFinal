@@ -1,5 +1,6 @@
 import { KeenIcon } from '@/components';
 
+/* Interfaces */
 interface Ciudad {
   id: number;
   descripcion: string;
@@ -11,27 +12,25 @@ interface Empresa {
   rutaLogoUrl?: string;
 }
 
-interface Sede {
+interface CentrosFormacion {
   id: number;
   nombre: string;
-  jefeInmediato: string;
-  descripcion: string;
   direccion: string;
-  email: string;
   telefono: string;
-  celular: string;
-  ciudad: Ciudad;
-  empresa: Empresa;
+  correo: string;
+  subdirector: string;
+  ciudad?: Ciudad | null;
+  empresa?: Empresa | null;
 }
 
 interface Props {
-  sede: Sede;
+  centro: CentrosFormacion;
   onEdit: () => void;
   onInfo?: () => void;
-  onDelete?: () => void;
 }
 
-const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
+/* Componente */
+const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit }) => {
   return (
     <div
       className="
@@ -45,84 +44,81 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
       {/* HEADER */}
       <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
         <img
-          src={sede.empresa?.rutaLogoUrl ?? 'https://via.placeholder.com/400x200?text=Sede'}
-          alt={sede.empresa?.razonSocial}
+          src={centro.empresa?.rutaLogoUrl ?? 'https://via.placeholder.com/400x200?text=Centro'}
+          alt={centro.empresa?.razonSocial}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
-              'https://via.placeholder.com/400x200?text=Regional';
+              'https://via.placeholder.com/400x200?text=Centro+de+Formación';
           }}
         />
 
-        {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
         {/* Ciudad */}
         <div className="absolute top-3 right-3">
-          <span
-            className="
-            inline-flex items-center gap-1.5
-            rounded-full bg-white/90 px-3 py-1
-            text-[10px] font-bold uppercase tracking-wide text-gray-700
-            shadow backdrop-blur
-          "
-          >
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-700 shadow backdrop-blur">
             <i className="ki-outline ki-geolocation text-xs text-blue-600" />
-            {sede.ciudad?.descripcion}
+            {centro.ciudad?.descripcion ?? 'SIN CIUDAD'}
           </span>
         </div>
 
         {/* Nombre */}
         <div className="absolute bottom-3 left-3 right-3">
-          <h3
-            className="
-            text-base font-extrabold uppercase leading-snug
-            text-white drop-shadow-md line-clamp-2
-          "
-          >
-            {sede.nombre}
+          <h3 className="text-base font-extrabold uppercase leading-snug text-white drop-shadow-md line-clamp-2">
+            {centro.nombre}
           </h3>
-          {sede.empresa?.razonSocial}
+          <p className="text-[10px] text-gray-200 uppercase tracking-wide">
+            {centro.empresa?.razonSocial}
+          </p>
         </div>
       </div>
 
       {/* BODY */}
       <div className="p-5 flex flex-col h-[420px]">
+        {/* INFO */}
         <div className="space-y-3 text-xs flex-1 overflow-hidden">
           <InfoRow
             icon="user-square"
             color="blue"
-            label="Jefe inmediato"
-            value={`${sede.jefeInmediato}`}
+            label="Subdirector"
+            value={centro.subdirector}
           />
-          <InfoRow icon="phone" color="purple" label="Teléfono" value={`${sede.telefono}`} />
-          <InfoRow icon="phone" color="purple" label="Celular" value={`${sede.celular}`} />
-          <InfoRow icon="sms" color="green" label="Email" value={sede.email} />
-          <InfoRow icon="map" color="green" label="dirección" multiline value={sede.direccion} />
+          <InfoRow
+            icon="sms"
+            color="green"
+            label="Correo"
+            value={centro.correo}
+          />
+          <InfoRow
+            icon="phone"
+            color="purple"
+            label="Teléfono"
+            value={centro.telefono}
+          />
+          <InfoRow
+            icon="map"
+            color="green"
+            label="Dirección"
+            value={centro.direccion}
+            multiline
+          />
         </div>
 
         {/* ACCIONES */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           <button
-            onClick={onEdit}
             title="Editar"
+            onClick={onEdit}
             className="flex items-center justify-center h-8 bg-blue-100/40 text-blue-600 rounded-lg hover:border hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
           >
             <KeenIcon icon="notepad-edit" />
-          </button>
-
-          <button
-            title="Eliminar"
-            onClick={onDelete}
-            className="flex items-center justify-center h-8 bg-blue-100/40 text-red-600 rounded-lg hover:border hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
-          >
-            <KeenIcon icon="file-deleted" />
           </button>
         </div>
 
         {/* CTA */}
         <button className="w-full py-2 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors">
-          Ver detalle de la sede →
+          Ver detalle del centro →
         </button>
       </div>
     </div>
@@ -156,7 +152,9 @@ const InfoRow = ({
         <i className={`ki-outline ki-${icon} text-sm`} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          {label}
+        </p>
         <p
           className={`
             font-bold text-gray-700 leading-snug
@@ -170,4 +168,4 @@ const InfoRow = ({
   );
 };
 
-export default SedeCard;
+export default CentroFormacionCard;

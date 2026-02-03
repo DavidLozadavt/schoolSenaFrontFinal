@@ -25,6 +25,9 @@ export const FormularioPrograma = ({
     description: ''
   });
 
+  const [documento, setDocumento] = useState<File | null>(null);
+  const [documentoError, setDocumentoError] = useState('');
+
   useEffect(() => {
     if (isOpen) {
       cargarRecursos();
@@ -38,9 +41,10 @@ export const FormularioPrograma = ({
           description: programToEdit.description || ''
         });
       } else {
-        // MODO CREACIÓN: Limpiamos el formulario
         setFormData({ name: '', codigo: '', formacion: '', nivel: '', status: '', description: '' });
       }
+      setDocumento(null);
+      setDocumentoError('');
     }
   }, [isOpen, programToEdit]);
 
@@ -61,13 +65,28 @@ export const FormularioPrograma = ({
 
   if (!isOpen) return null;
 
+  const validateDocumento = (file: File | null): boolean => {
+    if (!file) return true;
+    if (file.type !== 'application/pdf') {
+      setDocumentoError('Solo se permiten archivos PDF');
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setDocumentoError('El archivo no puede superar los 5MB');
+      return false;
+    }
+    setDocumentoError('');
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.codigo || !formData.nivel || !formData.formacion || !formData.status) {
       alert("Por favor completa todos los campos requeridos");
       return;
     }
+    if (!validateDocumento(documento)) return;
 
-    const payload = {
+    const basePayload = {
       nombrePrograma: formData.name.toUpperCase(),
       codigoPrograma: formData.codigo.toUpperCase(),
       idNivelEducativo: formData.nivel,
@@ -78,17 +97,40 @@ export const FormularioPrograma = ({
 
     try {
       let response;
-      if (programToEdit) {
-        // MODO ACTUALIZAR (PUT)
-        response = await axios.put(`/programas_actualizar/${programToEdit.id}`, payload);
-        if (response.data.status === 'success' && onUpdateProgram) {
-          onUpdateProgram(response.data.data);
+      if (documento) {
+        const formDataToSend = new FormData();
+        Object.entries(basePayload).forEach(([key, value]) => {
+          formDataToSend.append(key, value as string);
+        });
+        formDataToSend.append('documento', documento);
+
+        if (programToEdit) {
+          formDataToSend.append('_method', 'PUT');
+          response = await axios.post(`/programas_actualizar/${programToEdit.id}`, formDataToSend, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (response.data.status === 'success' && onUpdateProgram) {
+            onUpdateProgram(response.data.data);
+          }
+        } else {
+          response = await axios.post('/programas_guardar', formDataToSend, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (response.data.status === 'success') {
+            onAddProgram(response.data.data);
+          }
         }
       } else {
-        // MODO CREAR (POST)
-        response = await axios.post('/programas_guardar', payload);
-        if (response.data.status === 'success') {
-          onAddProgram(response.data.data);
+        if (programToEdit) {
+          response = await axios.put(`/programas_actualizar/${programToEdit.id}`, basePayload);
+          if (response.data.status === 'success' && onUpdateProgram) {
+            onUpdateProgram(response.data.data);
+          }
+        } else {
+          response = await axios.post('/programas_guardar', basePayload);
+          if (response.data.status === 'success') {
+            onAddProgram(response.data.data);
+          }
         }
       }
       onClose();
@@ -192,6 +234,42 @@ export const FormularioPrograma = ({
               className="w-full border-gray-300 outline-none textarea bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 focus:border-blue-500 text-2sm"
               placeholder="Descripción breve del programa"
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
+              Documento del programa <span className="text-gray-500 font-normal">(PDF)</span>
+            </p>
+            <label
+              htmlFor="documento-programa"
+              className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-coal-200 focus-within:border-blue-500"
+            >
+              <div className="flex items-center gap-3">
+                <span>📄</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {documento ? documento.name : 'Seleccionar archivo PDF'}
+                </span>
+              </div>
+              <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">Examinar</span>
+              <input
+                id="documento-programa"
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (file && !validateDocumento(file)) {
+                    setDocumento(null);
+                    e.target.value = '';
+                    return;
+                  }
+                  setDocumento(file);
+                  setDocumentoError('');
+                }}
+              />
+            </label>
+            <p className="text-xs text-gray-500">Solo archivos PDF · Máx 5MB</p>
+            {documentoError && <p className="text-red-500 text-xs">{documentoError}</p>}
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-4">
