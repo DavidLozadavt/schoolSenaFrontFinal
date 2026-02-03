@@ -1,5 +1,4 @@
-import { DataGrid, KeenIcon } from '@/components';
-import { ColumnDef } from '@tanstack/react-table';
+import { KeenIcon } from '@/components';
 import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react';
 import FormularioUpSedesSena from './FormularioUpSedesSena';

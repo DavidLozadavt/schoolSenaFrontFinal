@@ -14,7 +14,7 @@ const Fichas: React.FC = () => {
   const [showToast, setShowToast] = useState<boolean>(false);
 
   return (
-    <div className="relative z-10 flex flex-col items-center w-full h-screen">
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
       {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
@@ -61,7 +61,7 @@ const Fichas: React.FC = () => {
           setMessageToast={setMessageToast}
         />
       )}
-      <div className="p-1">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ListaFichas searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
       </div>
       <Toast message={messageToast}  isOpen={showToast} onClose={() => setShowToast(false)} />
