@@ -61,6 +61,7 @@ export const GestionProgramas = ({
     fetchProgramas();
   }, [authContext?.empresa.id]);
 
+  
   const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
 
   const mapBackendToUi = (p: any): Program => {
