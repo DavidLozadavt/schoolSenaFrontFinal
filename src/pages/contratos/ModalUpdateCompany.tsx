@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface ModalUpdateCompanyProps {
   open: boolean;
@@ -11,21 +12,26 @@ interface ModalUpdateCompanyProps {
   contratoId?: string | number;
   area?: any;
   areas?: any[];
+  contrato?: any;
   onSave: () => void;
 }
 
-const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = [], onSave }: ModalUpdateCompanyProps) => {
+const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = [], contrato, onSave }: ModalUpdateCompanyProps) => {
   const [saving, setSaving] = useState<boolean>(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loadingAreas, setLoadingAreas] = useState<boolean>(false);
+  const [loadingCentros, setLoadingCentros] = useState<boolean>(false);
+  const [centrosFormacion, setCentrosFormacion] = useState<any[]>([]);
   const { enqueueSnackbar } = useSnackbar();
+  const authContext = useContext(AuthContext);
 
   const [formData, setFormData] = useState({
     razonSocial: '',
     nit: '',
     digitoVerificacion: '',
-    idArea: ''
+    idArea: '',
+    idCentroFormacion: ''
   });
 
   const [areasList, setAreas] = useState<any[]>(areas);
@@ -37,7 +43,8 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
           razonSocial: empresa.razonSocial || '',
           nit: empresa.nit || '',
           digitoVerificacion: empresa.digitoVerificacion || '',
-          idArea: area?.id ? String(area.id) : ''
+          idArea: area?.id ? String(area.id) : '',
+          idCentroFormacion: contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) : ''
         });
         setLogoFile(null);
         setLogoPreview(empresa.rutaLogoUrl || null);
@@ -50,19 +57,67 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
         // Si ya hay áreas proporcionadas, usarlas
         setAreas(areas);
       }
+
+      // Cargar centros de formación
+      fetchCentrosFormacion();
     }
-  }, [open, empresa, area]);
+  }, [open, empresa, area, contrato]);
 
   const fetchAreas = async () => {
     setLoadingAreas(true);
     try {
-      const response = await axios.get('areas');
-      setAreas(response.data || []);
-    } catch (error) {
+      // Intentar primero con 'areas' (filtrado por empresa)
+      let response = await axios.get('areas');
+      console.log('Áreas recibidas (filtradas por empresa):', response.data);
+      
+      // Si no hay áreas filtradas por empresa, intentar con all_areas
+      if (!Array.isArray(response.data) || response.data.length === 0) {
+        console.log('No hay áreas filtradas por empresa, intentando con all_areas...');
+        try {
+          response = await axios.get('all_areas');
+          console.log('Áreas recibidas (todas):', response.data);
+        } catch (error2) {
+          console.warn('Error al cargar all_areas:', error2);
+        }
+      }
+      
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        setAreas(response.data);
+      } else {
+        setAreas([]);
+        console.warn('No se encontraron áreas disponibles');
+      }
+    } catch (error: any) {
       console.error('Error al cargar áreas:', error);
-      enqueueSnackbar('Error al cargar las áreas.', { variant: 'error' });
+      // Si falla 'areas', intentar con 'all_areas' como último recurso
+      try {
+        const response = await axios.get('all_areas');
+        if (Array.isArray(response.data) && response.data.length > 0) {
+          setAreas(response.data);
+          console.log('Áreas cargadas desde all_areas:', response.data);
+        } else {
+          setAreas([]);
+        }
+      } catch (error2: any) {
+        console.error('Error al cargar all_areas:', error2);
+        enqueueSnackbar('Error al cargar las áreas.', { variant: 'error' });
+        setAreas([]);
+      }
     } finally {
       setLoadingAreas(false);
+    }
+  };
+
+  const fetchCentrosFormacion = async () => {
+    setLoadingCentros(true);
+    try {
+      const res = await axios.get(`centrosFormacion/regional/${authContext?.empresa?.id}`);
+      setCentrosFormacion(res.data.data || []);
+    } catch (error) {
+      console.error('Error al cargar centros de formación:', error);
+      enqueueSnackbar('Error al cargar los centros de formación.', { variant: 'error' });
+    } finally {
+      setLoadingCentros(false);
     }
   };
 
@@ -108,14 +163,22 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
       
       // Si hay cambio de área y hay contratoId, actualizar el contrato
       const areaActual = area?.id ? String(area.id) : '';
+      const centroActual = contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) : '';
+      
+      const updates: any = {};
       if (formData.idArea && contratoId && formData.idArea !== areaActual) {
+        updates.idArea = Number(formData.idArea);
+      }
+      if (formData.idCentroFormacion && contratoId && formData.idCentroFormacion !== centroActual) {
+        updates.idCentroFormacion = Number(formData.idCentroFormacion);
+      }
+
+      if (Object.keys(updates).length > 0) {
         try {
-          await axios.post(`update_contrato/${contratoId}`, {
-            idArea: Number(formData.idArea)
-          });
+          await axios.post(`update_contrato/${contratoId}`, updates);
         } catch (error) {
-          console.error('Error al actualizar el área del contrato:', error);
-          enqueueSnackbar('Error al actualizar el área del contrato.', { variant: 'error' });
+          console.error('Error al actualizar el contrato:', error);
+          enqueueSnackbar('Error al actualizar el contrato.', { variant: 'error' });
           setSaving(false);
           return;
         }
@@ -213,6 +276,26 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
                   {areaItem.nombre}
                 </option>
               )) : null}
+            </select>
+          </div>
+
+          <div className="px-4">
+            <label htmlFor="idCentroFormacion" className="block text-sm font-medium mb-2">
+              Centro de formación
+            </label>
+            <select
+              id="idCentroFormacion"
+              value={formData.idCentroFormacion}
+              onChange={(e) => setFormData({ ...formData, idCentroFormacion: e.target.value })}
+              className="form-select w-full"
+              disabled={loadingCentros}
+            >
+              <option value="">Seleccione un centro de formación</option>
+              {centrosFormacion.map((centro) => (
+                <option key={centro.id} value={String(centro.id)}>
+                  {centro.nombre}, {centro.empresa?.razonSocial}, {centro.ciudad?.descripcion}
+                </option>
+              ))}
             </select>
           </div>
 

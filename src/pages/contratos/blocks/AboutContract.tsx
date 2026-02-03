@@ -73,6 +73,12 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
                 {formatCOP(contrato?.salario?.valor)}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Horas al mes</p>
+              <p className="text-xs font-bold text-gray-900">
+                {contrato?.horasmes ?? 'N/A'}
+              </p>
+            </div>
           </div>
 
           {/* Columna Derecha */}

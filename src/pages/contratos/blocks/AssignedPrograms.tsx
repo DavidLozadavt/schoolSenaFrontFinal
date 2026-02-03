@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import axios from 'axios';
@@ -24,13 +24,34 @@ interface Programa {
   fichas?: number;
 }
 
+// Estilos para scroll suave y delicado
+const programsScrollStyles = `
+  .programs-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .programs-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .programs-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .programs-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
 const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const [programas, setProgramas] = useState<Programa[]>([]);
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const { enqueueSnackbar } = useSnackbar();
 
+  // Cargar programas al montar el componente
   useEffect(() => {
     fetchProgramas();
     if (contrato?.programas && Array.isArray(contrato.programas)) {
@@ -46,8 +67,14 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
 
   const fetchProgramas = async () => {
     try {
+      setLoading(true);
       const response = await axios.get('programas_contratacion');
-      if (response.data) {
+      console.log('Programas recibidos:', response.data);
+      if (response.data && Array.isArray(response.data)) {
+        if (response.data.length === 0) {
+          console.warn('No hay programas disponibles para esta empresa. Verifique que existan programas con idCompany correspondiente.');
+          enqueueSnackbar('No hay programas disponibles para esta empresa', { variant: 'warning' });
+        }
         const programasMapeados = response.data.map((p: any) => ({
           id: p.id,
           nombrePrograma: p.nombrePrograma,
@@ -55,14 +82,19 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           descripcionPrograma: p.descripcionPrograma,
           nivel: p.nivel,
           tipoFormacion: p.tipoFormacion,
-          duracion: '24 meses', // TODO: Obtener de la API cuando esté disponible
-          fichas: Math.floor(Math.random() * 5) + 1 // TODO: Obtener de la API cuando esté disponible
+          duracion: null,
+          fichas: 0
         }));
         setProgramas(programasMapeados);
+      } else {
+        console.warn('La respuesta de programas no es un array:', response.data);
+        setProgramas([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar programas:', error);
+      console.error('Detalles del error:', error.response?.data || error.message);
       enqueueSnackbar('Error al cargar programas', { variant: 'error' });
+      setProgramas([]);
     } finally {
       setLoading(false);
     }
@@ -108,17 +140,32 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const selectedCount = selectedPrograms.length;
   const allSelected = selectedPrograms.length === programas.length && programas.length > 0;
 
+  // Filtrar programas por término de búsqueda
+  const filteredProgramas = useMemo(() => {
+    if (!searchTerm) return programas;
+    const term = searchTerm.toLowerCase();
+    return programas.filter(
+      (programa) =>
+        programa.nombrePrograma.toLowerCase().includes(term) ||
+        programa.codigoPrograma.toLowerCase().includes(term) ||
+        programa.descripcionPrograma?.toLowerCase().includes(term)
+    );
+  }, [programas, searchTerm]);
+
+
   return (
-    <div className="card">
-      <div className="card-header">
-        <div className="flex items-center justify-between">
+    <>
+      <style>{programsScrollStyles}</style>
+      <div className="card">
+        <div className="card-header">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <KeenIcon icon="book" className="text-base text-primary" />
             <h3 className="card-title text-sm">Programas Asignados</h3>
           </div>
           <button
             onClick={handleSelectAll}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors ml-4"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
           >
             {allSelected ? (
               <>
@@ -136,15 +183,47 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
       </div>
 
       <div className="card-body py-3">
+        {/* Barra de búsqueda */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Buscar Programa
+          </label>
+          <div className="relative">
+            <KeenIcon
+              icon="magnifier"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nombre, código o descripción..."
+              className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+        </div>
+
         {loading ? (
           <div className="text-center py-4">
             <p className="text-xs text-gray-500">Cargando programas...</p>
           </div>
+        ) : filteredProgramas.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-xs text-gray-500">
+              {searchTerm ? 'No se encontraron programas con ese criterio' : 'No hay programas disponibles'}
+            </p>
+          </div>
         ) : (
           <>
-            <div className="max-h-[350px] overflow-y-auto pr-2">
-              <div className="space-y-2">
-                {programas.map((programa) => {
+            <div 
+              className="programs-scroll max-h-[350px] overflow-y-auto pr-2 scroll-smooth"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cbd5e1 #f1f5f9',
+              }}
+            >
+              <div className="space-y-2 pb-1">
+                {filteredProgramas.map((programa) => {
                   const isSelected = selectedPrograms.includes(programa.id);
                   return (
                     <label
@@ -171,9 +250,11 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                               <span>
                                 <span className="font-medium">Acrónimo:</span> {programa.codigoPrograma}
                               </span>
-                              <span>
-                                <span className="font-medium">Duración:</span> {programa.duracion || 'N/A'}
-                              </span>
+                              {programa.duracion && (
+                                <span>
+                                  <span className="font-medium">Duración:</span> {programa.duracion}
+                                </span>
+                              )}
                               <span>
                                 <span className="font-medium">Tipo:</span>{' '}
                                 {programa.tipoFormacion?.nombreTipoFormacion || programa.nivel?.nombreNivel || 'N/A'}
@@ -202,6 +283,7 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

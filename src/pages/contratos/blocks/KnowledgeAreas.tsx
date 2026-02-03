@@ -14,11 +14,33 @@ interface AreaConocimiento {
   nombreAreaConocimiento: string;
 }
 
+// Estilos para scroll suave y delicado
+const scrollStyles = `
+  .knowledge-areas-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .knowledge-areas-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .knowledge-areas-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .knowledge-areas-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
 const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
   const [areas, setAreas] = useState<AreaConocimiento[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newAreaName, setNewAreaName] = useState('');
+  const [creating, setCreating] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -85,33 +107,96 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
     }
   };
 
+  const handleCreateArea = async () => {
+    if (!newAreaName.trim()) {
+      enqueueSnackbar('Por favor ingrese un nombre para el área de conocimiento', { variant: 'warning' });
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const response = await axios.post('store_area_conocimiento', {
+        nombreAreaConocimiento: newAreaName.trim()
+      });
+
+      if (response.data && response.data.data) {
+        const newArea = response.data.data;
+        // Agregar la nueva área a la lista
+        setAreas([...areas, newArea].sort((a, b) => 
+          a.nombreAreaConocimiento.localeCompare(b.nombreAreaConocimiento)
+        ));
+        
+        // Seleccionar automáticamente la nueva área
+        const newSelectedAreas = [...selectedAreas, newArea.id];
+        setSelectedAreas(newSelectedAreas);
+        
+        // Guardar la selección en el contrato
+        if (contrato?.id) {
+          await axios.post(`update_contrato/${contrato.id}`, {
+            areasConocimiento: newSelectedAreas
+          });
+        }
+
+        // Limpiar el formulario
+        setNewAreaName('');
+        setShowCreateForm(false);
+        
+        enqueueSnackbar('Área de conocimiento creada y seleccionada correctamente', { variant: 'success' });
+        
+        if (onSave) {
+          onSave();
+        }
+      }
+    } catch (error: any) {
+      console.error('Error al crear área de conocimiento:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.nombreAreaConocimiento?.[0] ||
+                          'Error al crear área de conocimiento';
+      enqueueSnackbar(errorMessage, { variant: 'error' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const selectedCount = selectedAreas.length;
   const allSelected = selectedAreas.length === areas.length && areas.length > 0;
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <div className="flex items-center justify-between">
+    <>
+      <style>{scrollStyles}</style>
+      <div className="card">
+        <div className="card-header">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <KeenIcon icon="abstract-26" className="text-base text-primary" />
             <h3 className="card-title text-sm">Áreas de Conocimiento</h3>
           </div>
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors ml-4"
-          >
-            {allSelected ? (
-              <>
-                <KeenIcon icon="check-circle" className="text-sm" />
-                Deseleccionar Todas
-              </>
-            ) : (
-              <>
-                <KeenIcon icon="check-circle" className="text-sm" />
-                Seleccionar Todas
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-1 text-xs font-medium text-success hover:text-success-dark transition-colors"
+              title="Crear nueva área de conocimiento"
+            >
+              <KeenIcon icon="plus" className="text-sm" />
+              Nueva Área
+            </button>
+            <button
+              onClick={handleSelectAll}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+            >
+              {allSelected ? (
+                <>
+                  <KeenIcon icon="check-circle" className="text-sm" />
+                  Deseleccionar Todas
+                </>
+              ) : (
+                <>
+                  <KeenIcon icon="check-circle" className="text-sm" />
+                  Seleccionar Todas
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -122,8 +207,64 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
           </div>
         ) : (
           <>
-            <div className="max-h-[350px] overflow-y-auto pr-2">
-              <div className="grid grid-cols-2 gap-2">
+            {showCreateForm && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <KeenIcon icon="plus" className="text-sm text-primary" />
+                  <h4 className="text-xs font-semibold text-gray-700">Crear Nueva Área de Conocimiento</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newAreaName}
+                    onChange={(e) => setNewAreaName(e.target.value)}
+                    placeholder="Ingrese el nombre del área de conocimiento"
+                    className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !creating) {
+                        handleCreateArea();
+                      }
+                    }}
+                    disabled={creating}
+                  />
+                  <button
+                    onClick={handleCreateArea}
+                    disabled={creating || !newAreaName.trim()}
+                    className="px-3 py-2 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {creating ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        Creando...
+                      </>
+                    ) : (
+                      <>
+                        <KeenIcon icon="check" className="text-sm" />
+                        Crear
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setNewAreaName('');
+                    }}
+                    disabled={creating}
+                    className="px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    <KeenIcon icon="cross" className="text-sm" />
+                  </button>
+                </div>
+              </div>
+            )}
+            <div 
+              className="knowledge-areas-scroll max-h-[160px] overflow-y-auto pr-2 scroll-smooth"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cbd5e1 #f1f5f9',
+              }}
+            >
+              <div className="grid grid-cols-2 gap-2 pb-1">
                 {areas.map((area) => {
                   const isSelected = selectedAreas.includes(area.id);
                   return (
@@ -161,6 +302,7 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

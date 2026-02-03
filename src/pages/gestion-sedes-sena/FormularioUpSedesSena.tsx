@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import Select from 'react-select';
+import ModalError from './ModalError';
 
 interface Props {
   idSede: string;
@@ -10,6 +11,7 @@ interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  showToast:(message:string) => void;
 }
 
 interface Persona {
@@ -63,8 +65,14 @@ const FormularioUpSedesSena: React.FC<Props> = ({
   setIdSede,
   isModalOpen,
   setIsModalOpen,
-  setEvento
+  setEvento,
+  showToast
 }) => {
+
+  // Manejar el error:
+    const [errorOpen, setErrorOpen] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
@@ -89,14 +97,19 @@ const FormularioUpSedesSena: React.FC<Props> = ({
 
         await axios.patch(`sedesSena/${idSede}`, payload);
 
-        alert('Sede actualizada correctamente');
+        showToast('Sede actualizada correctamente');
         setEvento((prev) => !prev);
-      } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al actualizar la sede');
-      } finally {
-        setSubmitting(false);
         setIsModalOpen(false);
         setIdSede('');
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message ||
+          'No se pudo actualizar la sede. Verifica la información e intenta nuevamente.';
+
+        setErrorMessage(message);
+        setErrorOpen(true);
+      } finally {
+        setSubmitting(false);
       }
     }
   });
@@ -107,7 +120,11 @@ const FormularioUpSedesSena: React.FC<Props> = ({
     const loadRegional = async () => {
       try {
         const res = await axios.get(`sedesSena/${idSede}`);
-        formik.setValues(res.data.data);
+        const data = res.data.data;
+        formik.setValues({
+        ...data,
+        nombre: ''
+      });
       } catch (error) {
         alert('Error al cargar la sede');
       }
@@ -145,10 +162,12 @@ const FormularioUpSedesSena: React.FC<Props> = ({
     value: val.id,
     label: val.razonSocial
   }));
-  const options3 = responsable.map((val) => ({
-    value: val.id,
-    label: `${val.persona.nombre1}  ${val.persona.apellido1} ${val.persona.identificacion}`
-  }));
+  const options3 = responsable
+    .filter((val) => val.persona !== null)
+    .map((val) => ({
+      value: val.id,
+      label: `${val.persona!.nombre1} ${val.persona!.apellido1} - ${val.persona!.identificacion}`
+    }));
 
   if (!isModalOpen) return null;
 
@@ -361,6 +380,7 @@ const FormularioUpSedesSena: React.FC<Props> = ({
           </form>
         </div>
       </div>
+      <ModalError isOpen={errorOpen} message={errorMessage} onClose={() => setErrorOpen(false)} />
     </div>
   );
 };

@@ -1,24 +1,34 @@
 import React, { useState } from 'react';
-import FormularioFichasSena from './FormularioFichasSena';
-import ListaFichas from './ListaFichas';
-import Toast from '../programas-academicos/components/Toast';
+import FormularioInfraestructura from './FormularioInfraestructura';
 
-const Fichas: React.FC = () => {
+interface Sedes {
+  id: number;
+  nombre: string;
+}
+interface TInfra {
+  id: number;
+  nombre: string;
+}
+
+interface Infraestructura {
+  id: number;
+  nombreInfraestructura: string;
+  capacidad: number;
+  sede: Sedes | null;
+  tipoInfraestructura: TInfra | null;
+}
+
+const Infraestructura: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
-
-  //Toast:
-  const [messageToast, setMessageToast] = useState<string>('')
-  const [showToast, setShowToast] = useState<boolean>(false);
-
   return (
     <div className="relative z-10 flex flex-col items-center w-full h-screen">
       {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
-          Gestión de Fichas
+          Gestión de Ambientes
         </h1>
         <p className="mt-1 text-xs font-medium tracking-widest text-gray-500 uppercase">
           Configuración Sena
@@ -31,7 +41,7 @@ const Fichas: React.FC = () => {
           </div>
           <input
             type="text"
-            placeholder="Buscar Ficha..."
+            placeholder="Buscar Ambiente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-3 text-sm font-medium transition-opacity bg-transparent border-none outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 dark:text-white"
@@ -48,25 +58,19 @@ const Fichas: React.FC = () => {
             <i className="text-lg ki-filled ki-plus"></i>
           </div>
           <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-            Añadir Ficha
+            Añadir Ambiente
           </span>
         </button>
       </div>
       {isModalOpen && (
-        <FormularioFichasSena
+        <FormularioInfraestructura
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}
-          setShowToast={setShowToast}
-          setMessageToast={setMessageToast}
         />
       )}
-      <div className="p-1">
-        <ListaFichas searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
-      </div>
-      <Toast message={messageToast}  isOpen={showToast} onClose={() => setShowToast(false)} />
     </div>
   );
 };
 
-export default Fichas;
+export default Infraestructura;

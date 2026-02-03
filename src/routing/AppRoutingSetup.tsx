@@ -50,6 +50,7 @@ import CajaPage from '@/pages/puntos-de-venta/Caja/CajaPage';
 import PosTiendaPage from '@/pages/Pos/PosTiendaPage';
 import { PosPage } from '@/pages/Pos/components/PosPage';
 import { ConfiguracionEmpresaPage } from '@/pages/configuracion-empresa/ConfiguracionEmpresaPage';
+import MigracionDatosPage from '@/pages/migracion-datos/MigracionDatosPage';
 import { UsuariosPage } from '@/pages/usuarios/UsuariosPage';
 import { PerfilPage } from '@/pages/perfil/PerfilPage';
 import { TipoContratoPage } from '@/pages/tipo-contrato/TipoContratoPage';
@@ -97,6 +98,7 @@ import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
+import { ProgramacionFichasPage } from '@/pages/programas-academicos/ProgramacionFichasPage';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
@@ -104,6 +106,7 @@ import Regionales from '@/pages/gestion-regional/Regionales';
 import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion';
 import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
+import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 
 // Componentes temporales para pruebas
 
@@ -700,6 +703,15 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           <Route
+            path="/empresa/migracion-datos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_EMPRESA']}>
+                <MigracionDatosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/gestion-vinculaciones/vinculaciones"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_AFILIACIONES']}>
@@ -776,6 +788,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/programas/:programId/fichas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ProgramacionFichasPage />
               </ProtectedRoute>
             }
           />
@@ -953,6 +973,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
                 <Fichas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambientes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Infraestructura />
               </ProtectedRoute>
             }
           />

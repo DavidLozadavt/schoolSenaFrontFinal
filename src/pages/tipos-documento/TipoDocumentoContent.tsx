@@ -32,7 +32,7 @@ const TipoDocumentoContent = ({ reload }: documentTypeProps) => {
       const response = await axios.get('tipo_documentos');
       setDocumentTypes(response.data);
     } catch (err) {
-      setError(`Error fetching payment methods: ${err}`);
+      setError(`Error al cargar tipos de documento: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ const TipoDocumentoContent = ({ reload }: documentTypeProps) => {
         prevDocumentTypes.filter((documentType) => documentType.id !== id)
       );
     } catch (err) {
-      console.log(`Error deleting payment type: ${err}`);
+      console.log(`Error al eliminar tipo de documento: ${err}`);
     }
   };
 
@@ -158,7 +158,7 @@ const TipoDocumentoContent = ({ reload }: documentTypeProps) => {
             onClick={() => {
               if (
                 window.confirm(
-                  `¿Estás seguro de que deseas eliminar el tipo de pago: ${row.original.tipoDocumento.tituloDocumento}?`
+                  `¿Estás seguro de que deseas eliminar el tipo de documento: ${row.original.tipoDocumento.tituloDocumento}?`
                 )
               ) {
                 deleteDocumentType(row.original.tipoDocumento.id);

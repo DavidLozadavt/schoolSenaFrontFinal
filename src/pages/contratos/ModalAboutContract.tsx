@@ -62,6 +62,10 @@ const ModalAboutContract = ({ idContract, open, onClose }: ModalProps) => {
       info: contratoActivo?.salario?.valor || 'N/A'
     },
     {
+      status: 'Horas al mes:',
+      info: contratoActivo?.horasmes ?? 'N/A'
+    },
+    {
       status: 'Valor Total del Contrato:',
       info: contratoActivo?.valorTotalContrato || 'N/A'
     },
