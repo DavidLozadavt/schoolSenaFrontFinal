@@ -57,6 +57,7 @@ interface FormValues {
   fechaFinalInscripciones: string;
   fechaInicialMatriculas: string;
   fechaFinalMatriculas: string;
+  porcentajeEjecucion: number;
 }
 
 const validationSchema = Yup.object({
@@ -153,7 +154,13 @@ const validationSchema = Yup.object({
     .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
       const { fechaInicialMatriculas } = this.parent;
       return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
-    })
+    }),
+  porcentajeEjecucion: Yup.number()
+  .typeError('Debe ser un número')
+  .min(1, 'No puede ser menor que 1')
+  .max(100, 'No puede ser mayor que 100')
+  .nullable(),
+
 });
 
 const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento, setShowToast, setMessageToast }) => {
@@ -175,7 +182,8 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
       fechaInicialInscripciones: '',
       fechaFinalInscripciones: '',
       fechaInicialMatriculas: '',
-      fechaFinalMatriculas: ''
+      fechaFinalMatriculas: '',
+      porcentajeEjecucion:100
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
