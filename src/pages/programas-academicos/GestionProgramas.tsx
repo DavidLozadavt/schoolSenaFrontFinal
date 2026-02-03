@@ -61,6 +61,8 @@ export const GestionProgramas = ({
     fetchProgramas();
   }, [authContext?.empresa.id]);
 
+  const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
+
   const mapBackendToUi = (p: any): Program => {
     const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
     return {
@@ -73,6 +75,7 @@ export const GestionProgramas = ({
       formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
       imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
       description: p.descripcionPrograma,
+      documento: p.documento ? `${backUrl}${p.documento}` : null,
       idNivelEducativo: p.idNivelEducativo,
       idTipoFormacion: p.idTipoFormacion,
       idEstadoPrograma: p.idEstadoPrograma
@@ -281,6 +284,20 @@ export const GestionProgramas = ({
 
                         {/* Botones de acción secundaria */}
                         <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
+                          {program.documento ? (
+                            <button
+                              type="button"
+                              onClick={() => window.open(program.documento!, '_blank')}
+                              title="Ver PDF"
+                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
+                            >
+                              <i className="text-sm ki-outline ki-document"></i>
+                            </button>
+                          ) : (
+                            <span title="Sin documento" className="flex items-center justify-center flex-1 py-1.5 text-gray-400 rounded-lg bg-gray-50/50 dark:bg-coal-200/50 cursor-not-allowed">
+                              <i className="text-sm ki-outline ki-document"></i>
+                            </span>
+                          )}
                           <button onClick={() => openEditModal(program)} title="Actualizar" className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105">
                             <i className="text-sm ki-outline ki-arrows-loop"></i>
                           </button>

@@ -7,7 +7,8 @@ export interface Program {
   codigo: string;
   nivel: string;
   formacion: string;
-  description?: string; 
+  description?: string;
+  documento?: string | null;
   idNivelEducativo?: number | string;
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
