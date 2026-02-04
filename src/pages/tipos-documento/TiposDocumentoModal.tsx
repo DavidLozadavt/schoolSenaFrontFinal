@@ -13,12 +13,12 @@ interface TiposDocumentoModalProps {
  */
 const TiposDocumentoModal = ({ isOpen, onClose }: TiposDocumentoModalProps) => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [reloadContent, setReloadContent] = useState(0);
+  const [reloadContent, setReloadContent] = useState(false);
 
   if (!isOpen) return null;
 
   const handleAfterSave = () => {
-    setReloadContent((prev) => prev + 1);
+    setReloadContent((prev:any) => prev + 1);
     setCreateModalOpen(false);
   };
 

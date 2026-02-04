@@ -134,7 +134,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     }
   };
 
-  const handleOpenMateria = (nivelId: string) => {
+  const handleOpenMateria = (nivelId: any) => {
     setSelectedNivelId(nivelId);
     setIsMateriaModalOpen(true);
   };

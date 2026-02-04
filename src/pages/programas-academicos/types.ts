@@ -52,15 +52,15 @@ export interface CatalogosData {
 }
 
 export interface MallaCurricularProps {
-  isOpen: boolean;
-  onClose: () => void;
-  program: Program | null;
+  isOpen?: boolean;
+  onClose?: () => void;
+  program?: Program | any;
 }
 
 export interface AsignarMateriaProps {
   isOpen: boolean;
   onClose: () => void;
-  nivelId: string;
+  nivelId?: string;
 }
 
 export interface RecursoItem {
