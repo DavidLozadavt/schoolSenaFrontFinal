@@ -144,21 +144,20 @@ export const FormularioPrograma = ({
   const selectClass = "w-full border-gray-300 select bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 text-2sm focus:border-blue-500 focus:ring-blue-500 accent-blue-600 outline-none";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-coal-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-lg overflow-hidden bg-white border border-gray-200 dark:bg-coal-600 rounded-xl shadow-modal dark:border-coal-100">
+    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-coal-black/40 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto overflow-x-hidden animate-in fade-in duration-300">
+      <div className="w-full max-w-[95vw] sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden bg-white border border-gray-200 dark:bg-coal-600 rounded-xl shadow-modal dark:border-coal-100 my-4 sm:my-0">
         
         {/* Header Dinámico */}
-        <div className="flex items-center justify-between px-7.5 py-4 border-b border-gray-200 dark:border-coal-100 bg-gray-light-100 dark:bg-coal-200">
-          <h2 className="font-semibold tracking-wider text-gray-900 uppercase text-md dark:text-gray-dark-900">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-7.5 sm:py-4 border-b border-gray-200 dark:border-coal-100 bg-gray-light-100 dark:bg-coal-200 flex-shrink-0">
+          <h2 className="font-semibold tracking-wider text-gray-900 uppercase text-sm sm:text-md dark:text-gray-dark-900 truncate min-w-0">
             {programToEdit ? 'Actualizar Programa' : 'Crear Programa'}
           </h2>
-           <button onClick={onClose} className="flex items-center justify-center w-8 h-8 transition-all border rounded-lg shadow-sm bg-danger/10 text-danger border-danger/20 hover:bg-danger hover:text-white">
+          <button onClick={onClose} className="flex items-center justify-center flex-shrink-0 w-8 h-8 transition-all border rounded-lg shadow-sm bg-danger/10 text-danger border-danger/20 hover:bg-danger hover:text-white">
             <i className="text-lg ki-filled ki-cross"></i>
           </button>
-          
         </div>
 
-        <form className="p-7.5 space-y-5">
+        <form className="p-4 sm:p-7.5 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
           <div className="flex flex-col gap-2">
             <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Nombre del Programa</label>
             <textarea
@@ -181,7 +180,7 @@ export const FormularioPrograma = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Tipo Formación</label>
               <select
@@ -242,15 +241,15 @@ export const FormularioPrograma = ({
             </p>
             <label
               htmlFor="documento-programa"
-              className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-coal-200 focus-within:border-blue-500"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-coal-200 focus-within:border-blue-500"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <span>📄</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                   {documento ? documento.name : 'Seleccionar archivo PDF'}
                 </span>
               </div>
-              <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">Examinar</span>
+              <span className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white whitespace-nowrap self-start sm:self-center">Examinar</span>
               <input
                 id="documento-programa"
                 type="file"
@@ -272,12 +271,12 @@ export const FormularioPrograma = ({
             {documentoError && <p className="text-red-500 text-xs">{documentoError}</p>}
           </div>
 
-          <div className="flex items-center justify-center gap-3 pt-4">
-            <button type="button" onClick={handleSubmit} className="px-10 font-bold tracking-widest uppercase btn btn-primary shadow-primary text-2xs">
-              {programToEdit ? 'Actualizar' : 'Aceptar'}
-            </button>
-            <button type="button" onClick={onClose} className="px-10 font-bold tracking-widest uppercase btn btn-danger shadow-danger text-2xs">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3 pt-4 pb-2 sm:pb-0">
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 sm:px-10 py-2.5 font-bold tracking-widest uppercase btn btn-danger shadow-danger text-2xs">
               Cancelar
+            </button>
+            <button type="button" onClick={handleSubmit} className="w-full sm:w-auto px-6 sm:px-10 py-2.5 font-bold tracking-widest uppercase btn btn-primary shadow-primary text-2xs">
+              {programToEdit ? 'Actualizar' : 'Aceptar'}
             </button>
           </div>
         </form>
