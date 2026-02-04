@@ -4,112 +4,134 @@ import { MallaCurricularProps } from '../../types';
 import AsignarMateria from './AsignarMateria';
 import { AsignarTiposDocumentoModal } from '../documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from '../documentos/VerDocumentosFichaModal';
-
-interface Recurso {
-  id: number;
-  nombre: string;
-}
-
-interface DetalleAsignacion {
-  id: number;
-  idPeriodo: number;
-  idSede: number;
-  idEmpresa?: number;
-  jornadas: Recurso[];
-  programa: {
-    id: number;
-    nombrePrograma: string;
-    idTipoGrado: number; // Para preseleccionar el tipo de grado
-    tipo_grado?: Recurso;
-  };
-}
+import { Calendario } from './Calendario';
+import { CardRap } from './CardRap';
+import { Calendar, List, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
+import Select from "react-select";
 
 export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularProps) => {
-  const [niveles, setNiveles] = useState([{ id: 'A1', nombre: 'Transición Inicial' }]);
+  // Estados principales
+  const [niveles, setNiveles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorApi, setErrorApi] = useState<string | null>(null);
   
-  // Catálogos de la API
-  const [recursos, setRecursos] = useState<{
-    periodos: Recurso[];
-    tipos_grado: Recurso[];
-    jornadas_disponibles: Recurso[];
-  } | null>(null);
+  // Estados de vista
+  const [calendario, setCalendario] = useState<boolean>(false);
+  const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
+  const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
   
-  const [detalle, setDetalle] = useState<DetalleAsignacion | null>(null);
-  
-  // --- ESTADOS PARA SINCRONIZAR SELECTORES ---
-  const [selectedPeriodo, setSelectedPeriodo] = useState<number | string>('');
-  const [selectedTipoGrado, setSelectedTipoGrado] = useState<number | string>('');
-
+  // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
-  const [selectedNivelId, setSelectedNivelId] = useState('');
-  const [fichas, setFichas] = useState<any[]>([]);
-  const [loadingFichas, setLoadingFichas] = useState(false);
+  const [selectedNivelId, setSelectedNivelId] = useState(); // grado(trimestre)
   const [asignarTiposFicha, setAsignarTiposFicha] = useState<any | null>(null);
   const [verDocsFicha, setVerDocsFicha] = useState<any | null>(null);
+  
+  // Estados de fichas
+  const [fichas, setFichas] = useState<any[]>([]);
+  const [loadingFichas, setLoadingFichas] = useState(false);
 
+  // Cargar configuración inicial
   useEffect(() => {
-    const fetchConfiguracion = async () => {
-      if (isOpen && program?.id) {
-        setLoading(true);
-        setErrorApi(null);
-        setDetalle(null); 
-
-        try {
-          const response = await axios.get(`/asignacion_detalle_completo/${program.id}`);
-          const { data } = response.data;
-          
-          setDetalle(data.detalle);
-          setRecursos(data.recursos);
-
-          // SINCRONIZACIÓN INICIAL CON LA BASE DE DATOS
-          if (data.detalle) {
-            setSelectedPeriodo(data.detalle.idPeriodo);
-            // Priorizamos idTipoGrado del objeto programa para el selector (puede no existir)
-            setSelectedTipoGrado(data.detalle.programa?.idTipoGrado || data.detalle.programa?.tipo_grado?.id || '');
-          }
-        } catch (error: any) {
-          console.error("Error cargando malla:", error);
-          setErrorApi(error.response?.data?.message || "Error al cargar la configuración");
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchConfiguracion();
+    if (isOpen && program?.id) {
+      setLoading(false);
+      setErrorApi(null);
+    }
   }, [isOpen, program?.id]);
 
+  // Cargar fichas del programa
   useEffect(() => {
     const fetchFichas = async () => {
       if (!isOpen || !program?.id) return;
+      
       setLoadingFichas(true);
       try {
-        const res = await axios.get(`programa/${program.id}/fichas`);
-        if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
+        const res = await axios.get(`fichas/programa/${program.id}`);
+        if (Array.isArray(res.data?.data)) {
           setFichas(res.data.data);
         } else {
           setFichas([]);
         }
-      } catch {
+      } catch (error) {
+        console.error('Error al cargar fichas');
         setFichas([]);
       } finally {
         setLoadingFichas(false);
       }
     };
+    
     fetchFichas();
   }, [isOpen, program?.id]);
 
-  if (!isOpen || !program) return null;
+  // Funciones de utilidad
+  const calcularProgreso = (fechaInicio: string, fechaFin: string): number => {
+    const inicio = new Date(fechaInicio).getTime();
+    const fin = new Date(fechaFin).getTime();
+    const hoy = Date.now();
+
+    if (hoy <= inicio) return 0;
+    if (hoy >= fin) return 100;
+
+    const total = fin - inicio;
+    const transcurrido = hoy - inicio;
+
+    return Math.round((transcurrido / total) * 100);
+  };
+
+  const formatearFecha = (fecha: Date): string => {
+    return new Date(fecha).toISOString().split('T')[0];
+  };
+
+  // Funciones de manejo de datos
+  const getDatosFicha = async (fichaId: number, option: any = null) => {
+    if (!fichaId) {
+      setNiveles([]);
+      setSelectedFicha(null);
+      setSelectedFichaOption(null);
+      return;
+    }
+
+    try {
+      setLoadingFichas(true);
+      const response = await axios.get(`trimestres-ficha/${fichaId}`);
+      setNiveles(response.data.data || []);
+      
+      const ficha = fichas.find(f => f.id === fichaId);
+      setSelectedFicha(ficha || null);
+      
+      // Guardar la opción seleccionada para mantenerla visible
+      if (option) {
+        setSelectedFichaOption(option);
+      }
+    } catch (error) {
+      console.error('Error al cargar trimestres:', error);
+      setNiveles([]);
+      setSelectedFicha(null);
+      setSelectedFichaOption(null);
+    } finally {
+      setLoadingFichas(false);
+    }
+  };
 
   const agregarNivel = () => {
-    const nuevoId = `A${niveles.length + 1}`;
-    setNiveles([...niveles, { id: nuevoId, nombre: 'Nuevo Nivel Académico' }]);
+    const nuevoId = `${niveles.length + 1}`;
+    setNiveles([
+      ...niveles,
+      {
+        id: nuevoId,
+        grado: {
+          id: niveles.length + 1,
+          numeroGrado: niveles.length + 1,
+          estado: 'Nuevo'
+        },
+        materias: []
+      }
+    ]);
   };
 
   const quitarNivel = () => {
-    if (niveles.length > 0) setNiveles(niveles.slice(0, -1));
+    if (niveles.length > 0) {
+      setNiveles(niveles.slice(0, -1));
+    }
   };
 
   const handleOpenMateria = (nivelId: string) => {
@@ -117,222 +139,308 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setIsMateriaModalOpen(true);
   };
 
-  // Función para manejar el cambio de periodo (Simula la lógica de la imagen 4)
-  const handlePeriodoChange = (id: string) => {
-    setSelectedPeriodo(id);
-    // Aquí podrías disparar una petición adicional si las jornadas dependen estrictamente del periodo seleccionado
-    console.log("Cambiando a periodo:", id);
-  };
+  // Renderizado condicional
+  if (!isOpen || !program) return null;
+
+  // Opciones para el selector de fichas
+  const fichaOptions = fichas.map((ficha) => ({
+    value: ficha.id,
+    label: `Ficha #${ficha.codigo} • ${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)} • Avance: ${ficha.porcentajeEjecucion}%`
+  }));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-5xl bg-white dark:bg-coal-500 rounded-xl shadow-card flex flex-col max-h-[95vh] overflow-hidden border border-gray-300 dark:border-gray-dark-300">
+      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {loading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-coal-500/60 backdrop-blur-sm">
-            <div className="flex flex-col items-center">
-              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <span className="mt-2 text-xs font-bold text-primary uppercase tracking-widest">Sincronizando...</span>
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-coal-500/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-bold text-primary uppercase tracking-wider">Cargando...</span>
             </div>
           </div>
         )}
 
         {/* Header con Banner */}
-        <div className="relative flex-shrink-0 w-full h-32 md:h-40 overflow-hidden">
-          <img src={program.imageUrl || '/default-banner.jpg'} className="absolute inset-0 object-cover w-full h-full brightness-[0.35]" alt="Banner" />
-          <div className="absolute inset-0 bg-gradient-to-t from-coal-500 via-coal-500/20 to-transparent" />
+        <div className="relative flex-shrink-0 w-full h-36 md:h-44 overflow-hidden">
+          <img 
+            src={program.imageUrl || '/default-banner.jpg'} 
+            className="absolute inset-0 object-cover w-full h-full brightness-[0.4]" 
+            alt="Banner del programa" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-          <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/30">
+          {/* Botón cerrar */}
+          <button 
+            onClick={onClose} 
+            className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
+            aria-label="Cerrar modal"
+          >
             <i className="text-lg ki-outline ki-cross"></i>
           </button>
 
-          <div className="absolute text-white bottom-4 left-6">
-            <span className="px-2 py-0.5 text-4xs font-extrabold tracking-widest uppercase bg-primary rounded mb-1 inline-block">
-              {detalle?.programa.tipo_grado?.nombre || "SIN ASIGNAR"}
+          {/* Información del programa */}
+          <div className="absolute text-white bottom-5 left-6">
+            <span className="px-3 py-1 text-xs font-extrabold tracking-wider uppercase bg-primary rounded-md mb-2 inline-block shadow-lg">
+              {program.estado?.nombre || "SIN ESTADO"}
             </span>
-            <h2 className="text-1.5xl font-bold uppercase tracking-tight leading-none text-white">
-              {detalle?.programa.nombrePrograma || program.name}
+            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
+              {program.name || "Programa sin nombre"}
             </h2>
-            <p className="mt-1 font-bold tracking-tighter text-gray-300 uppercase text-2xs">
+            <p className="mt-1.5 font-semibold tracking-wide text-gray-200 text-xs flex items-center gap-2">
+              <BookOpen size={14} />
               Código: {program.codigo} • Malla Curricular
             </p>
           </div>
         </div>
 
-        {/* Área de Contenido */}
-        <div className="flex-grow p-5 overflow-y-auto bg-gray-100 md:p-7 no-scrollbar dark:bg-coal-600">
+        {/* Contenido Principal */}
+        <div className="flex-grow p-6 md:p-8 overflow-y-auto bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
 
-          {errorApi ? (
-            <div className="p-4 mb-6 border border-danger/30 bg-danger/10 rounded-xl text-danger text-center font-bold text-xs uppercase italic animate-pulse">
-              <i className="ki-outline ki-information-2 mr-2"></i> {errorApi}
+          {/* Mensaje de error */}
+          {errorApi && (
+            <div className="p-4 mb-6 border-l-4 border-danger bg-danger/10 rounded-lg text-danger flex items-center gap-3 animate-pulse">
+              <AlertCircle size={20} />
+              <span className="font-semibold text-sm">{errorApi}</span>
             </div>
-          ) : null}
+          )}
 
-          {!errorApi ? (
+          {!errorApi && (
             <>
-            <div className="flex flex-col items-stretch justify-between gap-4 p-4 mb-6 bg-white border border-gray-300 shadow-sm xl:flex-row dark:bg-coal-300 rounded-xl dark:border-gray-dark-100">
-              <div className="grid flex-grow grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-2">
-
-                {/* 1. Periodo Lectivo Sincronizado */}
-                <div className="flex items-center gap-3 px-2">
-                  <div className="flex items-center justify-center flex-shrink-0 rounded-lg w-9 h-9 bg-primary-light dark:bg-primary-clarity text-primary">
-                    <i className="text-lg ki-outline ki-calendar"></i>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <label className="font-bold text-gray-500 uppercase truncate text-3xs dark:text-gray-400">Periodo Lectivo</label>
-                    <select 
-                      value={selectedPeriodo}
-                      onChange={(e) => handlePeriodoChange(e.target.value)}
-                      className="p-0 font-extrabold text-gray-800 bg-transparent border-none cursor-pointer dark:text-white focus:ring-0 text-2sm"
-                    >
-                      <option value="">SELECCIONE...</option>
-                      {recursos?.periodos.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* 2. Jornadas (Muestra lo que está en 'detalle') */}
-                <div className="flex items-center gap-3 px-2 border-gray-200 sm:border-l dark:border-gray-dark-300">
-                  <div className="flex flex-col w-full min-w-0">
-                    <label className="font-bold text-gray-500 uppercase truncate text-3xs dark:text-gray-400">Jornadas Asignadas</label>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {detalle?.jornadas && detalle.jornadas.length > 0 ? (
-                        detalle.jornadas.map((j) => (
-                          <span key={j.id} className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-[10px] font-black uppercase tracking-tighter">
-                            {j.nombre}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="italic font-bold uppercase text-danger text-3xs tracking-tighter">SIN REGISTROS</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Tipo de Programa Sincronizado */}
-                <div className="flex items-center gap-3 px-2 border-gray-200 sm:border-l dark:border-gray-dark-300">
-                  <div className="flex flex-col w-full min-w-0">
-                    <label className="font-bold text-gray-500 uppercase truncate text-3xs dark:text-gray-400">Tipo de Programa</label>
-                    <select 
-                      value={selectedTipoGrado}
-                      onChange={(e) => setSelectedTipoGrado(e.target.value)}
-                      className="p-0 font-extrabold uppercase bg-transparent border-none cursor-pointer text-primary focus:ring-0 text-2sm"
-                    >
-                      <option value="">SELECCIONE...</option>
-                      {recursos?.tipos_grado.map(t => (
-                        <option key={t.id} value={t.id}>{t.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botones de Nivel */}
-              <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-200 xl:pt-0 xl:border-t-0 xl:pl-4 xl:border-l dark:border-gray-dark-300">
-                <button onClick={quitarNivel} className="flex items-center justify-center w-10 h-10 transition-all border border-gray-300 rounded-lg bg-gray-50 dark:bg-coal-400 text-danger hover:bg-danger hover:text-white">
-                  <i className="text-xl ki-outline ki-minus"></i>
-                </button>
-                <button onClick={agregarNivel} className="flex items-center justify-center w-10 h-10 text-white transition-all rounded-lg bg-primary shadow-primary hover:bg-primary-active">
-                  <i className="text-xl ki-outline ki-plus"></i>
-                </button>
-              </div>
-            </div>
-
-          {/* Fichas del programa – Asignar líder (flujo separado de documentos) */}
-          <div className="mb-6">
-            <h4 className="mb-3 text-xs font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3">
-              Fichas del programa
-            </h4>
-            {loadingFichas ? (
-              <div className="flex justify-center py-6">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : fichas.length === 0 ? (
-              <p className="py-4 text-sm italic text-gray-500 dark:text-gray-400">
-                No hay fichas para este programa.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {fichas.map((f) => (
-                  <div
-                    key={f.id}
-                    className="flex flex-wrap items-center justify-between gap-2 p-4 rounded-xl border border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-300"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-white">
-                        {f.grado?.nombreGrado ?? `Ficha #${f.id}`}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAsignarTiposFicha(f)}
-                        className="px-2 py-1 text-xs font-bold uppercase rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white"
-                      >
-                        Asignar tipos
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setVerDocsFicha(f)}
-                        className="px-2 py-1 text-xs font-bold uppercase rounded-lg bg-gray-200 dark:bg-coal-400 text-gray-700 dark:text-gray-200 hover:bg-gray-300"
-                      >
-                        Ver documentos
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Grid de Niveles Académicos */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {niveles.map((nivel) => (
-              <div key={nivel.id} className="p-5 transition-all bg-white border border-gray-400 shadow-sm group dark:bg-coal-300 rounded-xl dark:border-gray-dark-100 hover:border-gray-500 hover:shadow-md animate-fade-in-up">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2.5xl font-black text-gray-500 italic">{nivel.id}</span>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="pl-3 text-xs font-black tracking-tight text-gray-800 uppercase border-l-3 dark:text-white border-primary">
-                    {nivel.nombre}
+              {/* Sección de Fichas */}
+              <div className="mb-8">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+                  <h4 className="text-lg font-black uppercase text-gray-800 dark:text-gray-100 border-l-4 border-primary pl-4">
+                    Fichas del Programa
                   </h4>
-                  <div className="p-3 border border-gray-300 border-dashed rounded-lg bg-gray-50 dark:bg-coal-400">
-                    <p className="italic font-medium text-gray-600 text-2xs dark:text-gray-500">No se han registrado materias.</p>
-                  </div>
+
+                  {/* Controles de Trimestres */}
+                  {selectedFicha && (
+                    <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                      <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Trimestres:</span>
+                      <button
+                        onClick={quitarNivel}
+                        disabled={niveles.length === 0}
+                        className="flex items-center justify-center w-9 h-9 transition-all border border-gray-300 rounded-lg bg-gray-50 dark:bg-coal-300 text-danger hover:bg-danger hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Quitar trimestre"
+                      >
+                        <i className="text-xl ki-outline ki-minus"></i>
+                      </button>
+                      <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
+                        {niveles.length}
+                      </span>
+                      <button
+                        onClick={agregarNivel}
+                        className="flex items-center justify-center w-9 h-9 text-white transition-all rounded-lg bg-primary hover:bg-primary-active shadow-md"
+                        aria-label="Agregar trimestre"
+                      >
+                        <i className="text-xl ki-outline ki-plus"></i>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  onClick={() => handleOpenMateria(nivel.id)}
-                  className="w-full py-2.5 mt-5 font-bold text-gray-500 uppercase transition-all border border-gray-400 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-4xs "
-                >
-                  <i className="mr-1.5 ki-outline ki-plus"></i> Asignar Materia
-                </button>
+                {/* Selector de Fichas */}
+                {loadingFichas ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : fichas.length === 0 ? (
+                  <div className="py-12 text-center bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                    <BookOpen size={48} className="mx-auto text-gray-400 mb-3" />
+                    <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                      No hay fichas asignadas a este programa
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-600">
+                      <Select
+                        options={fichaOptions}
+                        value={selectedFichaOption}
+                        placeholder="Selecciona una ficha para ver sus trimestres..."
+                        onChange={(opcion) => {
+                          if (opcion) {
+                            setSelectedFichaOption(opcion)
+                            getDatosFicha(opcion.value, opcion);
+                          } else {
+                            setNiveles([]);
+                            setSelectedFicha(null);
+                            setSelectedFichaOption(null);
+                          }
+                        }}
+                        classNamePrefix="react-select"
+                        isClearable
+                      />
+                    </div>
+
+                    {/* Toggle Vista: Lista / Calendario */}
+                    {selectedFicha && niveles.length > 0 && (
+                      <div className="flex rounded-xl p-1.5 mb-6 bg-gray-100 dark:bg-coal-500 shadow-inner">
+                        <button
+                          onClick={() => setCalendario(false)}
+                          className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
+                            !calendario
+                              ? 'bg-white dark:bg-primary text-primary dark:text-white shadow-md'
+                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          <List size={18} />
+                          Competencias (RAPs)
+                        </button>
+                        <button
+                          onClick={() => setCalendario(true)}
+                          className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
+                            calendario
+                              ? 'bg-white dark:bg-primary text-primary dark:text-white shadow-md'
+                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          <Calendar size={18} />
+                          Calendario
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Contenido Principal: Trimestres o Calendario */}
+                    {selectedFicha && (
+                      <div className="space-y-5">
+                        {!calendario ? (
+                          niveles.length > 0 ? (
+                            [...niveles]
+                              .sort((a, b) => a.grado.id - b.grado.id)
+                              .map((nivel, index) => (
+                                <div
+                                  key={nivel.id}
+                                  className="p-6 bg-white dark:bg-coal-300 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:border-primary/50"
+                                  style={{ animationDelay: `${index * 0.1}s` }}
+                                >
+                                  {/* Header del Trimestre */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-5 pb-4 border-b-2 border-gray-100 dark:border-gray-600">
+                                    <h3 className="text-2xl font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                      <span className="text-primary">#{nivel.grado.numeroGrado || index + 1}</span>
+                                      TRIMESTRE
+                                    </h3>
+                                    <span className={`mt-2 sm:mt-0 rounded-full 
+                                      px-4 py-1.5 text-xs font-bold 
+                                      ${nivel.grado.estado == 'FINALIZADO'? 'bg-green-100 dark:bg-green-900/30 text-greeg-600 dark:text-green-400'
+                                        : nivel.grado.estado == 'EN CURSO'? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                                        : nivel.grado.estado == 'CANCELADO' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                        : ''
+                                      }
+                                      uppercase tracking-wide`}>
+                                      {nivel.grado.estado || 'Sin estado'}
+                                    </span>
+                                  </div>
+
+                                  {/* Estadísticas del Trimestre */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+                                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Inicio</p>
+                                      <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                                        {nivel.grado.fechaInicio? formatearFecha(nivel.grado.fechaInicio): '--:--:--'}
+                                      </p>
+                                    </div>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+                                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Fin</p>
+                                      <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                                        {nivel.grado.fechaFin? formatearFecha(nivel.grado.fechaFin) : '--:--:--'}
+                                      </p>
+                                    </div>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+                                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Competencias</p>
+                                      <p className="font-bold text-primary text-sm">
+                                        {nivel.materias?.length || 0}
+                                      </p>
+                                    </div>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+                                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Progreso</p>
+                                      <p className="font-bold text-green-600 dark:text-green-400 text-sm flex items-center justify-center gap-1">
+                                        <TrendingUp size={14} />
+                                        {calcularProgreso(nivel.grado.fechaInicio, nivel.grado.fechaFin) || 0}%
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Competencias */}
+                                  <div>
+                                    <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3 mb-4">
+                                      Competencias Asignadas
+                                    </h4>
+                                    
+                                    {nivel.materias && nivel.materias.length > 0 ? (
+                                      <div className="space-y-3">
+                                        {nivel.materias.map((materia: any) => (
+                                          <CardRap key={materia.id} materia={materia} />
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                          No hay competencias asignadas
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {/* Botón Agregar Competencia */}
+                                    <button
+                                      onClick={() => handleOpenMateria(nivel.id)}
+                                      className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
+                                    >
+                                      <i className="mr-2 ki-outline ki-plus"></i>
+                                      Agregar Competencia
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                              <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
+                              <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
+                                No hay trimestres configurados
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Utiliza los controles superiores para agregar trimestres
+                              </p>
+                            </div>
+                          )
+                        ) : (
+                          <Calendario />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ))}
-          </div>
             </>
-          ) : null}
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 px-6 bg-white border-t border-gray-300 dark:bg-coal-400 dark:border-gray-dark-100">
-          <div className="items-center hidden gap-2 sm:flex">
-            <i className="text-sm ki-outline ki-information-2 text-primary"></i>
-            <p className="italic font-bold text-gray-600 text-3xs dark:text-gray-400">
-              {detalle ? "CONFIGURACIÓN ACTIVA VINCULADA." : "ESPERANDO ASIGNACIÓN."}
+        <div className="flex items-center justify-between p-5 px-6 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
+          <div className="items-center hidden sm:flex gap-2">
+            <i className="text-base ki-outline ki-information-2 text-primary"></i>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+              {selectedFicha 
+                ? `Ficha #${selectedFicha.codigo} seleccionada`
+                : 'Selecciona una ficha para comenzar'}
             </p>
           </div>
-          <button onClick={onClose} className="px-10 py-2.5 bg-primary text-white rounded-lg text-3xs font-black uppercase tracking-widest hover:bg-primary-active active:scale-95 transition-all shadow-lg">
+          <button
+            onClick={onClose}
+            className="px-8 py-2.5 bg-primary text-white rounded-lg text-xs font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-lg hover:shadow-xl"
+          >
             Cerrar
           </button>
         </div>
-
       </div>
 
-      <AsignarMateria isOpen={isMateriaModalOpen} onClose={() => setIsMateriaModalOpen(false)} nivelId={selectedNivelId} />
+      {/* Modales */}
+      <AsignarMateria
+        isOpen={isMateriaModalOpen}
+        onClose={() => setIsMateriaModalOpen(false)}
+        nivelId={selectedNivelId}
+      />
 
       <AsignarTiposDocumentoModal
         isOpen={!!asignarTiposFicha}
@@ -340,6 +448,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         onSave={() => setAsignarTiposFicha(null)}
         ficha={asignarTiposFicha}
       />
+
       <VerDocumentosFichaModal
         isOpen={!!verDocsFicha}
         onClose={() => setVerDocsFicha(null)}
