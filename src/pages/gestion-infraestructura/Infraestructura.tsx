@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import FormularioInfraestructura from './FormularioInfraestructura';
+import ListaInfraestructuras from './ListaInfraestructuras';
 
 interface Sedes {
   id: number;
@@ -69,6 +70,10 @@ const Infraestructura: React.FC = () => {
           setEvento={setEvento}
         />
       )}
+      {/* Contenido principal con padding mejorado */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <ListaInfraestructuras searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
+      </div>
     </div>
   );
 };
