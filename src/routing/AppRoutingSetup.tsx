@@ -107,6 +107,7 @@ import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion
 import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
+import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
 
 // Componentes temporales para pruebas
 

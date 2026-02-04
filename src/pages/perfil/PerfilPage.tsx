@@ -9,6 +9,7 @@ import { useSnackbar } from 'notistack';
 import { TipoDocumentoInterface } from '../contratacion/model/TipoDocumentoInterface';
 import { PersonaInterface } from '../contratacion/model/PersonaInterface';
 import { validationFieldPerson } from './utils/validationFieldPerson';
+import { Link } from 'react-router-dom';
 
 interface FormErrors {
   [key: string]: string;
@@ -17,8 +18,8 @@ interface FormErrors {
 const PerfilPage = () => {
   const authContext = useAuthContext();
   const { persona, getUserAuthenticated } = authContext;
-
   const { enqueueSnackbar } = useSnackbar();
+
   const defaultImage = toAbsoluteUrl('/media/avatars/300-35.png');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +50,13 @@ const PerfilPage = () => {
     telefonoFijo: ''
   });
 
+  // Estado para controlar si ya cambió la contraseña
+  const [passwordChanged, setPasswordChanged] = useState<boolean>(() => {
+    // Podrías verificar en localStorage o desde el backend si ya cambió la contraseña
+    return localStorage.getItem('passwordChanged') === 'true';
+  });
+
+  // Inicializar formulario con datos de persona
   useEffect(() => {
     if (persona) {
       setFormDataPersona({
@@ -93,34 +101,54 @@ const PerfilPage = () => {
     setErrors({});
   }, [persona]);
 
+  // Preview de la foto
+  useEffect(() => {
+    if (selectedFilePersona instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewSrc(reader.result as string);
+      reader.readAsDataURL(selectedFilePersona);
+    } else if (persona?.rutaFotoUrl) {
+      setPreviewSrc(persona.rutaFotoUrl);
+    } else {
+      setPreviewSrc(defaultImage);
+    }
+  }, [selectedFilePersona, persona]);
+
+  // Manejo de campos del formulario
   const handleChangeFormPerson = (e: any) => {
     const { name, value } = e.target;
     const error = validationFieldPerson(name, value);
 
-    setFormDataPersona((prevData) => ({
-      ...prevData,
-      [name]: value
-    }));
+    setFormDataPersona((prevData) => ({ ...prevData, [name]: value }));
+    setErrors((prevErrors) => ({ ...prevErrors, [name]: error || undefined }));
 
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: error || undefined
-    }));
+    if (name === 'departamento') fetchCiudades(value);
+  };
 
-    if (name === 'departamento') {
-      fetchCiudades(value);
+  // Manejo de archivo de foto
+  const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    setSelectedFilePersona(file);
+    if (file) {
+      setErrors((prevErrors) => {
+        const newErrors = { ...prevErrors };
+        delete newErrors['rutaFoto'];
+        return newErrors;
+      });
     }
   };
 
-  useEffect(() => {
-    if (persona?.ciudad_ubicacion?.departamento?.id) {
-      fetchCiudades(persona.ciudad_ubicacion.departamento.id);
-    }
-  }, [persona?.ciudad_ubicacion?.departamento?.id]);
+  const handleFilePersonaDelete = () => setSelectedFilePersona(null);
 
+  // Fetch inicial
   useEffect(() => {
     fetchTipoIdentificacion();
     fetchDepartamentos();
+    
+    // Si hay ciudad seleccionada, cargar ciudades del departamento
+    if (persona?.ciudad_ubicacion?.departamento?.id) {
+      fetchCiudades(persona.ciudad_ubicacion.departamento.id);
+    }
   }, []);
 
   const fetchDepartamentos = async () => {
@@ -156,45 +184,12 @@ const PerfilPage = () => {
     }
   };
 
-  const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files ? e.target.files[0] : null;
-    setSelectedFilePersona(file);
-
-    if (file) {
-      setErrors((prevErrors) => {
-        const newErrors = { ...prevErrors };
-        delete newErrors['rutaFoto'];
-        return newErrors;
-      });
-    }
-  };
-
-  const handleFilePersonaDelete = () => {
-    setSelectedFilePersona(null);
-  };
-
-  useEffect(() => {
-    if (selectedFilePersona instanceof File) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewSrc(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFilePersona);
-    } else if (persona?.rutaFotoUrl) {
-      setPreviewSrc(persona.rutaFotoUrl);
-    } else {
-      setPreviewSrc(defaultImage);
-    }
-  }, [selectedFilePersona, persona]);
-
+  // Guardar datos personales
   const handleSubmitPropietarios = async () => {
     let validationErrors: Partial<any> = {};
-
     Object.entries(formDataPersona).forEach(([name, value]) => {
       const error = validationFieldPerson(name, value);
-      if (error) {
-        validationErrors[name] = error;
-      }
+      if (error) validationErrors[name] = error;
     });
 
     if (Object.keys(validationErrors).length > 0) {
@@ -204,20 +199,11 @@ const PerfilPage = () => {
     }
 
     setErrors({});
-
     const data = new FormData();
-
-    // Agregar todos los campos del formulario
     Object.entries(formDataPersona).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        data.append(key, String(value));
-      }
+      if (value !== undefined && value !== null) data.append(key, String(value));
     });
-
-    // Agregar archivo de foto si existe
-    if (selectedFilePersona instanceof File) {
-      data.append('rutaFotoFile', selectedFilePersona);
-    }
+    if (selectedFilePersona instanceof File) data.append('rutaFotoFile', selectedFilePersona);
 
     try {
       setSaving(true);
@@ -231,61 +217,131 @@ const PerfilPage = () => {
     }
   };
 
-  // Elimina el useEffect duplicado
-  useEffect(() => {
-    fetchTipoIdentificacion();
-    fetchDepartamentos();
-  }, []);
+  // Marcar como que ya cambió la contraseña
+  const handlePasswordChanged = () => {
+    setPasswordChanged(true);
+    localStorage.setItem('passwordChanged', 'true');
+  };
+
+  // Función para cancelar edición
+  const handleCancelEditing = () => {
+    if (persona) {
+      setFormDataPersona({
+        id: persona.id || undefined,
+        nombre1: persona.nombre1 || '',
+        apellido1: persona.apellido1 || '',
+        nombre2: persona.nombre2 || '',
+        idtipoIdentificacion: persona.idTipoIdentificacion || '',
+        identificacion: persona.identificacion || '',
+        rh: persona.rh || '',
+        sexo: persona.sexo || '',
+        fechaNac: persona.fechaNac || '',
+        idCiudadUbicacion: persona.idCiudadUbicacion || '',
+        departamento: persona.ciudad_ubicacion?.departamento?.id || '',
+        apellido2: persona.apellido2 || '',
+        email: persona.email || '',
+        direccion: persona.direccion || '',
+        celular: persona.celular || '',
+        telefonoFijo: persona.telefonoFijo || ''
+      });
+      setSelectedFilePersona(persona.foto || null);
+    }
+    setErrors({});
+  };
 
   return (
     <Container>
       <style>
         {`
-            .hero-bg {
-              background-image: url('${toAbsoluteUrl('/media/images/2600x1200/bg-1.png')}');
-            }
-            .dark .hero-bg {
-              background-image: url('${toAbsoluteUrl('/media/images/2600x1200/bg-1-dark.png')}');
-            }
-          `}
+          .hero-bg {
+            background-image: url('${toAbsoluteUrl('/media/images/2600x1200/bg-1.png')}');
+          }
+          .dark .hero-bg {
+            background-image: url('${toAbsoluteUrl('/media/images/2600x1200/bg-1-dark.png')}');
+          }
+        `}
       </style>
 
+      {/* Header */}
       <div className="bg-center bg-cover bg-no-repeat hero-bg">
         <Container>
           <div className="flex flex-col items-center gap-2 lg:gap-3 py-4 lg:py-5">
             <img
-              src={persona?.rutaFotoUrl}
+              src={previewSrc}
               className="w-[120px] h-[120px] rounded-full border-4 border-success object-cover"
             />
-
-            <div className="flex items-center gap-1.5">
-              <div className="text-lg leading-5 font-semibold text-gray-800">
-                {persona?.nombre1} {persona?.nombre2} {persona?.apellido1} {persona?.apellido2}
-              </div>
+            <div className="text-lg leading-5 font-semibold text-gray-800">
+              {persona?.nombre1} {persona?.nombre2} {persona?.apellido1} {persona?.apellido2}
             </div>
-
             <div className="flex flex-wrap justify-center gap-1 lg:gap-3 text-sm">
-              <div className="flex gap-1 items-center">
-                <a
-                  href={`mailto:${persona?.email}`}
-                  target="_blank"
-                  className="text-gray-600 hover:text-primary"
-                  rel="noreferrer"
-                >
-                  {persona?.email}
-                </a>
-              </div>
+              <a href={`mailto:${persona?.email}`} className="text-gray-600 hover:text-primary">
+                {persona?.email}
+              </a>
             </div>
           </div>
         </Container>
       </div>
 
-      <Container>
+      {/* Mensaje para cambiar contraseña primero */}
+      {!passwordChanged && (
+        <div className="rounded-xl shadow-lg p-6 mb-6">
+          <div className="text-center py-8">
+            <div className="mb-4">
+              <KeenIcon icon="shield-exclamation" className="w-16 h-16 text-warning mx-auto" />
+            </div>
+            <h2 className="font-semibold text-xl mb-3">Primero debe cambiar su contraseña</h2>
+            <p className="text-gray-600 mb-6">
+              Por seguridad, es necesario que actualice su contraseña antes de poder modificar sus datos personales.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/auth/password/reset"
+                className="btn btn-primary btn-sm"
+                onClick={handlePasswordChanged}
+              >
+                Cambiar Contraseña
+              </Link>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setPasswordChanged(false);
+                  localStorage.setItem('/auth/reset-password/change', 'false');
+                }}
+              >
+                Ya cambié mi contraseña
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Formulario de Perfil (solo visible después de cambiar contraseña) */}
+      {passwordChanged && (
         <div className="rounded-xl shadow-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="font-semibold text-lg">Editar Información Personal</h2>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleCancelEditing}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleSubmitPropietarios}
+                disabled={saving}
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+
           <form>
-            <div className="flex flex-col lg:flex-row justify-between gap-4">
-              <div className="flex-1 basis-[68%]">
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2">
+            <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
+              <div className="flex-1 basis-[65%]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Tipo Identificación *</label>
                     <select
@@ -310,25 +366,19 @@ const PerfilPage = () => {
                     <input
                       type="text"
                       name="identificacion"
-                      placeholder="Ingrese su identificación"
                       value={formDataPersona.identificacion}
                       disabled
-                      onChange={handleChangeFormPerson}
-                      className={`input ${errors.identificacion ? 'border-red-500' : ''}`}
+                      className="input bg-gray-100"
                     />
-                    {errors.identificacion && (
-                      <p className="text-red-500 text-sm mt-1">{errors.identificacion}</p>
-                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
                     <input
                       type="text"
                       name="nombre1"
-                      disabled
                       placeholder="Ingrese su primer nombre"
                       value={formDataPersona.nombre1}
                       onChange={handleChangeFormPerson}
@@ -345,7 +395,6 @@ const PerfilPage = () => {
                       type="text"
                       placeholder="Ingrese su segundo nombre"
                       name="nombre2"
-                      disabled
                       value={formDataPersona.nombre2}
                       onChange={handleChangeFormPerson}
                       className="input"
@@ -356,13 +405,12 @@ const PerfilPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
                     <input
                       type="text"
                       name="apellido1"
-                      disabled
                       placeholder="Ingrese su primer apellido"
                       value={formDataPersona.apellido1}
                       onChange={handleChangeFormPerson}
@@ -380,7 +428,6 @@ const PerfilPage = () => {
                       placeholder="Ingrese su segundo apellido"
                       value={formDataPersona.apellido2}
                       onChange={handleChangeFormPerson}
-                      disabled
                       className="input"
                     />
                     {errors.apellido2 && (
@@ -390,13 +437,38 @@ const PerfilPage = () => {
                 </div>
               </div>
 
-              <div className="basis-[35%] flex items-center justify-center">
+              <div className="basis-[35%] flex flex-col items-center justify-center gap-4">
                 <div className="w-48 h-48 border rounded-lg overflow-hidden shadow">
                   <img src={previewSrc} alt="Vista previa" className="w-full h-full object-cover" />
                 </div>
+                <div className="w-48">
+                  <label className="block text-sm font-medium mb-2">Foto</label>
+                  {!selectedFilePersona ? (
+                    <input
+                      type="file"
+                      name="rutaFoto"
+                      onChange={handleFilePersonaChange}
+                      className="file-input w-full"
+                      ref={fileInputRef}
+                    />
+                  ) : (
+                    <div className="flex items-center">
+                      <p className="text-sm input flex justify-between w-full items-center">
+                        {selectedFilePersona.name}
+                        <span onClick={handleFilePersonaDelete} className="ml-2 cursor-pointer">
+                          <KeenIcon icon="trash" />
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  {errors['rutaFoto'] && (
+                    <p className="text-red-500 text-sm mt-1">{errors['rutaFoto']}</p>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Sexo *</label>
                 <select
@@ -433,36 +505,22 @@ const PerfilPage = () => {
                 {errors.rh && <p className="text-red-500 text-sm mt-1">{errors.rh}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Foto *</label>
-                {!selectedFilePersona ? (
-                  <input
-                    type="file"
-                    name="rutaFoto"
-                    onChange={handleFilePersonaChange}
-                    className="file-input"
-                    ref={fileInputRef}
-                  />
-                ) : (
-                  <div className="flex items-center">
-                    <p className="text-sm input flex justify-between w-full items-center">
-                      {selectedFilePersona.name}
-                      <span onClick={handleFilePersonaDelete} className="ml-2 cursor-pointer">
-                        <KeenIcon icon="trash" />
-                      </span>
-                    </p>
-                  </div>
-                )}
-
-                {errors['rutaFoto'] && (
-                  <p className="text-red-500 text-sm mt-1">{errors['rutaFoto']}</p>
-                )}
+                <label className="block text-sm font-medium mb-2">Fecha de Nacimiento *</label>
+                <input
+                  type="date"
+                  name="fechaNac"
+                  value={formDataPersona.fechaNac}
+                  onChange={handleChangeFormPerson}
+                  className="input"
+                  max={new Date().toISOString().split('T')[0]}
+                />
+                {errors.fechaNac && <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Departamento de Ubicación *
-                </label>
+                <label className="block text-sm font-medium mb-2">Departamento de Ubicación *</label>
                 <select
                   name="departamento"
                   value={formDataPersona.departamento}
@@ -501,21 +559,6 @@ const PerfilPage = () => {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Fecha de Nacimiento *</label>
-                <input
-                  type="date"
-                  name="fechaNac"
-                  disabled
-                  value={formDataPersona.fechaNac}
-                  onChange={handleChangeFormPerson}
-                  className="input"
-                  max={new Date().toISOString().split('T')[0]}
-                />
-                {errors.fechaNac && <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-              <div>
                 <label className="block text-sm font-medium mb-2">Dirección *</label>
                 <input
                   type="text"
@@ -529,12 +572,15 @@ const PerfilPage = () => {
                   <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>
                 )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium mb-2">Correo Electronico *</label>
+                <label className="block text-sm font-medium mb-2">Correo Electrónico *</label>
                 <input
                   type="text"
                   name="email"
-                  placeholder="Ingrese el Correo Electronico"
+                  placeholder="Ingrese el Correo Electrónico"
                   value={formDataPersona.email}
                   onChange={handleChangeFormPerson}
                   className={`input ${errors.email ? 'border-red-500' : ''}`}
@@ -553,15 +599,12 @@ const PerfilPage = () => {
                 />
                 {errors.celular && <p className="text-red-500 text-sm mt-1">{errors.celular}</p>}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
               <div>
                 <label className="block text-sm font-medium mb-2">Teléfono Fijo</label>
                 <input
                   type="text"
                   name="telefonoFijo"
-                  placeholder="Ingrese el teléfono "
+                  placeholder="Ingrese el teléfono"
                   value={formDataPersona.telefonoFijo}
                   onChange={handleChangeFormPerson}
                   className={`input ${errors.telefonoFijo ? 'border-red-500' : ''}`}
@@ -569,49 +612,8 @@ const PerfilPage = () => {
               </div>
             </div>
           </form>
-
-          <div className="flex justify-end gap-3 mt-4 px-4">
-            <button 
-              className="btn btn-secondary btn-sm" 
-              onClick={() => {
-                // Resetear a los valores originales de la persona
-                if (persona) {
-                  setFormDataPersona({
-                    id: persona.id || undefined,
-                    nombre1: persona.nombre1 || '',
-                    apellido1: persona.apellido1 || '',
-                    nombre2: persona.nombre2 || '',
-                    idtipoIdentificacion: persona.idTipoIdentificacion || '',
-                    identificacion: persona.identificacion || '',
-                    rh: persona.rh || '',
-                    sexo: persona.sexo || '',
-                    fechaNac: persona.fechaNac || '',
-                    idCiudadUbicacion: persona.idCiudadUbicacion || '',
-                    departamento: persona.ciudad_ubicacion?.departamento?.id || '',
-                    apellido2: persona.apellido2 || '',
-                    email: persona.email || '',
-                    direccion: persona.direccion || '',
-                    celular: persona.celular || '',
-                    telefonoFijo: persona.telefonoFijo || ''
-                  });
-                  setSelectedFilePersona(persona.foto || null);
-                }
-                setErrors({});
-              }}
-              disabled={saving}
-            >
-              Cancelar
-            </button>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={handleSubmitPropietarios}
-              disabled={saving}
-            >
-              {saving ? 'Guardando...' : 'Guardar Todo'}
-            </button>
-          </div>
         </div>
-      </Container>
+      )}
     </Container>
   );
 };

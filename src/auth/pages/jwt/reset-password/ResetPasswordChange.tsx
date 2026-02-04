@@ -11,6 +11,7 @@ const VITE_APP_API_URL = import.meta.env.VITE_APP_API_URL;
 
 const resetPasswordSchema = Yup.object().shape({
   password: Yup.string()
+  
     .min(8, 'Mínimo 8 caracteres')
     .max(50, 'Máximo 50 caracteres')
     .required('La contraseña es requerida'),

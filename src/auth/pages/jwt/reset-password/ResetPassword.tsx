@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as Yup from 'yup';
 import axios from 'axios';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
 
 import { useLayout } from '@/providers';
 
 const VITE_APP_API_URL = import.meta.env.VITE_APP_API_URL;
+const MySwal = withReactContent(Swal);
 
 const initialValues = {
   email: ''
@@ -28,6 +32,104 @@ const ResetPassword = () => {
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
 
+  const showSuccessAlert = (email: string) => {
+    MySwal.fire({
+      title: <p className="text-2xl font-semibold text-gray-900">¡Código enviado!</p>,
+      html: (
+        <div className="text-left">
+          <p className="text-gray-700 mb-3">
+            Si el correo <span className="font-semibold text-orange-600">{email}</span> existe en nuestro sistema, recibirás un código de verificación.
+          </p>
+          <p className="text-sm text-gray-600">
+            Revisa tu bandeja de entrada y la carpeta de spam.
+          </p>
+        </div>
+      ),
+      icon: 'success',
+      iconColor: '#10B981',
+      background: '#F0F9FF',
+      color: '#1F2937',
+      showConfirmButton: true,
+      confirmButtonText: 'Continuar con el código',
+      confirmButtonColor: '#F97316',
+      showCancelButton: true,
+      cancelButtonText: 'Enviar otro correo',
+      cancelButtonColor: '#6B7280',
+      customClass: {
+        popup: 'rounded-2xl border border-gray-200',
+        title: 'mb-4',
+        confirmButton: 'px-6 py-2 rounded-lg font-medium',
+        cancelButton: 'px-6 py-2 rounded-lg font-medium'
+      },
+      buttonsStyling: false,
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        handleGoToVerify();
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        // Cuando el usuario hace clic en "Enviar otro correo"
+        setHasErrors(undefined);
+        setSuccessMessage('');
+        formik.resetForm();
+        formik.setFieldValue('email', '', false);
+      }
+    });
+  };
+
+  const showErrorAlert = (message: string) => {
+    MySwal.fire({
+      title: <p className="text-2xl font-semibold text-gray-900">¡Ups! Algo salió mal</p>,
+      html: (
+        <div className="text-left">
+          <p className="text-gray-700 mb-3">{message}</p>
+          <p className="text-sm text-gray-600">
+            Por favor, verifica el correo e intenta nuevamente.
+          </p>
+        </div>
+      ),
+      icon: 'error',
+      iconColor: '#EF4444',
+      background: '#FEF2F2',
+      color: '#1F2937',
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#F97316',
+      customClass: {
+        popup: 'rounded-2xl border border-gray-200',
+        title: 'mb-4',
+        confirmButton: 'px-6 py-2 rounded-lg font-medium'
+      },
+      buttonsStyling: false
+    });
+  };
+
+  const showNotFoundAlert = () => {
+    MySwal.fire({
+      title: <p className="text-2xl font-semibold text-gray-900">Correo no encontrado</p>,
+      html: (
+        <div className="text-left">
+          <p className="text-gray-700 mb-3">
+            No encontramos una cuenta asociada a este correo electrónico.
+          </p>
+          <p className="text-sm text-gray-600">
+            Verifica que esté escrito correctamente o regístrate para crear una cuenta.
+          </p>
+        </div>
+      ),
+      icon: 'warning',
+      iconColor: '#F59E0B',
+      background: '#FFFBEB',
+      color: '#1F2937',
+      confirmButtonText: 'Verificar correo',
+      confirmButtonColor: '#F97316',
+      customClass: {
+        popup: 'rounded-2xl border border-gray-200',
+        title: 'mb-4',
+        confirmButton: 'px-6 py-2 rounded-lg font-medium'
+      },
+      buttonsStyling: false
+    });
+  };
+
   const formik = useFormik({
     initialValues,
     validationSchema: forgotPasswordSchema,
@@ -41,12 +143,12 @@ const ResetPassword = () => {
           email: values.email
         });
 
-        
-        setSuccessMessage(response.data.message || 'Si el correo existe, recibirás un código de verificación');
         setHasErrors(false);
-        setLoading(false);
-
+        setSuccessMessage('Código enviado correctamente');
         sessionStorage.setItem('resetEmail', values.email);
+        
+        // Mostrar SweetAlert de éxito
+        showSuccessAlert(values.email);
         
       } catch (error: any) {
         setHasErrors(true);
@@ -55,29 +157,34 @@ const ResetPassword = () => {
         
         if (error.response?.status === 404) {
           setStatus('No encontramos una cuenta con ese email');
+          showNotFoundAlert();
         } else if (error.response?.data?.message) {
           setStatus(error.response.data.message);
+          showErrorAlert(error.response.data.message);
         } else {
           setStatus('Error al enviar el código. Por favor intenta nuevamente.');
+          showErrorAlert('Error al enviar el código. Por favor intenta nuevamente.');
         }
+      } finally {
+        setLoading(false);
       }
     }
   });
 
-      const handleGoToVerify = () => {
-      const email = formik.values.email;
-      if (email && formik.isValid) {
-        sessionStorage.setItem('resetEmail', email);
-        navigate(
-          currentLayout?.name === 'auth-branded'
-            ? '/auth/reset-password/verify-otp'
-            : '/auth/classic/reset-password/verify-otp',
-          {
-            state: { email }
-          }
-        );
-      }
-    };
+  const handleGoToVerify = () => {
+    const email = formik.values.email;
+    if (email && formik.isValid) {
+      sessionStorage.setItem('resetEmail', email);
+      navigate(
+        currentLayout?.name === 'auth-branded'
+          ? '/auth/reset-password/verify-otp'
+          : '/auth/classic/reset-password/verify-otp',
+        {
+          state: { email }
+        }
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
@@ -115,7 +222,16 @@ const ResetPassword = () => {
               <p className="text-sm text-green-700 font-medium mb-3">
                 {successMessage}
               </p>
-
+              <button
+                type="button"
+                onClick={handleGoToVerify}
+                className="w-full h-12 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all flex items-center justify-center gap-2 mt-2"
+              >
+                Ya tengo el código
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
+              </button>
             </div>
           )}
 
@@ -155,25 +271,26 @@ const ResetPassword = () => {
               'disabled:opacity-60 disabled:cursor-not-allowed'
             )}
           >
-            {loading ? 'Enviando código...' : 'Enviar código'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Enviando código...
+              </span>
+            ) : 'Enviar código'}
           </button>
-
-          {hasErrors === false && (
-            <button
-              type="button"
-              onClick={handleGoToVerify}
-              className="h-12 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              Ya tengo el código →
-            </button>
-          )}
-
+          
           <div className="flex items-center justify-center pt-4 border-t border-gray-200">
             <Link
               to={currentLayout?.name === 'auth-branded' ? '/auth/login' : '/auth/classic/login'}
-              className="text-xs text-gray-600 hover:text-orange-500 font-medium transition"
+              className="text-xs text-gray-600 hover:text-orange-500 font-medium transition flex items-center gap-1"
             >
-              ← Volver al inicio de sesión
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+              Volver al inicio de sesión
             </Link>
           </div>
         </form>

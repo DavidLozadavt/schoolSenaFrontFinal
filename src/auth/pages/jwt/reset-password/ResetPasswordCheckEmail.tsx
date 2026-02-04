@@ -6,6 +6,7 @@ const ResetPasswordCheckEmail = () => {
   const { currentLayout } = useLayout();
   const [email, setEmail] = useState<string>('');
 
+  
   useEffect(() => {
     sessionStorage.removeItem('resetEmail');
     sessionStorage.removeItem('resetToken');
