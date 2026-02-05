@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { ContratoInterface } from './model/ContratoInterface';
 
 interface ModalUpdateSeguridadSocialProps {
@@ -17,6 +18,8 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [formData, setFormData] = useState({
     idPension: '',
@@ -90,6 +93,12 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
   }, []);
 
   useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
+
+  useEffect(() => {
     if (open) {
       setLoading(true);
       Promise.all([
@@ -142,7 +151,8 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
 
       await axios.post(`update_contrato/${contrato.id}`, dataToSend);
 
-      enqueueSnackbar('Datos de Seguridad Social actualizados correctamente', { variant: 'success' });
+      setToastMessage('Datos de Seguridad Social actualizados correctamente');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -155,6 +165,7 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
         <ModalHeader>
@@ -280,6 +291,13 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 

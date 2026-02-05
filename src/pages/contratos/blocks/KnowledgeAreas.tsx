@@ -3,6 +3,7 @@ import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
+import Toast from '../../programas-academicos/components/Toast';
 
 interface KnowledgeAreasProps {
   contrato: ContratoInterface;
@@ -42,6 +43,8 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
   const [newAreaName, setNewAreaName] = useState('');
   const [creating, setCreating] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     fetchAreas();
@@ -84,7 +87,8 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
         await axios.post(`update_contrato/${contrato.id}`, {
           areasConocimiento: newSelectedAreas
         });
-        enqueueSnackbar('Áreas de conocimiento actualizadas', { variant: 'success' });
+        setToastMessage('Áreas de conocimiento actualizadas');
+        setShowToast(true);
         if (onSave) {
           onSave();
         }
@@ -141,7 +145,8 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
         setNewAreaName('');
         setShowCreateForm(false);
         
-        enqueueSnackbar('Área de conocimiento creada y seleccionada correctamente', { variant: 'success' });
+        setToastMessage('Área de conocimiento creada y seleccionada correctamente');
+        setShowToast(true);
         
         if (onSave) {
           onSave();
@@ -302,6 +307,12 @@ const KnowledgeAreas = ({ contrato, onSave }: KnowledgeAreasProps) => {
         )}
       </div>
     </div>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
     </>
   );
 };

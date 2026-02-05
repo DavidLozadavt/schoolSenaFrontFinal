@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { ContratoInterface } from './model/ContratoInterface';
 
 interface ModalUpdateContractProps {
@@ -17,6 +18,8 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [formData, setFormData] = useState({
     objetoContrato: '',
@@ -27,11 +30,20 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
     fechaFinalContrato: '',
     idActividadRiesgo: '',
     salario: '',
-    otrosi: ''
+    otrosi: '',
+    horasmes: '',
+    periodoPago: '',
+    valorTotalContrato: ''
   });
 
   const [tiposContrato, setTiposContrato] = useState<any[]>([]);
   const [actividadesRiesgo, setActividadesRiesgo] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
 
   useEffect(() => {
     if (open && contrato) {
@@ -56,7 +68,10 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         fechaFinalContrato: fechaFinal,
         idActividadRiesgo: (contrato as any).actividadRiesgo?.id?.toString() || '',
         salario: contrato.salario?.valor?.toString() || '',
-        otrosi: contrato.otrosi || ''
+        otrosi: contrato.otrosi || '',
+        horasmes: contrato.horasmes?.toString() || '',
+        periodoPago: contrato.periodoPago || '',
+        valorTotalContrato: contrato.valorTotalContrato?.toString() || ''
       });
     }
   }, [open, contrato]);
@@ -112,9 +127,7 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         perfilProfesional: formData.perfilProfesional,
         fechaContratacion: formData.fechaContratacion,
         idtipoContrato: formData.idtipoContrato ? Number(formData.idtipoContrato) : contrato.idtipoContrato,
-        valorTotalContrato: contrato.valorTotalContrato,
-        salario_id: contrato.salario?.id,
-        periodoPago: contrato.periodoPago
+        salario_id: contrato.salario?.id
       };
 
       if (formData.fechaFinalContrato) {
@@ -134,9 +147,22 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         dataToSend.idActividadRiesgo = Number(formData.idActividadRiesgo);
       }
 
+      if (formData.horasmes) {
+        dataToSend.horasmes = Number(formData.horasmes);
+      }
+
+      if (formData.periodoPago) {
+        dataToSend.periodoPago = formData.periodoPago;
+      }
+
+      if (formData.valorTotalContrato) {
+        dataToSend.valorTotalContrato = formData.valorTotalContrato;
+      }
+
       await axios.post(`update_contrato/${contrato.id}`, dataToSend);
 
-      enqueueSnackbar('Datos del contrato actualizados correctamente', { variant: 'success' });
+      setToastMessage('Datos del contrato actualizados correctamente');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -151,6 +177,7 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
   const isTipoContratoIndefinido = formData.idtipoContrato === '6';
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
         <ModalHeader>
@@ -229,6 +256,46 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Horas al mes</label>
+                <input
+                  type="number"
+                  value={formData.horasmes}
+                  onChange={(e) => handleInputChange('horasmes', e.target.value)}
+                  className="input w-full"
+                  placeholder="Ej: 240"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Período de Pago</label>
+                <select
+                  value={formData.periodoPago}
+                  onChange={(e) => handleInputChange('periodoPago', e.target.value)}
+                  className="select w-full"
+                >
+                  <option value="">Seleccione</option>
+                  <option value="MENSUAL">MENSUAL</option>
+                  <option value="QUINCENAL">QUINCENAL</option>
+                  <option value="SEMANAL">SEMANAL</option>
+                  <option value="DIARIO">DIARIO</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Valor Total del Contrato</label>
+                <input
+                  type="number"
+                  value={formData.valorTotalContrato}
+                  onChange={(e) => handleInputChange('valorTotalContrato', e.target.value)}
+                  className="input w-full"
+                  placeholder="Ej: 5000000"
+                  min="0"
+                  step="1000"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Actividad de Riesgo</label>
                 <select
                   value={formData.idActividadRiesgo}
@@ -298,6 +365,13 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 
