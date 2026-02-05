@@ -3,7 +3,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import axios from 'axios';
 import Select from 'react-select';
-
+import Toast from '../programas-academicos/components/Toast';
 interface Props {
   idRegional?: string;
   setIdRegional: (idRegional: string) => void;
@@ -11,6 +11,12 @@ interface Props {
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
   mode?: 'create' | 'edit';
+}
+
+interface ToastProps {
+  message: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 interface Ciudades {
@@ -63,6 +69,7 @@ const FormularioUpRegional: React.FC<Props> = ({
   mode = 'create'
 }) => {
   const [logoActual, setLogoActual] = useState<string | null>(null);
+  const [toast, setToast] = useState({ isOpen: false, message: '' });
   const Back = import.meta.env.VITE_APP_BACKEND_URL;
 
   const formik = useFormik<FormValues>({
@@ -127,10 +134,23 @@ const FormularioUpRegional: React.FC<Props> = ({
             }
           });
         }
+        // Mostrar toast de éxito
+        setToast({
+          isOpen: true,
+          message:
+            mode === 'create'
+              ? 'Regional creada correctamente'
+              : 'Regional actualizada correctamente'
+        });
 
-        alert(
-          mode === 'create' ? 'Regional creada correctamente' : 'Regional actualizada correctamente'
-        );
+        // Cerrar modal después de un breve delay
+        setTimeout(() => {
+          setIsModalOpen(false);
+          setIdRegional('');
+          formik.resetForm();
+          setEvento((prev) => !prev);
+        }, 1000);
+
         setEvento((prev) => !prev);
       } catch (error: any) {
         alert(
@@ -139,9 +159,6 @@ const FormularioUpRegional: React.FC<Props> = ({
         );
       } finally {
         setSubmitting(false);
-        setIsModalOpen(false);
-        setIdRegional('');
-        formik.resetForm();
       }
     }
   });
@@ -202,7 +219,7 @@ const FormularioUpRegional: React.FC<Props> = ({
           </button>
 
           <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-            {mode === 'edit' ? 'Editar Regional':'Crear Regional'}
+            {mode === 'edit' ? 'Editar Regional' : 'Crear Regional'}
           </h2>
 
           <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
@@ -384,15 +401,24 @@ const FormularioUpRegional: React.FC<Props> = ({
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm
                 hover:bg-blue-700 transition disabled:opacity-50"
               >
-                {formik.isSubmitting 
-                  ? (mode === 'create' ? 'Creando...' : 'Actualizando...') 
-                  : (mode === 'create' ? 'Crear' : 'Actualizar')
-                }
+                {formik.isSubmitting
+                  ? mode === 'create'
+                    ? 'Creando...'
+                    : 'Actualizando...'
+                  : mode === 'create'
+                    ? 'Crear'
+                    : 'Actualizar'}
               </button>
             </div>
           </form>
         </div>
       </div>
+      {/* Toast de éxito */}
+      <Toast
+        message={toast.message}
+        isOpen={toast.isOpen}
+        onClose={() => setToast({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };
