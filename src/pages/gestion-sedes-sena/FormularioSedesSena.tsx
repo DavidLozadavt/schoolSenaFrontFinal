@@ -206,25 +206,21 @@ const FormularioSedesSena: React.FC<Props> = ({
   });
 
   // Cargar centros de formación cuando se selecciona una empresa (regional)
-  useEffect(() => {
-    const loadCentrosFormacion = async () => {
-      if (!formik.values.empresa) {
-        setCentrosFormacion([]);
-        formik.setFieldValue('centroFormacion', null);
-        return;
-      }
+  const handleChangeRegional = async (value: { value: number; label: string } | null) => {
+    formik.setFieldValue('empresa', value);
+    formik.setFieldValue('centroFormacion', null);
+    setCentrosFormacion([]);
 
-      try {
-        const res = await axios.get(`centrosFormacion/regional/${formik.values.empresa.value}`);
-        setCentrosFormacion(res.data.data || res.data);
-      } catch (error) {
-        console.error('Error cargando centros de formación:', error);
-        setCentrosFormacion([]);
-      }
-    };
+    if (!value) return;
 
-    loadCentrosFormacion();
-  }, [formik.values.empresa]);
+    try {
+      const res = await axios.get(`centrosFormacion/regional/${value.value}`);
+      setCentrosFormacion(res.data.data);
+    } catch (error) {
+      console.error('Error cargando centros de formación:', error);
+      setCentrosFormacion([]);
+    }
+  };
 
   const optionsCiudades = ciudades.map((val) => ({
     value: val.id,
@@ -284,11 +280,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                 placeholder="Selecciona la regional..."
                 isClearable
                 value={formik.values.empresa}
-                onChange={(value) => {
-                  formik.setFieldValue('empresa', value);
-                  // Resetear centro de formación al cambiar regional
-                  formik.setFieldValue('centroFormacion', null);
-                }}
+                onChange={handleChangeRegional}
                 onBlur={() => formik.setFieldTouched('empresa', true)}
               />
               {formik.touched.empresa && formik.errors.empresa && (
