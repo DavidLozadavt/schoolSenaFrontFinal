@@ -7,24 +7,52 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['GESTION_USUARIO'],
     children: [
       {
-        title: 'Gestión Programas',
-        path: '/gestion-academica/configuracion/programas',
-        requiredPermissions: ['GESTION_USUARIO']
-      },
-      {
-        title: 'Periodos',
-        path: '/gestion-academica/configuracion/periodos',
-        requiredPermissions: ['GESTION_USUARIO']
-      },
-      {
-        title: 'Jornadas',
-        path: '/gestion-academica/configuracion/jornadas',
-        requiredPermissions: ['GESTION_USUARIO']
-      },
-      {
-        title: 'Infraestructura',
-        path: '/gestion-academica/configuracion/infraestructura',
-        requiredPermissions: ['GESTION_USUARIO']
+        title: 'Configuración académica',
+        requiredPermissions: ['GESTION_REGIONAL'],
+        children: [
+          {
+            title: 'Programas',
+            path: '/gestion-academica/configuracion/programas',
+            requiredPermissions: ['GESTION_USUARIO']
+          },
+          {
+            title: 'Periodos',
+            path: '/gestion-academica/configuracion/periodos',
+            requiredPermissions: ['GESTION_USUARIO']
+          },
+          {
+            title: 'Jornadas',
+            path: '/gestion-academica/configuracion/jornadas',
+            requiredPermissions: ['GESTION_USUARIO']
+          },
+          {
+            title: 'Regionales',
+            path: '/regionales',
+            requiredPermissions: ['GESTION_REGIONAL']
+          },
+          {
+            title: 'Centro Formación',
+            path: '/centrosFormacion',
+            requiredPermissions: ['GESTION_REGIONAL']
+          },
+          {
+            title: 'Sedes',
+            path: '/sedesSena',
+            requiredPermissions: ['GESTION_REGIONAL']
+          },
+
+          {
+            title: 'Fichas',
+            path: '/fichas',
+            requiredPermissions: ['GESTION_REGIONAL']
+          },
+
+          {
+            title: 'Ambientes',
+            path: '/ambientes',
+            requiredPermissions: ['GESTION_REGIONAL']
+          }
+        ]
       }
     ]
   },
@@ -642,45 +670,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/reporte-superintendencia/reporte-superintendencia',
         requiredPermissions: ['GESTION_REPORTE_SUPERINTENDENCIA']
       }
-    ]
-  },
-  {
-    title: 'Gestión Regional',
-    icon: 'teacher',
-    requiredPermissions: ['GESTION_REGIONAL'],
-    children: [
-      {
-        title: 'Gestión Regional',
-        path: '/regionales',
-        requiredPermissions: ['GESTION_REGIONAL']
-      },
-    ]
-  },
-  {
-    title: 'Gestión Centros',
-    icon: 'teacher',
-    requiredPermissions: ['GESTION_CENTROS_FORMACION'],
-    children: [
-      {
-        title: 'Gestión Centro Formación',
-        path: '/centrosFormacion',
-        requiredPermissions: ['GESTION_REGIONAL']
-      },
-      {
-        title: 'Gestión Sedes',
-        path: '/sedesSena',
-        requiredPermissions: ['GESTION_REGIONAL']
-      },
-      {
-        title: 'Gestión fichas',
-        path: '/fichas',
-        requiredPermissions: ['GESTION_REGIONAL']
-      },
-      {
-        title: 'Gestión Ambientes',
-        path: '/ambientes',
-        requiredPermissions: ['GESTION_REGIONAL']
-      },
     ]
   },
   {
