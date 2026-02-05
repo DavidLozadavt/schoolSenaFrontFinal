@@ -23,6 +23,7 @@ interface FormValues {
   email: string;
   digitoVerificacion: number;
   idCiudad: number;
+  rutaLogo: File | null;
 }
 
 const validationSchema = Yup.object({
@@ -38,7 +39,17 @@ const validationSchema = Yup.object({
     .required('El dígito de verificación es obligatorio'),
   idCiudad: Yup.number()
     .typeError('Debe seleccionar una ciudad')
-    .required('La ciudad es obligatoria')
+    .required('La ciudad es obligatoria'),
+  rutaLogo: Yup.mixed<File>()
+    .nullable()
+    .test('fileType', 'Solo se permiten imágenes PNG o JPG', (value?: File | null) => {
+      if (!value) return true;
+      return ['image/png', 'image/jpeg'].includes(value.type);
+    })
+    .test('fileSize', 'La imagen debe pesar menos de 2MB', (value?: File | null) => {
+      if (!value) return true;
+      return value.size <= 2 * 1024 * 1024;
+    })
 });
 
 const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento }) => {
@@ -53,12 +64,29 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
       direccion: '',
       email: '',
       digitoVerificacion: 0,
-      idCiudad: null as any
+      idCiudad: null as any,
+      rutaLogo: null
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        await axios.post('regional', values);
+        const formData = new FormData();
+        formData.append('razonSocial', values.razonSocial);
+        formData.append('nit', values.nit);
+        formData.append('representanteLegal', values.representanteLegal);
+        formData.append('direccion', values.direccion);
+        formData.append('email', values.email);
+        formData.append('digitoVerificacion', String(values.digitoVerificacion));
+        formData.append('idCiudad', String(values.idCiudad));
+        if (values.rutaLogo) {
+          formData.append('rutaLogo', values.rutaLogo);
+        }
+
+        await axios.post('regional', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
 
         // Mostrar animación de éxito
         setShowSuccess(true);
@@ -219,6 +247,52 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
               />
               {formik.touched.direccion && formik.errors.direccion && (
                 <p className="mt-1 text-xs text-red-500">{formik.errors.direccion}</p>
+              )}
+            </div>
+            {/** Imagen */}
+            <div className="md:col-span-2 mt-4">
+              <p className="text-xs font-bold mb-2 text-gray-800">
+                Logo o imagen <span className="text-gray-500">(PNG, JPG)</span>
+              </p>
+
+              <label
+                htmlFor="rutaLogo"
+                className="
+      flex items-center justify-between gap-4
+      w-full px-4 py-3
+      border-2 border-dashed rounded-xl
+      cursor-pointer
+      transition
+      hover:border-blue-500 hover:bg-blue-50
+      focus-within:border-blue-500
+    "
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-700">
+                    {formik.values.rutaLogo ? formik.values.rutaLogo.name : 'Seleccionar imagen'}
+                  </span>
+                </div>
+
+                <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
+                  Examinar
+                </span>
+
+                <input
+                  id="rutaLogo"
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] || null;
+                    formik.setFieldValue('rutaLogo', file);
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              <p className="text-xs text-gray-500 mt-1">Solo imágenes PNG o JPG · Máx 2MB</p>
+
+              {formik.touched.rutaLogo && formik.errors.rutaLogo && (
+                <p className="text-red-500 text-xs mt-1">{formik.errors.rutaLogo}</p>
               )}
             </div>
 

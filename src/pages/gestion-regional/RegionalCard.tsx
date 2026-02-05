@@ -71,7 +71,7 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onInfo }) => {
             value={`${regional.nit}-${regional.digitoVerificacion}`}
           />
           <InfoRow
-            icon="profile-user"
+            icon="user"
             color="purple"
             label="Representante"
             value={regional.representanteLegal}
