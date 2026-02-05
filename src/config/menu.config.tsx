@@ -654,11 +654,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/regionales',
         requiredPermissions: ['GESTION_REGIONAL']
       },
-      {
-        title: 'Gestión Aprendices',
-        path: '/gestion-academica/configuracion/programas',
-        requiredPermissions: ['GESTION_APRENDIZ']
-      }
     ]
   },
   {
