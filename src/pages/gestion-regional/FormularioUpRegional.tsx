@@ -5,11 +5,12 @@ import axios from 'axios';
 import Select from 'react-select';
 
 interface Props {
-  idRegional: string;
+  idRegional?: string;
   setIdRegional: (idRegional: string) => void;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  mode?: 'create' | 'edit';
 }
 
 interface Ciudades {
@@ -58,7 +59,8 @@ const FormularioUpRegional: React.FC<Props> = ({
   setIdRegional,
   isModalOpen,
   setIsModalOpen,
-  setEvento
+  setEvento,
+  mode = 'create'
 }) => {
   const [logoActual, setLogoActual] = useState<string | null>(null);
   const Back = import.meta.env.VITE_APP_BACKEND_URL;
@@ -78,65 +80,94 @@ const FormularioUpRegional: React.FC<Props> = ({
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        // Crear FormData para enviar archivos
         const formData = new FormData();
 
-        // Agregar solo los campos que tienen valor
-        if (values.razonSocial) formData.append('razonSocial', values.razonSocial);
-        if (values.nit) formData.append('nit', values.nit);
-        if (values.representanteLegal)
+        // Agregar campos según el modo
+        if (mode === 'create') {
+          // En crear, todos los campos son obligatorios
+          formData.append('razonSocial', values.razonSocial);
+          formData.append('nit', values.nit);
           formData.append('representanteLegal', values.representanteLegal);
-        if (values.direccion) formData.append('direccion', values.direccion);
-        if (values.email) formData.append('email', values.email);
-        if (values.digitoVerificacion)
+          formData.append('direccion', values.direccion);
+          formData.append('email', values.email);
           formData.append('digitoVerificacion', values.digitoVerificacion.toString());
-        if (values.idCiudad) formData.append('idCiudad', values.idCiudad.toString());
+          formData.append('idCiudad', values.idCiudad.toString());
+        } else {
+          // En editar, solo enviar campos modificados
+          if (values.razonSocial) formData.append('razonSocial', values.razonSocial);
+          if (values.nit) formData.append('nit', values.nit);
+          if (values.representanteLegal)
+            formData.append('representanteLegal', values.representanteLegal);
+          if (values.direccion) formData.append('direccion', values.direccion);
+          if (values.email) formData.append('email', values.email);
+          if (values.digitoVerificacion)
+            formData.append('digitoVerificacion', values.digitoVerificacion.toString());
+          if (values.idCiudad) formData.append('idCiudad', values.idCiudad.toString());
+        }
 
         // Agregar el archivo de imagen si existe
         if (values.rutaLogo) {
           formData.append('rutaLogo', values.rutaLogo);
         }
 
-        // Laravel no soporta PATCH con FormData, usar POST con _method
-        formData.append('_method', 'PATCH');
+        let response;
+        if (mode === 'create') {
+          // Crear nueva regional
+          response = await axios.post('regional', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        } else {
+          // Actualizar regional existente
+          formData.append('_method', 'PATCH');
+          response = await axios.post(`regional/${idRegional}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        }
 
-        await axios.post(`regional/${idRegional}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-
-        alert('Regional actualizada correctamente');
+        alert(
+          mode === 'create' ? 'Regional creada correctamente' : 'Regional actualizada correctamente'
+        );
         setEvento((prev) => !prev);
       } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al actualizar la regional');
+        alert(
+          error.response?.data?.message ||
+            `Error al ${mode === 'create' ? 'crear' : 'actualizar'} la regional`
+        );
       } finally {
         setSubmitting(false);
         setIsModalOpen(false);
         setIdRegional('');
+        formik.resetForm();
       }
     }
   });
 
   useEffect(() => {
-    if (!idRegional) return;
-
-    const loadRegional = async () => {
-      try {
-        const res = await axios.get(`regional/${idRegional}`);
-        formik.setValues({
-          ...res.data.data,
-          rutaLogo: null
-        });
-
-        setLogoActual(res.data.data.rutaLogo);
-      } catch (error) {
-        alert('Error al cargar la regional');
-      }
-    };
-
-    loadRegional();
-  }, [idRegional]);
+    // Solo cargar datos si es modo edición y hay ID
+    if (mode === 'edit' && idRegional) {
+      const loadRegional = async () => {
+        try {
+          const res = await axios.get(`regional/${idRegional}`);
+          formik.setValues({
+            ...res.data.data,
+            rutaLogo: null
+          });
+          setLogoActual(res.data.data.rutaLogo);
+        } catch (error) {
+          alert('Error al cargar la regional');
+        }
+      };
+      loadRegional();
+    } else {
+      // Resetear el formulario si es modo crear
+      formik.resetForm();
+      setLogoActual(null);
+    }
+  }, [idRegional, mode]);
 
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   useEffect(() => {
@@ -171,7 +202,7 @@ const FormularioUpRegional: React.FC<Props> = ({
           </button>
 
           <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-            Editar regional
+            {mode === 'edit' ? 'Editar Regional':'Crear Regional'}
           </h2>
 
           <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
@@ -353,7 +384,10 @@ const FormularioUpRegional: React.FC<Props> = ({
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm
                 hover:bg-blue-700 transition disabled:opacity-50"
               >
-                {formik.isSubmitting ? 'Actualizando...' : 'Actualizar'}
+                {formik.isSubmitting 
+                  ? (mode === 'create' ? 'Creando...' : 'Actualizando...') 
+                  : (mode === 'create' ? 'Crear' : 'Actualizar')
+                }
               </button>
             </div>
           </form>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import FormularioRegional from './FormularioRegional';
 import ListaRegionales from './ListaRegionales';
 import Toast from '../programas-academicos/components/Toast';
-import FormularioUpRegional from './FormularioUpRegional';
 
 const Regionales = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -11,9 +11,7 @@ const Regionales = () => {
   //Toast para el success
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  
-  const [idRegional, setIdRegional] = useState('');
-  
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setToastOpen(true);
@@ -63,9 +61,7 @@ const Regionales = () => {
       {/* Modal con animación */}
       {isModalOpen && (
         <div className="animate-fade-in">
-          <FormularioUpRegional
-            idRegional={idRegional}
-            setIdRegional={setIdRegional}
+          <FormularioRegional
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             setEvento={setEvento}

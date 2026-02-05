@@ -187,6 +187,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             setEvento={setEvento}
+            mode='edit'
           />
         </div>
       )}
