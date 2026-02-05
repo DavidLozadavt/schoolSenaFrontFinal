@@ -1,14 +1,15 @@
 import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react';
-import FormularioUpCentrosFormacion from './FormularioUpCentrosFormacion';
-import { ColumnDef } from '@tanstack/react-table';
 import { KeenIcon } from '@/components';
 import CentroFormacionCard from './CentroFormacionCard';
+import FormularioCentrosFormacion from './FormularioCentrosFormacion';
+import Toast from '../programas-academicos/components/Toast';
 
 interface Props {
   searchTerm: string;
   evento: boolean;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
+  showToast: (message: string) => void;
 }
 
 interface Ciudad {
@@ -35,15 +36,26 @@ interface CentrosFormacion {
   ciudad?: Ciudad | null;
   idEmpresa: number | null;
   empresa?: Empresa | null;
+  foto:string;
 }
 
-const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
+const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento, showToast }) => {
   const [loading, setLoading] = useState(true);
   const [centrosFormacion, setCentroFormacion] = useState<CentrosFormacion[]>([]);
 
   //Actualización centro de Formación:
   const [idCentroFormacion, setIdCentroFormacion] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  //Eliminacion:
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToastLocal = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -76,6 +88,21 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento 
         centrosFormacion.empresa?.razonSocial.toLowerCase().includes(term)
     );
   }, [centrosFormacion, searchTerm]);
+
+  const eliminarCentro = async (id: number) => {
+    try {
+      await axios.delete(`centrosFormacion/${id}`);
+      const nombre = centrosFormacion.find((c) => c.id === id)?.nombre || '';
+      showToastLocal(`El centro de formación "${nombre}" fue eliminado correctamente`);
+      setEvento((prev) => !prev);
+    } catch (error: any) {
+      const mensaje =
+        error?.response?.data?.message ?? 'No se pudo eliminar el centro de formación';
+      showToastLocal(mensaje);
+    } finally {
+      setDeleteConfirm(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -172,23 +199,63 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento 
                 setIdCentroFormacion(String(centro.id));
                 setIsModalOpen(true);
               }}
-              onInfo={() => {
-                
-              }}
+              onInfo={() => {}}
+              onDelete={() => setDeleteConfirm(centro.id)}
             />
           </div>
         ))}
       </div>
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <KeenIcon icon="information" className="text-2xl text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">¿Eliminar centro de formación?</h3>
+                <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              ¿Estás seguro de que deseas eliminar el centro{' '}
+              <span className="font-bold">
+                {centrosFormacion.find((c) => c.id === deleteConfirm)?.nombre}
+              </span>
+              ?
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => eliminarCentro(deleteConfirm!)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
-        <FormularioUpCentrosFormacion
+        <FormularioCentrosFormacion
           idCentroFormacion={idCentroFormacion}
           setIdCentroFormacion={setIdCentroFormacion}
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}
+          showToast={showToast}
+          mode="edit"
         />
       )}
+      <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </div>
   );
 };

@@ -5,10 +5,13 @@ import * as Yup from 'yup';
 import axios from 'axios';
 
 interface Props {
+  idCentroFormacion?: string;
+  setIdCentroFormacion: (idCentroFormacion: string) => void;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
   showToast: (message: string) => void;
+  mode?: 'create' | 'edit';
 }
 
 interface Ciudades {
@@ -20,37 +23,119 @@ interface Empresa {
   id: number;
   razonSocial: string;
 }
+
 interface FormValues {
   nombre: string;
   direccion: string;
   telefono: string;
   correo: string;
   subdirector: string;
-  correosubdirector: string;
-  ciudad: { value: number; label: string } | null;
-  empresa: { value: number; label: string } | null;
+  correoSubdirector: string;
+  idCiudad: number | null;
+  idEmpresa: number | null;
+  foto: File | null;
 }
 
 const validationSchema = Yup.object({
   nombre: Yup.string().required('El nombre es obligatorio'),
   direccion: Yup.string().required('La dirección es obligatoria'),
   telefono: Yup.string().required('El teléfono es obligatorio'),
-  correo: Yup.string().required('El correo es obligatorio'),
-  subdirector: Yup.string().required('El nombre del subdirector obligatorio'),
-  correosubdirector: Yup.string().required('El correo del subdirector es obligatorio'),
-  ciudad: Yup.object().nullable().required('Seleccione una ciudad'),
-  empresa: Yup.object().nullable().required('Seleccione una Regional')
+  correo: Yup.string().email('Correo inválido').required('El correo es obligatorio'),
+  subdirector: Yup.string().required('El nombre del subdirector es obligatorio'),
+  correoSubdirector: Yup.string()
+    .email('Correo inválido')
+    .required('El correo del subdirector es obligatorio'),
+  idCiudad: Yup.number().nullable().required('Seleccione una ciudad'),
+  idEmpresa: Yup.number().nullable().required('Seleccione una Regional'),
+  foto: Yup.mixed<File>()
+    .nullable()
+    .test('fileType', 'Solo se permiten imágenes PNG o JPG', (value?: File | null) => {
+      if (!value) return true;
+      return ['image/png', 'image/jpeg', 'image/jpg'].includes(value.type);
+    })
+    .test('fileSize', 'La imagen debe pesar menos de 2MB', (value?: File | null) => {
+      if (!value) return true;
+      return value.size <= 2 * 1024 * 1024;
+    })
 });
 
 const FormularioCentrosFormacion: React.FC<Props> = ({
+  idCentroFormacion,
+  setIdCentroFormacion,
   isModalOpen,
   setIsModalOpen,
   setEvento,
-  showToast
+  showToast,
+  mode = 'create'
 }) => {
+  const [fotoActual, setFotoActual] = useState<string | null>(null);
+  const Back = import.meta.env.VITE_APP_BACKEND_URL;
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   const [regionales, setRegionales] = useState<Empresa[]>([]);
 
+  const formik = useFormik<FormValues>({
+    initialValues: {
+      nombre: '',
+      direccion: '',
+      telefono: '',
+      correo: '',
+      subdirector: '',
+      correoSubdirector: '',
+      idCiudad: null,
+      idEmpresa: null,
+      foto: null
+    },
+    validationSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        const formData = new FormData();
+        formData.append('nombre', values.nombre);
+        formData.append('direccion', values.direccion);
+        formData.append('telefono', values.telefono);
+        formData.append('correo', values.correo);
+        formData.append('subdirector', values.subdirector);
+        formData.append('correoSubdirector', values.correoSubdirector);
+
+        if (values.idCiudad !== null) {
+          formData.append('idCiudad', String(values.idCiudad));
+        }
+
+        if (values.idEmpresa !== null) {
+          formData.append('idEmpresa', String(values.idEmpresa));
+        }
+
+        if (values.foto) {
+          formData.append('foto', values.foto);
+        }
+
+        if (mode === 'create') {
+          await axios.post('centrosFormacion/user', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          showToast('Centro de formación creado correctamente');
+        } else {
+          formData.append('_method', 'PATCH');
+          await axios.post(`centrosFormacion/${idCentroFormacion}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          showToast('Centro de formación actualizado correctamente');
+        }
+
+        setIsModalOpen(false);
+        setEvento((prev) => !prev);
+        formik.resetForm();
+        setFotoActual(null);
+      } catch (error: any) {
+        console.error('Error:', error);
+        const mensaje = error.response?.data?.message || 'Error al procesar la solicitud';
+        showToast(mensaje);
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  });
+
+  // Cargar ciudades y regionales
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -60,95 +145,119 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
         ]);
         setCiudades(ciudadesRes.data);
         setRegionales(regionalesRes.data);
-      } catch (error) {}
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+      }
     };
 
     loadData();
   }, []);
 
+  // Cargar datos en modo edición
+  useEffect(() => {
+    const loadCentroFormacion = async () => {
+      if (mode === 'edit' && idCentroFormacion) {
+        try {
+          const res = await axios.get(`centrosFormacion/${idCentroFormacion}`);
+          const data = res.data.data;
+
+          formik.setValues({
+            nombre: data.nombre ?? '',
+            direccion: data.direccion ?? '',
+            telefono: data.telefono ?? '',
+            correo: data.correo ?? '',
+            subdirector: data.subdirector ?? '',
+            correoSubdirector: data.correoSubdirector ?? '',
+            idCiudad: data.idCiudad ?? data.ciudad?.id ?? null,
+            idEmpresa: data.idEmpresa ?? data.empresa?.id ?? null,
+            foto: null
+          });
+          setFotoActual(data.foto);
+        } catch (error) {
+          console.error('Error cargando centro:', error);
+          showToast('Error al cargar el centro de formación');
+        }
+      } else if (mode === 'create') {
+        formik.resetForm();
+        setFotoActual(null);
+      }
+    };
+
+    if (isModalOpen) {
+      loadCentroFormacion();
+    }
+  }, [idCentroFormacion, mode, isModalOpen]);
+
+  // Limpiar al cerrar
+  useEffect(() => {
+    if (!isModalOpen) {
+      formik.resetForm();
+      setFotoActual(null);
+    }
+  }, [isModalOpen]);
+
   const options = ciudades.map((val) => ({
     value: val.id,
     label: val.descripcion
   }));
+
   const options2 = regionales.map((val) => ({
     value: val.id,
     label: val.razonSocial
   }));
 
-  const formik = useFormik<FormValues>({
-    initialValues: {
-      nombre: '',
-      direccion: '',
-      telefono: '',
-      correo: '',
-      subdirector: '',
-      correosubdirector: '',
-      ciudad: null,
-      empresa: null
-    },
-    validationSchema,
-    onSubmit: async (values, { setSubmitting }) => {
-      console.log(values);
-      try {
-        await axios.post('centrosFormacion/user', {
-          ...values,
-          idCiudad: values.ciudad?.value,
-          idEmpresa: values.empresa?.value
-        });
-        showToast('Centro de formación creado correctamente');
-        setIsModalOpen(false);
-        setEvento((prev) => !prev);
-      } catch (error: any) {
-        alert('Error al registrar');
-      } finally {
-        setSubmitting(false);
-        setIsModalOpen(false);
-      }
-    }
-  });
   if (!isModalOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-          Crear centro de formación
+          {mode === 'create' ? 'Crear centro de formación' : 'Editar Centro de formación'}
         </h2>
 
         <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Ciudad */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Ciudad</label>
+              <label className="text-sm font-medium text-gray-700">Ciudad *</label>
               <Select
                 options={options}
-                placeholder="Selecciona el ciudad..."
+                placeholder="Selecciona la ciudad..."
                 isClearable
-                value={formik.values.ciudad}
-                onChange={(value) => formik.setFieldValue('ciudad', value)}
+                value={options.find((option) => option.value === formik.values.idCiudad) || null}
+                onChange={(option) => {
+                  formik.setFieldValue('idCiudad', option ? option.value : null);
+                  formik.setFieldTouched('idCiudad', true);
+                }}
+                onBlur={() => formik.setFieldTouched('idCiudad', true)}
               />
-              {formik.touched.ciudad && formik.errors.ciudad && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.ciudad}</p>
+              {formik.touched.idCiudad && formik.errors.idCiudad && (
+                <p className="text-xs text-red-500 mt-1">{formik.errors.idCiudad}</p>
               )}
             </div>
 
             {/* Regional */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Regional</label>
+              <label className="text-sm font-medium text-gray-700">Regional *</label>
               <Select
                 options={options2}
                 placeholder="Selecciona la Regional..."
                 isClearable
-                value={formik.values.empresa}
-                onChange={(value) => formik.setFieldValue('empresa', value)}
+                value={options2.find((option) => option.value === formik.values.idEmpresa) || null}
+                onChange={(option) => {
+                  formik.setFieldValue('idEmpresa', option ? option.value : null);
+                  formik.setFieldTouched('idEmpresa', true);
+                }}
+                onBlur={() => formik.setFieldTouched('idEmpresa', true)}
               />
-              {formik.touched.empresa && formik.errors.empresa && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.empresa}</p>
+              {formik.touched.idEmpresa && formik.errors.idEmpresa && (
+                <p className="text-xs text-red-500 mt-1">{formik.errors.idEmpresa}</p>
               )}
             </div>
 
             {/* Nombre */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Nombre</label>
+              <label className="text-sm font-medium text-gray-700">Nombre *</label>
               <input
                 type="text"
                 {...formik.getFieldProps('nombre')}
@@ -162,7 +271,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
 
             {/* Dirección */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Dirección</label>
+              <label className="text-sm font-medium text-gray-700">Dirección *</label>
               <input
                 type="text"
                 {...formik.getFieldProps('direccion')}
@@ -176,7 +285,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
 
             {/* Teléfono */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Teléfono</label>
+              <label className="text-sm font-medium text-gray-700">Teléfono *</label>
               <input
                 type="text"
                 {...formik.getFieldProps('telefono')}
@@ -187,11 +296,12 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 <p className="text-xs text-red-500 mt-1">{formik.errors.telefono}</p>
               )}
             </div>
+
             {/* Correo */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Correo</label>
+              <label className="text-sm font-medium text-gray-700">Correo *</label>
               <input
-                type="text"
+                type="email"
                 {...formik.getFieldProps('correo')}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
@@ -200,9 +310,10 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 <p className="text-xs text-red-500 mt-1">{formik.errors.correo}</p>
               )}
             </div>
+
             {/* Subdirector */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Subdirector</label>
+              <label className="text-sm font-medium text-gray-700">Subdirector *</label>
               <input
                 type="text"
                 {...formik.getFieldProps('subdirector')}
@@ -213,26 +324,102 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 <p className="text-xs text-red-500 mt-1">{formik.errors.subdirector}</p>
               )}
             </div>
+
             {/* CorreoSubdirector */}
             <div>
-              <label className="text-sm font-medium text-gray-700">correo del subdirector</label>
+              <label className="text-sm font-medium text-gray-700">Correo del subdirector *</label>
               <input
-                type="text"
-                {...formik.getFieldProps('correosubdirector')}
+                type="email"
+                {...formik.getFieldProps('correoSubdirector')}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
-              {formik.touched.correosubdirector && formik.errors.correosubdirector && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.correosubdirector}</p>
+              {formik.touched.correoSubdirector && formik.errors.correoSubdirector && (
+                <p className="text-xs text-red-500 mt-1">{formik.errors.correoSubdirector}</p>
               )}
             </div>
+
+            {/** Imagen */}
+            <div className="md:col-span-2 mt-4">
+              <p className="text-xs font-bold mb-2 text-gray-800">
+                Logo o imagen <span className="text-gray-500">(PNG, JPG)</span>
+              </p>
+
+              <label
+                htmlFor="foto"
+                className="
+                  flex items-center justify-between gap-4
+                  w-full px-4 py-3
+                  border-2 border-dashed rounded-xl
+                  cursor-pointer
+                  transition
+                  hover:border-blue-500 hover:bg-blue-50
+                  focus-within:border-blue-500
+                "
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-700">
+                    {formik.values.foto ? formik.values.foto.name : 'Seleccionar imagen'}
+                  </span>
+                </div>
+
+                <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
+                  Examinar
+                </span>
+
+                <input
+                  id="foto"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] || null;
+                    formik.setFieldValue('foto', file);
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              <p className="text-xs text-gray-500 mt-1">Solo imágenes PNG o JPG · Máx 2MB</p>
+
+              {formik.touched.foto && formik.errors.foto && (
+                <p className="text-red-500 text-xs mt-1">{formik.errors.foto}</p>
+              )}
+            </div>
+
+            {/* Preview de imagen nueva */}
+            {formik.values.foto && (
+              <div className="md:col-span-2">
+                <p className="text-xs text-gray-500 mb-1">Vista previa</p>
+                <img
+                  src={URL.createObjectURL(formik.values.foto)}
+                  alt="Preview"
+                  className="h-32 rounded-lg border object-contain"
+                />
+              </div>
+            )}
+
+            {/* Imagen actual en modo edición */}
+            {fotoActual && !formik.values.foto && (
+              <div className="md:col-span-2">
+                <p className="text-xs text-gray-500 mb-1">Imagen actual</p>
+                <img
+                  src={`${Back}${fotoActual}`}
+                  alt="Logo actual"
+                  className="h-32 rounded-lg border object-contain"
+                />
+              </div>
+            )}
           </div>
 
           {/* Acciones */}
           <div className="flex justify-end gap-2 mt-6 border-t pt-4">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                formik.resetForm();
+                setFotoActual(null);
+              }}
               className="px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
             >
               Cancelar
@@ -240,10 +427,17 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
 
             <button
               type="submit"
+              disabled={formik.isSubmitting}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm
-                hover:bg-blue-700 transition"
+                hover:bg-blue-700 transition disabled:opacity-50"
             >
-              Guardar
+              {formik.isSubmitting
+                ? mode === 'create'
+                  ? 'Creando...'
+                  : 'Actualizando...'
+                : mode === 'create'
+                  ? 'Crear'
+                  : 'Actualizar'}
             </button>
           </div>
         </form>

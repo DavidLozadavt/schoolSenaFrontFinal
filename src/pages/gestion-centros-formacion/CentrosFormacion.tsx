@@ -9,6 +9,9 @@ const CentrosFormacion: React.FC = () => {
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
 
+  //Actualización centro de Formación:
+    const [idCentroFormacion, setIdCentroFormacion] = useState<string>('');
+
   //Toast para el success
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -59,6 +62,7 @@ const CentrosFormacion: React.FC = () => {
       </div>
       {isModalOpen && (
         <FormularioCentrosFormacion
+        setIdCentroFormacion={setIdCentroFormacion}
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}
@@ -66,7 +70,12 @@ const CentrosFormacion: React.FC = () => {
         />
       )}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ListaCentrosFormacion searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
+        <ListaCentrosFormacion
+          searchTerm={searchTerm}
+          evento={evento}
+          setEvento={setEvento}
+          showToast={showToast}
+        />
       </div>
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </div>

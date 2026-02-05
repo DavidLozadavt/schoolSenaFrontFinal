@@ -21,16 +21,20 @@ interface CentrosFormacion {
   subdirector: string;
   ciudad?: Ciudad | null;
   empresa?: Empresa | null;
+  foto: string;
 }
 
 interface Props {
   centro: CentrosFormacion;
   onEdit: () => void;
   onInfo?: () => void;
+  onDelete?: () => void;
 }
 
 /* Componente */
-const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit }) => {
+const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
+  const BACK = import.meta.env.VITE_APP_BACKEND_URL;
+  const FALLBACK_IMAGE = `${BACK}/default/logoweb.png`;
   return (
     <div
       className="
@@ -44,13 +48,9 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit }) => {
       {/* HEADER */}
       <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
         <img
-          src={centro.empresa?.rutaLogoUrl ?? 'https://via.placeholder.com/400x200?text=Centro'}
-          alt={centro.empresa?.razonSocial}
+          src={centro.foto ? `${BACK}${centro.foto}` : FALLBACK_IMAGE}
+          alt={centro.nombre ?? 'Centro de formación'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://via.placeholder.com/400x200?text=Centro+de+Formación';
-          }}
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -68,41 +68,18 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit }) => {
           <h3 className="text-base font-extrabold uppercase leading-snug text-white drop-shadow-md line-clamp-2">
             {centro.nombre}
           </h3>
-          <p className="text-[10px] text-gray-200 uppercase tracking-wide">
-            {centro.empresa?.razonSocial}
-          </p>
+          <p className="text-[10px] text-gray-200 uppercase tracking-wide">{centro.nombre}</p>
         </div>
       </div>
 
       {/* BODY */}
-      <div className="p-5 flex flex-col h-[420px]">
+      <div className="p-5 space-y-4">
         {/* INFO */}
         <div className="space-y-3 text-xs flex-1 overflow-hidden">
-          <InfoRow
-            icon="user-square"
-            color="blue"
-            label="Subdirector"
-            value={centro.subdirector}
-          />
-          <InfoRow
-            icon="sms"
-            color="green"
-            label="Correo"
-            value={centro.correo}
-          />
-          <InfoRow
-            icon="phone"
-            color="purple"
-            label="Teléfono"
-            value={centro.telefono}
-          />
-          <InfoRow
-            icon="map"
-            color="green"
-            label="Dirección"
-            value={centro.direccion}
-            multiline
-          />
+          <InfoRow icon="user-square" color="blue" label="Subdirector" value={centro.subdirector} />
+          <InfoRow icon="sms" color="green" label="Correo" value={centro.correo} />
+          <InfoRow icon="phone" color="purple" label="Teléfono" value={centro.telefono} />
+          <InfoRow icon="map" color="green" label="Dirección" value={centro.direccion} multiline />
         </div>
 
         {/* ACCIONES */}
@@ -114,12 +91,19 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit }) => {
           >
             <KeenIcon icon="notepad-edit" />
           </button>
+          <button
+            title="Eliminar"
+            onClick={onDelete}
+            className="
+            flex items-center justify-center h-8
+            bg-red-100/40 text-red-600
+            rounded-lg hover:border hover:border-red-500
+            hover:scale-105 active:scale-95 transition-all
+          "
+          >
+            <KeenIcon icon="trash" />
+          </button>
         </div>
-
-        {/* CTA */}
-        <button className="w-full py-2 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors">
-          Ver detalle del centro →
-        </button>
       </div>
     </div>
   );
@@ -131,7 +115,6 @@ const InfoRow = ({
   label,
   value,
   color,
-  multiline = false
 }: {
   icon: string;
   label: string;
@@ -152,17 +135,8 @@ const InfoRow = ({
         <i className={`ki-outline ki-${icon} text-sm`} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-          {label}
-        </p>
-        <p
-          className={`
-            font-bold text-gray-700 leading-snug
-            ${multiline ? 'line-clamp-2' : 'truncate'}
-          `}
-        >
-          {value}
-        </p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+        <p className="font-bold text-gray-700 truncate">{value}</p>
       </div>
     </div>
   );
