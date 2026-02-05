@@ -14,6 +14,14 @@ export interface ContratoInterface {
   valorTotalContrato?: any;
   objetoContrato?: string;
   sueldo?: string;
+  banco:any;
+  tipoCuentaBancaria:any;
+  numeroCuentaBancaria:any
+
+  actividadRiesgo:{
+    nombre:string;
+    descripcion:string;
+  }
 
   persona?: {
     id?: number;

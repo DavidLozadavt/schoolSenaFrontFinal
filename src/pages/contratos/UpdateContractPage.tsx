@@ -255,7 +255,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     apellido2: ''
   });
 
-  const [formDataContrato, setFormDataContrato] = useState<ContratoInterface>({
+  const [formDataContrato, setFormDataContrato] = useState<any>({
     salario_id: '',
     fechaContratacion: '',
     perfilProfesional: '',
@@ -390,7 +390,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
           contrato.salario.valor
         );
 
-        setFormDataContrato((prev) => ({
+        setFormDataContrato((prev:any) => ({
           ...prev,
           sueldo: contrato.salario.valor.toString(),
           salario_id: contrato.salario.id?.toString(),
@@ -471,7 +471,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     const { name } = e.target;
     let value = e.target.value?.toUpperCase?.() ?? e.target.value;
 
-    setFormDataContrato((prevState) => {
+    setFormDataContrato((prevState:any) => {
       const updated = {
         ...prevState,
         [name]: value
@@ -591,7 +591,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
   const handleCurrencyChange = (e: any) => {
     const { name, value } = e.target;
     const numericValue = parseCurrency(value);
-    setFormDataContrato((prev) => ({
+    setFormDataContrato((prev:any) => ({
       ...prev,
       [name]: numericValue
     }));

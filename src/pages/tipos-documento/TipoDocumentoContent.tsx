@@ -7,7 +7,7 @@ import { DataGrid, KeenIcon } from '@/components';
 import { ModalTipoDocumento } from './ModalTipoDocumento';
 
 interface documentTypeProps {
-  reload: boolean;
+  reload?: boolean;
 }
 
 const TipoDocumentoContent = ({ reload }: documentTypeProps) => {
