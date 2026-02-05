@@ -775,15 +775,27 @@ const ContratacionPage = () => {
   const [centroFormacion, setCentroFormacion] = useState<any[]>([])
   useEffect(()=>{
     const loadCentros = async () =>{
-      const res = await axios.get(`centrosFormacion/regional/${authContext?.empresa?.id}`)
-      setCentroFormacion(res.data.data)
+      try {
+        if (authContext?.empresa?.id) {
+          console.log('Cargando centros para empresa ID:', authContext.empresa.id)
+          const res = await axios.get(`centrosFormacion/regional-contratacion/${authContext.empresa.id}`)
+          console.log('Respuesta centros:', res.data)
+          setCentroFormacion(res.data.data || [])
+        } else {
+          console.log('No hay empresa ID en authContext')
+        }
+      } catch (error: any) {
+        console.error('Error al cargar centros de formación:', error)
+        console.error('Error response:', error?.response?.data)
+        setCentroFormacion([])
+      }
     }
     loadCentros()
   },[authContext?.empresa?.id])
 
   const optionsCF = centroFormacion.map((val)=>({
     value:val.id,
-    label:`${val.nombre}, ${val.empresa.razonSocial}, ${val.ciudad.descripcion}`
+    label:`${val.nombre}, ${val.empresa?.razonSocial || ''}, ${val.ciudad?.descripcion || ''}`
   }))
 
   const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -949,9 +961,10 @@ const ContratacionPage = () => {
   const fetchTipoContratos = async () => {
     try {
       const response = await axios.get('contrato-tipos-contrato');
-      setTipoContratos(response.data);
-    } catch (error) {
-      console.log(error);
+      setTipoContratos(response.data || []);
+    } catch (error: any) {
+      console.error('Error al cargar tipos de contrato:', error);
+      setTipoContratos([]);
     } finally {
       setLoading(false);
     }
