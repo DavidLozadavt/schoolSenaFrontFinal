@@ -122,7 +122,18 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+        {/* Botón cerrar */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsModalOpen(false);
+              formik.resetForm();
+            }}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
+          >
+            ✕
+          </button>
         {/* Header fijo */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">Crear Regional</h2>
 
@@ -258,14 +269,14 @@ const FormularioRegional: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setE
               <label
                 htmlFor="rutaLogo"
                 className="
-      flex items-center justify-between gap-4
-      w-full px-4 py-3
-      border-2 border-dashed rounded-xl
-      cursor-pointer
-      transition
-      hover:border-blue-500 hover:bg-blue-50
-      focus-within:border-blue-500
-    "
+                  flex items-center justify-between gap-4
+                  w-full px-4 py-3
+                  border-2 border-dashed rounded-xl
+                  cursor-pointer
+                  transition
+                  hover:border-blue-500 hover:bg-blue-50
+                  focus-within:border-blue-500
+                "
               >
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-700">
