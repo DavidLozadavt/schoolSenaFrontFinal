@@ -13,6 +13,7 @@ import AsignarMateria from './AsignarMateria';
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
+import { useAuthContext } from '@/auth';
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];
@@ -24,6 +25,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
+  const { user } = useAuthContext();
   
   // Estados de vista
   const [vistaCalendario, setVistaCalendario] = useState(false);
@@ -56,7 +58,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
       
       setLoadingFichas(true);
       try {
-        const res = await axios.get(`fichas/programa/${program.id}`);
+        const res = await axios.get(`fichas/programa/${program.id}/${user?.idCentroFormacion}`);
         if (Array.isArray(res.data?.data)) {
           setFichas(res.data.data);
         } else {
