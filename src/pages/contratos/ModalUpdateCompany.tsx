@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface ModalUpdateCompanyProps {
@@ -25,6 +26,8 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   const [centrosFormacion, setCentrosFormacion] = useState<any[]>([]);
   const { enqueueSnackbar } = useSnackbar();
   const authContext = useContext(AuthContext);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [formData, setFormData] = useState({
     razonSocial: '',
@@ -35,6 +38,12 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   });
 
   const [areasList, setAreas] = useState<any[]>(areas);
+
+  useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
 
   useEffect(() => {
     if (open) {
@@ -62,6 +71,21 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
       fetchCentrosFormacion();
     }
   }, [open, empresa, area, contrato]);
+
+  // Efecto para actualizar idCentroFormacion después de cargar los centros
+  useEffect(() => {
+    if (centrosFormacion.length > 0 && contrato?.persona?.usuario?.idCentroFormacion) {
+      const idCentroFormacionValue = String(contrato.persona.usuario.idCentroFormacion);
+      const centroExiste = centrosFormacion.find((c: any) => String(c.id) === idCentroFormacionValue);
+      
+      if (centroExiste && formData.idCentroFormacion !== idCentroFormacionValue) {
+        setFormData(prev => ({
+          ...prev,
+          idCentroFormacion: idCentroFormacionValue
+        }));
+      }
+    }
+  }, [centrosFormacion, contrato]);
 
   const fetchAreas = async () => {
     setLoadingAreas(true);
@@ -111,8 +135,22 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   const fetchCentrosFormacion = async () => {
     setLoadingCentros(true);
     try {
-      const res = await axios.get(`centrosFormacion/regional/${authContext?.empresa?.id}`);
-      setCentrosFormacion(res.data.data || []);
+      const res = await axios.get(`centrosFormacion/regional-contratacion/${authContext?.empresa?.id}`);
+      const centrosCargados = res.data.data || [];
+      setCentrosFormacion(centrosCargados);
+      
+      // Asegurar que el idCentroFormacion se establezca después de cargar los centros
+      if (contrato?.persona?.usuario?.idCentroFormacion && centrosCargados.length > 0) {
+        const idCentroFormacionValue = String(contrato.persona.usuario.idCentroFormacion);
+        const centroExiste = centrosCargados.find((c: any) => String(c.id) === idCentroFormacionValue);
+        
+        if (centroExiste) {
+          setFormData(prev => ({
+            ...prev,
+            idCentroFormacion: idCentroFormacionValue
+          }));
+        }
+      }
     } catch (error) {
       console.error('Error al cargar centros de formación:', error);
       enqueueSnackbar('Error al cargar los centros de formación.', { variant: 'error' });
@@ -184,7 +222,8 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
         }
       }
       
-      enqueueSnackbar('Empresa actualizada con éxito.', { variant: 'success' });
+      setToastMessage('Empresa actualizada con éxito.');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -197,6 +236,7 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
         <ModalHeader>
@@ -210,7 +250,7 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
         </ModalHeader>
         <ModalBody className="grid gap-4 px-0 py-4">
           <div className="px-4">
-            <label htmlFor="razonSocial" className="block text-sm font-medium mb-2">
+            <label htmlFor="razonSocial" className="block text-sm font-medium text-gray-600 mb-1">
               Razón Social <span className="text-red-500">*</span>
             </label>
             <input
@@ -218,14 +258,14 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
               id="razonSocial"
               value={formData.razonSocial}
               onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
-              className="form-control w-full"
+              className="input w-full"
               placeholder="Ej: Servicio Nacional de Aprendizaje"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 px-4">
             <div>
-              <label htmlFor="nit" className="block text-sm font-medium mb-2">
+              <label htmlFor="nit" className="block text-sm font-medium text-gray-600 mb-1">
                 NIT <span className="text-red-500">*</span>
               </label>
               <input
@@ -233,12 +273,12 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
                 id="nit"
                 value={formData.nit}
                 onChange={(e) => setFormData({ ...formData, nit: e.target.value })}
-                className="form-control w-full"
+                className="input w-full"
                 placeholder="Ej: 891500194"
               />
             </div>
             <div>
-              <label htmlFor="digitoVerificacion" className="block text-sm font-medium mb-2">
+              <label htmlFor="digitoVerificacion" className="block text-sm font-medium text-gray-600 mb-1">
                 Dígito de Verificación
               </label>
               <input
@@ -251,7 +291,7 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
                     setFormData({ ...formData, digitoVerificacion: value });
                   }
                 }}
-                className="form-control w-full"
+                className="input w-full"
                 placeholder="Ej: 9"
                 min="1"
                 max="9"
@@ -260,14 +300,14 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
           </div>
 
           <div className="px-4">
-            <label htmlFor="idArea" className="block text-sm font-medium mb-2">
+            <label htmlFor="idArea" className="block text-sm font-medium text-gray-600 mb-1">
               Área
             </label>
             <select
               id="idArea"
               value={formData.idArea}
               onChange={(e) => setFormData({ ...formData, idArea: e.target.value })}
-              className="form-select w-full"
+              className="select w-full"
               disabled={loadingAreas}
             >
               <option value="">Seleccione un área</option>
@@ -280,14 +320,14 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
           </div>
 
           <div className="px-4">
-            <label htmlFor="idCentroFormacion" className="block text-sm font-medium mb-2">
+            <label htmlFor="idCentroFormacion" className="block text-sm font-medium text-gray-600 mb-1">
               Centro de formación
             </label>
             <select
               id="idCentroFormacion"
               value={formData.idCentroFormacion}
               onChange={(e) => setFormData({ ...formData, idCentroFormacion: e.target.value })}
-              className="form-select w-full"
+              className="select w-full"
               disabled={loadingCentros}
             >
               <option value="">Seleccione un centro de formación</option>
@@ -300,7 +340,7 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
           </div>
 
           <div className="px-4">
-            <label htmlFor="logoFile" className="block text-sm font-medium mb-2">
+            <label htmlFor="logoFile" className="block text-sm font-medium text-gray-600 mb-1">
               Logo de la Empresa
             </label>
             <div className="flex items-center gap-4">
@@ -343,6 +383,13 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 

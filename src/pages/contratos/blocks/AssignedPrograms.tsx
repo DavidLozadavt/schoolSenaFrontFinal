@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
+import Toast from '../../programas-academicos/components/Toast';
 
 interface AssignedProgramsProps {
   contrato: ContratoInterface;
@@ -63,6 +64,9 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const [saving, setSaving] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const { enqueueSnackbar } = useSnackbar();
+  const hasShownWarning = useRef<boolean>(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Cargar programas al montar el componente
   useEffect(() => {
@@ -87,23 +91,26 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
       console.log('Programas recibidos:', response.data);
       
       if (response.data && Array.isArray(response.data)) {
-        if (response.data.length === 0) {
+        if (response.data.length === 0 && !hasShownWarning.current) {
           console.warn(
             'No hay programas disponibles para esta empresa. Verifique que existan programas con idCompany correspondiente.'
           );
           enqueueSnackbar('No hay programas disponibles para esta empresa', { variant: 'warning' });
+          hasShownWarning.current = true;
         }
         
-        const programasMapeados: Programa[] = response.data.map((p: ProgramaAPI) => ({
-          id: p.id,
-          nombrePrograma: p.nombrePrograma,
-          codigoPrograma: p.codigoPrograma,
-          descripcionPrograma: p.descripcionPrograma,
-          nivel: p.nivel,
-          tipoFormacion: p.tipoFormacion,
-          duracion: null,
-          fichas: 0,
-        }));
+        const programasMapeados: Programa[] = response.data
+          .map((p: any) => ({
+            id: p.id,
+            nombrePrograma: p.nombrePrograma,
+            codigoPrograma: p.codigoPrograma,
+            descripcionPrograma: p.descripcionPrograma,
+            nivel: p.nivel,
+            tipoFormacion: p.tipoFormacion,
+            duracion: null,
+            fichas: p.fichas || 0,
+          }))
+          .filter((programa: Programa) => programa.fichas? programa.fichas > 0 : null); // Solo mostrar programas con fichas
         
         setProgramas(programasMapeados);
       } else {
@@ -134,7 +141,8 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
         await axios.post(`update_contrato/${contrato.id}`, {
           programas: newSelectedPrograms,
         });
-        enqueueSnackbar('Programas actualizados', { variant: 'success' });
+        setToastMessage('Programas actualizados');
+        setShowToast(true);
         if (onSave) {
           onSave();
         }
@@ -310,6 +318,12 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           )}
         </div>
       </div>
+
+      <Toast
+        message={toastMessage}
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </>
   );
 };

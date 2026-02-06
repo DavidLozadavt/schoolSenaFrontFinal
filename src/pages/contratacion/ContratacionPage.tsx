@@ -18,7 +18,9 @@ import { validateUbicacionField } from './utils/validationUbicacion';
 import { validateContratoField } from './utils/validationContrato';
 import { TipoContratoModal } from './ModalTipoContrato';
 import { RolModal } from './RolModal';
+import { NivelAcademicoModal } from './ModalNivelAcademico';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { TipoDocumentoInterface } from './model/TipoDocumentoInterface';
 import Spinner from '@/components/loaders/Spinner';
 import { ModalLinksAntecedentes } from '../contratos/ModalLinksAntecedentes';
@@ -234,12 +236,15 @@ const ContratacionPage = () => {
   const [riesgosModal, setRiesgosModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [tipoContratoModal, setTipoContratoModal] = useState(false);
+  const [nivelAcademicoModal, setNivelAcademicoModal] = useState(false);
   const [fileErrors, setFileErrors] = useState<Record<string, boolean>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [bancos, setBancos] = useState<any[]>([]);
   const [gruposNomina, setGruposNomina] = useState<any[]>([]);
   const [modalLinkAntecedentes, setModalLinkAntecedentes] = useState(false);
   const [modalInfoDocuemntos, setModalInfoDocumentos] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [entidadesArl, setEntidadesArl] = useState<any[]>([]);
   const [entidadesEPS, setEntidadeEPS] = useState<any[]>([]);
@@ -671,9 +676,8 @@ const ContratacionPage = () => {
                   });
                   setLoading(false);
                 } else {
-                  enqueueSnackbar('Contrato guardado con éxito.', {
-                    variant: 'success'
-                  });
+                  setToastMessage('Contrato guardado con éxito.');
+                  setShowToast(true);
                 }
                 setLoading(false);
                 resetFormAndGoToStep1();
@@ -934,6 +938,14 @@ const ContratacionPage = () => {
 
   const handleRolModalClose = () => {
     setRolModal(false);
+  };
+
+  const handleNivelAcademicoModalOpen = () => {
+    setNivelAcademicoModal(true);
+  };
+
+  const handleNivelAcademicoModalClose = () => {
+    setNivelAcademicoModal(false);
   };
 
   const fetchDepartamentos = async () => {
@@ -2212,21 +2224,30 @@ const ContratacionPage = () => {
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Nivel Educativo *</label>
-                      <select
-                        name="idNivelEducativo"
-                        value={formDataContrato.idNivelEducativo ?? ''}
-                        onChange={handleChangeFormContrato}
-                        className="select"
-                      >
-                        <option value="">Seleccione</option>
-                        {nivelesEducativos && nivelesEducativos.length > 0 ? (
-                          nivelesEducativos.map((nivel) => (
-                            <option key={nivel.id} value={nivel.id}>
-                              {nivel.nombre}
-                            </option>
-                          ))
-                        ) : null}
-                      </select>
+                      <div className="flex items-center">
+                        <select
+                          name="idNivelEducativo"
+                          value={formDataContrato.idNivelEducativo ?? ''}
+                          onChange={handleChangeFormContrato}
+                          className="select w-4/4 mr-2"
+                        >
+                          <option value="">Seleccione</option>
+                          {nivelesEducativos && nivelesEducativos.length > 0 ? (
+                            nivelesEducativos.map((nivel) => (
+                              <option key={nivel.id} value={nivel.id}>
+                                {nivel.nombre}
+                              </option>
+                            ))
+                          ) : null}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleNivelAcademicoModalOpen}
+                          className="w-10 h-10 btn btn-sm btn-light"
+                        >
+                          <KeenIcon icon="plus" />
+                        </button>
+                      </div>
                       {errorsContrato.idNivelEducativo && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.idNivelEducativo}</p>
                       )}
@@ -2442,6 +2463,18 @@ const ContratacionPage = () => {
       />
 
       <RolModal open={rolModal} onClose={handleRolModalClose} onSave={fetchRoles} />
+
+      <NivelAcademicoModal
+        open={nivelAcademicoModal}
+        onClose={handleNivelAcademicoModalClose}
+        onSave={fetchNivelesEducativos}
+      />
+
+      <Toast
+        message={toastMessage}
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </Fragment>
   );
 };
