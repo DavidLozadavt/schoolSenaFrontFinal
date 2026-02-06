@@ -110,7 +110,7 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
             duracion: null,
             fichas: p.fichas || 0,
           }))
-          .filter((programa: Programa) => programa.fichas > 0); // Solo mostrar programas con fichas
+          .filter((programa: Programa) => programa.fichas? programa.fichas > 0 : null); // Solo mostrar programas con fichas
         
         setProgramas(programasMapeados);
       } else {
