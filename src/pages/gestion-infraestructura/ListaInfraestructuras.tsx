@@ -3,6 +3,8 @@ import { KeenIcon } from '@/components';
 import axios from 'axios';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import InfraestructuraCard from './InfraestructuraCard';
+import FormularioInfraestructura from './FormularioInfraestructura';
+import ModalError from '../gestion-sedes-sena/ModalError';
 
 interface Props {
   searchTerm: string;
@@ -24,12 +26,14 @@ interface Infraestructura {
   };
 }
 
-const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
+const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}) => {
   const authContext = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [infraestructuras, setInfraestructuras] = useState<Infraestructura[]>([]);
   const [idInfraestructura, setIdInfraestructura] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isErrorOpen, setIsErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,6 +58,36 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento 
         r.tipo_infraestructura.nombre.toLowerCase().includes(term)
     );
   }, [infraestructuras, searchTerm]);
+
+  const handleEdit = (infra: Infraestructura) => {
+    setIdInfraestructura(String(infra.id));
+    setIsModalOpen(true);
+  };
+
+  const [infraAEliminar, setInfraAEliminar] = useState<Infraestructura | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = (infra: Infraestructura) => {
+    setInfraAEliminar(infra);
+  };
+
+  const eliminarInfraestructura = async () => {
+    if (!infraAEliminar) return;
+
+    try {
+      setDeleting(true);
+
+      await axios.delete(`infraestructuras/${infraAEliminar.id}`);
+
+      setEvento((prev) => !prev);
+      setInfraAEliminar(null);
+    } catch (error: any) {
+      setErrorMessage('No se pudo eliminar la infraestructura porque tiene registros asociados.');
+      setIsErrorOpen(true);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Loading state mejorado con skeleton cards
   if (loading) {
@@ -148,6 +182,40 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento 
           )}
         </div>
       </div>
+      {infraAEliminar && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
+            <h3 className="text-lg font-semibold mb-2">Eliminar ambiente</h3>
+
+            <p className="text-sm text-gray-600 mb-4">
+              ¿Seguro que deseas eliminar
+              <span className="font-bold"> {infraAEliminar.nombreInfraestructura}</span>?
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setInfraAEliminar(null)}
+                className="px-4 py-2 text-sm rounded-lg border"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={eliminarInfraestructura}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ModalError
+        isOpen={isErrorOpen}
+        message={errorMessage}
+        onClose={() => setIsErrorOpen(false)}
+      />
 
       {/* Grid de cards con animación escalonada */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -159,10 +227,20 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento 
           >
             <InfraestructuraCard
               infraestructura={infra}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
             />
           </div>
         ))}
       </div>
+      <FormularioInfraestructura
+        idInfraestructura={idInfraestructura}
+        setIdInfraestructura={setIdInfraestructura}
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        setEvento={setEvento}
+        mode="edit"
+      />
     </>
   );
 };

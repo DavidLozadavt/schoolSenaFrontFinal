@@ -19,13 +19,10 @@ interface Props {
   infraestructura: Infraestructura;
   onEdit?: (infraestructura: Infraestructura) => void;
   onInfo?: (infraestructura: Infraestructura) => void;
+  onDelete?: (infraestructura: Infraestructura) => void;
 }
 
-const InfraestructuraCard: React.FC<Props> = ({
-  infraestructura,
-  onEdit,
-  onInfo
-}) => {
+const InfraestructuraCard: React.FC<Props> = ({ infraestructura, onEdit, onInfo, onDelete }) => {
   return (
     <div
       className="
@@ -66,8 +63,8 @@ const InfraestructuraCard: React.FC<Props> = ({
           />
         </div>
 
-        {(onEdit || onInfo) && (
-          <div className="pt-3 flex gap-2">
+        {(onEdit || onInfo || onDelete) && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
             {onInfo && (
               <button
                 onClick={() => onInfo(infraestructura)}
@@ -79,9 +76,19 @@ const InfraestructuraCard: React.FC<Props> = ({
             {onEdit && (
               <button
                 onClick={() => onEdit(infraestructura)}
-                className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                title="Editar"
+                className="flex items-center justify-center h-8 bg-blue-100/40 text-blue-600 rounded-lg hover:border hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
               >
-                Editar
+                <KeenIcon icon="notepad-edit" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(infraestructura)}
+                title="Eliminar"
+                className="flex items-center justify-center h-8 bg-red-100/40 text-red-600 rounded-lg hover:border hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
+              >
+                <KeenIcon icon="trash" />
               </button>
             )}
           </div>
@@ -110,15 +117,11 @@ const InfoRow = ({
 
   return (
     <div className="flex items-center gap-3">
-      <div
-        className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}
-      >
+      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
         <i className={`ki-outline ki-${icon} text-sm`} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase text-gray-400">
-          {label}
-        </p>
+        <p className="text-[10px] font-semibold uppercase text-gray-400">{label}</p>
         <p className="font-bold text-gray-700 truncate">{value}</p>
       </div>
     </div>
