@@ -1,10 +1,10 @@
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react';
-import FormularioUpSedesSena from './FormularioUpSedesSena';
 import SedeCard from './SedeCard';
 import ModalEliminar from './ModalEliminar';
 import Toast from '../programas-academicos/components/Toast';
+import FormularioSedesSena from './FormularioSedesSena';
 
 interface Props {
   searchTerm: string;
@@ -42,6 +42,7 @@ interface Sede {
   celular: string;
   ciudad: Ciudades;
   empresa: Empresa;
+  urlImagen:string;
 }
 
 const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
@@ -136,9 +137,8 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
       await axios.delete(`sedesSena/${sedeAEliminar.id}`);
       setToastMessage(`La sede "${sedeAEliminar.nombre}" fue eliminada correctamente`);
       setToastOpen(true);
-      setEvento((prev) => !prev); // refresca la lista
-    } catch (error) {
-      console.error(error);
+      setEvento((prev) => !prev);
+    } catch (error: any) {
     } finally {
       setDeleting(false);
       setSedeAEliminar(null);
@@ -217,13 +217,14 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
 
       {isModalOpen && (
         <div className="animate-fade-in">
-          <FormularioUpSedesSena
+          <FormularioSedesSena
             idSede={idSede}
             setIdSede={setIdSede}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             setEvento={setEvento}
             showToast={showToast}
+            mode="edit"
           />
         </div>
       )}
