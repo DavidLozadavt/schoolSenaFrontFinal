@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { ContratoInterface } from './model/ContratoInterface';
 
 interface ModalUpdateFotoPerfilProps {
@@ -20,6 +21,14 @@ const ModalUpdateFotoPerfil = ({ open, onClose, contrato, onSave }: ModalUpdateF
   const [previewSrc, setPreviewSrc] = useState<string>(defaultImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
 
   useEffect(() => {
     if (open && contrato?.persona) {
@@ -98,7 +107,8 @@ const ModalUpdateFotoPerfil = ({ open, onClose, contrato, onSave }: ModalUpdateF
         }
       });
 
-      enqueueSnackbar('Foto de perfil actualizada correctamente', { variant: 'success' });
+      setToastMessage('Foto de perfil actualizada correctamente');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -110,6 +120,7 @@ const ModalUpdateFotoPerfil = ({ open, onClose, contrato, onSave }: ModalUpdateF
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[500px] top-[10%] p-4">
         <ModalHeader>
@@ -183,6 +194,13 @@ const ModalUpdateFotoPerfil = ({ open, onClose, contrato, onSave }: ModalUpdateF
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 
