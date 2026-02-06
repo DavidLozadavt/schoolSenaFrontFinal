@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { ContratoInterface } from './model/ContratoInterface';
 
 interface ModalUpdateBankDataProps {
@@ -20,6 +21,8 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
   const [error, setError] = useState<string>('');
   const [bancos, setBancos] = useState<any[]>([]);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [formData, setFormData] = useState({
     idBanco: '',
@@ -38,6 +41,12 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
 
   useEffect(() => {
     if (open) {
@@ -88,7 +97,8 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
         numeroCuentaBancaria: formData.numeroCuentaBancaria
       });
 
-      enqueueSnackbar('Datos bancarios actualizados correctamente', { variant: 'success' });
+      setToastMessage('Datos bancarios actualizados correctamente');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -101,6 +111,7 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[500px] top-[15%] p-4">
         <ModalHeader>
@@ -110,7 +121,7 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
           </button>
         </ModalHeader>
 
-        <ModalBody className="grid gap-5 px-0 py-5">
+        <ModalBody className="grid gap-4 px-0 py-4">
           {error && (
             <div className="px-4">
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -119,7 +130,7 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
             </div>
           )}
 
-          <div className="space-y-4 px-4">
+          <div className="space-y-3 px-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Banco</label>
               {loading ? (
@@ -179,6 +190,13 @@ const ModalUpdateBankData = ({ open, onClose, contrato, onSave }: ModalUpdateBan
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 

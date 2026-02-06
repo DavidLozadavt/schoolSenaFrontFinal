@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { ContratoInterface } from './model/ContratoInterface';
 
 interface ModalUpdatePersonProps {
@@ -17,6 +18,8 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [formData, setFormData] = useState({
     nombre1: '',
@@ -102,6 +105,12 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
   }, []);
 
   useEffect(() => {
+    if (!open && !showToast) {
+      setToastMessage('');
+    }
+  }, [open, showToast]);
+
+  useEffect(() => {
     if (open) {
       fetchTiposIdentificacion();
       fetchDepartamentos();
@@ -167,7 +176,8 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
       
       await axios.post(`update_contrato_persona/${contrato.persona.id}`, dataToSend);
 
-      enqueueSnackbar('Datos de la persona actualizados correctamente', { variant: 'success' });
+      setToastMessage('Datos de la persona actualizados correctamente');
+      setShowToast(true);
       onSave();
       onClose();
     } catch (error: any) {
@@ -180,6 +190,7 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
         <ModalHeader>
@@ -189,7 +200,7 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
           </button>
         </ModalHeader>
 
-        <ModalBody className="grid gap-5 px-0 py-5">
+        <ModalBody className="grid gap-4 px-0 py-4">
           {error && (
             <div className="px-4">
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -198,7 +209,7 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 px-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Tipo de Identificación <span className="text-red-500">*</span>
@@ -382,6 +393,13 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
         </ModalBody>
       </ModalContent>
     </Modal>
+
+    <Toast
+      message={toastMessage}
+      isOpen={showToast}
+      onClose={() => setShowToast(false)}
+    />
+    </>
   );
 };
 

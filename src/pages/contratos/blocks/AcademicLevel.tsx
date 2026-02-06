@@ -3,6 +3,7 @@ import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
+import Toast from '../../programas-academicos/components/Toast';
 
 interface AcademicLevelProps {
   contrato: ContratoInterface;
@@ -20,6 +21,8 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     fetchNivelesEducativos();
@@ -54,7 +57,8 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
         await axios.post(`update_contrato/${contrato.id}`, {
           idNivelEducativo: id
         });
-        enqueueSnackbar('Nivel educativo actualizado', { variant: 'success' });
+        setToastMessage('Nivel educativo actualizado');
+        setShowToast(true);
         if (onSave) {
           onSave();
         }
@@ -78,55 +82,63 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
   const selectedNivel = nivelesEducativos.find((n) => n.id === selectedLevel);
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <div className="flex items-center gap-2">
-          <KeenIcon icon="abstract-25" className="text-base text-primary" />
-          <h3 className="card-title text-sm">Nivel Académico</h3>
+    <>
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <KeenIcon icon="abstract-25" className="text-base text-primary" />
+            <h3 className="card-title text-sm">Nivel Académico</h3>
+          </div>
+        </div>
+
+        <div className="card-body py-3">
+          {loading ? (
+            <div className="text-center py-2">
+              <p className="text-xs text-gray-500">Cargando niveles...</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                {nivelesEducativos.map((nivel) => {
+                  const isSelected = selectedLevel === nivel.id;
+                  return (
+                    <button
+                      key={nivel.id}
+                      onClick={() => handleSelectLevel(nivel.id)}
+                      className={`px-3 py-2 rounded-lg border-2 transition-all text-xs font-medium ${
+                        isSelected
+                          ? 'bg-blue-50 border-primary text-primary font-semibold'
+                          : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      {nivel.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedNivel && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex items-center gap-2 bg-blue-50 rounded-lg px-2 py-1.5">
+                    <KeenIcon icon="check-circle" className="text-xs text-primary" />
+                    <p className="text-xs font-semibold text-gray-700">
+                      Nivel seleccionado:{' '}
+                      <span className="text-primary font-semibold">{selectedNivel.nombre}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      <div className="card-body py-3">
-        {loading ? (
-          <div className="text-center py-2">
-            <p className="text-xs text-gray-500">Cargando niveles...</p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-2">
-              {nivelesEducativos.map((nivel) => {
-                const isSelected = selectedLevel === nivel.id;
-                return (
-                  <button
-                    key={nivel.id}
-                    onClick={() => handleSelectLevel(nivel.id)}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all text-xs font-medium ${
-                      isSelected
-                        ? 'bg-blue-50 border-primary text-primary font-semibold'
-                        : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    {nivel.nombre}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedNivel && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <div className="flex items-center gap-2 bg-blue-50 rounded-lg px-2 py-1.5">
-                  <KeenIcon icon="check-circle" className="text-xs text-primary" />
-                  <p className="text-xs font-semibold text-gray-700">
-                    Nivel seleccionado:{' '}
-                    <span className="text-primary font-semibold">{selectedNivel.nombre}</span>
-                  </p>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+      <Toast
+        message={toastMessage}
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+      />
+    </>
   );
 };
 

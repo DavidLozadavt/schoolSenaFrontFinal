@@ -58,9 +58,11 @@ export interface MallaCurricularProps {
 }
 
 export interface AsignarMateriaProps {
+  idPrograma: number | null;
   isOpen: boolean;
   onClose: () => void;
   nivelId?: string;
+  onMateriasSeleccionadas:any
 }
 
 export interface RecursoItem {
