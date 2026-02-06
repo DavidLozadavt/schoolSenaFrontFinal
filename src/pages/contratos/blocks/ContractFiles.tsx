@@ -2,11 +2,12 @@ import { KeenIcon } from '@/components';
 import { ContratoInterface } from '../model/ContratoInterface';
 import { useState, useEffect } from 'react';
 import { ModalUpdateDocument } from '../ModalUpdateDocument';
-import { useConfirm } from '@/hooks';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { getAuth } from '@/auth';
+import Toast from '../../programas-academicos/components/Toast';
+import ConfirmarEliminar from '../../programas-academicos/components/ConfirmarEliminar';
 
 // Estilos para el hover azul claro en las opciones del select
 // Usando un enfoque más agresivo para forzar el color azul claro
@@ -56,13 +57,21 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
   const [newFile, setNewFile] = useState<File | null>(null);
   const [newDocumentType, setNewDocumentType] = useState<string>('');
   const [availableDocumentTypes, setAvailableDocumentTypes] = useState<any[]>([]);
-  const { confirmAction } = useConfirm();
-
   const { enqueueSnackbar } = useSnackbar();
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<IRecentUploadsItem | null>(null);
 
   useEffect(() => {
     if (isModalNewDocumentOpen && contrato?.tipoContrato?.nombreTipoContrato) {
+      console.log('Cargando tipos de documentos para:', contrato.tipoContrato.nombreTipoContrato);
       fetchDocumentTypes(contrato.tipoContrato.nombreTipoContrato);
+    } else if (isModalNewDocumentOpen) {
+      console.warn('No se puede cargar tipos de documentos: tipoContrato o nombreTipoContrato no disponible', {
+        tipoContrato: contrato?.tipoContrato,
+        nombreTipoContrato: contrato?.tipoContrato?.nombreTipoContrato
+      });
     }
   }, [isModalNewDocumentOpen, contrato?.tipoContrato?.nombreTipoContrato]);
 
@@ -71,10 +80,25 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
       const response = await axios.get(
         `contrato-tipo-documento?nombreProceso=${encodeURIComponent(nombreProceso)}`
       );
-      setAvailableDocumentTypes(response.data || []);
-    } catch (error) {
+      console.log('Tipos de documentos recibidos:', response.data);
+      console.log('Nombre del proceso:', nombreProceso);
+      console.log('Es array?', Array.isArray(response.data));
+      console.log('Cantidad de documentos:', response.data?.length || 0);
+      
+      // Asegurarse de que response.data sea un array
+      const documentos = Array.isArray(response.data) ? response.data : [];
+      setAvailableDocumentTypes(documentos);
+      
+      if (documentos.length === 0) {
+        console.warn('No se encontraron tipos de documentos para el proceso:', nombreProceso);
+      }
+    } catch (error: any) {
       console.error('Error al cargar tipos de documentos:', error);
+      console.error('Respuesta del error:', error.response?.data);
       setAvailableDocumentTypes([]);
+      if (error.response?.status === 404) {
+        enqueueSnackbar('No se encontraron tipos de documentos para este proceso.', { variant: 'warning' });
+      }
     }
   };
 
@@ -102,7 +126,8 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
       formData.append('rutaFile', newFile);
 
       await axios.post('contrato-documento', formData);
-      enqueueSnackbar('Documento cargado con éxito.', { variant: 'success' });
+      setToastMessage('Documento cargado con éxito.');
+      setShowToast(true);
       handleAfterSave();
     } catch (error) {
       enqueueSnackbar('Error al cargar el documento.', { variant: 'error' });
@@ -111,7 +136,15 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
 
   const handleConfirmChange = (id?: any) => {
     if (id === undefined) return;
-    confirmAction('Esta acción eliminará el documento.', () => handleSave(id));
+    setDocumentToDelete(id);
+    setShowConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+    await handleSave(documentToDelete);
+    setShowConfirmDelete(false);
+    setDocumentToDelete(null);
   };
 
   const handleSave = async (id: any) => {
@@ -119,7 +152,8 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
       await axios.post(`delete_documento_contrato`, {
         idDocumento: id.id
       });
-      enqueueSnackbar('Documento eliminado con éxito.', { variant: 'success' });
+      setToastMessage('Documento eliminado con éxito.');
+      setShowToast(true);
       if (onSave) {
         onSave();
       }
@@ -177,7 +211,8 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
       link.remove();
       window.URL.revokeObjectURL(fileURL);
       
-      enqueueSnackbar('Documento descargado con éxito.', { variant: 'success' });
+      setToastMessage('Documento descargado con éxito.');
+      setShowToast(true);
     } catch (error) {
       console.error('Error al descargar el documento:', error);
       enqueueSnackbar('Error al descargar el documento.', { variant: 'error' });
@@ -299,7 +334,7 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
                 <option value="">Seleccione un tipo</option>
                 {availableDocumentTypes.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    {doc.tipoDocumento?.tituloDocumento || doc.AsignacionTipoDocumentoProceso?.tipoDocumento?.tituloDocumento || 'Documento sin nombre'}
+                    {doc.tipoDocumento?.tituloDocumento || 'Documento sin nombre'}
                   </option>
                 ))}
               </select>
@@ -348,6 +383,22 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      <Toast
+        message={toastMessage}
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+      />
+
+      <ConfirmarEliminar
+        isOpen={showConfirmDelete}
+        onClose={() => {
+          setShowConfirmDelete(false);
+          setDocumentToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        nombrePrograma={documentToDelete?.desc || 'el documento'}
+      />
     </>
   );
 };
