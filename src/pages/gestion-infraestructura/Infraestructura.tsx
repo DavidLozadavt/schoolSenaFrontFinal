@@ -22,6 +22,7 @@ interface Infraestructura {
 const Infraestructura: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [idInfraestructura, setIdInfraestructura] = useState<string>('');
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
   return (
@@ -65,6 +66,8 @@ const Infraestructura: React.FC = () => {
       </div>
       {isModalOpen && (
         <FormularioInfraestructura
+          idInfraestructura={idInfraestructura}
+          setIdInfraestructura={setIdInfraestructura}
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}

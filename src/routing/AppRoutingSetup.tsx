@@ -970,14 +970,6 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
-            path="/fichas"
-            element={
-              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
-                <Fichas />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/ambientes"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
