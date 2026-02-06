@@ -38,7 +38,7 @@ const validationSchema = Yup.object({
     .typeError('Debe ser un número')
     .integer('Debe ser un número entero')
     .positive('Debe ser mayor que 0')
-    .max(99, 'Debe ser menor que 100')
+    .max(500, 'Debe ser menor que 500')
     .required('La capacidad es obligatoria'),
 
   idSede: Yup.object().nullable().required('La sede es obligatoria'),
@@ -211,6 +211,9 @@ const FormularioInfraestructura: React.FC<Props> = ({
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.nombreInfraestructura && formik.errors.nombreInfraestructura && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.nombreInfraestructura}</p>
+              )}
             </div>
 
             {/* Capacidad */}
@@ -222,6 +225,9 @@ const FormularioInfraestructura: React.FC<Props> = ({
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
+              {formik.touched.capacidad && formik.errors.capacidad && (
+                <p className="mt-1 text-xs text-red-500">{formik.errors.capacidad}</p>
+              )}
             </div>
           </div>
 
