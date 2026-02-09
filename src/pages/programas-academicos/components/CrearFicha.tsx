@@ -243,6 +243,7 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [sedes, setSedes] = useState<Sedes[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
+  const [idInfraestructura, setIdInfraestructura] = useState<string>('');
   useEffect(() => {
     const loadData = async () => {
       const [jornadaRes, periodosRes, regionalesRes] = await Promise.all([
@@ -808,6 +809,8 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId }
       </div>
       {showAmbienteForm && (
         <FormularioInfraestructura
+          setIdInfraestructura={setIdInfraestructura}
+          idInfraestructura={idInfraestructura}
           isModalOpen={showAmbienteForm}
           setIsModalOpen={setShowAmbienteForm}
           setEvento={setEvento}
