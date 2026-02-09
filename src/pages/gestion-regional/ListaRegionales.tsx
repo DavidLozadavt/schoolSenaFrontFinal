@@ -99,7 +99,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
         {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm"
+            className="animate-pulse rounded-2xl border border-gray-200 overflow-hidden shadow-sm"
           >
             {/* Skeleton image */}
             <div className="h-40 bg-gradient-to-br from-gray-200 to-gray-300"></div>
@@ -169,7 +169,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
       {/* Contador de resultados */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
             <span className="text-sm font-medium text-gray-600">
               {filteredRegionales.length}{' '}
               {filteredRegionales.length === 1 ? 'regional' : 'regionales'}

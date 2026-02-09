@@ -12,14 +12,14 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onDelete, onInfo }) =
     <div
       className="
         group relative w-full overflow-hidden rounded-2xl
-        border border-gray-200 bg-white
+        border border-gray-200 
         shadow-sm hover:shadow-xl hover:shadow-blue-500/10
         transition-all duration-300 ease-out
         hover:-translate-y-1
       "
     >
       {/* HEADER */}
-      <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+      <div className="relative h-40 ">
         <img
           src={regional.rutaLogoUrl}
           alt={regional.razonSocial}
@@ -31,14 +31,14 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onDelete, onInfo }) =
         />
 
         {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0" />
 
         {/* Ciudad */}
         <div className="absolute top-3 right-3">
           <span
             className="
             inline-flex items-center gap-1.5
-            rounded-full bg-white/90 px-3 py-1
+            rounded-full  px-3 py-1
             text-[10px] font-bold uppercase tracking-wide text-gray-700
             shadow backdrop-blur
           "
@@ -80,7 +80,7 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onDelete, onInfo }) =
           <InfoRow icon="sms" color="green" label="Email" value={regional.email} />
         </div>
 
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+        <div className="h-px " />
 
         {/* ACTIONS */}
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -120,9 +120,9 @@ const InfoRow = ({
   color: 'blue' | 'purple' | 'green';
 }) => {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-    green: 'bg-green-50 text-green-600'
+    blue: 'text-blue-600',
+    purple: 'text-purple-600',
+    green: 'text-green-600'
   };
 
   return (

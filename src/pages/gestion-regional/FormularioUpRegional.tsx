@@ -203,8 +203,8 @@ const FormularioUpRegional: React.FC<Props> = ({
   if (!isModalOpen) return null;
   return (
     <div>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-        <div className=" relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className=" relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400  shadow-xl">
           {/* Botón cerrar */}
           <button
             type="button"
@@ -222,7 +222,7 @@ const FormularioUpRegional: React.FC<Props> = ({
             {mode === 'edit' ? 'Editar Regional' : 'Crear Regional'}
           </h2>
 
-          <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
+          <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]" >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Ciudad */}
               <div className="md:col-span-2">
@@ -235,6 +235,29 @@ const FormularioUpRegional: React.FC<Props> = ({
                   onChange={(option) => {
                     formik.setFieldValue('idCiudad', option ? option.value : null);
                   }}
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
                 />
               </div>
               {/* Razón Social */}
@@ -243,7 +266,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('razonSocial')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
               {/* NIT */}
@@ -252,7 +275,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('nit')}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none dark:border-coal-100 bg-white dark:bg-coal-400 
                   ${
                     formik.touched.nit && formik.errors.nit
                       ? 'border-red-500'
@@ -274,7 +297,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                   min="0"
                   max="9"
                   {...formik.getFieldProps('digitoVerificacion')}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none dark:border-coal-100 bg-white dark:bg-coal-400 
                   ${
                     formik.touched.digitoVerificacion && formik.errors.digitoVerificacion
                       ? 'border-red-500'
@@ -294,7 +317,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('representanteLegal')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
 
@@ -304,7 +327,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('direccion')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
 
@@ -379,7 +402,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="email"
                   {...formik.getFieldProps('email')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
             </div>
