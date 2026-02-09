@@ -1,3 +1,4 @@
+import { KeenIcon } from '@/components';
 import React from 'react';
 
 interface ModalEliminarProps {
@@ -27,52 +28,51 @@ const ModalEliminar: React.FC<ModalEliminarProps> = ({
   descripcion,
   textoConfirmar = 'Eliminar',
   textoCancelar = 'Cancelar',
-  loading = false,
+  loading = false
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-coal-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-sm overflow-hidden bg-white border border-gray-200 rounded-xl shadow-modal">
-        <div className="p-7.5 text-center">
-
-          {/* Icono */}
-          <div className="flex items-center justify-center mx-auto mb-5 rounded-full w-14 h-14 bg-danger-light">
-            <i className="text-2xl ki-outline ki-trash text-danger"></i>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in">
+      <div className="bg-white dark:bg-coal-400 dark:border-coal-100 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+        <div className="bg-white dark:bg-coal-400 dark:border-coal-100 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+          <div className="flex items-center gap-4 mb-4">
+            {/* Icono */}
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+              <KeenIcon icon="information" className="text-2xl text-red-600" />
+            </div>
+            <div>
+              <h3 className="mb-2 font-bold text-gray-900">
+                {titulo}
+              </h3>
+              <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
+            </div>
           </div>
 
-          {/* Título */}
-          <h3 className="mb-2 font-bold tracking-wider text-gray-900 uppercase text-md">
-            {titulo}
-          </h3>
-
           {/* Descripción */}
-          <p className="mb-6 leading-relaxed text-gray-500 text-2sm">
+          <p className="text-sm text-gray-600 mb-6">
             {descripcion ? (
               descripcion
             ) : (
-              <>
+              <div className='text-sm text-gray-600 mb-6'>
                 Estás a punto de eliminar {entidad}{' '}
                 {nombre && (
                   <>
                     <br />
-                    <span className="font-bold text-gray-800 uppercase">
-                      {nombre}
-                    </span>
+                    <span className="font-bold">{nombre}</span>
                   </>
                 )}
-                . Esta acción no se puede deshacer.
-              </>
+              </div>
             )}
           </p>
 
           {/* Botones */}
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 font-bold tracking-widest uppercase border border-gray-300 btn btn-sm btn-light text-2xs"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
             >
               {textoCancelar}
             </button>
@@ -84,7 +84,7 @@ const ModalEliminar: React.FC<ModalEliminarProps> = ({
                 onConfirm();
                 onClose();
               }}
-              className="px-6 py-2 font-bold tracking-widest uppercase btn btn-sm btn-danger text-2xs shadow-danger disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
             >
               {loading ? 'Eliminando...' : textoConfirmar}
             </button>

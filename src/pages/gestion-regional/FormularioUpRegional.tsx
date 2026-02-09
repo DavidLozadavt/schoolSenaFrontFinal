@@ -363,7 +363,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                   border-2 border-dashed rounded-xl
                   cursor-pointer
                   transition
-                  hover:border-blue-500 hover:bg-blue-50
+                  hover:border-blue-500 
                   focus-within:border-blue-500
                 "
                 >
