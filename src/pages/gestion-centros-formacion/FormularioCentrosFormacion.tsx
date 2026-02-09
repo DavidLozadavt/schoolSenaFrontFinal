@@ -213,8 +213,21 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
   if (!isModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400  shadow-xl">
+        {/* Botón cerrar */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsModalOpen(false);
+              setIdCentroFormacion('');
+              formik.resetForm();
+            }}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
+          >
+            ✕
+          </button>
+        
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
           {mode === 'create' ? 'Crear centro de formación' : 'Editar Centro de formación'}
         </h2>
@@ -234,6 +247,29 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                   formik.setFieldTouched('idCiudad', true);
                 }}
                 onBlur={() => formik.setFieldTouched('idCiudad', true)}
+                classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
               />
               {formik.touched.idCiudad && formik.errors.idCiudad && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.idCiudad}</p>
@@ -253,6 +289,29 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                   formik.setFieldTouched('idEmpresa', true);
                 }}
                 onBlur={() => formik.setFieldTouched('idEmpresa', true)}
+                classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
               />
               {formik.touched.idEmpresa && formik.errors.idEmpresa && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.idEmpresa}</p>
@@ -267,8 +326,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 {...formik.getFieldProps('nombre')}
                 onChange={(e) => handleUppercase('nombre', e.target.value)}
                   onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.nombre && formik.errors.nombre && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.nombre}</p>
@@ -283,8 +341,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 {...formik.getFieldProps('direccion')}
                 onChange={(e) => handleUppercase('direccion', e.target.value)}
                   onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.direccion && formik.errors.direccion && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.direccion}</p>
@@ -299,8 +356,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 {...formik.getFieldProps('telefono')}
                 onChange={(e) => handleUppercase('telefono', e.target.value)}
                   onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.telefono && formik.errors.telefono && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.telefono}</p>
@@ -313,8 +369,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="email"
                 {...formik.getFieldProps('correo')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.correo && formik.errors.correo && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.correo}</p>
@@ -329,8 +384,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                 {...formik.getFieldProps('subdirector')}
                 onChange={(e) => handleUppercase('subdirector', e.target.value)}
                   onBlur={formik.handleBlur}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.subdirector && formik.errors.subdirector && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.subdirector}</p>
@@ -343,8 +397,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="email"
                 {...formik.getFieldProps('correoSubdirector')}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.correoSubdirector && formik.errors.correoSubdirector && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.correoSubdirector}</p>
@@ -365,7 +418,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
                   border-2 border-dashed rounded-xl
                   cursor-pointer
                   transition
-                  hover:border-blue-500 hover:bg-blue-50
+                  hover:border-blue-500 
                   focus-within:border-blue-500
                 "
               >
