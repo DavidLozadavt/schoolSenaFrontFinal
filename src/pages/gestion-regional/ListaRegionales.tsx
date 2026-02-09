@@ -202,7 +202,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
       {/* Modal de confirmación de eliminación */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+          <div className="bg-white dark:bg-coal-400 dark:border-coal-100 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
             <div className="flex items-center gap-4 mb-4">
               <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                 <KeenIcon icon="information" className="text-2xl text-red-600" />
