@@ -200,6 +200,10 @@ const FormularioUpRegional: React.FC<Props> = ({
     label: val.descripcion
   }));
 
+  const handleUppercase = (field: string, value: string) => {
+    formik.setFieldValue(field, value.toUpperCase());
+  };
+
   if (!isModalOpen) return null;
   return (
     <div>
@@ -266,6 +270,8 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('razonSocial')}
+                  onChange={(e) => handleUppercase('razonSocial', e.target.value)}
+                  onBlur={formik.handleBlur}
                   className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
@@ -317,6 +323,8 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('representanteLegal')}
+                  onChange={(e) => handleUppercase('representanteLegal', e.target.value)}
+                  onBlur={formik.handleBlur}
                   className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
@@ -327,6 +335,8 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('direccion')}
+                  onChange={(e) => handleUppercase('direccion', e.target.value)}
+                  onBlur={formik.handleBlur}
                   className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
               </div>
