@@ -38,12 +38,14 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
     <div
       className="
         group relative w-full overflow-hidden rounded-2xl
-        border border-gray-200 bg-white
-        flex flex-col h-full
+        border border-gray-200 
+        shadow-sm hover:shadow-xl hover:shadow-blue-500/10
+        transition-all duration-300 ease-out
+        hover:-translate-y-1
       "
     >
       {/* HEADER */}
-      <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+      <div className="relative h-40">
         <img
           src={sede.urlImagen === 'sedes\/default.png' ? `${BACK}/default/logoweb.png`: `${BACK}${sede.urlImagen}`}
           alt={sede.empresa?.razonSocial}
@@ -58,13 +60,13 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           <span
             className="
             inline-flex items-center gap-1.5
-            rounded-full bg-white/90 px-3 py-1
+            rounded-full  px-3 py-1
             text-[10px] font-bold uppercase tracking-wide text-gray-700
             shadow backdrop-blur
           "
           >
             <i className="ki-outline ki-geolocation text-xs text-blue-600" />
-            {sede.ciudad?.descripcion}
+            {sede.ciudad?.descripcion ?? 'SIN CIUDAD'}
           </span>
         </div>
 
@@ -102,17 +104,19 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           <button
             onClick={onEdit}
             title="Editar"
-            className="flex items-center justify-center h-8 bg-blue-100/40 text-blue-600 rounded-lg hover:border hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+            className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
           >
-            <KeenIcon icon="notepad-edit" />
+            <i className="text-sm ki-outline ki-arrows-loop"></i>
           </button>
 
           <button
             title="Eliminar"
             onClick={onDelete}
-            className="flex items-center justify-center h-8 bg-blue-100/40 text-red-600 rounded-lg hover:border hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
+            className="
+            flex items-center justify-center w-full h-8 text-red-600 border border-transparent rounded-lg dark:text-red-300 bg-red-100/30 dark:bg-red-500/10 hover:border-red-500 hover:scale-105 active:scale-95 transition-all
+            "
           >
-            <KeenIcon icon="trash" />
+            <i className="text-sm ki-outline ki-trash"></i>
           </button>
         </div>
       </div>
@@ -135,10 +139,10 @@ const InfoRow = ({
   multiline?: boolean;
 }) => {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600'
+    blue: ' ext-blue-600',
+    purple: 'text-purple-600',
+    green: 'text-green-600',
+    red: 'text-red-600'
   };
 
   return (

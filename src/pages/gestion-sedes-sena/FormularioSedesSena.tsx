@@ -383,8 +383,8 @@ const FormularioSedesSena: React.FC<Props> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-        <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400  shadow-xl">
           {/* Botón cerrar */}
           <button
             type="button"
@@ -418,6 +418,29 @@ const FormularioSedesSena: React.FC<Props> = ({
                   onChange={(value) => formik.setFieldValue('ciudad', value)}
                   onBlur={() => formik.setFieldTouched('ciudad', true)}
                   classNamePrefix="react-select"
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
                 />
                 {formik.touched.ciudad && formik.errors.ciudad && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.ciudad}</p>
@@ -434,6 +457,29 @@ const FormularioSedesSena: React.FC<Props> = ({
                   value={formik.values.empresa}
                   onChange={handleChangeRegional}
                   onBlur={() => formik.setFieldTouched('empresa', true)}
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
                 />
                 {formik.touched.empresa && formik.errors.empresa && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.empresa}</p>
@@ -458,6 +504,29 @@ const FormularioSedesSena: React.FC<Props> = ({
                   onChange={(value) => formik.setFieldValue('centroFormacion', value)}
                   onBlur={() => formik.setFieldTouched('centroFormacion', true)}
                   classNamePrefix="react-select"
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
                 />
                 {formik.touched.centroFormacion && formik.errors.centroFormacion && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.centroFormacion}</p>
@@ -474,6 +543,29 @@ const FormularioSedesSena: React.FC<Props> = ({
                   value={formik.values.responsable}
                   onChange={(value) => formik.setFieldValue('responsable', value)}
                   onBlur={() => formik.setFieldTouched('responsable', true)}
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
                 />
                 {formik.touched.responsable && formik.errors.responsable && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.responsable}</p>
@@ -488,7 +580,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                   type="text"
                   onChange={(e) => handleUppercase('nombre', e.target.value)}
                   onBlur={formik.handleBlur}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none dark:border-coal-100 bg-white dark:bg-coal-400
                   ${
                     formik.touched.nombre && formik.errors.nombre
                       ? 'border-red-500'
@@ -509,8 +601,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                   {...formik.getFieldProps('jefeInmediato')}
                   onChange={(e) => handleUppercase('jefeInmediato', e.target.value)}
                   onBlur={formik.handleBlur}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.jefeInmediato && formik.errors.jefeInmediato && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.jefeInmediato}</p>
@@ -525,8 +616,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                   {...formik.getFieldProps('direccion')}
                   onChange={(e) => handleUppercase('direccion', e.target.value)}
                   onBlur={formik.handleBlur}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.direccion && formik.errors.direccion && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.direccion}</p>
@@ -541,8 +631,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                   {...formik.getFieldProps('descripcion')}
                   onChange={(e) => handleUppercase('descripcion', e.target.value)}
                   onBlur={formik.handleBlur}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.descripcion && formik.errors.descripcion && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.descripcion}</p>
@@ -555,8 +644,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                 <input
                   type="email"
                   {...formik.getFieldProps('email')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.email && formik.errors.email && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.email}</p>
@@ -569,8 +657,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('telefono')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.telefono && formik.errors.telefono && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.telefono}</p>
@@ -583,8 +670,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                 <input
                   type="text"
                   {...formik.getFieldProps('celular')}
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none
-                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
                 />
                 {formik.touched.celular && formik.errors.celular && (
                   <p className="mt-1 text-xs text-red-500">{formik.errors.celular}</p>
@@ -617,7 +703,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                   border-2 border-dashed rounded-xl
                   cursor-pointer
                   transition
-                  hover:border-blue-500 hover:bg-blue-50
+                  hover:border-blue-500
                   focus-within:border-blue-500
                 "
                 >

@@ -27,17 +27,18 @@ const InfraestructuraCard: React.FC<Props> = ({ infraestructura, onEdit, onInfo,
     <div
       className="
         group relative w-full overflow-hidden rounded-2xl
-        border border-gray-200 bg-white
-        shadow-sm hover:shadow-lg hover:shadow-blue-500/10
-        transition-all duration-300
+        border border-gray-200 
+        shadow-sm hover:shadow-xl hover:shadow-blue-500/10
+        transition-all duration-300 ease-out
+        hover:-translate-y-1
       "
     >
       {/* HEADER */}
-      <div className="relative h-32 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+      <div className="relative h-32  flex items-center justify-center">
         <KeenIcon icon="office-bag" className="text-5xl text-blue-500" />
 
         {/* Tipo */}
-        <span className="absolute top-3 right-3 rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-gray-700 shadow">
+        <span className="absolute top-3 right-3 rounded-full  px-3 py-1 text-[10px] font-bold uppercase text-gray-700 shadow">
           {infraestructura.tipo_infraestructura.nombre}
         </span>
       </div>
@@ -77,18 +78,18 @@ const InfraestructuraCard: React.FC<Props> = ({ infraestructura, onEdit, onInfo,
               <button
                 onClick={() => onEdit(infraestructura)}
                 title="Editar"
-                className="flex items-center justify-center h-8 bg-blue-100/40 text-blue-600 rounded-lg hover:border hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
               >
-                <KeenIcon icon="notepad-edit" />
+                <i className="text-sm ki-outline ki-arrows-loop"></i>
               </button>
             )}
             {onDelete && (
               <button
                 onClick={() => onDelete(infraestructura)}
                 title="Eliminar"
-                className="flex items-center justify-center h-8 bg-red-100/40 text-red-600 rounded-lg hover:border hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center justify-center w-full h-8 text-red-600 border border-transparent rounded-lg dark:text-red-300 bg-red-100/30 dark:bg-red-500/10 hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
               >
-                <KeenIcon icon="trash" />
+                <i className="text-sm ki-outline ki-trash"></i>
               </button>
             )}
           </div>
@@ -111,8 +112,8 @@ const InfoRow = ({
   color: 'blue' | 'green';
 }) => {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600'
+    blue: 'text-blue-600',
+    green: 'text-green-600'
   };
 
   return (

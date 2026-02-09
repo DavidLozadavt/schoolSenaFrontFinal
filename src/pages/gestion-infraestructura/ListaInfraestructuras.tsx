@@ -26,7 +26,7 @@ interface Infraestructura {
   };
 }
 
-const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}) => {
+const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   const authContext = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [infraestructuras, setInfraestructuras] = useState<Infraestructura[]>([]);
@@ -96,7 +96,7 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}
         {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm"
+            className="animate-pulse rounded-2xl border border-gray-200 overflow-hidden shadow-sm"
           >
             {/* Skeleton image */}
             <div className="h-40 bg-gradient-to-br from-gray-200 to-gray-300"></div>
@@ -165,7 +165,7 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}
       {/* Contador de resultados */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
             <span className="text-sm font-medium text-gray-600">
               {filteredInfraestructuras.length}{' '}
               {filteredInfraestructuras.length === 1 ? 'ambiente' : 'ambientes'}
@@ -183,19 +183,26 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}
         </div>
       </div>
       {infraAEliminar && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-            <h3 className="text-lg font-semibold mb-2">Eliminar ambiente</h3>
-
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in">
+          <div className="bg-white dark:bg-coal-400 dark:border-coal-100 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-4 mb-4">
+              {/* Icono */}
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <KeenIcon icon="information" className="text-2xl text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Eliminar ambiente</h3>
+                <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
               ¿Seguro que deseas eliminar
               <span className="font-bold"> {infraAEliminar.nombreInfraestructura}</span>?
             </p>
-
-            <div className="flex justify-end gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setInfraAEliminar(null)}
-                className="px-4 py-2 text-sm rounded-lg border"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
               >
                 Cancelar
               </button>
@@ -203,7 +210,7 @@ const ListaInfraestructuras: React.FC<Props> = ({ searchTerm, evento, setEvento}
               <button
                 onClick={eliminarInfraestructura}
                 disabled={deleting}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
               >
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
