@@ -18,7 +18,7 @@ export const Calendario = () => {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="rounded-xl border bg-white p-6 space-y-6">
+    <div className="rounded-xl border p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-lg flex items-center gap-2">

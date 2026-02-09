@@ -13,6 +13,7 @@ import AsignarMateria from './AsignarMateria';
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
+import { useAuthContext } from '@/auth';
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];
@@ -24,6 +25,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
+  const { user } = useAuthContext();
   
   // Estados de vista
   const [vistaCalendario, setVistaCalendario] = useState(false);
@@ -56,7 +58,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
       
       setLoadingFichas(true);
       try {
-        const res = await axios.get(`fichas/programa/${program.id}`);
+        const res = await axios.get(`fichas/programa/${program.id}/${user?.idCentroFormacion}`);
         if (Array.isArray(res.data?.data)) {
           setFichas(res.data.data);
         } else {
@@ -153,7 +155,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
               {program.name || "Programa sin nombre"}
             </h2>
-            <p className="mt-1.5 font-semibold tracking-wide text-gray-200 text-xs flex items-center gap-2">
+            <p className="mt-1.5 font-semibold tracking-wide text-gray-300 dark:text-white/70 text-xs flex items-center gap-2">
               <BookOpen size={14} />
               Código: {program.codigo} • Malla Curricular
             </p>
@@ -173,7 +175,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
           {!errorApi && (
             <div className="mb-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-                <h4 className="text-lg font-black uppercase text-gray-800 dark:text-gray-100 border-l-4 border-primary pl-4">
+                <h4 className="text-lg font-black uppercase text-gray-800 dark:text-white border-l-4 border-primary pl-4">
                   Fichas del Programa
                 </h4>
 
@@ -216,13 +218,36 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                 </div>
               ) : (
                 <>
-                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-600">
+                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-100">
                     <Select
                       options={fichaOptions}
                       value={selectedFichaOption}
                       placeholder="Selecciona una ficha para ver sus trimestres..."
                       onChange={handleSeleccionarFicha}
-                      classNamePrefix="react-select"
+                      classNames={{
+                        control: () =>
+                          "bg-white dark:bg-coal-400 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white",
+                        menu: () =>
+                          "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600",
+                        option: ({ isFocused, isSelected }) =>
+                          `cursor-pointer ${
+                            isSelected
+                              ? "bg-blue-600 text-white"
+                              : isFocused
+                              ? "bg-gray-100 dark:bg-coal-300"
+                              : "text-gray-700 dark:text-white"
+                          }`,
+                        singleValue: () =>
+                          "text-gray-700 dark:text-white",
+                        placeholder: () =>
+                          "text-gray-400 dark:text-gray-300",
+                        input: () =>
+                          "text-gray-700 dark:text-white",
+                        clearIndicator: () =>
+                          "text-gray-400 dark:text-gray-300 hover:text-red-500",
+                        dropdownIndicator: () =>
+                          "text-gray-400 dark:text-gray-300 hover:text-gray-600",
+                      }}
                       isClearable
                     />
                   </div>
