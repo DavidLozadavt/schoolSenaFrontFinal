@@ -149,17 +149,6 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
             ? `No encontramos regionales que coincidan con "${searchTerm}". Intenta con otros términos.`
             : 'Aún no has creado ninguna regional. Comienza agregando tu primera regional.'}
         </p>
-
-        {searchTerm && (
-          <button
-            onClick={() => {
-              /* clear search from parent */
-            }}
-            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
-          >
-            Limpiar búsqueda
-          </button>
-        )}
       </div>
     );
   }
