@@ -206,6 +206,10 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
     label: val.razonSocial
   }));
 
+  const handleUppercase = (field: string, value: string) => {
+    formik.setFieldValue(field, value.toUpperCase());
+  };
+
   if (!isModalOpen) return null;
 
   return (
@@ -261,6 +265,8 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="text"
                 {...formik.getFieldProps('nombre')}
+                onChange={(e) => handleUppercase('nombre', e.target.value)}
+                  onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
@@ -275,6 +281,8 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="text"
                 {...formik.getFieldProps('direccion')}
+                onChange={(e) => handleUppercase('direccion', e.target.value)}
+                  onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
@@ -289,6 +297,8 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="text"
                 {...formik.getFieldProps('telefono')}
+                onChange={(e) => handleUppercase('telefono', e.target.value)}
+                  onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
@@ -317,6 +327,8 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <input
                 type="text"
                 {...formik.getFieldProps('subdirector')}
+                onChange={(e) => handleUppercase('subdirector', e.target.value)}
+                  onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
