@@ -158,6 +158,10 @@ const FormularioInfraestructura: React.FC<Props> = ({
     label: val.nombre
   }));
 
+  const handleUppercase = (field: string, value: string) => {
+    formik.setFieldValue(field, value.toUpperCase());
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-xl">
@@ -208,6 +212,8 @@ const FormularioInfraestructura: React.FC<Props> = ({
               <label className="text-sm font-medium text-gray-700">Nombre</label>
               <input
                 {...formik.getFieldProps('nombreInfraestructura')}
+                onChange={(e) => handleUppercase('nombreInfraestructura', e.target.value)}
+                  onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm outline-none
                 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
