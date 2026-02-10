@@ -9,6 +9,7 @@ const SedesSena: React.FC = () => {
   //Para actualizar la Data una vez ocurra un vambio:
   const [evento, setEvento] = useState<boolean>(true);
 
+  const [idSede, setIdSede] = useState<string>('');
   //Toast para el success
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -19,7 +20,7 @@ const SedesSena: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
+    <div className="relative min-h-screen">
       {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
@@ -59,6 +60,8 @@ const SedesSena: React.FC = () => {
       </div>
       {isModalOpen && (
         <FormularioSedesSena
+          idSede={idSede}
+          setIdSede={setIdSede}
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
           setEvento={setEvento}

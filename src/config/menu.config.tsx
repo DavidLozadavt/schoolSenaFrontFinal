@@ -40,13 +40,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
             path: '/sedesSena',
             requiredPermissions: ['GESTION_REGIONAL']
           },
-
-          {
-            title: 'Fichas',
-            path: '/fichas',
-            requiredPermissions: ['GESTION_REGIONAL']
-          },
-
           {
             title: 'Ambientes',
             path: '/ambientes',

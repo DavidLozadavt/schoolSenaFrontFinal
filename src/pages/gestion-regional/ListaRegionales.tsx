@@ -99,7 +99,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
         {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm"
+            className="animate-pulse rounded-2xl border border-gray-200 overflow-hidden shadow-sm"
           >
             {/* Skeleton image */}
             <div className="h-40 bg-gradient-to-br from-gray-200 to-gray-300"></div>
@@ -149,17 +149,6 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
             ? `No encontramos regionales que coincidan con "${searchTerm}". Intenta con otros términos.`
             : 'Aún no has creado ninguna regional. Comienza agregando tu primera regional.'}
         </p>
-
-        {searchTerm && (
-          <button
-            onClick={() => {
-              /* clear search from parent */
-            }}
-            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
-          >
-            Limpiar búsqueda
-          </button>
-        )}
       </div>
     );
   }
@@ -169,7 +158,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
       {/* Contador de resultados */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
             <span className="text-sm font-medium text-gray-600">
               {filteredRegionales.length}{' '}
               {filteredRegionales.length === 1 ? 'regional' : 'regionales'}
@@ -213,7 +202,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
       {/* Modal de confirmación de eliminación */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
+          <div className="bg-white dark:bg-coal-400 dark:border-coal-100 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
             <div className="flex items-center gap-4 mb-4">
               <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                 <KeenIcon icon="information" className="text-2xl text-red-600" />

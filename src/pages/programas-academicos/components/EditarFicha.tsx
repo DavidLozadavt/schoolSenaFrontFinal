@@ -229,6 +229,7 @@ const EditarFicha: React.FC<Props> = ({
   const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
   const [eventoAmbiente, setEventoAmbiente] = useState<boolean>(false);
   const [showAmbienteForm, setShowAmbienteForm] = useState<boolean>(false);
+  const [idInfraestructura, setIdInfraestructura] = useState<string>('');
 
   const normalizeDate = (date?: string | null) => {
     if (!date) return '';
@@ -850,7 +851,6 @@ const EditarFicha: React.FC<Props> = ({
               )}
             </div>
 
-
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700">
                 Documento de la ficha (PDF)
@@ -909,6 +909,8 @@ const EditarFicha: React.FC<Props> = ({
 
       {showAmbienteForm && (
         <FormularioInfraestructura
+          setIdInfraestructura={setIdInfraestructura}
+          idInfraestructura={idInfraestructura}
           isModalOpen={showAmbienteForm}
           setIsModalOpen={setShowAmbienteForm}
           setEvento={setEventoAmbiente}
