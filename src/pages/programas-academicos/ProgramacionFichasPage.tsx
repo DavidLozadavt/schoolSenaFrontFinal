@@ -7,6 +7,7 @@ import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import CrearFicha from './components/CrearFicha';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
+import { useAuthContext } from '@/auth';
 
 interface Ficha {
   id: number;
@@ -65,6 +66,7 @@ interface Program {
 
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [program, setProgram] = useState<Program | null>(null);
@@ -117,7 +119,7 @@ export const ProgramacionFichasPage = () => {
     setLoading(true);
 
     try {
-      const res = await axios.get(`fichas/programa/${programId}`);
+      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {

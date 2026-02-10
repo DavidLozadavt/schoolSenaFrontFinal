@@ -7,6 +7,7 @@ import MallaCurricular from './malla-curricular/MallaCurricular';
 import CrearFicha from './CrearFicha';
 import { AsignarInstructorLiderModal } from './AsignarInstructorLiderModal';
 import EditarFicha from './EditarFicha';
+import { useAuthContext } from '@/auth';
 
 interface Ficha {
   id: number;
@@ -65,6 +66,7 @@ interface Program {
 
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [program, setProgram] = useState<Program | null>(null);
@@ -117,7 +119,7 @@ export const ProgramacionFichasPage = () => {
     if (!programId) return;
     setLoading(true);
     try {
-      const res = await axios.get(`fichas/programa/${programId}`);
+      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
       if (res.status === 200) {
         setFichas(res.data.data);
         console.log('Fichas cargadas:', res.data.data);

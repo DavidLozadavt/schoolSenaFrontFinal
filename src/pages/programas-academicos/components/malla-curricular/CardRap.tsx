@@ -8,7 +8,7 @@ export const CardRap = ({ materia }: any) => {
     setHorarios(materia.horarios.filter((h: any) => h.estado == 'ASIGNADO'));
   }, []);
   return (
-    <div className="rounded-xl border border-gray-300 bg-white p-2 my-2 flex gap-4">
+    <div className="rounded-xl border border-gray-300 p-2 my-2 flex gap-4">
       {/* Contenido principal */}
       <div className="flex-1 space-y-4">
         {/* Título del RAP */}
@@ -23,7 +23,7 @@ export const CardRap = ({ materia }: any) => {
         </div>
 
         {/* Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg bg-gray-50 p-4 text-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg p-4 text-center">
           {/* Instructor */}
           <div className="flex items-center justify-center gap-3 text-left">
             {/* Avatars */}
