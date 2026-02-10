@@ -780,14 +780,10 @@ const ContratacionPage = () => {
   useEffect(()=>{
     const loadCentros = async () =>{
       try {
-        if (authContext?.empresa?.id) {
-          console.log('Cargando centros para empresa ID:', authContext.empresa.id)
-          const res = await axios.get(`centrosFormacion/regional-contratacion/${authContext.empresa.id}`)
-          console.log('Respuesta centros:', res.data)
-          setCentroFormacion(res.data.data || [])
-        } else {
-          console.log('No hay empresa ID en authContext')
-        }
+        console.log('Cargando centros de formación')
+        const res = await axios.get(`centrosFormacion`)
+        console.log('Respuesta centros:', res.data)
+        setCentroFormacion(res.data || [])
       } catch (error: any) {
         console.error('Error al cargar centros de formación:', error)
         console.error('Error response:', error?.response?.data)
@@ -795,7 +791,7 @@ const ContratacionPage = () => {
       }
     }
     loadCentros()
-  },[authContext?.empresa?.id])
+  },[])
 
   const optionsCF = centroFormacion.map((val)=>({
     value:val.id,
@@ -1063,7 +1059,11 @@ const ContratacionPage = () => {
   const fetchDocumentosContrato = async (nombreProceso: string) => {
     try {
       const response = await axios.get(`contrato-tipo-documento?nombreProceso=${nombreProceso}`);
-      setDocumentosContratos(response.data);
+      // Todos los documentos son obligatorios
+      const documentos = Array.isArray(response.data) 
+        ? response.data.map((doc: any) => ({ ...doc, obligatorio: true }))
+        : [];
+      setDocumentosContratos(documentos);
     } catch (error) {
       console.log(error);
     } finally {
@@ -2300,8 +2300,8 @@ const ContratacionPage = () => {
                                       key={area.id}
                                       className={`flex items-start gap-3 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
                                         isSelected
-                                          ? 'bg-blue-50 border-primary'
-                                          : 'bg-white border-gray-300 hover:border-gray-400'
+                                          ? 'bg-blue-50 dark:bg-blue-900/20 border-primary'
+                                          : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                                       }`}
                                     >
                                       <input
@@ -2316,7 +2316,7 @@ const ContratacionPage = () => {
                                         className="w-4 h-4 mt-0.5 text-primary border-gray-300 rounded focus:ring-primary flex-shrink-0"
                                       />
                                       <div className="flex-1">
-                                        <p className={`text-xs font-semibold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                                        <p className={`text-xs font-semibold ${isSelected ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
                                           {area.nombreAreaConocimiento}
                                         </p>
                                       </div>
@@ -2325,8 +2325,8 @@ const ContratacionPage = () => {
                                 })}
                               </div>
                             </div>
-                            <div className="mt-4 pt-3 border-t border-gray-200">
-                              <div className="flex items-center justify-center bg-blue-50 rounded-lg px-3 py-2">
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
                                 <p className="text-xs font-semibold text-primary">
                                   {selectedAreasConocimiento.length} área{selectedAreasConocimiento.length !== 1 ? 's' : ''} seleccionada{selectedAreasConocimiento.length !== 1 ? 's' : ''}
                                 </p>
@@ -2343,18 +2343,18 @@ const ContratacionPage = () => {
               )}
               {currentStep === 4 && (
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">Documentos del Contrato</h2>
-                  <p className="text-sm text-gray-600 mb-5">Adjunte los documentos requeridos para completar la contratación del instructor</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Documentos del Contrato</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">Adjunte los documentos requeridos para completar la contratación del instructor</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                     {documentosContratos.map((documento) => {
-                      const isRequired = documento.obligatorio !== false;
+                      const isRequired = true; // Todos los documentos son requeridos
                       const hasFile = selectedFiles[documento.id];
                       const fileName = hasFile ? selectedFiles[documento.id]?.name : '';
                       
                       return (
                         <div
                           key={documento.id}
-                          className="bg-gray-50 rounded-lg p-3 border border-gray-200 relative"
+                          className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 relative"
                         >
                           {/* Ícono de nube en la esquina superior derecha */}
                           <div className="absolute top-2 right-2">
@@ -2363,7 +2363,7 @@ const ContratacionPage = () => {
 
                           {/* Título */}
                           <div className="mb-2 pr-6">
-                            <label className="block text-xs font-bold text-gray-800">
+                            <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
                               {documento.tipoDocumento?.tituloDocumento || documento.tituloDocumento}
                               {isRequired && <span className="text-red-500 ml-1">*</span>}
                             </label>
@@ -2372,7 +2372,7 @@ const ContratacionPage = () => {
                           {/* Área de selección de archivo */}
                           {!hasFile ? (
                             <label className="block cursor-pointer">
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors bg-white">
+                              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-white dark:bg-gray-700">
                                 <input
                                   type="file"
                                   name={`file-${documento.id}`}
@@ -2380,16 +2380,16 @@ const ContratacionPage = () => {
                                   className="hidden"
                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                                 />
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                   Haga clic para seleccionar archivo
                                 </p>
                               </div>
                             </label>
                           ) : (
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-white">
+                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-700 truncate">
+                                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
                                     {fileName}
                                   </p>
                                 </div>

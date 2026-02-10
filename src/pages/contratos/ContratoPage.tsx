@@ -119,6 +119,7 @@ const ContratoPage = () => {
 
   return (
     <Fragment>
+      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
       {currentLayout?.name === 'demo1-layout' && (
         <Container>
           <UserProfileHero
@@ -152,7 +153,7 @@ const ContratoPage = () => {
                   <div className="card-body pt-2 pb-3 flex justify-center">
                     <button
                       onClick={() => setIsObservacionPreocupacionalOpen(true)}
-                      className="w-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                      className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 flex items-center justify-center gap-2 hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-transparent dark:bg-transparent text-primary text-sm font-medium"
                     >
                       Ver Todas las Observaciones
                     </button>
@@ -173,7 +174,7 @@ const ContratoPage = () => {
                       </div>
                       <button
                         onClick={() => setIsModalUpdateSeguridadSocialOpen(true)}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                         title="Editar Seguridad Social"
                       >
                         <KeenIcon className="text-sm text-primary" icon="pencil" />
@@ -183,30 +184,30 @@ const ContratoPage = () => {
                   <div className="card-body">
                     <div className="space-y-4">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">EPS</p>
-                        <p className="text-xs font-bold text-gray-900">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">EPS</p>
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">
                           {contrato?.salud?.nombre || 'N/A'}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">AFP (Fondo de Pensiones)</p>
-                        <p className="text-xs font-bold text-gray-900">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">AFP (Fondo de Pensiones)</p>
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">
                           {contrato?.pension?.nombre || 'N/A'}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">ARL (Riesgos Laborales)</p>
-                        <p className="text-xs font-bold text-gray-900">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ARL (Riesgos Laborales)</p>
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">
                           {contrato?.arl?.nombre || 'N/A'}
                         </p>
                       </div>
 
                       {contrato?.cajaCompensacion && (
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Caja de Compensación</p>
-                          <p className="text-xs font-bold text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Caja de Compensación</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {contrato.cajaCompensacion.nombre || 'N/A'}
                           </p>
                         </div>
@@ -214,18 +215,18 @@ const ContratoPage = () => {
 
                       {contrato?.cesantias && (
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Cesantías</p>
-                          <p className="text-xs font-bold text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cesantías</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {contrato.cesantias.nombre || 'N/A'}
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-2">
-                        <KeenIcon icon="check-circle" className="text-lg text-green-600" />
-                        <p className="text-xs font-semibold text-green-600">Afiliaciones Activas</p>
+                        <KeenIcon icon="check-circle" className="text-lg text-green-600 dark:text-green-400" />
+                        <p className="text-xs font-semibold text-green-600 dark:text-green-400">Afiliaciones Activas</p>
                       </div>
                     </div>
                   </div>
@@ -252,7 +253,7 @@ const ContratoPage = () => {
                         </div>
                         <button
                           onClick={() => setIsModalUpdateBankDataOpen(true)}
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                           title="Editar datos bancarios"
                         >
                           <KeenIcon className="text-sm text-primary" icon="pencil" />
@@ -262,20 +263,20 @@ const ContratoPage = () => {
                     <div className="card-body">
                       <div className="space-y-4">
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Banco</p>
-                          <p className="text-xs font-bold text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Banco</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {contrato?.banco?.nombre || 'N/A'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Número de Cuenta</p>
-                          <p className="text-xs font-bold text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Número de Cuenta</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {contrato?.numeroCuentaBancaria || 'N/A'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Tipo de Cuenta</p>
-                          <p className="text-xs font-bold text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tipo de Cuenta</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {contrato?.tipoCuentaBancaria || 'N/A'}
                           </p>
                         </div>
@@ -293,7 +294,7 @@ const ContratoPage = () => {
                     </div>
                     <div className="card-body lg:py-7.5 lg:gap-7.5 gap-5">
                       <div className="flex flex-col gap-5">
-                        <div className="text-sm text-gray-800">
+                        <div className="text-sm text-gray-800 dark:text-gray-300">
                           Puedes extender un contrato hasta 15 días antes de la fecha de
                           finalización. Si prefieres terminar el contrato, puedes hacerlo en
                           cualquier momento antes de la fecha final.

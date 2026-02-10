@@ -87,13 +87,13 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     }
   };
 
-  const getEstadoBadgeClass = (estado: string | undefined) => {
-    if (!estado) return 'badge-success';
+  const getEstadoBadgeStyles = (estado: string | undefined) => {
+    if (!estado) return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
     const estadoUpper = estado.toUpperCase();
-    if (estadoUpper === 'ACTIVO') return 'badge-success';
-    if (estadoUpper === 'INTERRUMPIDO') return 'badge-danger';
-    if (estadoUpper === 'ADICION DE CONTRATO' || estadoUpper.includes('ADICION')) return 'badge-warning';
-    return 'badge-success';
+    if (estadoUpper === 'ACTIVO') return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
+    if (estadoUpper === 'INTERRUMPIDO') return 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800';
+    if (estadoUpper === 'ADICION DE CONTRATO' || estadoUpper.includes('ADICION')) return 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800';
+    return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
   };
 
   const getNombreCompleto = (contrato: ContratoInterface) => {
@@ -120,7 +120,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               {/* Avatar cuadrado con bordes redondeados */}
-              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center border border-gray-200">
+              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center border border-gray-200 dark:border-gray-600">
                 {fotoUrl ? (
                   <CommonAvatar
                     className="w-full h-full"
@@ -128,23 +128,23 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
                     imageClass="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                    <User className="w-6 h-6 text-gray-400" />
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                    <User className="w-6 h-6 text-gray-400 dark:text-gray-500" />
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors duration-300">
                   {nombreCompleto}
                 </h4>
               </div>
             </div>
             <span
               className={clsx(
-                'badge shrink-0 text-xs font-medium',
+                'shrink-0 text-xs font-medium px-2 py-1 rounded',
                 estado.toUpperCase() === 'ACTIVO'
-                  ? 'bg-green-50 text-green-600 border border-green-200'
-                  : 'badge-outline ' + getEstadoBadgeClass(estado)
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                  : getEstadoBadgeStyles(estado)
               )}
             >
               {estado}
@@ -153,7 +153,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
           {/* Código del contrato */}
           <div className="mb-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               <span className="font-medium">Código:</span> {contrato.id}
             </p>
           </div>
@@ -161,8 +161,8 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
           {/* Información con iconos */}
           <div className="space-y-2.5 mb-4">
             {/* Identificación */}
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <CreditCard className="w-4 h-4 text-gray-500 shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <CreditCard className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
               <span className="truncate text-sm">
                 {contrato.persona?.identificacion || 'N/A'}
               </span>
@@ -170,23 +170,23 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
             {/* Rol */}
             {contrato.salario?.rol?.name && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <User className="w-4 h-4 text-gray-500 shrink-0" />
+              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <User className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
                 <span className="truncate text-sm">{contrato.salario.rol.name}</span>
               </div>
             )}
 
             {/* Área/Departamento */}
             {contrato.area?.nombre && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Folder className="w-4 h-4 text-gray-500 shrink-0" />
+              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <Folder className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
                 <span className="truncate text-sm">{contrato.area.nombre}</span>
               </div>
             )}
 
             {/* Fechas */}
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
               <span className="truncate text-sm">
                 {formatDate(contrato.fechaContratacion)} -{' '}
                 {contrato.fechaFinalContrato
@@ -197,7 +197,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
           </div>
 
           {/* Link ver más */}
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-active transition-colors duration-300 w-full"
               onClick={(e) => {

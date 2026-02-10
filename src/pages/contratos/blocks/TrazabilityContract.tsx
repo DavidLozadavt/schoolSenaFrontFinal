@@ -28,22 +28,22 @@ const TrazabilityContract = ({ title, contrato }: TrazabilityContractProps) => {
       </div>
 
       <div className="card-body">
-        <table className="table table-border align-middle text-gray-700 font-medium text-sm">
+        <table className="table table-border align-middle text-gray-700 dark:text-gray-300 font-medium text-sm">
           <thead>
             <tr>
-              <th className="text-xs text-gray-500 font-medium">Código</th>
-              <th className="text-xs text-gray-500 font-medium">Detalle</th>
-              <th className="text-xs text-gray-500 font-medium">Fecha del Detalle</th>
-              <th className="text-xs text-gray-500 font-medium w-[100px]">Acciones</th>
+              <th className="text-xs text-gray-500 dark:text-gray-400 font-medium">Código</th>
+              <th className="text-xs text-gray-500 dark:text-gray-400 font-medium">Detalle</th>
+              <th className="text-xs text-gray-500 dark:text-gray-400 font-medium">Fecha del Detalle</th>
+              <th className="text-xs text-gray-500 dark:text-gray-400 font-medium w-[100px]">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {otrosContratos.length > 0 ? (
               otrosContratos.map((item: any, index: any) => (
                 <tr key={index}>
-                  <td className="text-xs font-bold text-gray-900">{item.archivoContrato[0]?.idContrato}</td>
-                  <td className="text-xs font-bold text-gray-900">{item.archivoContrato[0]?.observacion}</td>
-                  <td className="text-xs font-bold text-gray-900">{item.archivoContrato[0]?.fecha}</td>
+                  <td className="text-xs font-bold text-gray-900 dark:text-white">{item.archivoContrato[0]?.idContrato}</td>
+                  <td className="text-xs font-bold text-gray-900 dark:text-white">{item.archivoContrato[0]?.observacion}</td>
+                  <td className="text-xs font-bold text-gray-900 dark:text-white">{item.archivoContrato[0]?.fecha}</td>
                   <td className="text-center">
                     <button
                       className="btn btn-sm btn-icon btn-clear btn-light"
@@ -57,7 +57,7 @@ const TrazabilityContract = ({ title, contrato }: TrazabilityContractProps) => {
             ) : (
               <tr>
                 <td colSpan={4} className="text-center py-4">
-                  <p className="text-xs text-gray-500">No hay contratos disponibles.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">No hay contratos disponibles.</p>
                 </td>
               </tr>
             )}

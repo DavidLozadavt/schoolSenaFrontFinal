@@ -53,10 +53,25 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_REGIONAL']
           }
         ]
+  },
+      {
+        title: 'Ambiente Virtual',
+        requiredPermissions: ['GESTION_USUARIO'],
+        children: [
+          {
+            title: 'Historial Raps',
+            path: '/ambiente-virtual/historial-raps',
+            requiredPermissions: ['GESTION_USUARIO']
+          },
+          {
+            title: 'Detalle Clase',
+            path: '/ambiente-virtual/clase/:id',
+            requiredPermissions: ['GESTION_USUARIO_HIDDEN']
+          }
+        ]
       }
     ]
   },
-
   {
     title: 'Gestión de Usuarios',
     icon: 'users',
