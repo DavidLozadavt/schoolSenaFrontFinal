@@ -16,11 +16,15 @@ interface AuthContextProps {
   persona: any | undefined;
   setPersona: Dispatch<SetStateAction<any | undefined>>;
   empresa: any | undefined;
+  roles: string[];
+  setRoles: Dispatch<SetStateAction<string[]>>;
   setEmpresa: Dispatch<SetStateAction<any | undefined>>;
+  setActivacion: Dispatch<SetStateAction<any | undefined>>;
+  activacion: any | undefined;
   user: any | undefined;
   setUser: Dispatch<SetStateAction<any | undefined>>;
-  permissions: string;
-  setPermissions: Dispatch<SetStateAction<string>>;
+  permissions: string[];
+  setPermissions: Dispatch<SetStateAction<string[]>>;
   getUserAuthenticated: () => Promise<void>;
   logout: () => void;
   login: (email: string, password: string, device_token:string) => Promise<void>;
@@ -31,9 +35,11 @@ const AuthContext = createContext<AuthContextProps | null>(null);
 
 const AuthProvider = ({ children }: PropsWithChildren) => {
   const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<string[]>([]);
   const [persona, setPersona] = useState<any | undefined>(null);
   const [empresa, setEmpresa] = useState<any | undefined>(null);
-  const [permissions, setPermissions] = useState<string>('');
+  const [activacion, setActivacion] = useState<any | undefined>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [auth, setAuth] = useState<AuthModel | undefined>(authHelper.getAuth());
 
@@ -82,30 +88,33 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
   const selectCompany = async () => {
     try {
       const response = await axios.post<any>(`set_company`);
-      setPermissions(response.data.payload.permissions);
+      if (response.data.new_token) {
+        saveAuth(response.data.new_token);
+      }
+      setRoles(response.data.payload.roles || []);
+      setPermissions(response.data.payload.permissions || []);
     } catch (error) {
-      saveAuth(undefined);
-
+    saveAuth(undefined);
       throw new Error(`Error fetching user: ${error}`);
     }
   };
 
-  const getUserAuthenticated = async () => {
-    try {
-      const response = await axios.post<any>(`user`);
-      const auth = response.data;
 
-      await selectCompany();
-      await getActiveUser();
+const getUserAuthenticated = async () => {
+  try {
+    const response = await axios.post<any>(`user`);
+    const auth = response.data;
+    setPersona(auth.persona);
+    setUser(auth);
+    await selectCompany();
+    await getActiveUser();
+  } catch (error) {
+    saveAuth(undefined);
+    console.error(`Error fetching authenticated user: ${error}`);
+    logout();
+  }
+};
 
-      setPersona(auth.persona);
-      setUser(auth);
-    } catch (error) {
-      saveAuth(undefined);
-      console.error(`Error fetching authenticated user: ${error}`);
-      logout();
-    }
-  };
 
   const getActiveUser = async () => {
     try {
@@ -126,7 +135,8 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
       saveAuth(undefined);
       setPersona(undefined);
       setEmpresa(undefined);
-      setPermissions('');
+      setPermissions([]);
+      setRoles([]);
     } catch (error) {
       console.error(`Logout error: ${error}`);
     }
@@ -141,6 +151,10 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
         setPersona,
         empresa,
         setEmpresa,
+        roles,
+        setRoles,
+        activacion,
+        setActivacion,
         permissions,
         setPermissions,
         user,
