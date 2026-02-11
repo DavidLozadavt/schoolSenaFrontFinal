@@ -98,9 +98,9 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
 
     try {
       const payload = {
-        nombreMateria: values.nombreMateria,
+        nombreMateria: values.nombreMateria.toLocaleUpperCase(),
         idAreaConocimiento: values.idAreaConocimiento,
-        descripcion: values.descripcion,
+        descripcion: values.descripcion.toLocaleUpperCase(),
         idCompany: empresa.id,
         ...(!competenciaId && { idPrograma: programId })
       };
@@ -169,7 +169,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
             value={formik.values.nombreMateria}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            className={`w-full bg-white dark:bg-coal-400 border rounded-lg p-2.5 font-bold outline-none focus:ring-1 ${
+            className={`w-full bg-white dark:bg-coal-400 border rounded-lg p-2.5 uppercase outline-none focus:ring-1 ${
               formik.touched.nombreMateria && formik.errors.nombreMateria
                 ? 'border-red-500 focus:ring-red-500'
                 : 'focus:ring-primary'
@@ -230,7 +230,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
             value={formik.values.descripcion}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            className={`w-full bg-white dark:bg-coal-400 border rounded-lg p-2.5 resize-none outline-none focus:ring-1 ${
+            className={`w-full bg-white dark:bg-coal-400 border rounded-lg uppercase p-2.5 resize-none outline-none focus:ring-1 ${
               formik.touched.descripcion && formik.errors.descripcion
                 ? 'border-red-500 focus:ring-red-500'
                 : 'focus:ring-primary'

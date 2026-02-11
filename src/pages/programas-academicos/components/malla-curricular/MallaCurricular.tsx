@@ -9,6 +9,7 @@ import { CardTrimestre } from './CardTrimestre';
 import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { Calendario } from './Calendario';
 import { AsignarMateria } from './AsignarMateria';
+import { ListaRaps } from './ListaRaps';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
@@ -33,7 +34,12 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
-  const [selectedNivelId, setSelectedNivelId] = useState<any>(null);
+  const [selectedNivelId, setSelectedNivelId] = useState<number|null>(null);
+
+  // Estados para modal de RAPs - NUEVO
+  const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
+  const [selectedCompetenciaId, setSelectedCompetenciaId] = useState<number | null>(null);
+  const [selectedCompetenciaNombre, setSelectedCompetenciaNombre] = useState<string>('');
 
   // Hook de trimestres
   const {
@@ -45,8 +51,8 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
     cancelarNuevoTrimestre,
     actualizarFechaFin,
     actualizarMaterias,
-    guardarTrimestre,
-    quitarUltimoTrimestre,
+    crearTrimestre,
+    asignarCompetenciasTrimestre,
     toast,
     setToast,
     loadingTrimestres
@@ -103,24 +109,42 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   };
 
   const handleOpenMateriaFromNuevoTrimestre = () => {
-    setSelectedNivelId('nuevo-trimestre');
     setIsMateriaModalOpen(true);
   };
 
-  const handleMateriasSeleccionadas = (idsMateria: number[]) => {
-    if (nuevoTrimestre && selectedNivelId === 'nuevo-trimestre') {
-      actualizarMaterias(idsMateria);
+  const handleMateriasSeleccionadas = async (data: { 
+    idGradoPrograma: number; 
+    materias: any[] 
+  }) => {
+    if (nuevoTrimestre) {
+      actualizarMaterias(data.materias);
     } else if (selectedFicha?.id) {
-      // Si es un trimestre existente, recargar desde la API
-      cargarTrimestres(selectedFicha.id);
+      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias);
+      if (success) {
+        await cargarTrimestres(selectedFicha.id);
+        setIsMateriaModalOpen(false);
+      }
     }
   };
 
-  const handleGuardarTrimestre = async () => {
-    const success = await guardarTrimestre(selectedFicha);
-    if (success) {
-      await cargarTrimestres(selectedFicha.id);
-    }
+
+const handleGuardarTrimestre = async () => {
+  if (!selectedFicha) {
+    alert('Debes seleccionar una ficha');
+    return;
+  }
+  
+  const success = await crearTrimestre(selectedFicha);
+  if (success) {
+    await cargarTrimestres(selectedFicha.id);
+  }
+};
+
+  // para abrir modal de RAPs
+  const handleOpenRaps = (competenciaId: number, competenciaNombre: string) => {
+    setSelectedCompetenciaId(competenciaId);
+    setSelectedCompetenciaNombre(competenciaNombre);
+    setIsRapsModalOpen(true);
   };
 
   if (!isOpen || !program) return null;
@@ -317,6 +341,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                                   index={index}
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
+                                  onVerRaps={handleOpenRaps} // ← PASAR LA FUNCIÓN AL COMPONENTE HIJO
                                 />
                               </div>
                             ))
@@ -382,6 +407,16 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
       />
+
+      {/* Modal ListaRaps */}
+      {selectedCompetenciaId && (
+        <ListaRaps
+          isOpen={isRapsModalOpen}
+          onClose={() => setIsRapsModalOpen(false)}
+          idMateriaPadre={selectedCompetenciaId}
+          nombreCompetencia={selectedCompetenciaNombre}
+        />
+      )}
 
       <Toast message='Trimestre agregado correctamente' isOpen={toast}  onClose={()=> setToast(false)}/>
     </div>
