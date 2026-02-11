@@ -270,6 +270,7 @@ export const ProgramacionFichasPage = () => {
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
+              onAction={() => setEvento((prev) => !prev)}
             />
           )}
 
@@ -494,7 +495,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
-                                Documento de la Ficha
+                                Documento de la Ficha 
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
                                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
@@ -620,6 +621,7 @@ export const ProgramacionFichasPage = () => {
         setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
+        onAction={() => setEvento((prev) => !prev)}
       />
 
       {/* Toast de notificación */}
