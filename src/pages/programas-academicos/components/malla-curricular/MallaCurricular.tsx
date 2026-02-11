@@ -218,7 +218,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                 </div>
               ) : (
                 <>
-                  <div className="mb-4 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-100">
+                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-100">
                     <Select
                       options={fichaOptions}
                       value={selectedFichaOption}
