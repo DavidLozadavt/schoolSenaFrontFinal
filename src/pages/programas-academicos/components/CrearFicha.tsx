@@ -156,7 +156,7 @@ const validationSchema = Yup.object({
       function (value) {
         const { fechaFinalClases } = this.parent;
         if (!value || !fechaFinalClases) return true;
-        return toDate(value)! > toDate(fechaFinalClases)!;
+        return toDate(value)! >= toDate(fechaFinalClases)!;
       }
     ),
 
