@@ -9,8 +9,8 @@ interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   setEvento: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowToast:(showToast:boolean) => void;
-  setMessageToast:(messageToast:string) => void;
+  setShowToast: (showToast: boolean) => void;
+  setMessageToast: (messageToast: string) => void;
 }
 
 interface Jornada {
@@ -106,6 +106,45 @@ const validationSchema = Yup.object({
 
   idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
 
+  idJornada: Yup.number()
+    .typeError('Debe seleccionar una jornada')
+    .required('Debe seleccionar una jornada'),
+
+  codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
+
+  fechaInicialInscripciones: Yup.string().required(
+    'La fecha inicial de inscripciones es obligatoria'
+  ),
+
+  fechaFinalInscripciones: Yup.string()
+    .required('La fecha final de inscripciones es obligatoria')
+    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+      const { fechaInicialInscripciones } = this.parent;
+      return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
+    }),
+
+  fechaInicialMatriculas: Yup.string()
+    .required('La fecha inicial de matrículas es obligatoria')
+    .test(
+      'matricula-after-or-equal-inscripcion',
+      'La fecha inicial de matrículas debe ser mayor o igual a la fecha inicial de inscripciones',
+      function (value) {
+        const { fechaInicialInscripciones } = this.parent;
+        return (
+          !value ||
+          !fechaInicialInscripciones ||
+          value >= fechaInicialInscripciones
+        );
+      }
+    ),
+
+  fechaFinalMatriculas: Yup.string()
+    .required('La fecha final de matrículas es obligatoria')
+    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial de matrículas', function (value) {
+      const { fechaInicialMatriculas } = this.parent;
+      return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
+    }),
+
   fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
 
   fechaFinalClases: Yup.string()
@@ -119,12 +158,6 @@ const validationSchema = Yup.object({
       }
     ),
 
-  idJornada: Yup.number()
-    .typeError('Debe seleccionar una jornada')
-    .required('Debe seleccionar una jornada'),
-
-  codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
-
   fechaInicialPlanMejoramiento: Yup.string().required(
     'La fecha inicial del plan de mejoramiento es obligatoria'
   ),
@@ -136,34 +169,20 @@ const validationSchema = Yup.object({
       return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
     }),
 
-  fechaInicialInscripciones: Yup.string().required(
-    'La fecha inicial de inscripciones es obligatoria'
-  ),
-
-  fechaFinalInscripciones: Yup.string()
-    .required('La fecha final de inscripciones es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialInscripciones } = this.parent;
-      return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-    }),
-
-  fechaInicialMatriculas: Yup.string().required('La fecha inicial de matrículas es obligatoria'),
-
-  fechaFinalMatriculas: Yup.string()
-    .required('La fecha final de matrículas es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialMatriculas } = this.parent;
-      return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
-    }),
   porcentajeEjecucion: Yup.number()
-  .typeError('Debe ser un número')
-  .min(1, 'No puede ser menor que 1')
-  .max(100, 'No puede ser mayor que 100')
-  .nullable(),
-
+    .typeError('Debe ser un número')
+    .min(1, 'No puede ser menor que 1')
+    .max(100, 'No puede ser mayor que 100')
+    .nullable()
 });
 
-const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, setEvento, setShowToast, setMessageToast }) => {
+const FormularioFichasSena: React.FC<Props> = ({
+  isModalOpen,
+  setIsModalOpen,
+  setEvento,
+  setShowToast,
+  setMessageToast
+}) => {
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
@@ -183,7 +202,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
       fechaFinalInscripciones: '',
       fechaInicialMatriculas: '',
       fechaFinalMatriculas: '',
-      porcentajeEjecucion:100
+      porcentajeEjecucion: 100
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
@@ -193,7 +212,7 @@ const FormularioFichasSena: React.FC<Props> = ({ isModalOpen, setIsModalOpen, se
         );
 
         await axios.post('fichas', payload);
-        setMessageToast('Ficha creada')
+        setMessageToast('Ficha creada');
         setShowToast(true);
         setEvento((prev) => !prev);
       } catch (error: any) {

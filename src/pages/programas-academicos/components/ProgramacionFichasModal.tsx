@@ -263,6 +263,7 @@ export const ProgramacionFichasPage = () => {
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
+              onAction={()=> setEvento((prev) => !prev)}
             />
           )}
 
@@ -450,7 +451,6 @@ export const ProgramacionFichasPage = () => {
                                 {ficha.regional?.razonSocial || '—'}
                               </p>
                             </div>
-                            
                           </div>
                           {ficha.documento ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
@@ -625,6 +625,7 @@ export const ProgramacionFichasPage = () => {
         setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
+        onAction={()=> setEvento((prev) => !prev)}
       />
 
       {/* Toast de notificación */}
