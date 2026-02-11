@@ -46,7 +46,7 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
     <>
       {/* Header del Trimestre */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-5 pb-4 border-b-2 border-gray-100 dark:border-gray-600">
-        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
+        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-600 flex items-center gap-2">
           <span className="text-primary">#{trimestre.grado.numeroGrado || index + 1}</span>
           TRIMESTRE
         </h3>
@@ -58,25 +58,25 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
       {/* Estadísticas del Trimestre */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Inicio</p>
-          <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Inicio</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
             {trimestre.grado.fechaInicio ? formatearFecha(trimestre.grado.fechaInicio) : '--:--:--'}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Fin</p>
-          <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Fin</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
             {trimestre.grado.fechaFin ? formatearFecha(trimestre.grado.fechaFin) : '--:--:--'}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Competencias</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Competencias</p>
           <p className="font-bold text-primary text-sm">
             {materiasArray.length || 0}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Progreso</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Progreso</p>
           <p className="font-bold text-green-600 dark:text-green-400 text-sm flex items-center justify-center gap-1">
             <TrendingUp size={14} />
             {trimestre.grado.fechaInicio && trimestre.grado.fechaFin 
