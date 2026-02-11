@@ -108,7 +108,7 @@ import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
-
+import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -978,6 +978,7 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
         </Route>
+        
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />
       <Route path="auth/*" element={<AuthPage />} />

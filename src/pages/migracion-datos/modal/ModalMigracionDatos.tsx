@@ -7,7 +7,7 @@ import { useSnackbar } from 'notistack';
 // Definimos endpoints por entidad
 const ENDPOINTS: Record<string, { upload: string; procedure: string }> = {
   trabajadores: { 
-    upload: '/cargar-trabajadores', 
+    upload: '/cargar-trabajadores',
     procedure: '/ejecutar_procedimiento_trabajadores'
   },
   estudiantes: { 
@@ -28,20 +28,31 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (file: File | null, entity?: string) => void;
-  entity?: string; // cualquier entidad
+  entity?: string;
 }
 
 const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }: ModalProps) => {
   const { enqueueSnackbar } = useSnackbar();
   const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const label = entity?.charAt(0).toUpperCase() + entity?.slice(1);
 
-  // 🔹 Resetear archivo cuando se abre o cierra el modal
   React.useEffect(() => {
-    if (!open) setFile(null); // se cierra modal → limpiar archivo
-    if (open) setFile(null);  // se abre modal → iniciar vacío
-  }, [open, entity]);
+    if (!open) {
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [open]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+    }
+  };
 
   const handleSave = async () => {
     if (!file) {
@@ -49,35 +60,43 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
       return;
     }
 
-    const config = ENDPOINTS[entity];
-    if (!config) {
-      enqueueSnackbar('Entidad no válida', { variant: 'error' });
-      return;
-    }
+    const delay = (ms: number) =>
+      new Promise(resolve => setTimeout(resolve, ms));
 
     try {
       const formData = new FormData();
       formData.append('archivo', file);
 
-      await axios.post(config.upload, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      await axios.post('/cargar-trabajadores', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      await axios.post(config.procedure);
+      enqueueSnackbar('Archivo cargado, procesando información...', {
+        variant: 'info',
+      });
 
-      enqueueSnackbar(`Archivo cargado correctamente para ${label}`, { variant: 'success' });
+      await delay(4000);
 
-      onSave?.(file, entity);
+      await axios.post('/ejecutar_procedimiento_trabajadores');
+
+      enqueueSnackbar('Proceso finalizado correctamente', {
+        variant: 'success',
+      });
 
       onClose();
+
     } catch (error: any) {
-      console.error(error);
+      console.error('Error en migración:', error);
+
       enqueueSnackbar(
-        error?.response?.data?.message || 'Error en la carga o ejecución del proceso',
+        error.response?.data?.message || 'Error en la carga o ejecución',
         { variant: 'error' }
       );
     }
   };
+
 
   return (
     <Modal open={open}>
@@ -100,24 +119,37 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
         <ModalBody>
           <div className="mb-6">
             <label className="block text-gray-700 font-medium mb-2">Archivo Excel</label>
-            <div className="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-2">
+            
+            {/* 🔹 INPUT FILE CORREGIDO */}
+            <div className="relative">
               <input
+                ref={fileInputRef}
                 type="file"
                 className="hidden"
                 id="fileUpload"
-                accept=".xlsx,.xls"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileChange}
               />
               <label
                 htmlFor="fileUpload"
-                className="cursor-pointer bg-white border px-4 py-2 rounded-md text-sm shadow"
+                className="cursor-pointer bg-white border border-gray-300 px-4 py-2 rounded-md text-sm shadow hover:bg-gray-50 transition-colors inline-block"
               >
                 Seleccionar archivo
               </label>
-              <span className="text-sm text-gray-500 truncate">
+              <span className="ml-3 text-sm text-gray-600">
                 {file ? file.name : 'Sin archivos seleccionados'}
               </span>
             </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h4 className="font-semibold text-blue-800 mb-2">Instrucciones:</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• Descarga la plantilla haciendo clic en "DESCARGAR"</li>
+              <li>• Llena los datos siguiendo el formato de las columnas</li>
+              <li>• No modifiques los nombres de las columnas</li>
+              <li>• Formatos admitidos: .xlsx, .xls, .csv</li>
+            </ul>
           </div>
 
           <hr className="my-6" />
@@ -126,7 +158,12 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
             <button className="btn btn-sm btn-secondary" onClick={onClose}>
               CANCELAR
             </button>
-            <button type="button" className="btn btn-sm btn-primary" onClick={handleSave}>
+            <button 
+              type="button" 
+              className="btn btn-sm btn-primary" 
+              onClick={handleSave}
+              disabled={!file}
+            >
               SUBIR
             </button>
           </div>
