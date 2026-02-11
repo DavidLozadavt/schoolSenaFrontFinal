@@ -69,38 +69,33 @@ const validationSchema = Yup.object({
 
   ciudad: Yup.object().nullable().required('La ciudad es obligatoria'),
 
-  responsable: Yup.object().nullable().required('El responsable es obligatorio'),
+  responsable: Yup.object().nullable(),
 
   empresa: Yup.object().nullable().required('La regional es obligatoria'),
 
   centroFormacion: Yup.object().nullable().required('El centro de formación es obligatorio'),
 
   jefeInmediato: Yup.string()
-    .required('El jefe inmediato es obligatorio')
     .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'Solo letras'),
 
   direccion: Yup.string()
     .trim()
-    .min(5, 'Dirección muy corta')
-    .required('La dirección es obligatoria'),
+    .min(5, 'Dirección muy corta'),
 
   descripcion: Yup.string()
     .max(250, 'Máximo 250 caracteres')
-    .nullable()
-    .required('La descripción es obligatoria'),
+    .nullable(),
 
-  email: Yup.string().email('Correo inválido').required('El correo es obligatorio'),
+  email: Yup.string().email('Correo inválido'),
 
   telefono: Yup.string()
     .matches(/^[0-9]+$/, 'Solo números')
     .min(7, 'Debe tener al menos 7 dígitos')
-    .max(10, 'Máximo 10 dígitos')
-    .required('El teléfono es obligatorio'),
+    .max(10, 'Máximo 10 dígitos'),
 
   celular: Yup.string()
     .matches(/^[0-9]+$/, 'Solo números')
-    .length(10, 'Debe tener 10 dígitos')
-    .required('El celular es obligatorio'),
+    .length(10, 'Debe tener 10 dígitos'),
 
   urlImagen: Yup.mixed<File>()
     .nullable()
