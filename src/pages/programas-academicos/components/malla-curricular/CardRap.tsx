@@ -5,8 +5,13 @@ export const CardRap = ({ materia }: any) => {
   const [horarios, setHorarios] = useState<any[]>([]);
 
   useEffect(() => {
-    setHorarios(materia.horarios.filter((h: any) => h.estado == 'ASIGNADO'));
-  }, []);
+    if (Array.isArray(materia?.horarios)) {
+      setHorarios(materia.horarios.filter((h: any) => h.estado === 'ASIGNADO'));
+    } else {
+      setHorarios([]);
+    }
+  }, [materia]);
+
   return (
     <div className="rounded-xl border border-gray-300 p-2 my-2 flex gap-4">
       {/* Contenido principal */}
