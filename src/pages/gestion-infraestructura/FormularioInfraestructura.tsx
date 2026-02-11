@@ -4,6 +4,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import * as Yup from 'yup';
 import Select from 'react-select';
 import { AuthContext } from '@/auth/providers/JWTProvider';
+import FormularioTipoInfraestructura from './FormularioTipoInfraestructura';
 
 interface Props {
   idInfraestructura?: string;
@@ -58,6 +59,11 @@ const FormularioInfraestructura: React.FC<Props> = ({
 
   const [tipoInfraestructura, setTipoInfraestructura] = useState<TipoInfraestructura[]>([]);
   const [sedes, setSedes] = useState<Sedes[]>([]);
+  
+  //Tipos de infraestructuras:
+  const [reloadTipos, setReloadTipos] = useState<boolean>(false);
+  //abrir el formulario tipo infraestructura:
+  const [formTiIn, setFormTiIn] = useState<boolean>(false);
 
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
@@ -115,7 +121,7 @@ const FormularioInfraestructura: React.FC<Props> = ({
     };
 
     if (authContext?.empresa?.id) loadData();
-  }, [authContext?.empresa?.id]);
+  }, [authContext?.empresa?.id,reloadTipos]);
 
   // ------------------------
   // Cargar datos edición
@@ -194,63 +200,85 @@ const FormularioInfraestructura: React.FC<Props> = ({
                 value={formik.values.idSede}
                 onChange={(v) => formik.setFieldValue('idSede', v)}
                 classNames={{
-                    control: () =>
-                      `
+                  control: () =>
+                    `
                       bg-white dark:bg-coal-400
                       border border-gray-300 dark:border-coal-200
                       text-gray-900 dark:text-gray-100
                       `,
-                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                    placeholder: () => 'text-gray-400 dark:text-gray-300',
-                    input: () => 'text-gray-900 dark:text-gray-100',
-                    menu: () => 'bg-white dark:bg-coal-500',
-                    option: ({ isFocused, isSelected }) =>
-                      `
+                  singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                  placeholder: () => 'text-gray-400 dark:text-gray-300',
+                  input: () => 'text-gray-900 dark:text-gray-100',
+                  menu: () => 'bg-white dark:bg-coal-500',
+                  option: ({ isFocused, isSelected }) =>
+                    `
                       text-gray-900 dark:text-gray-100
                       ${isSelected ? 'bg-primary-500 text-white' : ''}
                       ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
                       `,
-                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                    dropdownIndicator: () =>
-                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                    clearIndicator: () =>
-                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                  }}
+                  indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                  dropdownIndicator: () =>
+                    'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                  clearIndicator: () =>
+                    'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                }}
               />
             </div>
 
             {/* Tipo */}
             <div>
               <label className="text-sm font-medium text-gray-700">Tipo de ambiente</label>
-              <Select
-                options={optionsInfra}
-                isClearable
-                value={formik.values.idTipoInfraestructura}
-                onChange={(v) => formik.setFieldValue('idTipoInfraestructura', v)}
-                classNames={{
-                    control: () =>
-                      `
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    options={optionsInfra}
+                    isClearable
+                    value={formik.values.idTipoInfraestructura}
+                    onChange={(v) => formik.setFieldValue('idTipoInfraestructura', v)}
+                    classNames={{
+                      control: () =>
+                        `
                       bg-white dark:bg-coal-400
                       border border-gray-300 dark:border-coal-200
                       text-gray-900 dark:text-gray-100
                       `,
-                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                    placeholder: () => 'text-gray-400 dark:text-gray-300',
-                    input: () => 'text-gray-900 dark:text-gray-100',
-                    menu: () => 'bg-white dark:bg-coal-500',
-                    option: ({ isFocused, isSelected }) =>
-                      `
+                      singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                      placeholder: () => 'text-gray-400 dark:text-gray-300',
+                      input: () => 'text-gray-900 dark:text-gray-100',
+                      menu: () => 'bg-white dark:bg-coal-500',
+                      option: ({ isFocused, isSelected }) =>
+                        `
                       text-gray-900 dark:text-gray-100
                       ${isSelected ? 'bg-primary-500 text-white' : ''}
                       ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
                       `,
-                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                    dropdownIndicator: () =>
-                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                    clearIndicator: () =>
-                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                  }}
-              />
+                      indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                      dropdownIndicator: () =>
+                        'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                      clearIndicator: () =>
+                        'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormTiIn(true)}
+                  className="
+                    h-[38px] w-[38px]
+                    flex items-center justify-center
+                    border border-gray-300 rounded-md
+                    text-lg font-medium
+                    text-gray-600
+                    hover:border-blue-500 hover:text-blue-600
+                    focus:outline-none focus:ring-2 focus:ring-blue-500
+                    disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed
+                    transition
+                  "
+                  title="Agregar ambiente"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* Nombre */}
@@ -259,7 +287,7 @@ const FormularioInfraestructura: React.FC<Props> = ({
               <input
                 {...formik.getFieldProps('nombreInfraestructura')}
                 onChange={(e) => handleUppercase('nombreInfraestructura', e.target.value)}
-                  onBlur={formik.handleBlur}
+                onBlur={formik.handleBlur}
                 className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 "
               />
               {formik.touched.nombreInfraestructura && formik.errors.nombreInfraestructura && (
@@ -302,6 +330,11 @@ const FormularioInfraestructura: React.FC<Props> = ({
           </div>
         </form>
       </div>
+      <FormularioTipoInfraestructura
+      isModalOpen={formTiIn}
+      setReloadTipos={setReloadTipos}
+      setIsModalOpen={setFormTiIn}
+      />
     </div>
   );
 };
