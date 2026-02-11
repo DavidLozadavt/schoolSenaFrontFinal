@@ -5,6 +5,7 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
   const [trimestres, setTrimestres] = useState<any[]>([]);
   const [nuevoTrimestre, setNuevoTrimestre] = useState<any | null>(null);
   const [guardandoTrimestre, setGuardandoTrimestre] = useState(false);
+  const [loadingTrimestres, setLoadingTrimestres] = useState<boolean>(false);
 
   // estado para toast
   const [toast, setToast] = useState<boolean>(false);
@@ -15,12 +16,14 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
     const idFicha = fichaIdParam || fichaId;
     if (!idFicha) {
       setTrimestres([]);
+      setLoadingTrimestres(true)
       return;
     }
 
     try {
       const response = await axios.get(`trimestres-ficha/${idFicha}`);
       setTrimestres(response.data.data || []);
+      setLoadingTrimestres(true)
       setNuevoTrimestre(null);
     } catch {
       setTrimestres([]);
@@ -160,6 +163,8 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
     guardarTrimestre,
     quitarUltimoTrimestre,
     toast,
-    setToast
+    setToast,
+    loadingTrimestres,
+    programaId
   };
 };
