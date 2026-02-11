@@ -137,7 +137,7 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
     }
   };
 
-  const asignarCompetenciasTrimestre = async (idGradoPrograma: number, materias: any[]): Promise<boolean> => {
+  const asignarCompetenciasTrimestre = async (idGradoPrograma: number, materias: any[], idFicha:number): Promise<boolean> => {
     if (!idGradoPrograma) {
       alert('ID de trimestre no válido');
       return false;
@@ -153,7 +153,8 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
       
       await axios.post('competencias/trimestre', {
         idGradoPrograma,
-        materias: materias
+        materias: materias,
+        idFicha: idFicha
       });
 
       setToast(true);

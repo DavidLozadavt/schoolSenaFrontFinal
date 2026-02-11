@@ -119,7 +119,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
     if (nuevoTrimestre) {
       actualizarMaterias(data.materias);
     } else if (selectedFicha?.id) {
-      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias);
+      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias, selectedFicha.id);
       if (success) {
         await cargarTrimestres(selectedFicha.id);
         setIsMateriaModalOpen(false);
