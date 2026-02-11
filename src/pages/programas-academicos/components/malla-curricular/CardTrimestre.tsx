@@ -7,6 +7,7 @@ interface CardTrimestreProps {
   trimestre: any;
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string) => void;
 }
 
 const formatearFecha = (fecha: Date): string => {
@@ -37,8 +38,14 @@ const obtenerClaseEstado = (estado: string) => {
   return estados[estado] || '';
 };
 
-export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, onAbrirMaterias, setSelectedNivelId }) => {
-  // Verificar si materias es un array de objetos o de IDs
+export const CardTrimestre: React.FC<CardTrimestreProps> = ({ 
+  trimestre, 
+  index, 
+  onAbrirMaterias, 
+  setSelectedNivelId,
+  onVerRaps
+}) => {
+  // Verificar si materias es un array
   const materiasArray = Array.isArray(trimestre.materias) ? trimestre.materias : [];
   const tieneObjetosCompletos = materiasArray.length > 0 && typeof materiasArray[0] === 'object';
 
@@ -95,31 +102,15 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
         {materiasArray.length > 0 ? (
           <div className="space-y-3">
             {tieneObjetosCompletos ? (
-              // Si son objetos completos (trimestres existentes de la API)
               materiasArray.map((materia: any) => (
-                <CardRap key={materia.id} materia={materia} />
+                <CardRap 
+                  key={materia.id} 
+                  materia={materia} 
+                  onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
+                />
               ))
-            ) : (
-              // Si son solo IDs (nuevo trimestre temporal)
-              materiasArray.map((idMateria: number) => (
-                <div 
-                  key={idMateria}
-                  className="p-3 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-300 dark:border-gray-600 flex items-center gap-3"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <i className="ki-outline ki-book text-lg font-bold"></i>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-gray-800 dark:text-white">
-                      Competencia ID: {idMateria}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Pendiente de guardar
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
+            ) : (<div ></div>)
+          }
           </div>
         ) : (
           <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -131,8 +122,8 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
 
         <button
           onClick={() => {
-            onAbrirMaterias(trimestre.id);
-            setSelectedNivelId(trimestre.id);
+            onAbrirMaterias(trimestre.idGradoPrograma);
+            setSelectedNivelId(trimestre.grado.idGradoPrograma);
           }}
           className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
         >

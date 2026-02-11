@@ -58,11 +58,14 @@ export interface MallaCurricularProps {
 }
 
 export interface AsignarMateriaProps {
-  idPrograma: number | null;
+  idPrograma: number;
   isOpen: boolean;
   onClose: () => void;
-  nivelId?: string;
-  onMateriasSeleccionadas:any
+  nivelId: number | null; // Este es el idGradoPrograma
+  onMateriasSeleccionadas: (data: { 
+    idGradoPrograma: number; 
+    materias: number[] 
+  }) => void;
 }
 
 export interface RecursoItem {

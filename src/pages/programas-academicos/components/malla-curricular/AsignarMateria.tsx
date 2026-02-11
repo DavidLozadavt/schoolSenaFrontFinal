@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { AsignarMateriaProps } from '../../types';
 import { Pencil } from 'lucide-react';
@@ -20,13 +20,24 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const [buscar, setBuscar] = useState<string>('');
   const [toast, setToast] = useState<boolean>(false);
 
+  // referencia del formulario para cuando le de editar
+  const formRef = useRef<HTMLDivElement>(null);
+
   // Cargar materias disponibles cuando se abre el modal
   useEffect(() => {
+      if (showForm && formRef.current) {
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start'
+      });
+    }, 100);
+  }
     if (isOpen) {
       cargarMaterias();
       setMateriasSeleccionadas([]); // Limpiar selección al abrir
     }
-  }, [isOpen]);
+  }, [isOpen, showForm]);
 
   const cargarMaterias = async () => {
     setLoading(true);
@@ -81,7 +92,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   // Confirmar y enviar al componente padre
   const handleConfirmar = () => {
     if (onMateriasSeleccionadas) {
-      onMateriasSeleccionadas(materiasSeleccionadas);
+      onMateriasSeleccionadas({idGradoPrograma:nivelId??0, materias: materiasSeleccionadas});
     }
     
     // Limpiar selección y cerrar
@@ -113,7 +124,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
         <div className="p-5 border-b border-gray-400 dark:border-gray-dark-100 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
           <div>
             <h3 className="text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest">
-              Asignar Competencias - Trimestre #{nivelId}
+              Asignar Competencias
             </h3>
             <p className="text-4xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-tighter">
               {materiasSeleccionadas.length} competencia(s) seleccionada(s)
@@ -149,8 +160,9 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                 className={`text-4xs font-black px-3 py-1.5 rounded-lg border-2 transition-all whitespace-nowrap ${
                   showForm 
                     ? 'bg-danger/10 border-danger/40 text-danger' 
-                    : 'bg-primary/10 border-primary/40 text-primary'
+                    : 'bg-primary/10 border-primary/40 text-primary disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
+                disabled={showForm?false:true}
               >
                 {showForm ? 'CANCELAR' : '+ CREAR NUEVA'}
               </button>
@@ -158,13 +170,15 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
 
             {/* Formulario de Creación/Edición */}
             {showForm && (
+              <div ref={formRef}>
               <FormCompetencia 
                 programId={idPrograma ?? 0}
                 competenciaId={editingCompetenciaId}
                 onSuccess={handleFormSuccess}
                 onCancel={handleFormCancel}
                 setToast={setToast}
-              />
+                />
+              </div>
             )}
 
             {/* Lista de Materias con Checkboxes */}
