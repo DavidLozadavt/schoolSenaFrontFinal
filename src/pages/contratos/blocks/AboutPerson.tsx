@@ -38,7 +38,7 @@ const AboutPerson = ({ contrato, onEdit }: AboutPersonProps) => {
           {onEdit && (
             <button
               onClick={onEdit}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
               title="Editar datos de la persona"
             >
               <KeenIcon className="text-sm text-primary" icon="pencil" />
@@ -52,40 +52,40 @@ const AboutPerson = ({ contrato, onEdit }: AboutPersonProps) => {
           {/* Columna Izquierda */}
           <div className="space-y-4">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Nombre Completo</p>
-              <p className="text-xs font-bold text-gray-900">{nombreCompleto || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Nombre Completo</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{nombreCompleto || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Identificación</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.identificacion || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Identificación</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.identificacion || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Celular</p>
-              <p className="text-xs font-bold text-gray-900">{formatCelular(contrato?.persona?.celular)}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Celular</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{formatCelular(contrato?.persona?.celular)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Dirección</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.direccion || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Dirección</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.direccion || 'N/A'}</p>
             </div>
           </div>
 
           {/* Columna Derecha */}
           <div className="space-y-4">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Correo Electrónico</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.email || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Correo Electrónico</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.email || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Fecha de Nacimiento</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.fechaNac || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Fecha de Nacimiento</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.fechaNac || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Sexo</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.sexo || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Sexo</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.sexo || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">RH</p>
-              <p className="text-xs font-bold text-gray-900">{contrato?.persona?.rh || 'N/A'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">RH</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.persona?.rh || 'N/A'}</p>
             </div>
           </div>
         </div>

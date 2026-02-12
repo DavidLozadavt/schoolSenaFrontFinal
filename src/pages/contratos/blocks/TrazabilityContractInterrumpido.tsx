@@ -24,13 +24,13 @@ const TrazabilityContractInterrumpido = ({
       <div className="card-body">
         <div className="space-y-4">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Observacion</p>
-            <p className="text-xs font-bold text-gray-900">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Observacion</p>
+            <p className="text-xs font-bold text-gray-900 dark:text-white">
               {archivoContrato?.observacion || 'No hay observación disponible'}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Comprobante</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Comprobante</p>
             {archivoContrato?.rutaArchivoContratoUrl ? (
               <a
                 href={archivoContrato.rutaArchivoContratoUrl}
@@ -41,7 +41,7 @@ const TrazabilityContractInterrumpido = ({
                 Revisar Comprobante
               </a>
             ) : (
-              <p className="text-xs font-bold text-gray-900">No hay comprobante</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">No hay comprobante</p>
             )}
           </div>
         </div>

@@ -38,22 +38,14 @@ interface ProgramaAPI {
   tipoFormacion?: TipoFormacion;
 }
 
-// Estilos para scroll suave y delicado
+// Estilos para ocultar scrollbar
 const programsScrollStyles = `
+  .programs-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
   .programs-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-  .programs-scroll::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
-  }
-  .programs-scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-    transition: background 0.2s ease;
-  }
-  .programs-scroll::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    display: none;
   }
 `;
 
@@ -212,29 +204,29 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
         <div className="card-body py-3">
           {/* Barra de búsqueda */}
           <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-2">Buscar Programa</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar Programa</label>
             <div className="relative">
               <KeenIcon
                 icon="magnifier"
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm"
               />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por nombre, código o descripción..."
-                className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-transparent dark:bg-transparent text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
           </div>
 
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-xs text-gray-500">Cargando programas...</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Cargando programas...</p>
             </div>
           ) : filteredProgramas.length === 0 ? (
             <div className="text-center py-4">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {searchTerm
                   ? 'No se encontraron programas con ese criterio'
                   : 'No hay programas disponibles'}
@@ -244,10 +236,6 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
             <>
               <div
                 className="programs-scroll max-h-[350px] overflow-y-auto pr-2 scroll-smooth"
-                style={{
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: '#cbd5e1 #f1f5f9',
-                }}
               >
                 <div className="space-y-2 pb-1">
                   {filteredProgramas.map((programa) => {
@@ -257,27 +245,36 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                         key={programa.id}
                         className={`flex items-start gap-3 px-3 py-3 rounded-lg border-2 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-blue-50 border-primary'
-                            : 'bg-white border-gray-300 hover:border-gray-400'
+                            ? 'bg-transparent dark:bg-transparent border-primary'
+                            : 'bg-transparent dark:bg-transparent border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleProgram(programa.id)}
-                          className="w-4 h-4 mt-0.5 text-primary border-gray-300 rounded focus:ring-primary"
+                          className="w-4 h-4 mt-0.5 rounded focus:ring-primary appearance-none"
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: isSelected ? '2px solid var(--tw-primary)' : '2px solid rgb(209, 213, 219)',
+                            borderColor: isSelected ? 'var(--tw-primary)' : 'rgb(209, 213, 219)',
+                            backgroundImage: isSelected ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'9\' viewBox=\'0 0 12 9\' fill=\'none\'%3E%3Cpath d=\'M10.3667 0.541643L4.80007 6.10831L1.56674 2.87498C1.41061 2.71977 1.1994 2.63265 0.979241 2.63265C0.759086 2.63265 0.547876 2.71977 0.391741 2.87498C0.236532 3.03111 0.149414 3.24232 0.149414 3.46248C0.149414 3.68263 0.236532 3.89384 0.391741 4.04998L4.21674 7.87498C4.37288 8.03019 4.58409 8.1173 4.80424 8.1173C5.0244 8.1173 5.23561 8.03019 5.39174 7.87498L11.5417 1.72498C11.6198 1.64751 11.6818 1.55534 11.7241 1.45379C11.7665 1.35224 11.7882 1.24332 11.7882 1.13331C11.7882 1.0233 11.7665 0.914379 11.7241 0.81283C11.6818 0.711281 11.6198 0.619113 11.5417 0.541643C11.3856 0.386434 11.1744 0.299316 10.9542 0.299316C10.7341 0.299316 10.5229 0.386434 10.3667 0.541643Z\' fill=\'%23006AE6\'/%3E%3C/svg%3E")' : 'none',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'center',
+                            backgroundSize: 'contain'
+                          }}
                         />
                         <div className="flex-1">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <p
                                 className={`text-xs font-semibold mb-1 ${
-                                  isSelected ? 'text-primary' : 'text-gray-900'
+                                  isSelected ? 'text-primary' : 'text-gray-900 dark:text-white'
                                 }`}
                               >
                                 {programa.nombrePrograma}
                               </p>
-                              <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                              <div className="flex flex-wrap gap-3 text-xs text-gray-600 dark:text-gray-400">
                                 <span>
                                   <span className="font-medium">Acrónimo:</span> {programa.codigoPrograma}
                                 </span>
@@ -306,8 +303,8 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-200">
-                <div className="flex items-center justify-center bg-blue-50 rounded-lg px-3 py-2">
+              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-center bg-transparent dark:bg-transparent rounded-lg px-3 py-2">
                   <p className="text-xs font-semibold text-primary">
                     {selectedCount} programa{selectedCount !== 1 ? 's' : ''} asignado
                     {selectedCount !== 1 ? 's' : ''}

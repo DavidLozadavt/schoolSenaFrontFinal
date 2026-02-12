@@ -9,30 +9,6 @@ import { getAuth } from '@/auth';
 import Toast from '../../programas-academicos/components/Toast';
 import ConfirmarEliminar from '../../programas-academicos/components/ConfirmarEliminar';
 
-// Estilos para el hover azul claro en las opciones del select
-// Usando un enfoque más agresivo para forzar el color azul claro
-const selectHoverStyle = `
-  select#documentType option {
-    background-color: white !important;
-    color: #1F2937 !important;
-  }
-  select#documentType option:hover,
-  select#documentType option:focus {
-    background: #E3F2FD !important;
-    background-color: #E3F2FD !important;
-    color: #1976D2 !important;
-  }
-  select#documentType option:checked {
-    background: #E3F2FD !important;
-    background-color: #E3F2FD !important;
-    color: #1976D2 !important;
-  }
-  /* Para navegadores que soportan ::-ms-value */
-  select#documentType option::-ms-value {
-    background: #E3F2FD !important;
-    color: #1976D2 !important;
-  }
-`;
 
 interface IRecentUploadsItem {
   image: string;
@@ -228,36 +204,36 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
     return (
       <div 
         key={index} 
-        className="flex items-center gap-3 py-2 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-3 py-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
         <KeenIcon icon="document" className="text-lg text-primary flex-shrink-0" />
         <button
           onClick={() => handleViewDocument(item.id)}
-          className="flex-1 text-left text-sm font-medium text-gray-900 hover:text-primary transition-colors"
+          className="flex-1 text-left text-sm font-medium text-gray-900 dark:text-white hover:text-primary transition-colors"
         >
           {item.desc}
         </button>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => handleDownloadDocument(item.id, item.desc)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
             title="Descargar documento"
           >
-            <KeenIcon icon="file-down" className="text-lg text-gray-400 hover:text-primary transition-colors" />
+            <KeenIcon icon="file-down" className="text-lg text-gray-400 dark:text-gray-500 hover:text-primary transition-colors" />
           </button>
           <button
             onClick={() => handleEditDocument(item)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
             title="Editar documento"
           >
-            <KeenIcon icon="pencil" className="text-lg text-gray-400 hover:text-primary transition-colors" />
+            <KeenIcon icon="pencil" className="text-lg text-gray-400 dark:text-gray-500 hover:text-primary transition-colors" />
           </button>
           <button
             onClick={() => handleConfirmChange(item)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
             title="Eliminar documento"
           >
-            <KeenIcon icon="trash" className="text-lg text-gray-400 hover:text-red-500 transition-colors" />
+            <KeenIcon icon="trash" className="text-lg text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors" />
           </button>
         </div>
       </div>
@@ -280,14 +256,14 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
               {items.map((item, index) => renderItem(item, index))}
             </div>
           ) : (
-            <div className="text-xs text-gray-500 text-center py-4">No hay documentos disponibles.</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No hay documentos disponibles.</div>
           )}
         </div>
 
-        <div className="card-footer border-t border-gray-200 pt-4">
+        <div className="card-footer border-t border-gray-200 dark:border-gray-700 pt-4">
           <button
             onClick={() => setIsModalNewDocumentOpen(true)}
-            className="w-full border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg py-3 px-4 flex items-center justify-center gap-2 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+            className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 flex items-center justify-center gap-2 hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-transparent dark:bg-transparent"
           >
             <KeenIcon icon="file-up" className="text-lg text-primary" />
             <span className="text-sm font-medium text-primary">Cargar Nuevo Documento</span>
@@ -325,11 +301,7 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
                 id="documentType"
                 value={newDocumentType}
                 onChange={(e) => setNewDocumentType(e.target.value)}
-                className="form-select focus:ring-2 focus:ring-primary focus:border-primary"
-                style={{
-                  backgroundColor: newDocumentType ? '#E3F2FD' : 'white',
-                  color: newDocumentType ? '#1976D2' : '#1F2937'
-                }}
+                className="select w-full"
               >
                 <option value="">Seleccione un tipo</option>
                 {availableDocumentTypes.map((doc) => (
@@ -338,21 +310,6 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
                   </option>
                 ))}
               </select>
-              <style>{`
-                ${selectHoverStyle}
-                /* Estilo global para todas las opciones del select - forzar azul claro en hover */
-                select#documentType option:hover {
-                  background-color: #E3F2FD !important;
-                  background: #E3F2FD !important;
-                  color: #1976D2 !important;
-                }
-                select#documentType option:active,
-                select#documentType option:focus {
-                  background-color: #E3F2FD !important;
-                  background: #E3F2FD !important;
-                  color: #1976D2 !important;
-                }
-              `}</style>
             </div>
             <div>
               <label htmlFor="newFile" className="block text-sm font-medium mb-2">

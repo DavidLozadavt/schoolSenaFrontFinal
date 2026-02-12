@@ -67,14 +67,23 @@ const SidebarMenu = () => {
         }
         if (item.children) {
           const filteredChildren = item.children.filter((child) => {
+            // Don't show items with HIDDEN permission
+            if (child.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+              return false;
+            }
             return (
               child.requiredPermissions &&
               child.requiredPermissions.some((perm) => permissions.includes(perm))
             );
           });
 
+          // Always pass all children (including hidden ones) for route recognition
+          // but only render the filtered ones
           if (filteredChildren.length > 0) {
-            return buildMenuItemRoot({ ...item, children: filteredChildren }, index);
+            return buildMenuItemRoot({ ...item, children: item.children }, index);
+          } else if (item.children.some((child) => child.requiredPermissions?.some((perm) => perm.includes('HIDDEN')))) {
+            // If only hidden children exist, still render the parent for route recognition
+            return buildMenuItemRoot({ ...item, children: item.children }, index);
           } else {
             return null;
           }
@@ -181,6 +190,10 @@ const SidebarMenu = () => {
       if (item.disabled) {
         return buildMenuItemChildDisabled(item, index, level);
       } else {
+        // Don't render items with HIDDEN permission, but they're still in the config for route recognition
+        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+          return null;
+        }
         return buildMenuItemChild(item, index, level);
       }
     });

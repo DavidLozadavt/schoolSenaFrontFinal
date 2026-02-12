@@ -48,12 +48,19 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   useEffect(() => {
     if (open) {
       if (empresa) {
+        // Obtener idCentroFormacion de diferentes ubicaciones posibles
+        const idCentroFormacionValue = 
+          contrato?.idCentroFormacion ? String(contrato.idCentroFormacion) :
+          contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) :
+          contrato?.persona?.usuario?.centroFormacion?.id ? String(contrato.persona.usuario.centroFormacion.id) :
+          '';
+        
         setFormData({
           razonSocial: empresa.razonSocial || '',
           nit: empresa.nit || '',
           digitoVerificacion: empresa.digitoVerificacion || '',
           idArea: area?.id ? String(area.id) : '',
-          idCentroFormacion: contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) : ''
+          idCentroFormacion: idCentroFormacionValue
         });
         setLogoFile(null);
         setLogoPreview(empresa.rutaLogoUrl || null);
@@ -74,18 +81,31 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
 
   // Efecto para actualizar idCentroFormacion después de cargar los centros
   useEffect(() => {
-    if (centrosFormacion.length > 0 && contrato?.persona?.usuario?.idCentroFormacion) {
-      const idCentroFormacionValue = String(contrato.persona.usuario.idCentroFormacion);
-      const centroExiste = centrosFormacion.find((c: any) => String(c.id) === idCentroFormacionValue);
+    if (centrosFormacion.length > 0 && contrato && open) {
+      // Buscar idCentroFormacion en diferentes ubicaciones
+      const idCentroFormacionValue = 
+        contrato?.idCentroFormacion ? String(contrato.idCentroFormacion) :
+        contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) :
+        contrato?.persona?.usuario?.centroFormacion?.id ? String(contrato.persona.usuario.centroFormacion.id) :
+        '';
       
-      if (centroExiste && formData.idCentroFormacion !== idCentroFormacionValue) {
-        setFormData(prev => ({
-          ...prev,
-          idCentroFormacion: idCentroFormacionValue
-        }));
+      console.log('useEffect - idCentroFormacionValue:', idCentroFormacionValue);
+      console.log('useEffect - formData.idCentroFormacion actual:', formData.idCentroFormacion);
+      
+      if (idCentroFormacionValue) {
+        const centroExiste = centrosFormacion.find((c: any) => String(c.id) === idCentroFormacionValue);
+        console.log('useEffect - centroExiste:', centroExiste);
+        
+        if (centroExiste && formData.idCentroFormacion !== idCentroFormacionValue) {
+          console.log('useEffect - Actualizando formData con idCentroFormacion:', idCentroFormacionValue);
+          setFormData(prev => ({
+            ...prev,
+            idCentroFormacion: idCentroFormacionValue
+          }));
+        }
       }
     }
-  }, [centrosFormacion, contrato]);
+  }, [centrosFormacion, contrato, open]);
 
   const fetchAreas = async () => {
     setLoadingAreas(true);
@@ -135,25 +155,58 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   const fetchCentrosFormacion = async () => {
     setLoadingCentros(true);
     try {
-      const res = await axios.get(`centrosFormacion/regional-contratacion/${authContext?.empresa?.id}`);
-      const centrosCargados = res.data.data || [];
+      if (!authContext?.empresa?.id) {
+        console.warn('No hay empresa ID disponible en authContext');
+        setCentrosFormacion([]);
+        return;
+      }
+
+      console.log('Cargando centros para empresa ID:', authContext.empresa.id);
+      const res = await axios.get(`centrosFormacion`);
+      console.log('Respuesta centros:', res.data);
+      
+      const centrosCargados = res.data?.data || res.data || [];
       setCentrosFormacion(centrosCargados);
       
+      console.log('Centros cargados:', centrosCargados);
+      console.log('Contrato completo:', contrato);
+      console.log('idCentroFormacion en contrato:', contrato?.idCentroFormacion);
+      console.log('idCentroFormacion en usuario:', contrato?.persona?.usuario?.idCentroFormacion);
+      console.log('centroFormacion en usuario:', contrato?.persona?.usuario?.centroFormacion);
+      
       // Asegurar que el idCentroFormacion se establezca después de cargar los centros
-      if (contrato?.persona?.usuario?.idCentroFormacion && centrosCargados.length > 0) {
-        const idCentroFormacionValue = String(contrato.persona.usuario.idCentroFormacion);
-        const centroExiste = centrosCargados.find((c: any) => String(c.id) === idCentroFormacionValue);
+      if (contrato && centrosCargados.length > 0) {
+        // Buscar idCentroFormacion en diferentes ubicaciones
+        const idCentroFormacionValue = 
+          contrato?.idCentroFormacion ? String(contrato.idCentroFormacion) :
+          contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) :
+          contrato?.persona?.usuario?.centroFormacion?.id ? String(contrato.persona.usuario.centroFormacion.id) :
+          '';
         
-        if (centroExiste) {
-          setFormData(prev => ({
-            ...prev,
-            idCentroFormacion: idCentroFormacionValue
-          }));
+        console.log('idCentroFormacionValue encontrado:', idCentroFormacionValue);
+        
+        if (idCentroFormacionValue) {
+          const centroExiste = centrosCargados.find((c: any) => String(c.id) === idCentroFormacionValue);
+          console.log('Centro existe en la lista:', centroExiste);
+          
+          if (centroExiste) {
+            console.log('Estableciendo idCentroFormacion en formData:', idCentroFormacionValue);
+            setFormData(prev => ({
+              ...prev,
+              idCentroFormacion: idCentroFormacionValue
+            }));
+          } else {
+            console.warn('El centro de formación no existe en la lista cargada');
+          }
+        } else {
+          console.warn('No se encontró idCentroFormacion en el contrato');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cargar centros de formación:', error);
+      console.error('Error response:', error?.response?.data);
       enqueueSnackbar('Error al cargar los centros de formación.', { variant: 'error' });
+      setCentrosFormacion([]);
     } finally {
       setLoadingCentros(false);
     }
@@ -201,7 +254,12 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
       
       // Si hay cambio de área y hay contratoId, actualizar el contrato
       const areaActual = area?.id ? String(area.id) : '';
-      const centroActual = contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) : '';
+      // Buscar centro actual en diferentes ubicaciones
+      const centroActual = 
+        contrato?.idCentroFormacion ? String(contrato.idCentroFormacion) :
+        contrato?.persona?.usuario?.idCentroFormacion ? String(contrato.persona.usuario.idCentroFormacion) :
+        contrato?.persona?.usuario?.centroFormacion?.id ? String(contrato.persona.usuario.centroFormacion.id) :
+        '';
       
       const updates: any = {};
       if (formData.idArea && contratoId && formData.idArea !== areaActual) {
@@ -238,7 +296,7 @@ const ModalUpdateCompany = ({ open, onClose, empresa, contratoId, area, areas = 
   return (
     <>
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
+      <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto no-scrollbar">
         <ModalHeader>
           <ModalTitle>Editar Empresa</ModalTitle>
           <button

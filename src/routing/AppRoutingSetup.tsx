@@ -107,6 +107,8 @@ import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion
 import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
+import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
+import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 // Componentes temporales para pruebas
@@ -974,6 +976,24 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
                 <Infraestructura />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ambiente Virtual */}
+          <Route
+            path="/ambiente-virtual/historial-raps"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <HistorialRAPsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/clase/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ClaseDetallePage />
               </ProtectedRoute>
             }
           />
