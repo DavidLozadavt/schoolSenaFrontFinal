@@ -15,6 +15,7 @@ interface Ficha {
   porcentajeEjecucion: number;
   idInstructorLider?: number | null;
   documento?: string | null;
+  rutaDocumentoUrl:string | null;
 
   jornada?: {
     id: number;
@@ -481,7 +482,7 @@ export const ProgramacionFichasPage = () => {
                                   <div className="flex gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => window.open(ficha.documento!, '_blank')}
+                                      onClick={() => window.open(ficha.rutaDocumentoUrl!, '_blank')}
                                       className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                                     >
                                       <i className="ki-outline ki-eye"></i>

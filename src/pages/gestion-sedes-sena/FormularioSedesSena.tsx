@@ -123,7 +123,6 @@ const FormularioSedesSena: React.FC<Props> = ({
   const [centrosFormacion, setCentrosFormacion] = useState<CentroFormacion[]>([]);
   const [responsable, setResponsable] = useState<Responsable[]>([]);
   const [imagenActual, setImagenActual] = useState<string | null>(null);
-  const Back = import.meta.env.VITE_APP_BACKEND_URL;
 
   // Manejar el error
   const [errorOpen, setErrorOpen] = useState(false);
@@ -318,7 +317,7 @@ const FormularioSedesSena: React.FC<Props> = ({
             urlImagen: null
           });
 
-          setImagenActual(data.urlImagen);
+          setImagenActual(data.rutaFotoUrl);
         } catch (error) {
           console.error('Error al cargar la sede:', error);
           setErrorMessage('Error al cargar la sede');
@@ -740,7 +739,7 @@ const FormularioSedesSena: React.FC<Props> = ({
                 <div className="md:col-span-2">
                   <p className="text-xs text-gray-500 mb-1">Imagen actual</p>
                   <img
-                    src={`${Back}${imagenActual}`}
+                    src={`${imagenActual}`}
                     alt="Imagen actual"
                     className="h-20 rounded-lg border object-contain"
                   />
