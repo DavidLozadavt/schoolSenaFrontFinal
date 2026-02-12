@@ -179,7 +179,7 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
   return (
     <>
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto">
+      <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto no-scrollbar">
         <ModalHeader>
           <ModalTitle>Editar Datos del Contrato</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>

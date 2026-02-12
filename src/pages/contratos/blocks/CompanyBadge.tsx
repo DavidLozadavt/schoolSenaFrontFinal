@@ -23,7 +23,7 @@ const CompanyBadge = ({ title, contrato, onSave }: ICommunityBadgesProps) => {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
               title="Editar empresa"
             >
               <KeenIcon className="text-sm text-primary" icon="pencil" />
@@ -47,16 +47,16 @@ const CompanyBadge = ({ title, contrato, onSave }: ICommunityBadgesProps) => {
           )}
           
           <div className="flex-1">
-            <p className="text-sm font-bold text-gray-900 mb-1">{contrato?.empresa?.razonSocial || 'SENA'}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white mb-1">{contrato?.empresa?.razonSocial || 'SENA'}</p>
             {contrato?.persona?.usuario?.centroFormacion?.nombre ? (
-              <p className="text-xs text-gray-600 mb-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
                 {contrato.persona.usuario.centroFormacion.nombre}
               </p>
             ) : null}
-            <p className="text-xs font-bold text-gray-900 mb-1">
+            <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">
               NIT: {contrato?.empresa?.nit || 'N/A'}{contrato?.empresa?.digitoVerificacion ? `-${contrato.empresa.digitoVerificacion}` : ''}
             </p>
-            <p className="text-xs font-bold text-gray-900">
+            <p className="text-xs font-bold text-gray-900 dark:text-white">
               Área: <span className="font-normal">{contrato?.area?.nombre || 'N/A'}</span>
             </p>
           </div>

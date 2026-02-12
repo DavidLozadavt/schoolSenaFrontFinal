@@ -94,7 +94,7 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
         <div className="card-body py-3">
           {loading ? (
             <div className="text-center py-2">
-              <p className="text-xs text-gray-500">Cargando niveles...</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Cargando niveles...</p>
             </div>
           ) : (
             <>
@@ -107,8 +107,8 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
                       onClick={() => handleSelectLevel(nivel.id)}
                       className={`px-3 py-2 rounded-lg border-2 transition-all text-xs font-medium ${
                         isSelected
-                          ? 'bg-blue-50 border-primary text-primary font-semibold'
-                          : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                          ? 'bg-transparent dark:bg-transparent border-primary text-primary font-semibold'
+                          : 'bg-transparent dark:bg-transparent border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       {nivel.nombre}
@@ -118,10 +118,10 @@ const AcademicLevel = ({ contrato, onSave }: AcademicLevelProps) => {
               </div>
 
               {selectedNivel && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex items-center gap-2 bg-blue-50 rounded-lg px-2 py-1.5">
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 bg-transparent dark:bg-transparent rounded-lg px-2 py-1.5">
                     <KeenIcon icon="check-circle" className="text-xs text-primary" />
-                    <p className="text-xs font-semibold text-gray-700">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                       Nivel seleccionado:{' '}
                       <span className="text-primary font-semibold">{selectedNivel.nombre}</span>
                     </p>
