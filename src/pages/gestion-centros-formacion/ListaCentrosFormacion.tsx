@@ -37,6 +37,7 @@ interface CentrosFormacion {
   idEmpresa: number | null;
   empresa?: Empresa | null;
   foto: string;
+  rutaFotoUrl:string;
 }
 
 const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento, showToast }) => {
