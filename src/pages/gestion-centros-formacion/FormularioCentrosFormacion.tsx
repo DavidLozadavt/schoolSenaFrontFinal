@@ -70,7 +70,6 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
   mode = 'create'
 }) => {
   const [fotoActual, setFotoActual] = useState<string | null>(null);
-  const Back = import.meta.env.VITE_APP_BACKEND_URL;
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   const [regionales, setRegionales] = useState<Empresa[]>([]);
   const [handleError, setHandleError] = useState<boolean>(false);
@@ -173,7 +172,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
             idEmpresa: data.idEmpresa ?? data.empresa?.id ?? null,
             foto: null
           });
-          setFotoActual(data.foto);
+          setFotoActual(data.rutaFotoUrl);
         } catch (error) {
           console.error('Error cargando centro:', error);
           showToast('Error al cargar el centro de formación');
@@ -469,7 +468,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               <div className="md:col-span-2">
                 <p className="text-xs text-gray-500 mb-1">Imagen actual</p>
                 <img
-                  src={`${Back}${fotoActual}`}
+                  src={`${fotoActual}`}
                   alt="Logo actual"
                   className="h-32 rounded-lg border object-contain"
                 />

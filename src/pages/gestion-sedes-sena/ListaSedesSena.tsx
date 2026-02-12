@@ -43,6 +43,7 @@ interface Sede {
   ciudad: Ciudades;
   empresa: Empresa;
   urlImagen:string;
+  rutaFotoUrl:string;
 }
 
 const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {

@@ -1,4 +1,3 @@
-import { KeenIcon } from '@/components';
 
 interface Ciudad {
   id: number;
@@ -23,6 +22,7 @@ interface Sede {
   ciudad?: Ciudad | null;
   empresa?: Empresa | null;
   urlImagen: string;
+  rutaFotoUrl:string;
 }
 
 interface Props {
@@ -33,7 +33,6 @@ interface Props {
 }
 
 const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
-  const BACK = import.meta.env.VITE_APP_BACKEND_URL;
 
   return (
     <div
@@ -49,9 +48,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
       <div className="relative h-40">
         <img
           src={
-            sede.urlImagen === 'sedes/default.png'
-              ? `${BACK}/default/logoweb.png`
-              : `${BACK}${sede.urlImagen}`
+            sede.rutaFotoUrl
           }
           alt={sede.empresa?.razonSocial || 'Sede'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
