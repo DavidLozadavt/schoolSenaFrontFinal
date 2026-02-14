@@ -43,16 +43,13 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
     console.log('Roles del AuthContext:', roles);
     
-    // 🔍 CAMBIO: Solo validar ADMINISTRADOR VT y ADMINISTRADOR REGIONAL
     const adminRoles = ['ADMINISTRADOR VT', 'ADMINISTRADOR REGIONAL'];
     const hasAdminRole = roles.some((role: string) => adminRoles.includes(role.toUpperCase()));
     
     console.log('¿Es admin?', hasAdminRole);
     
-    // 🔍 CAMBIO: Permitir acceso a todos, pero marcar roles administrativos
     setIsAdmin(hasAdminRole);
     
-    // 🔍 CAMBIO: Configurar UI según rol exacto
     if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT')) {
       console.log('Configurando para ADMINISTRADOR VT');
       setShowEmpresaSelect(true);
@@ -62,7 +59,6 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
       setShowEmpresaSelect(false);
       setShowCentroSelect(true);
     } else {
-      // 🔍 CAMBIO: Para todos los demás roles (incluyendo ADMINISTRADOR CENTRO)
       console.log('Configurando para usuario normal - sin selects');
       setShowEmpresaSelect(false);
       setShowCentroSelect(false);
@@ -166,7 +162,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   };
 
   const fetchContratos = async () => {
-    // 🔍 CAMBIO: Permitir acceso a todos los usuarios autenticados
+  
     setLoading(true);
     try {
       const params: any = {};
@@ -186,9 +182,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
         }
       }
       else {
-        // 🔍 CAMBIO: Para todos los demás roles (incluyendo ADMINISTRADOR CENTRO)
         console.log('Es usuario normal - backend filtrará por centro asignado');
-        // No enviar parámetros, el backend filtrará por $user->idCentroFormacion
       }
       
       console.log('Parámetros enviados:', params);
@@ -223,7 +217,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
   useEffect(() => {
     console.log('useEffect fetchContratos - isAdmin:', isAdmin, 'reload:', reload);
-    // 🔍 CAMBIO: Permitir fetch a todos los usuarios
+    
     fetchContratos();
   }, [reload, selectedEmpresa, selectedCentroFormacion]);
 
