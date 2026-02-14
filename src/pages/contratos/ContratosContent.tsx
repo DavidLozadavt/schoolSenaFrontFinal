@@ -5,7 +5,8 @@ import axios from 'axios';
 import { ContratoInterface } from './model/ContratoInterface';
 import clsx from 'clsx';
 import { CommonAvatar } from '@/partials/common/CommonAvatar';
-import { User, Calendar, Folder, CreditCard, ChevronRight } from 'lucide-react';
+import { User, Calendar, Folder, CreditCard, ChevronRight, Building, Briefcase } from 'lucide-react';
+import { useAuthContext } from '@/auth';
 
 interface ContratosContentProps {
   reload: boolean;
@@ -14,6 +15,8 @@ interface ContratosContentProps {
 const ContratoContent = ({ reload }: ContratosContentProps) => {
   const storageFilterId = 'contratos-filter';
   const [contratos, setContratos] = useState<ContratoInterface[]>([]);
+  const [centrosFormacion, setCentrosFormacion] = useState<any[]>([]);
+  const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const navigate = useNavigate();
@@ -22,6 +25,51 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   });
   const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const [selectedEmpresa, setSelectedEmpresa] = useState<number | null>(null);
+  const [selectedCentroFormacion, setSelectedCentroFormacion] = useState<number | null>(null);
+  
+  const authContext = useAuthContext();
+  const { user, empresa, roles } = authContext;
+
+  const [showEmpresaSelect, setShowEmpresaSelect] = useState<boolean>(false);
+  const [showCentroSelect, setShowCentroSelect] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (roles.length === 0) {
+      return;
+    }
+
+    console.log('Roles del AuthContext:', roles);
+    
+    // 🔍 CAMBIO: Solo validar ADMINISTRADOR VT y ADMINISTRADOR REGIONAL
+    const adminRoles = ['ADMINISTRADOR VT', 'ADMINISTRADOR REGIONAL'];
+    const hasAdminRole = roles.some((role: string) => adminRoles.includes(role.toUpperCase()));
+    
+    console.log('¿Es admin?', hasAdminRole);
+    
+    // 🔍 CAMBIO: Permitir acceso a todos, pero marcar roles administrativos
+    setIsAdmin(hasAdminRole);
+    
+    // 🔍 CAMBIO: Configurar UI según rol exacto
+    if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT')) {
+      console.log('Configurando para ADMINISTRADOR VT');
+      setShowEmpresaSelect(true);
+      setShowCentroSelect(true);
+    } else if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR REGIONAL')) {
+      console.log('Configurando para ADMINISTRADOR REGIONAL');
+      setShowEmpresaSelect(false);
+      setShowCentroSelect(true);
+    } else {
+      // 🔍 CAMBIO: Para todos los demás roles (incluyendo ADMINISTRADOR CENTRO)
+      console.log('Configurando para usuario normal - sin selects');
+      setShowEmpresaSelect(false);
+      setShowCentroSelect(false);
+    }
+    
+    setLoading(false);
+  }, [roles]);
 
   const handleContrato = useCallback((id: number) => {
     navigate(`/gestion-contratos/contratos/contrato`, { state: id });
@@ -32,12 +80,126 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     setCurrentPage(0);
   }, [searchTerm]);
 
-  const fetchContratos = async () => {
+  const fetchEmpresas = async () => {
+    if (!showEmpresaSelect) return;
+    
+    try {
+      const response = await axios.get('regional');
+      console.log('Empresas cargadas:', response.data);
+      setEmpresas(response.data);
+    } catch (error) {
+      console.error('Error al cargar empresas:', error);
+    }
+  };
+
+  const fetchDatosAdminVT = async () => {
+    if (!roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT')) {
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await axios.get('contratos');
+      if (!selectedEmpresa) {
+        console.log('ADMINISTRADOR VT necesita seleccionar una empresa');
+        setContratos([]);
+        setCentrosFormacion([]);
+        setLoading(false);
+        return;
+      }
+
+      const params: any = {
+        idCompany: selectedEmpresa
+      };
+      
+      if (selectedCentroFormacion !== null) {
+        params.idCentroFormacion = selectedCentroFormacion;
+        console.log('Agregando idCentroFormacion:', selectedCentroFormacion);
+      }
+      
+      console.log('=== FETCH DATOS ADMINISTRADOR VT ===');
+      console.log('selectedEmpresa:', selectedEmpresa);
+      console.log('selectedCentroFormacion:', selectedCentroFormacion);
+      console.log('Parámetros enviados:', params);
+      
+      const response = await axios.get('contratos/flujo-vt', { params });
+      console.log('Respuesta completa del backend:', response.data);
+      
+      if (response.data.data) {
+        setCentrosFormacion(response.data.data.centros || []);
+        setContratos(response.data.data.contratos || []);
+        
+        console.log('Centros actualizados:', response.data.data.centros?.length || 0);
+        console.log('Contratos actualizados:', response.data.data.contratos?.length || 0);
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar los datos (ADMINISTRADOR VT):', error);
+      setError('Error al cargar los datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCentrosFormacion = async () => {
+    if (!showCentroSelect) return;
+    
+    try {
+      let centrosData = [];
+      
+      if (showEmpresaSelect && selectedEmpresa) {
+        console.log('Filtrando centros por empresa:', selectedEmpresa);
+        const response = await axios.get(`centrosFormacion/regional/${selectedEmpresa}`);
+        centrosData = response.data.data || response.data || [];
+        console.log('Centros filtrados por empresa:', centrosData);
+      } else {
+        console.log('Cargando todos los centros');
+        const response = await axios.get('centrosFormacion');
+        centrosData = response.data || [];
+        console.log('Todos los centros:', centrosData);
+      }
+      
+      setCentrosFormacion(Array.isArray(centrosData) ? centrosData : []);
+    } catch (error) {
+      console.error('Error al cargar centros de formación:', error);
+      setCentrosFormacion([]);
+    }
+  };
+
+  const fetchContratos = async () => {
+    // 🔍 CAMBIO: Permitir acceso a todos los usuarios autenticados
+    setLoading(true);
+    try {
+      const params: any = {};
+      
+      console.log('=== FETCH CONTRATOS ===');
+      console.log('Roles en fetchContratos:', roles);
+      
+      if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT')) {
+        await fetchDatosAdminVT();
+        return;
+      }
+      else if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR REGIONAL')) {
+        console.log('Es ADMINISTRADOR REGIONAL');
+        if (selectedCentroFormacion !== null) {
+          params.idCentroFormacion = selectedCentroFormacion;
+          console.log('Agregando idCentroFormacion:', selectedCentroFormacion);
+        }
+      }
+      else {
+        // 🔍 CAMBIO: Para todos los demás roles (incluyendo ADMINISTRADOR CENTRO)
+        console.log('Es usuario normal - backend filtrará por centro asignado');
+        // No enviar parámetros, el backend filtrará por $user->idCentroFormacion
+      }
+      
+      console.log('Parámetros enviados:', params);
+      
+      const response = await axios.get('contratos', { params });
+      console.log('Respuesta del backend:', response.data);
+      console.log('Cantidad de contratos:', response.data.length);
+      
       setContratos(response.data);
     } catch (error) {
+      console.error('Error al cargar los contratos:', error);
       setError('Error al cargar los contratos');
     } finally {
       setLoading(false);
@@ -45,8 +207,32 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   };
 
   useEffect(() => {
+    console.log('useEffect fetchEmpresas - showEmpresaSelect:', showEmpresaSelect);
+    fetchEmpresas();
+  }, [showEmpresaSelect]);
+
+  useEffect(() => {
+    console.log('useEffect fetchCentrosFormacion - showCentroSelect:', showCentroSelect);
+    
+    if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT')) {
+      return;
+    }
+    
+    fetchCentrosFormacion();
+  }, [showCentroSelect, selectedEmpresa, showEmpresaSelect, roles]);
+
+  useEffect(() => {
+    console.log('useEffect fetchContratos - isAdmin:', isAdmin, 'reload:', reload);
+    // 🔍 CAMBIO: Permitir fetch a todos los usuarios
     fetchContratos();
-  }, [reload]);
+  }, [reload, selectedEmpresa, selectedCentroFormacion]);
+
+  useEffect(() => {
+    console.log('useEffect reset centro - selectedEmpresa:', selectedEmpresa);
+    if (selectedEmpresa && showEmpresaSelect) {
+      setSelectedCentroFormacion(null);
+    }
+  }, [selectedEmpresa, showEmpresaSelect]);
 
   const filteredData = useMemo(() => {
     if (!searchTerm) return contratos;
@@ -54,16 +240,16 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     const searchLower = searchTerm.toLowerCase();
     return contratos.filter(
       (contrato) =>
-        contrato.persona?.nombre1?.toLowerCase().includes(searchLower) ||
-        contrato.persona?.apellido1?.toLowerCase().includes(searchLower) ||
-        contrato.persona?.identificacion?.toLowerCase().includes(searchLower) ||
-        contrato.id?.toString().includes(searchLower) ||
-        contrato.estado?.estado?.toLowerCase().includes(searchLower) ||
-        contrato.salario?.rol?.name?.toLowerCase().includes(searchLower)
+        (contrato.persona?.nombre1?.toLowerCase().includes(searchLower) ||
+         contrato.persona?.nombre1?.toLowerCase().includes(searchLower) ||
+         contrato.persona?.apellido1?.toLowerCase().includes(searchLower) ||
+         contrato.persona?.identificacion?.toLowerCase().includes(searchLower) ||
+         contrato.id?.toString().includes(searchLower) ||
+         contrato.estado?.estado?.toLowerCase().includes(searchLower) ||
+         contrato.salario?.rol?.name?.toLowerCase().includes(searchLower))
     );
   }, [searchTerm, contratos]);
 
-  // Paginación
   const pageCount = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = currentPage * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -87,16 +273,20 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     }
   };
 
-  const getEstadoBadgeStyles = (estado: string | undefined) => {
-    if (!estado) return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
+  const getEstadoBadgeClass = (estado: string | undefined) => {
+    if (!estado) return 'badge-success';
     const estadoUpper = estado.toUpperCase();
-    if (estadoUpper === 'ACTIVO') return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
-    if (estadoUpper === 'INTERRUMPIDO') return 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800';
-    if (estadoUpper === 'ADICION DE CONTRATO' || estadoUpper.includes('ADICION')) return 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800';
-    return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800';
+    if (estadoUpper === 'ACTIVO') return 'badge-success';
+    if (estadoUpper === 'INTERRUMPIDO') return 'badge-danger';
+    if (estadoUpper === 'ADICION DE CONTRATO' || estadoUpper.includes('ADICION')) return 'badge-warning';
+    return 'badge-success';
   };
 
   const getNombreCompleto = (contrato: ContratoInterface) => {
+    if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR VT') && contrato.persona?.nombre1) {
+      return contrato.persona.nombre1;
+    }
+    
     const nombre1 = contrato.persona?.nombre1 || '';
     const nombre2 = contrato.persona?.nombre2 || '';
     const apellido1 = contrato.persona?.apellido1 || '';
@@ -116,11 +306,9 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
         onClick={() => handleContrato(contrato.id!)}
       >
         <div className="card-body p-6">
-          {/* Header con avatar, nombre y estado */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              {/* Avatar cuadrado con bordes redondeados */}
-              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center border border-gray-200 dark:border-gray-600">
+              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center border border-gray-200">
                 {fotoUrl ? (
                   <CommonAvatar
                     className="w-full h-full"
@@ -128,65 +316,59 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
                     imageClass="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-                    <User className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <User className="w-6 h-6 text-gray-400" />
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors duration-300">
+                <h4 className="text-sm font-semibold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
                   {nombreCompleto}
                 </h4>
               </div>
             </div>
             <span
               className={clsx(
-                'shrink-0 text-xs font-medium px-2 py-1 rounded',
+                'badge shrink-0 text-xs font-medium',
                 estado.toUpperCase() === 'ACTIVO'
-                  ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
-                  : getEstadoBadgeStyles(estado)
+                  ? 'bg-green-50 text-green-600 border border-green-200'
+                  : 'badge-outline ' + getEstadoBadgeClass(estado)
               )}
             >
               {estado}
             </span>
           </div>
 
-          {/* Código del contrato */}
           <div className="mb-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600">
               <span className="font-medium">Código:</span> {contrato.id}
             </p>
           </div>
 
-          {/* Información con iconos */}
           <div className="space-y-2.5 mb-4">
-            {/* Identificación */}
-            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <CreditCard className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <CreditCard className="w-4 h-4 text-gray-500 shrink-0" />
               <span className="truncate text-sm">
                 {contrato.persona?.identificacion || 'N/A'}
               </span>
             </div>
 
-            {/* Rol */}
             {contrato.salario?.rol?.name && (
-              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <User className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <User className="w-4 h-4 text-gray-500 shrink-0" />
                 <span className="truncate text-sm">{contrato.salario.rol.name}</span>
               </div>
             )}
 
-            {/* Área/Departamento */}
             {contrato.area?.nombre && (
-              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Folder className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Folder className="w-4 h-4 text-gray-500 shrink-0" />
                 <span className="truncate text-sm">{contrato.area.nombre}</span>
               </div>
             )}
 
-            {/* Fechas */}
-            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
               <span className="truncate text-sm">
                 {formatDate(contrato.fechaContratacion)} -{' '}
                 {contrato.fechaFinalContrato
@@ -196,8 +378,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
             </div>
           </div>
 
-          {/* Link ver más */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-4 border-t border-gray-200">
             <button
               className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-active transition-colors duration-300 w-full"
               onClick={(e) => {
@@ -232,8 +413,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
   return (
     <div className="min-w-full">
-      {/* Header con búsqueda */}
-      <div className="mb-6">
+      <div className="mb-6 space-y-4">
         <div className="relative">
           <KeenIcon
             icon="magnifier"
@@ -249,9 +429,92 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
             }}
           />
         </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          {showEmpresaSelect && (
+            <div className="relative">
+              <Briefcase className="w-4 h-4 text-gray-500 absolute top-1/2 left-3 -translate-y-1/2 z-10" />
+              <select
+                className="select select-sm pl-10 w-full min-w-[200px]"
+                value={selectedEmpresa || ''}
+                onChange={(e) => {
+                  const value = e.target.value ? parseInt(e.target.value) : null;
+                  console.log('Cambio de empresa:', value);
+                  setSelectedEmpresa(value);
+                  setCurrentPage(0);
+                }}
+              >
+                <option value="">Seleccionar empresa</option>
+                {empresas.map((empresa) => (
+                  <option key={empresa.id} value={empresa.id}>
+                    {empresa.razonSocial}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showCentroSelect && (
+            <div className="relative">
+              <Building className="w-4 h-4 text-gray-500 absolute top-1/2 left-3 -translate-y-1/2 z-10" />
+              <select
+                className="select select-sm pl-10 w-full min-w-[250px]"
+                value={selectedCentroFormacion || ''}
+                onChange={(e) => {
+                  const value = e.target.value ? parseInt(e.target.value) : null;
+                  console.log('Cambio de centro:', value);
+                  setSelectedCentroFormacion(value);
+                  setCurrentPage(0);
+                }}
+              >
+                <option value="">Seleccionar centro</option>
+                {centrosFormacion.map((centro) => (
+                  <option key={centro.id} value={centro.id}>
+                    {centro.nombre} - {centro.empresa?.razonSocial || ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-sm">
+          <span className="badge badge-info">
+            Rol: {roles.join(', ') || 'Cargando...'}
+          </span>
+          
+          {selectedEmpresa && (
+            <span className="badge badge-primary">
+              Empresa: {empresas.find(e => e.id === selectedEmpresa)?.razonSocial}
+              <button
+                className="ml-2 text-xs hover:text-primary-active"
+                onClick={() => {
+                  setSelectedEmpresa(null);
+                  setCurrentPage(0);
+                }}
+              >
+                ×
+              </button>
+            </span>
+          )}
+
+          {selectedCentroFormacion && (
+            <span className="badge badge-primary">
+              Centro: {centrosFormacion.find(c => c.id === selectedCentroFormacion)?.nombre}
+              <button
+                className="ml-2 text-xs hover:text-primary-active"
+                onClick={() => {
+                  setSelectedCentroFormacion(null);
+                  setCurrentPage(0);
+                }}
+              >
+                ×
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Grid de tarjetas */}
       {currentData.length === 0 ? (
         <div className="card card-grid">
           <div className="card-body text-center py-12">
@@ -264,7 +527,6 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
             {currentData.map((contrato, index) => renderItem(contrato, index))}
           </div>
 
-          {/* Paginación */}
           <div className="card-footer mt-3 justify-center md:justify-between flex-col md:flex-row gap-3 text-gray-600 text-2sm font-medium">
             <div className="flex items-center gap-2">
               Mostrando
