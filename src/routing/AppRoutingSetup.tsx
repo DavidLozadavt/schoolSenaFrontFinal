@@ -110,7 +110,7 @@ import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
-
+import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -998,6 +998,7 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
         </Route>
+        
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />
       <Route path="auth/*" element={<AuthPage />} />

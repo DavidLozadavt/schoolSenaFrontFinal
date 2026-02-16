@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { AsignarMateriaProps } from '../../types';
+import { Pencil } from 'lucide-react';
+import { FormCompetencia } from './FormCompetencia';
+import Toast from '../Toast';
 
-const AsignarMateria: React.FC<AsignarMateriaProps> = ({ 
+export const AsignarMateria: React.FC<AsignarMateriaProps> = ({ 
   idPrograma,
   isOpen, 
   onClose, 
@@ -10,17 +13,31 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   onMateriasSeleccionadas
 }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
   const [materiasDisponibles, setMateriasDisponibles] = useState<any[]>([]);
-  const [idsSeleccionados, setIdsSeleccionados] = useState<number[]>([]); // ← Solo IDs
+  const [materiasSeleccionadas, setMateriasSeleccionadas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [buscar, setBuscar] = useState<string>('');
+  const [toast, setToast] = useState<boolean>(false);
+
+  // referencia del formulario para cuando le de editar
+  const formRef = useRef<HTMLDivElement>(null);
 
   // Cargar materias disponibles cuando se abre el modal
   useEffect(() => {
+      if (showForm && formRef.current) {
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start'
+      });
+    }, 100);
+  }
     if (isOpen) {
       cargarMaterias();
+      setMateriasSeleccionadas([]); // Limpiar selección al abrir
     }
-  }, [isOpen]);
+  }, [isOpen, showForm]);
 
   const cargarMaterias = async () => {
     setLoading(true);
@@ -34,33 +51,63 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     }
   };
 
-  // Toggle selección de materia - ahora solo maneja IDs
-  const toggleMateria = (idMateria: number) => {
-    const yaSeleccionada = idsSeleccionados.includes(idMateria);
+  // Toggle selección de materia
+  const toggleMateria = (materia: any) => {
+    const yaSeleccionada = materiasSeleccionadas.some(m => m.id === materia.id);
     
     if (yaSeleccionada) {
-      // Quitar el ID
-      setIdsSeleccionados(idsSeleccionados.filter(id => id !== idMateria));
+      setMateriasSeleccionadas(materiasSeleccionadas.filter(mat => mat.id !== materia.id));
     } else {
-      // Agregar el ID
-      setIdsSeleccionados([...idsSeleccionados, idMateria]);
+      setMateriasSeleccionadas([...materiasSeleccionadas, materia]);
     }
   };
 
   // Verificar si una materia está seleccionada
-  const estaSeleccionada = (idMateria: number) => {
-    return idsSeleccionados.includes(idMateria);
+  const estaSeleccionada = (materia: any) => {
+    return materiasSeleccionadas.some(m => m.id === materia.id);
   };
 
-  // Confirmar y enviar IDs al componente padre
-  const handleConfirmar = () => {
+  // Manejar edición de competencia
+  const handleEdit = (e: React.MouseEvent, competenciaId: number) => {
+    e.stopPropagation(); // Evitar que se seleccione la competencia
+    setEditingCompetenciaId(competenciaId);
+    setShowForm(true);
+  };
 
+  // Callback cuando se crea/actualiza exitosamente
+  const handleFormSuccess = () => {
+    
+    // Cerrar formulario y recargar lista
+    setShowForm(false);
+    setEditingCompetenciaId(undefined);
+    cargarMaterias();
+  };
+
+  // Callback para cancelar formulario
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingCompetenciaId(undefined);
+  };
+
+  // Confirmar y enviar al componente padre
+  const handleConfirmar = () => {
     if (onMateriasSeleccionadas) {
-      onMateriasSeleccionadas(idsSeleccionados);
+      onMateriasSeleccionadas({idGradoPrograma:nivelId??0, materias: materiasSeleccionadas});
     }
     
     // Limpiar selección y cerrar
-    setIdsSeleccionados([]);
+    setMateriasSeleccionadas([]);
+    setShowForm(false);
+    setEditingCompetenciaId(undefined);
+    onClose();
+  };
+
+  // Cerrar modal
+  const handleClose = () => {
+    setMateriasSeleccionadas([]);
+    setShowForm(false);
+    setEditingCompetenciaId(undefined);
+    setBuscar('');
     onClose();
   };
 
@@ -71,17 +118,19 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
       
       <div className="relative w-full max-w-4xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-400 dark:border-gray-dark-300 flex flex-col max-h-[85vh]">
         
+        <Toast message='Competencia guardada correctamente' isOpen={toast} onClose={()=> setToast(false)}/>
+
         {/* Header del Modal */}
         <div className="p-5 border-b border-gray-400 dark:border-gray-dark-100 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
           <div>
             <h3 className="text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest">
-              Asignar Competencias - Trimestre #{nivelId}
+              Asignar Competencias
             </h3>
             <p className="text-4xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-tighter">
-              {idsSeleccionados.length} competencia(s) seleccionada(s)
+              {materiasSeleccionadas.length} competencia(s) seleccionada(s)
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-danger transition-colors">
+          <button onClick={handleClose} className="text-gray-400 hover:text-danger transition-colors">
             <i className="ki-outline ki-cross text-xl font-bold"></i>
           </button>
         </div>
@@ -90,67 +139,45 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
           
           {/* Listado de Materias */}
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               {/* BUSCADOR DE COMPETENCIAS */}
               <input 
                 type="text" 
+                value={buscar}
                 onChange={(e) => setBuscar(e.target.value)} 
                 placeholder='Busca por nombre o código de la competencia...'
-                className='input'
+                className='input flex-1'
               />
               <button 
-                onClick={() => setShowForm(!showForm)}
-                className={`text-4xs font-black px-3 py-1.5 mx-2 rounded-lg border-2 transition-all ${
+                onClick={() => {
+                  if (showForm) {
+                    handleFormCancel();
+                  } else {
+                    setShowForm(true);
+                    setEditingCompetenciaId(undefined);
+                  }
+                }}
+                className={`text-4xs font-black px-3 py-1.5 rounded-lg border-2 transition-all whitespace-nowrap ${
                   showForm 
                     ? 'bg-danger/10 border-danger/40 text-danger' 
-                    : 'bg-primary/10 border-primary/40 text-primary'
+                    : 'bg-primary/10 border-primary/40 text-primary disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
+                disabled={showForm?false:true}
               >
                 {showForm ? 'CANCELAR' : '+ CREAR NUEVA'}
               </button>
             </div>
 
-            {/* Formulario de Creación */}
+            {/* Formulario de Creación/Edición */}
             {showForm && (
-              <div className="p-5 bg-primary/[0.02] border border-gray-400 rounded-xl animate-fade-in-down space-y-4 shadow-inner">
-                <div className="space-y-1">
-                  <label className="text-4xs font-black text-gray-700 dark:text-primary uppercase ml-1">
-                    Nombre competencia
-                  </label>
-                  <input 
-                    type="text" 
-                    className="w-full bg-white dark:bg-coal-400 border border-gray-400 dark:border-gray-dark-100 rounded-lg p-2.5 text-2sm font-bold outline-none dark:text-white focus:ring-1 focus:ring-primary shadow-sm" 
-                    placeholder="Ingrese nombre de la competencia" 
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-4xs font-black text-gray-700 dark:text-primary uppercase ml-1">
-                    Área de conocimiento
-                  </label>
-                  <select className="w-full bg-white dark:bg-coal-400 border border-gray-400 dark:border-gray-dark-100 rounded-lg p-2.5 text-2sm outline-none dark:text-white font-bold shadow-sm">
-                    <option>Seleccionar área de conocimiento</option>
-                    <option>CIENCIAS NATURALES</option>
-                    <option>MATEMÁTICAS</option>
-                    <option>LENGUAJE</option>
-                    <option>SOCIALES</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-4xs font-black text-gray-700 dark:text-primary uppercase ml-1">
-                    Descripción
-                  </label>
-                  <textarea 
-                    rows={2} 
-                    className="w-full bg-white dark:bg-coal-400 border border-gray-400 dark:border-gray-dark-100 rounded-lg p-2.5 text-2sm font-medium outline-none dark:text-white no-scrollbar resize-none shadow-sm" 
-                    placeholder="Ingrese una breve descripción..." 
-                  />
-                </div>
-
-                <button className="w-full bg-primary text-white py-2.5 rounded-lg font-black text-3xs uppercase tracking-[0.2em] hover:bg-primary-active transition-all shadow-lg active:scale-[0.98]">
-                  Guardar Competencia
-                </button>
+              <div ref={formRef}>
+              <FormCompetencia 
+                programId={idPrograma ?? 0}
+                competenciaId={editingCompetenciaId}
+                onSuccess={handleFormSuccess}
+                onCancel={handleFormCancel}
+                setToast={setToast}
+                />
               </div>
             )}
 
@@ -165,21 +192,24 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
                   No hay competencias disponibles
                 </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Crea tu primera competencia usando el botón "+ CREAR NUEVA"
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
                 {materiasDisponibles
                   .filter((m: any) => 
-                    m.materia.nombreMateria.toLowerCase().includes(buscar.toLowerCase()) 
-                    || m.materia.codigo.toLowerCase().includes(buscar.toLowerCase())
+                    m.nombreMateria.toLowerCase().includes(buscar.toLowerCase()) 
+                    || m.codigo.toLowerCase().includes(buscar.toLowerCase())
                   )
                   .map((materia) => {
-                    const seleccionada = estaSeleccionada(materia.idMateria);
+                    const seleccionada = estaSeleccionada(materia);
                     
                     return (
                       <div 
                         key={materia.id} 
-                        onClick={() => toggleMateria(materia.idMateria)}
+                        onClick={() => toggleMateria(materia)}
                         className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${
                           seleccionada
                             ? 'bg-primary/10 border-primary shadow-md'
@@ -204,24 +234,37 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-black text-gray-800 dark:text-white leading-none">
-                              {materia.materia.nombreMateria || 'Sin nombre'}
+                              {materia.codigo || 'Sin código'} - {materia.nombreMateria || 'Sin nombre'}
                             </p>
                             <p className="text-2xs text-gray-500 font-black uppercase mt-1">
-                              {materia.materia.horas ? `${materia.materia.horas} Horas • ` : ''} 
-                              {materia.materia.codigo || 'Sin código'}
+                              {materia.descripcion || 'Sin descripción'}
                             </p>
                           </div>
+                          
+                          <button
+                            onClick={(e) => handleEdit(e, materia.id)}
+                            className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-coal-400 hover:text-blue-600 transition"
+                            title="Editar"
+                          >
+                            <Pencil size={18} />
+                          </button>
                         </div>
-
-                        {/* Badge de seleccionado */}
-                        {seleccionada && (
-                          <span className="px-2 py-1 bg-primary text-white text-4xs font-black rounded-full">
-                            SELECCIONADA
-                          </span>
-                        )}
                       </div>
                     );
                   })}
+                
+                {/* Mensaje si no hay resultados en búsqueda */}
+                {materiasDisponibles.filter((m: any) => 
+                  m.nombreMateria.toLowerCase().includes(buscar.toLowerCase()) 
+                  || m.codigo.toLowerCase().includes(buscar.toLowerCase())
+                ).length === 0 && buscar && (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
+                    <i className="ki-outline ki-magnifier text-3xl text-gray-400 mb-2"></i>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
+                      No se encontraron competencias con "{buscar}"
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -231,29 +274,23 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
         <div className="p-5 bg-gray-50 dark:bg-coal-400 border-t border-gray-400 dark:border-gray-dark-100 flex justify-between items-center gap-3">
           <div className="text-left">
             <p className="text-4xs font-black text-gray-600 dark:text-gray-400 uppercase">
-              {idsSeleccionados.length} competencia(s) seleccionada(s)
+              {materiasSeleccionadas.length} competencia(s) seleccionada(s)
             </p>
-            {/* Debug: muestra los IDs seleccionados */}
-            {idsSeleccionados.length > 0 && (
-              <p className="text-4xs text-primary font-mono mt-1">
-                IDs: [{idsSeleccionados.join(', ')}]
-              </p>
-            )}
           </div>
           
           <div className="flex gap-3">
             <button 
-              onClick={onClose} 
+              onClick={handleClose} 
               className="px-6 py-2 text-3xs font-black uppercase text-gray-500 hover:text-red-600 transition-colors tracking-widest"
             >
               Cancelar
             </button>
             <button 
               onClick={handleConfirmar}
-              disabled={idsSeleccionados.length === 0}
+              disabled={materiasSeleccionadas.length === 0}
               className="px-10 py-2.5 bg-primary text-white rounded-lg text-3xs font-black uppercase tracking-widest hover:bg-primary-active active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Confirmar ({idsSeleccionados.length})
+              Confirmar ({materiasSeleccionadas.length})
             </button>
           </div>
         </div>
@@ -261,5 +298,3 @@ const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     </div>
   );
 };
-
-export default AsignarMateria;

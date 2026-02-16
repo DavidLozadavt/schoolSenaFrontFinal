@@ -8,20 +8,23 @@ export interface ContratoInterface {
   periodoPago?: string;
   horasmes?: number | string;
   idpersona?: string;
+  idempresa?: number; // Agregado
+  idCentroFormacion?: number; // Agregado
   idtipoContrato?: string;
   observacion?: string;
   fechaFinalContrato?: any;
   valorTotalContrato?: any;
   objetoContrato?: string;
   sueldo?: string;
-  banco:any;
-  tipoCuentaBancaria:any;
-  numeroCuentaBancaria:any
+  banco: any;
+  tipoCuentaBancaria: any;
+  numeroCuentaBancaria: any;
+  idCompany?: number; // Agregado
 
-  actividadRiesgo:{
-    nombre:string;
-    descripcion:string;
-  }
+  actividadRiesgo: {
+    nombre: string;
+    descripcion: string;
+  };
 
   persona?: {
     id?: number;
@@ -52,23 +55,26 @@ export interface ContratoInterface {
       };
     };
   };
+  
   estado?: {
+    id?: number; // Agregado
     estado: string;
+    descripcion?: string; // Agregado
   };
+  
   salario?: {
     id?: string;
-    valor?:any
+    valor?: any;
     rol: {
       id: string;
       name: string;
     };
   };
 
-  area?:{
+  area?: {
     id?: string | number;
     nombre?: string;
   };
-  
 
   empresa?: {
     id: string;
@@ -85,8 +91,8 @@ export interface ContratoInterface {
   transacciones?: any;
   documentosContrato?: DocumentoContrato[];
 
-  archivoContrato?:any
-  otrosContratos?:any
+  archivoContrato?: any;
+  otrosContratos?: any;
 
   // Seguridad Social
   pension?: {
@@ -125,4 +131,11 @@ export interface ContratoInterface {
     nombrePrograma?: string;
     codigoPrograma?: string;
   }>;
+
+  // Centro de Formación - Objeto completo (opcional)
+  centroFormacion?: {
+    id?: number;
+    nombre?: string;
+    // otras propiedades según tu modelo
+  } | null;
 }

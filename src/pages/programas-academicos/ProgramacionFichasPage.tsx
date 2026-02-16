@@ -7,6 +7,7 @@ import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import CrearFicha from './components/CrearFicha';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
+import { useAuthContext } from '@/auth';
 
 interface Ficha {
   id: number;
@@ -14,6 +15,7 @@ interface Ficha {
   porcentajeEjecucion: number;
   idInstructorLider?: number | null;
   documento?: string | null;
+  rutaDocumentoUrl:string | null;
 
   jornada?: {
     id: number;
@@ -65,6 +67,7 @@ interface Program {
 
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [program, setProgram] = useState<Program | null>(null);
@@ -117,7 +120,7 @@ export const ProgramacionFichasPage = () => {
     setLoading(true);
 
     try {
-      const res = await axios.get(`fichas/programa/${programId}`);
+      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {
@@ -268,6 +271,7 @@ export const ProgramacionFichasPage = () => {
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
+              onAction={() => setEvento((prev) => !prev)}
             />
           )}
 
@@ -478,7 +482,7 @@ export const ProgramacionFichasPage = () => {
                                   <div className="flex gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => window.open(ficha.documento!, '_blank')}
+                                      onClick={() => window.open(ficha.rutaDocumentoUrl!, '_blank')}
                                       className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                                     >
                                       <i className="ki-outline ki-eye"></i>
@@ -492,7 +496,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
-                                Documento de la Ficha
+                                Documento de la Ficha 
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
                                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
@@ -618,6 +622,7 @@ export const ProgramacionFichasPage = () => {
         setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
+        onAction={() => setEvento((prev) => !prev)}
       />
 
       {/* Toast de notificación */}

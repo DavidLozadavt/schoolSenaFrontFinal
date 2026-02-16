@@ -21,6 +21,7 @@ interface CentrosFormacion {
   ciudad?: Ciudad | null;
   empresa?: Empresa | null;
   foto: string;
+  rutaFotoUrl:string;
 }
 
 interface Props {
@@ -32,8 +33,6 @@ interface Props {
 
 /* Componente */
 const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
-  const BACK = import.meta.env.VITE_APP_BACKEND_URL;
-  const FALLBACK_IMAGE = `${BACK}/default/logoweb.png`;
   return (
     <div
       className="
@@ -47,7 +46,7 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
       {/* HEADER */}
       <div className="relative h-40">
         <img
-          src={centro.foto ? `${BACK}${centro.foto}` : FALLBACK_IMAGE}
+          src={centro.rutaFotoUrl}
           alt={centro.nombre ?? 'Centro de formación'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MallaCurricularProps } from '../../types';
-import { AlertCircle, BookOpen, Calendar, List } from 'lucide-react';
+import { AlertCircle, BookOpen, Calendar, List, Search } from 'lucide-react';
 import Select from "react-select";
 
 // Componentes separados
 import { CardTrimestre } from './CardTrimestre';
 import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { Calendario } from './Calendario';
-import AsignarMateria from './AsignarMateria';
+import { AsignarMateria } from './AsignarMateria';
+import { ListaRaps } from './ListaRaps';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
+import { useAuthContext } from '@/auth';
+import { HorariosMateria } from './HorariosMateria';
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];
@@ -24,6 +27,8 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
+  const [modalHorarios, setModalHorarios] = useState<boolean>(false);
+  const { user } = useAuthContext();
   
   // Estados de vista
   const [vistaCalendario, setVistaCalendario] = useState(false);
@@ -31,7 +36,12 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
-  const [selectedNivelId, setSelectedNivelId] = useState<any>(null);
+  const [selectedNivelId, setSelectedNivelId] = useState<number|null>(null);
+
+  // Estados para modal de RAPs - NUEVO
+  const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
+  const [selectedCompetenciaId, setSelectedCompetenciaId] = useState<number | null>(null);
+  const [selectedCompetenciaNombre, setSelectedCompetenciaNombre] = useState<string>('');
 
   // Hook de trimestres
   const {
@@ -43,10 +53,11 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
     cancelarNuevoTrimestre,
     actualizarFechaFin,
     actualizarMaterias,
-    guardarTrimestre,
-    quitarUltimoTrimestre,
+    crearTrimestre,
+    asignarCompetenciasTrimestre,
     toast,
-    setToast
+    setToast,
+    loadingTrimestres
   } = useTrimestres(selectedFicha?.id, program?.id);
 
   // Cargar fichas cuando se abre el modal
@@ -54,9 +65,11 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
     const cargarFichas = async () => {
       if (!isOpen || !program?.id) return;
       
+      setSelectedFicha(null);
+      setSelectedFichaOption(null);
       setLoadingFichas(true);
       try {
-        const res = await axios.get(`fichas/programa/${program.id}`);
+        const res = await axios.get(`fichas/programa/${program.id}/${user?.idCentroFormacion}`);
         if (Array.isArray(res.data?.data)) {
           setFichas(res.data.data);
         } else {
@@ -98,24 +111,43 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   };
 
   const handleOpenMateriaFromNuevoTrimestre = () => {
-    setSelectedNivelId('nuevo-trimestre');
     setIsMateriaModalOpen(true);
   };
 
-  const handleMateriasSeleccionadas = (idsMateria: number[]) => {
-    if (nuevoTrimestre && selectedNivelId === 'nuevo-trimestre') {
-      actualizarMaterias(idsMateria);
+  const handleMateriasSeleccionadas = async (data: { 
+    idGradoPrograma: number; 
+    materias: any[] 
+  }) => {
+    if (nuevoTrimestre) {
+      actualizarMaterias(data.materias);
     } else if (selectedFicha?.id) {
-      // Si es un trimestre existente, recargar desde la API
-      cargarTrimestres(selectedFicha.id);
+      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias, selectedFicha.id);
+      if (success) {
+        await cargarTrimestres(selectedFicha.id);
+        setIsMateriaModalOpen(false);
+      }
     }
   };
 
-  const handleGuardarTrimestre = async () => {
-    const success = await guardarTrimestre(selectedFicha);
-    if (success) {
-      await cargarTrimestres(selectedFicha.id);
-    }
+
+const handleGuardarTrimestre = async () => {
+  if (!selectedFicha) {
+    alert('Debes seleccionar una ficha');
+    return;
+  }
+  
+  const success = await crearTrimestre(selectedFicha);
+  if (success) {
+    await cargarTrimestres(selectedFicha.id);
+  }
+};
+
+  // para abrir modal de RAPs
+  const handleOpenRaps = (competenciaId: number, competenciaNombre: string, idTrimestre:number) => {
+    setSelectedCompetenciaId(competenciaId);
+    setSelectedCompetenciaNombre(competenciaNombre);
+    setSelectedNivelId(idTrimestre);
+    setIsRapsModalOpen(true);
   };
 
   if (!isOpen || !program) return null;
@@ -126,7 +158,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   }));
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-x-hidden bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {/* Header con Banner */}
@@ -153,7 +185,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
               {program.name || "Programa sin nombre"}
             </h2>
-            <p className="mt-1.5 font-semibold tracking-wide text-gray-200 text-xs flex items-center gap-2">
+            <p className="mt-1.5 font-semibold tracking-wide text-gray-300 dark:text-white/70 text-xs flex items-center gap-2">
               <BookOpen size={14} />
               Código: {program.codigo} • Malla Curricular
             </p>
@@ -161,8 +193,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
         </div>
 
         {/* Contenido Principal */}
-        <div className="flex-grow min-h-96 p-6 md:p-8 overflow-y-auto bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-
+        <div className="flex-grow min-h-96 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
           {errorApi && (
             <div className="p-4 mb-6 border-l-4 border-danger bg-danger/10 rounded-lg text-danger flex items-center gap-3 animate-pulse">
               <AlertCircle size={20} />
@@ -173,30 +204,28 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
           {!errorApi && (
             <div className="mb-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-                <h4 className="text-lg font-black uppercase text-gray-800 dark:text-gray-100 border-l-4 border-primary pl-4">
+                <h4 className="text-lg font-black uppercase text-gray-800 dark:text-white border-l-4 border-primary pl-4">
                   Fichas del Programa
                 </h4>
 
                 {/* Controles de Trimestres */}
                 {selectedFicha && (
-                  <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Trimestres:</span>
-                    <button
-                      onClick={quitarUltimoTrimestre}
-                      disabled={trimestres.length === 0}
-                      className="flex items-center justify-center w-9 h-9 transition-all border border-gray-300 rounded-lg bg-gray-50 dark:bg-coal-300 text-danger hover:bg-danger hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <i className="text-xl ki-outline ki-minus"></i>
-                    </button>
+                  <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm">
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
                     <button
                       onClick={handleAgregarTrimestre}
                       disabled={trimestres.length === 9 || nuevoTrimestre !== null}
-                      className="flex items-center justify-center w-9 h-9 text-white transition-all rounded-lg bg-primary hover:bg-primary-active shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
                     >
-                      <i className="text-xl ki-outline ki-plus"></i>
+                      <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                        <i className="text-lg ki-filled ki-plus"></i>
+                      </div>
+                      <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                        Añadir Trimestre
+                      </span>
                     </button>
                   </div>
                 )}
@@ -216,16 +245,48 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                 </div>
               ) : (
                 <>
-                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-600">
+                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-100">
                     <Select
                       options={fichaOptions}
                       value={selectedFichaOption}
                       placeholder="Selecciona una ficha para ver sus trimestres..."
                       onChange={handleSeleccionarFicha}
-                      classNamePrefix="react-select"
+                      classNames={{
+                        control: () =>
+                          "bg-white dark:bg-coal-400 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white",
+                        menu: () =>
+                          "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600",
+                        option: ({ isFocused, isSelected }) =>
+                          `cursor-pointer ${
+                            isSelected
+                              ? "bg-blue-600 text-white"
+                              : isFocused
+                              ? "bg-gray-100 dark:bg-coal-300"
+                              : "text-gray-700 dark:text-white"
+                          }`,
+                        singleValue: () =>
+                          "text-gray-700 dark:text-white",
+                        placeholder: () =>
+                          "text-gray-400 dark:text-gray-300",
+                        input: () =>
+                          "text-gray-700 dark:text-white",
+                        clearIndicator: () =>
+                          "text-gray-400 dark:text-gray-300 hover:text-red-500",
+                        dropdownIndicator: () =>
+                          "text-gray-400 dark:text-gray-300 hover:text-gray-600",
+                      }}
                       isClearable
                     />
                   </div>
+
+                  {!selectedFicha && (
+                    <div className="py-8 rounded-lg text-center bg-white dark:bg-coal-400">
+                      <Search size={48} className="mx-auto text-gray-400 mb-3" />
+                      <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                        Busca y selecciona una ficha para continuar
+                      </p>
+                    </div>
+                  )}
 
                   {/* Toggle Vista */}
                   {selectedFicha && trimestres.length > 0 && (
@@ -256,9 +317,16 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                   )}
 
                   {/* Contenido: Trimestres o Calendario */}
-                  {selectedFicha && (
+                  {selectedFicha && 
                     <div className="space-y-5">
-                      {!vistaCalendario ? (
+                      {
+                        !loadingTrimestres?
+
+                        <div className="flex justify-center py-8">
+                          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      :
+                      !vistaCalendario ? (
                         trimestres.length > 0 ? (
                           [...trimestres]
                             .sort((a, b) => a.grado?.numeroGrado - b.grado?.numeroGrado)
@@ -274,8 +342,10 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                                 <CardTrimestre
                                   trimestre={trimestre}
                                   index={index}
+                                  setModalHorarios={setModalHorarios}
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
+                                  onVerRaps={handleOpenRaps} // ← PASAR LA FUNCIÓN AL COMPONENTE HIJO
                                 />
                               </div>
                             ))
@@ -294,7 +364,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
                         <Calendario />
                       )}
                     </div>
-                  )}
+                  }
                 </>
               )}
             </div>
@@ -341,6 +411,22 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
       />
+
+      {/* Modal ListaRaps */}
+      {selectedCompetenciaId && (
+        <ListaRaps
+          isOpen={isRapsModalOpen}
+          onClose={() => setIsRapsModalOpen(false)}
+          idMateriaPadre={selectedCompetenciaId}
+          nombreCompetencia={selectedCompetenciaNombre}
+          idFicha={selectedFicha?.id}
+          nivelId={selectedNivelId??0}
+        />
+      )}
+
+      {
+        modalHorarios && <HorariosMateria onClose={()=>setModalHorarios(false)} open={false}/>
+      }
 
       <Toast message='Trimestre agregado correctamente' isOpen={toast}  onClose={()=> setToast(false)}/>
     </div>
