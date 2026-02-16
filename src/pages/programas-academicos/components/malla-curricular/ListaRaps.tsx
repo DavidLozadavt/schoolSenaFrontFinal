@@ -3,37 +3,24 @@ import axios from 'axios';
 import { AlertCircle, BookOpen, X, FileText } from 'lucide-react';
 import { CardRap } from './CardRap';
 
-interface Rap {
-  id: number;
-  nombreMateria: string;
-  descripcion: string;
-  rutaDoc: string | null;
-  idMateriaPadre: number;
-  codigo: string;
-  creditos: number | null;
-  horas: string;
-  created_at: string;
-  updated_at: string | null;
-  idCompany: number;
-  porcentaje: number | null;
-  idAreaConocimiento: number | null;
-  DocUrl: string;
-}
-
 interface ListaRapsProps {
   isOpen: boolean;
   onClose: () => void;
   idMateriaPadre: number;
   nombreCompetencia?: string;
+  idFicha:number;
+  nivelId?:number;
 }
 
 export const ListaRaps: React.FC<ListaRapsProps> = ({ 
   isOpen, 
   onClose, 
   idMateriaPadre,
-  nombreCompetencia = "Competencia"
+  nombreCompetencia = "Competencia",
+  idFicha,
+  nivelId
 }) => {
-  const [raps, setRaps] = useState<Rap[]>([]);
+  const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +32,13 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
       setError(null);
       
       try {
-        const response = await axios.get(`materias-hijas/${idMateriaPadre}`);
+        const response = await axios.get(`materias/raps`, { params: 
+          {
+            idFicha:idFicha,
+            idMateriaPadre:idMateriaPadre,
+            idGradoPrograma: nivelId
+          }
+        });
         
         if (Array.isArray(response.data?.data)) {
           setRaps(response.data.data);
@@ -56,7 +49,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           setError('No se encontraron RAPs para esta competencia');
         }
       } catch (err: any) {
-        console.error('Error al cargar RAPs:', err);
         setError(err.response?.data?.message || 'Error al cargar los RAPs');
         setRaps([]);
       } finally {
@@ -150,32 +142,23 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   // Transformar el RAP al formato que espera CardRap
                   const materiaTransformada = {
                     id: rap.id,
-                    nombre: rap.nombreMateria,
+                    nombre: rap.nombre,
                     codigo: rap.codigo,
                     horasTotales: rap.horas,
                     horasActuales: 0,
                     horasFaltantes: rap.horas,
                     porcentajeAvance: 0,
+                    descripcion: rap.descripcion,
                     horarios: []
                   };
 
                   return (
                     <div key={rap.id} className="bg-white dark:bg-coal-400 rounded-xl p-1">
-                      <CardRap materia={materiaTransformada} />
+                      <CardRap materia={materiaTransformada} verDescripcion={true}/>
                       
                       {/* Información adicional del RAP */}
                       {(rap.descripcion !== rap.nombreMateria || rap.creditos || rap.DocUrl) && (
                         <div className="px-4 pb-4 space-y-2">
-                          {rap.descripcion && rap.descripcion !== rap.nombreMateria && (
-                            <div className="p-3 bg-gray-50 dark:bg-coal-500 rounded-lg border border-gray-200 dark:border-gray-600">
-                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                                Descripción:
-                              </p>
-                              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                                {rap.descripcion}
-                              </p>
-                            </div>
-                          )}
                           
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             {rap.creditos && (
