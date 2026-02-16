@@ -15,6 +15,7 @@ import { ListaRaps } from './ListaRaps';
 import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
 import { useAuthContext } from '@/auth';
+import { HorariosMateria } from './HorariosMateria';
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];
@@ -26,6 +27,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
+  const [modalHorarios, setModalHorarios] = useState<boolean>(false);
   const { user } = useAuthContext();
   
   // Estados de vista
@@ -141,9 +143,10 @@ const handleGuardarTrimestre = async () => {
 };
 
   // para abrir modal de RAPs
-  const handleOpenRaps = (competenciaId: number, competenciaNombre: string) => {
+  const handleOpenRaps = (competenciaId: number, competenciaNombre: string, idTrimestre:number) => {
     setSelectedCompetenciaId(competenciaId);
     setSelectedCompetenciaNombre(competenciaNombre);
+    setSelectedNivelId(idTrimestre);
     setIsRapsModalOpen(true);
   };
 
@@ -339,6 +342,7 @@ const handleGuardarTrimestre = async () => {
                                 <CardTrimestre
                                   trimestre={trimestre}
                                   index={index}
+                                  setModalHorarios={setModalHorarios}
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
                                   onVerRaps={handleOpenRaps} // ← PASAR LA FUNCIÓN AL COMPONENTE HIJO
@@ -415,8 +419,14 @@ const handleGuardarTrimestre = async () => {
           onClose={() => setIsRapsModalOpen(false)}
           idMateriaPadre={selectedCompetenciaId}
           nombreCompetencia={selectedCompetenciaNombre}
+          idFicha={selectedFicha?.id}
+          nivelId={selectedNivelId??0}
         />
       )}
+
+      {
+        modalHorarios && <HorariosMateria onClose={()=>setModalHorarios(false)} open={false}/>
+      }
 
       <Toast message='Trimestre agregado correctamente' isOpen={toast}  onClose={()=> setToast(false)}/>
     </div>
