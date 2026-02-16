@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, ch
 
   const hasPermission = requiredPermissions.every((perm) => permissions.includes(perm));
 
-  if (!auth) {
+  if (!hasPermission) {
     return <Navigate to="/error/403" />;
   }
 
