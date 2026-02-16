@@ -21,9 +21,11 @@ setupAxios(axios);
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
+  <React.StrictMode>
     <ProvidersWrapper>
       <App />
     </ProvidersWrapper>
+  </React.StrictMode>
 );
 
 if ('serviceWorker' in navigator) {
