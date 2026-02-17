@@ -15,9 +15,16 @@ const useMenuBreadcrumbs = (
       const item = items[i];
 
       if (item.path && matchPath(pathname, item.path)) {
+        // Si es la ruta de clase, no mostrar el ID, solo "Clase"
+        let title = item.title;
+        if (item.path.includes('/clase/:id')) {
+          // Ocultar el ID, mostrar solo "Clase"
+          title = 'Clase';
+        }
+        
         return [
           {
-            title: item.title,
+            title: title,
             path: item.path,
             active: true
           }
