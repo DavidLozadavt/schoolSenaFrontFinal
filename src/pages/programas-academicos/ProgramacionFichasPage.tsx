@@ -41,6 +41,14 @@ interface Ficha {
     programa?: {
       id: number;
       nombrePrograma: string;
+      grados:[
+        {
+          id:number;
+          pivot:{
+            idGrado:number;
+          }
+        }
+      ]
     };
   };
 
@@ -96,6 +104,7 @@ export const ProgramacionFichasPage = () => {
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
   const [idFicha, setIdFicha] = useState<number>(0);
   const [idSede, setIdSede] = useState<number | undefined>(0);
+  const [idGrado, setIdGrado] = useState<number|undefined>(0);
 
   //Creacion de ficha:
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -216,6 +225,7 @@ export const ProgramacionFichasPage = () => {
           idFicha={idFicha}
           idPrograma={programId}
           idSede={idSede}
+          idGrado={idGrado}
         />
         {/* Breadcrumbs */}
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
@@ -534,7 +544,8 @@ export const ProgramacionFichasPage = () => {
                               onClick={() => {
                                 setJuiciosEvaluativos(true);
                                 setIdFicha(ficha.id);
-                                setIdSede(ficha.sede?.id)
+                                setIdSede(ficha.sede?.id);
+                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado)
                               }}
                               className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                             >

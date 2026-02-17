@@ -14,6 +14,7 @@ interface ModalProps {
   idFicha: number;
   idPrograma: string | undefined;
   idSede:number | undefined;
+  idGrado:number | undefined;
 }
 
 interface FormValues {
@@ -44,7 +45,8 @@ const ModalJuiciosEvaluativos: React.FC<ModalProps> = ({
   onSave,
   idFicha,
   idPrograma,
-  idSede
+  idSede,
+  idGrado
 }) => {
   const [handleError, setHandleError] = useState<boolean>(false);
   const [messageError, setMessageError] = useState<string>('');
@@ -74,7 +76,7 @@ const ModalJuiciosEvaluativos: React.FC<ModalProps> = ({
         if(idSede){
           formData.append('idSede', String(idSede));
         }
-        formData.append('idGrado', String(1))
+        formData.append('idGrado', String(idGrado))
 
         await axios.post('raps', formData);
 
@@ -108,6 +110,7 @@ const ModalJuiciosEvaluativos: React.FC<ModalProps> = ({
   if (idFicha === 0) return null;
   if (!idPrograma) return null;
   if (!idSede) return null;
+  if (!idGrado) return null;
 
   return (
     <Modal open={open} onClose={handleClose}>
