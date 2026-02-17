@@ -8,6 +8,7 @@ import CrearFicha from './components/CrearFicha';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
 import { useAuthContext } from '@/auth';
+import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
 
 interface Ficha {
   id: number;
@@ -15,7 +16,7 @@ interface Ficha {
   porcentajeEjecucion: number;
   idInstructorLider?: number | null;
   documento?: string | null;
-  rutaDocumentoUrl:string | null;
+  rutaDocumentoUrl: string | null;
 
   jornada?: {
     id: number;
@@ -40,6 +41,14 @@ interface Ficha {
     programa?: {
       id: number;
       nombrePrograma: string;
+      grados:[
+        {
+          id:number;
+          pivot:{
+            idGrado:number;
+          }
+        }
+      ]
     };
   };
 
@@ -89,6 +98,13 @@ export const ProgramacionFichasPage = () => {
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  //Agregar Juicios evaluativos:
+
+  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
+  const [idFicha, setIdFicha] = useState<number>(0);
+  const [idSede, setIdSede] = useState<number | undefined>(0);
+  const [idGrado, setIdGrado] = useState<number|undefined>(0);
 
   //Creacion de ficha:
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -197,6 +213,20 @@ export const ProgramacionFichasPage = () => {
   return (
     <>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-coal-500">
+        {/* Agregar juicios evaluativos */}
+        <ModalJuiciosEvaluativos
+          open={juiciosEvaluativos}
+          onClose={() => {
+            setJuiciosEvaluativos(false);
+            setIdFicha(0);
+            
+          }}
+          onSave={() => setEvento((pre) => !pre)}
+          idFicha={idFicha}
+          idPrograma={programId}
+          idSede={idSede}
+          idGrado={idGrado}
+        />
         {/* Breadcrumbs */}
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
           <nav className="text-sm text-gray-600 dark:text-gray-400">
@@ -496,7 +526,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
-                                Documento de la Ficha 
+                                Documento de la Ficha
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
                                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
@@ -509,6 +539,19 @@ export const ProgramacionFichasPage = () => {
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
                           <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setJuiciosEvaluativos(true);
+                                setIdFicha(ficha.id);
+                                setIdSede(ficha.sede?.id);
+                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado)
+                              }}
+                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <i className="ki-outline ki-book-square"></i>
+                              Agregar juicios Evaluativos
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleEditarFicha(ficha.id)}
