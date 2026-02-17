@@ -5,21 +5,131 @@ import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 
 // Componente de Calendario
-const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = ({
+const CalendarComponent: React.FC<{ 
+  fechaInicio: string; 
+  fechaFin: string; 
+  diaSemana?: string;
+  todasLasFechasClase?: FechaClase[];
+}> = ({
   fechaInicio,
-  fechaFin
+  fechaFin,
+  diaSemana,
+  todasLasFechasClase = []
 }) => {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   
+  // Función para parsear fechas sin problemas de zona horaria
+  const parseDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    // Si viene en formato YYYY-MM-DD, parsear manualmente para evitar problemas de zona horaria
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Los meses en JS son 0-indexed
+      const day = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    }
+    return new Date(dateString);
+  };
+  
+  // Usar las fechas del horario directamente
+  // Si fechaFin es NULL o vacía, usar solo fechaInicio (clase de un solo día)
+  const fechaFinParaUsar = fechaFin && fechaFin.trim() !== '' ? fechaFin : fechaInicio;
+  
   // Si no hay fechas, usar el mes actual
-  const initialDate = fechaInicio ? new Date(fechaInicio) : new Date();
+  const initialDate = fechaInicio ? parseDate(fechaInicio) || new Date() : new Date();
   const [currentMonth, setCurrentMonth] = useState(initialDate);
 
-  const inicio = fechaInicio ? new Date(fechaInicio) : null;
-  const fin = fechaFin ? new Date(fechaFin) : null;
+  const inicio = fechaInicio ? parseDate(fechaInicio) : null;
+  const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
-  const daysOfWeek = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  // Mapeo de nombres de días en español a números (0 = Domingo, 1 = Lunes, etc.)
+  const mapeoDias: { [key: string]: number } = {
+    'DOMINGO': 0,
+    'LUNES': 1,
+    'MARTES': 2,
+    'MIERCOLES': 3,
+    'MIÉRCOLES': 3,
+    'JUEVES': 4,
+    'VIERNES': 5,
+    'SABADO': 6,
+    'SÁBADO': 6
+  };
+
+  // Calcular todas las fechas de clase usando las fechas del backend
+  const fechasClase = useMemo(() => {
+    // Si tenemos todas las fechas del backend, usarlas directamente
+    if (todasLasFechasClase && todasLasFechasClase.length > 0) {
+      const fechas: Date[] = [];
+      todasLasFechasClase.forEach((fechaClase) => {
+        if (fechaClase.fechaInicial) {
+          const fechaIni = parseDate(fechaClase.fechaInicial);
+          if (fechaIni) {
+            fechaIni.setHours(0, 0, 0, 0);
+            // Si fechaFinal es NULL o igual a fechaInicial, es una clase de un solo día
+            const fechaFin = fechaClase.fechaFinal ? parseDate(fechaClase.fechaFinal) : fechaIni;
+            if (fechaFin) {
+              fechaFin.setHours(0, 0, 0, 0);
+              // Si son la misma fecha, agregar solo esa
+              if (fechaIni.getTime() === fechaFin.getTime()) {
+                fechas.push(new Date(fechaIni));
+              } else {
+                // Si hay rango, agregar todas las fechas en el rango que coincidan con el día
+                const diaNumero = mapeoDias[fechaClase.dia_semana?.toUpperCase() || ''];
+                if (diaNumero !== undefined) {
+                  const fechaActual = new Date(fechaIni);
+                  while (fechaActual <= fechaFin) {
+                    if (fechaActual.getDay() === diaNumero) {
+                      fechas.push(new Date(fechaActual));
+                    }
+                    fechaActual.setDate(fechaActual.getDate() + 1);
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      return fechas;
+    }
+    
+    // Fallback: calcular basándose en fechaInicio y fechaFin (lógica antigua)
+    if (!inicio || !fin || !diaSemana) {
+      return [];
+    }
+    
+    const diaNumero = mapeoDias[diaSemana.toUpperCase()];
+    if (diaNumero === undefined) {
+      return [];
+    }
+
+    const fechas: Date[] = [];
+    const fechaActual = new Date(inicio);
+    fechaActual.setHours(0, 0, 0, 0);
+    const fechaFinal = new Date(fin);
+    fechaFinal.setHours(0, 0, 0, 0);
+
+    // Si fechaInicial y fechaFinal son la misma fecha, verificar solo esa fecha
+    if (fechaActual.getTime() === fechaFinal.getTime()) {
+      if (fechaActual.getDay() === diaNumero) {
+        fechas.push(new Date(fechaActual));
+      }
+    } else {
+      // Si son diferentes, calcular todas las fechas en el rango
+      while (fechaActual <= fechaFinal) {
+        if (fechaActual.getDay() === diaNumero) {
+          fechas.push(new Date(fechaActual));
+        }
+        fechaActual.setDate(fechaActual.getDate() + 1);
+      }
+    }
+
+    return fechas;
+  }, [todasLasFechasClase, inicio, fin, diaSemana]);
+
+
+  const daysOfWeek = ['D', 'L', 'M', 'X', 'J', 'V', 'S']; // D=Dom, L=Lun, M=Mar, X=Mié, J=Jue, V=Vie, S=Sáb
   const months = [
     'enero',
     'febrero',
@@ -57,19 +167,34 @@ const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = (
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     date.setHours(0, 0, 0, 0);
 
-    if (date.getTime() === hoy.getTime()) {
+    // Verificar si esta fecha es una fecha de clase
+    const esFechaClase = fechasClase.some(fecha => {
+      const fechaClase = new Date(fecha);
+      fechaClase.setHours(0, 0, 0, 0);
+      return fechaClase.getTime() === date.getTime();
+    });
+
+    if (!esFechaClase) {
+      return 'normal';
+    }
+
+    // Si es una fecha de clase, determinar el estado
+    // IMPORTANTE: Solo marcar como "hoy" si realmente es hoy Y es una fecha de clase
+    const hoyTime = hoy.getTime();
+    const dateTime = date.getTime();
+    
+    if (dateTime === hoyTime) {
       return 'hoy';
     }
     
-    // Solo verificar si hay fechas de inicio y fin
-    if (inicio && fin && date >= inicio && date <= fin) {
-      if (date > hoy) {
-        return 'proxima';
-      }
-      if (date < hoy) {
-        return 'pasada';
-      }
+    if (dateTime > hoyTime) {
+      return 'proxima';
     }
+    
+    if (dateTime < hoyTime) {
+      return 'pasada';
+    }
+    
     return 'normal';
   };
 
@@ -129,7 +254,7 @@ const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = (
                   ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white'
                   : status === 'pasada'
                   ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white'
-                  : 'text-gray-700 dark:text-gray-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
               {day}
@@ -137,7 +262,7 @@ const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = (
           );
         })}
       </div>
-      <div className="mt-3 flex flex-wrap gap-3 text-xs">
+      <div className="mt-3 flex flex-col gap-2 text-xs">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
           <span className="text-gray-700 dark:text-gray-300">Hoy - Día de clase</span>
@@ -154,6 +279,37 @@ const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = (
     </div>
   );
 };
+
+interface Clase {
+  materia_nombre?: string;
+  programa_nombre?: string;
+  fechaInicial?: string;
+  fechaFinal?: string;
+  horaInicial?: string;
+  horaFinal?: string;
+  total_sesiones?: number;
+  dia_semana?: string;
+  jornada_tipo?: string;
+  instructor?: {
+    id: number;
+    persona?: {
+      id: number;
+      nombre1: string;
+      nombre2?: string;
+      apellido1: string;
+      apellido2?: string;
+      email?: string;
+      rutaFotoUrl?: string;
+    };
+  };
+  [key: string]: any;
+}
+
+interface FechaClase {
+  fechaInicial: string;
+  fechaFinal: string | null;
+  dia_semana: string;
+}
 
 interface Ficha {
   id: number;
@@ -207,26 +363,69 @@ const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ficha, setFicha] = useState<Ficha | null>(null);
+  const [clase, setClase] = useState<Clase | null>(null);
+  const [todasLasFechasClase, setTodasLasFechasClase] = useState<FechaClase[]>([]);
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenu, setActiveMenu] = useState<MenuOption>('estudiantes');
   const itemsPerPage = 11;
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Actualizar el tiempo actual cada segundo para el cronómetro en tiempo real
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const fetchFicha = async () => {
       if (!id) return;
       try {
         setLoading(true);
-        const response = await axios.get(`fichas/${id}`);
-        setFicha(response.data);
+        // Intentar primero con el nuevo endpoint que usa idHorarioMateria
+        let response;
+        try {
+          response = await axios.get(`fichas/clase-horario/${id}`);
+          // El nuevo endpoint devuelve { message, data: { clase, ficha, apertura } }
+          const fichaData = response.data?.data?.ficha;
+          const claseData = response.data?.data?.clase;
+          
+          if (fichaData) {
+            setFicha(fichaData);
+            if (claseData) {
+              setClase(claseData);
+            }
+            // Obtener todas las fechas de clase para el calendario
+            const fechasClase = response.data?.data?.todasLasFechasClase || [];
+            setTodasLasFechasClase(fechasClase);
+          } else {
+            throw new Error('Ficha no encontrada en la respuesta');
+          }
+        } catch (horarioError: any) {
+          // Si falla, intentar con el endpoint antiguo (por si acaso se pasa un ficha_id)
+          console.log('Intentando con endpoint antiguo...');
+          response = await axios.get(`fichas/${id}`);
+          const fichaData = response.data?.data?.ficha || response.data;
+          setFicha(fichaData);
+          setClase(null); // El endpoint antiguo no tiene datos de clase
+        }
         
         // Aquí deberías hacer una llamada para obtener los estudiantes de la ficha
         // Por ahora usamos un array vacío
         setEstudiantes([]);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al cargar la ficha:', error);
+        console.error('Error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          id: id
+        });
+        // Siempre establecer ficha como null en caso de error para mostrar el mensaje apropiado
+        setFicha(null);
       } finally {
         setLoading(false);
       }
@@ -254,21 +453,26 @@ const ClaseDetallePage: React.FC = () => {
   const totalPages = Math.ceil(filteredEstudiantes.length / itemsPerPage);
 
   const getNumSesiones = (): number => {
-    if (ficha?.horarios && ficha.horarios.length > 0) {
-      return ficha.horarios.length;
-    }
-    if (ficha?.asignacion?.fechaInicialClases && ficha?.asignacion?.fechaFinalClases) {
-      const inicio = new Date(ficha.asignacion.fechaInicialClases);
-      const fin = new Date(ficha.asignacion.fechaFinalClases);
-      const diffTime = Math.abs(fin.getTime() - inicio.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return Math.ceil((diffDays / 7) * 3.5);
+    // Usar el total de sesiones de la clase específica
+    if (clase?.total_sesiones !== undefined && clase.total_sesiones !== null) {
+      return Number(clase.total_sesiones);
     }
     return 0;
   };
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+    // Parsear fecha sin problemas de zona horaria
+    const parts = dateString.split('T')[0].split('-');
+    let date: Date;
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      date = new Date(year, month, day);
+    } else {
+      date = new Date(dateString);
+    }
+    
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const monthsNames = [
       'enero',
@@ -287,12 +491,326 @@ const ClaseDetallePage: React.FC = () => {
     return `${days[date.getDay()]}, ${date.getDate()} de ${monthsNames[date.getMonth()]} ${date.getFullYear()}`;
   };
 
+  // Calcular la próxima fecha de clase si hoy no hay clase
+  const calcularProximaFechaClase = (): string | null => {
+    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.dia_semana) return null;
+
+    const mapeoDias: { [key: string]: number } = {
+      'DOMINGO': 0,
+      'LUNES': 1,
+      'MARTES': 2,
+      'MIERCOLES': 3,
+      'MIÉRCOLES': 3,
+      'JUEVES': 4,
+      'VIERNES': 5,
+      'SABADO': 6,
+      'SÁBADO': 6
+    };
+
+    const diaNumero = mapeoDias[clase.dia_semana.toUpperCase()];
+    if (diaNumero === undefined) return null;
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    // Parsear fechas sin problemas de zona horaria
+    const parseDate = (dateString: string): Date => {
+      const parts = dateString.split('T')[0].split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+      return new Date(dateString);
+    };
+    
+    const fechaInicio = parseDate(clase.fechaInicial);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const fechaFin = parseDate(clase.fechaFinal);
+    fechaFin.setHours(0, 0, 0, 0);
+
+    // Buscar la próxima fecha de clase
+    const fechaActual = new Date(Math.max(hoy.getTime(), fechaInicio.getTime()));
+    
+    while (fechaActual <= fechaFin) {
+      if (fechaActual.getDay() === diaNumero) {
+        return fechaActual.toISOString().split('T')[0];
+      }
+      fechaActual.setDate(fechaActual.getDate() + 1);
+    }
+
+    return null;
+  };
+
+  const proximaFechaClase = calcularProximaFechaClase();
+
   const getJornadaType = (nombreJornada: string): string => {
     const lower = nombreJornada?.toLowerCase() || '';
     if (lower.includes('mañana') || lower.includes('manana')) return 'Mañana';
     if (lower.includes('tarde')) return 'Tarde';
     if (lower.includes('noche')) return 'Noche';
     return nombreJornada || 'N/A';
+  };
+
+  // Función para convertir hora de 24h a formato 12h con AM/PM basado en la jornada
+  const formatTime12h = (timeString: string, jornadaTipo?: string): string => {
+    if (!timeString) return 'N/A';
+    const time = timeString.substring(0, 5); // Obtener HH:MM
+    const [hours, minutes] = time.split(':');
+    const hour24 = parseInt(hours, 10);
+    
+    // Determinar AM/PM basado en la jornada
+    const jornadaLower = jornadaTipo?.toLowerCase() || '';
+    const esManana = jornadaLower.includes('mañana') || jornadaLower.includes('manana');
+    const esTarde = jornadaLower.includes('tarde');
+    const esNoche = jornadaLower.includes('noche');
+    
+    // Si es Mañana, todas las horas son AM
+    // Si es Tarde o Noche, todas las horas son PM
+    let esPM = false;
+    if (esManana) {
+      esPM = false; // AM
+    } else if (esTarde || esNoche) {
+      esPM = true; // PM
+    } else {
+      // Si no hay jornada definida, usar la lógica estándar basada en la hora
+      esPM = hour24 >= 12;
+    }
+    
+    // Convertir a formato 12h
+    let hour12: number;
+    if (hour24 === 0) {
+      hour12 = 12;
+    } else if (hour24 <= 12) {
+      hour12 = hour24 === 12 ? 12 : hour24;
+    } else {
+      hour12 = hour24 - 12;
+    }
+    
+    return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
+  };
+
+  // Función para convertir hora string (HH:MM:SS o HH:MM) a minutos desde medianoche
+  // El backend devuelve horas en formato 12h pero como si fueran 24h (ej: "04:00:00" = 4:00 PM si jornada es TARDE)
+  const timeToMinutes = (timeString: string, jornadaTipo?: string): number => {
+    if (!timeString) return 0;
+    const time = timeString.substring(0, 5); // Obtener HH:MM
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12
+    const jornadaTipoUpper = jornadaTipo?.toUpperCase() || '';
+    const esTarde = jornadaTipoUpper.includes('TARDE');
+    const esNoche = jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+    
+    if ((esTarde || esNoche) && hours < 12) {
+      hours += 12;
+    }
+    
+    return hours * 60 + minutes;
+  };
+
+  // Función para calcular la duración total de la clase en segundos
+  const calcularDuracionClase = (): number => {
+    if (!clase?.horaInicial || !clase?.horaFinal) return 0;
+    const inicio = timeToMinutes(clase.horaInicial, clase.jornada_tipo);
+    const fin = timeToMinutes(clase.horaFinal, clase.jornada_tipo);
+    // Si la hora final es menor que la inicial, asumimos que cruza medianoche
+    let duracionMinutos = 0;
+    if (fin <= inicio) {
+      duracionMinutos = (24 * 60 - inicio) + fin;
+    } else {
+      duracionMinutos = fin - inicio;
+    }
+    return duracionMinutos * 60; // Convertir a segundos
+  };
+
+  // Función para determinar el estado de la clase: 'pasada', 'pendiente', 'en_curso'
+  const getEstadoClase = (): 'pasada' | 'pendiente' | 'en_curso' => {
+    if (!clase?.fechaInicial || !clase?.horaInicial || !clase?.horaFinal) return 'pendiente';
+
+    // Parsear fecha sin problemas de zona horaria
+    const parseDate = (dateString: string): Date => {
+      const parts = dateString.split('T')[0].split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+      return new Date(dateString);
+    };
+
+    const fechaClase = parseDate(clase.fechaInicial);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    fechaClase.setHours(0, 0, 0, 0);
+
+    // Si la fecha de la clase es anterior a hoy, la clase ya pasó
+    if (fechaClase.getTime() < hoy.getTime()) {
+      return 'pasada';
+    }
+
+    // Si la fecha de la clase es posterior a hoy, la clase está pendiente
+    if (fechaClase.getTime() > hoy.getTime()) {
+      return 'pendiente';
+    }
+
+    // Si es el mismo día, verificar si está en curso
+    const ahora = currentTime;
+    let [horaIni, minIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    let [horaFin, minFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    
+    // Convertir horas según jornada_tipo (el backend devuelve 12h como si fueran 24h)
+    const jornadaTipo = clase.jornada_tipo?.toUpperCase() || '';
+    const esTarde = jornadaTipo.includes('TARDE');
+    const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
+    
+    if ((esTarde || esNoche) && horaIni < 12) {
+      horaIni += 12;
+    }
+    if ((esTarde || esNoche) && horaFin < 12) {
+      horaFin += 12;
+    }
+
+    const horaInicio = new Date(ahora);
+    horaInicio.setHours(horaIni, minIni, 0, 0);
+
+    const horaFinClase = new Date(ahora);
+    horaFinClase.setHours(horaFin, minFin, 0, 0);
+
+    // Si la hora final es menor que la inicial, asumimos que cruza medianoche
+    if (horaFinClase.getTime() < horaInicio.getTime()) {
+      horaFinClase.setDate(horaFinClase.getDate() + 1);
+    }
+
+    // Verificar si estamos dentro del rango de la clase
+    if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinClase.getTime()) {
+      return 'en_curso';
+    }
+
+    // Si ya pasó la hora de fin, la clase ya pasó
+    if (ahora.getTime() > horaFinClase.getTime()) {
+      return 'pasada';
+    }
+
+    // Si aún no ha comenzado, está pendiente
+    return 'pendiente';
+  };
+
+  // Función para calcular el tiempo transcurrido en segundos (solo si está en curso)
+  const calcularTiempoTranscurrido = (): number => {
+    const estado = getEstadoClase();
+    if (estado !== 'en_curso' || !clase?.horaInicial) return 0;
+
+    const ahora = currentTime;
+    let [horaIni, minIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    
+    // Convertir horas según jornada_tipo
+    const jornadaTipo = clase.jornada_tipo?.toUpperCase() || '';
+    const esTarde = jornadaTipo.includes('TARDE');
+    const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
+    
+    if ((esTarde || esNoche) && horaIni < 12) {
+      horaIni += 12;
+    }
+    
+    const horaInicio = new Date(ahora);
+    horaInicio.setHours(horaIni, minIni, 0, 0);
+
+    const diffMs = ahora.getTime() - horaInicio.getTime();
+    return Math.floor(diffMs / 1000); // Convertir a segundos
+  };
+
+  // Función para calcular el porcentaje de progreso (0-100)
+  const calcularPorcentajeProgreso = (): number => {
+    const estado = getEstadoClase();
+    const duracionTotal = calcularDuracionClase(); // En segundos
+    
+    if (estado === 'pasada') {
+      return 100; // Clase completada
+    }
+    if (estado === 'pendiente') {
+      return 0; // Clase aún no inicia
+    }
+    if (estado === 'en_curso' && duracionTotal > 0) {
+      const tiempoTranscurrido = calcularTiempoTranscurrido(); // En segundos
+      const porcentaje = Math.min(100, Math.max(0, (tiempoTranscurrido / duracionTotal) * 100));
+      return porcentaje;
+    }
+    return 0;
+  };
+
+  // Función para determinar el color según el progreso
+  const getColorProgreso = (): { color: string; bgColor: string; textColor: string; estado: string } => {
+    const estado = getEstadoClase();
+    const porcentaje = calcularPorcentajeProgreso();
+
+    // Clase pasada o pendiente: gris
+    if (estado === 'pasada' || estado === 'pendiente') {
+      return {
+        color: '#9ca3af', // gray-400
+        bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+        textColor: 'text-gray-700 dark:text-gray-300',
+        estado: estado === 'pasada' ? 'Completada' : 'Pendiente'
+      };
+    }
+
+    // Clase en curso: semáforo según progreso
+    if (porcentaje <= 33) {
+      // Verde: inicio (0-33%)
+      return {
+        color: '#22c55e', // green-500
+        bgColor: 'bg-green-100 dark:bg-green-900/30',
+        textColor: 'text-green-700 dark:text-green-300',
+        estado: 'En curso'
+      };
+    } else if (porcentaje <= 66) {
+      // Naranja: mitad (33-66%)
+      return {
+        color: '#f97316', // orange-500
+        bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+        textColor: 'text-orange-700 dark:text-orange-300',
+        estado: 'En curso'
+      };
+    } else {
+      // Rojo: por finalizar (66-100%)
+      return {
+        color: '#ef4444', // red-500
+        bgColor: 'bg-red-100 dark:bg-red-900/30',
+        textColor: 'text-red-700 dark:text-red-300',
+        estado: 'En curso'
+      };
+    }
+  };
+
+  // Función para formatear el tiempo del cronómetro (HH:MM:SS / HH:MM:SS)
+  const formatCronometro = (): string => {
+    const estado = getEstadoClase();
+    const duracionTotal = calcularDuracionClase(); // En segundos
+    const horasTotal = Math.floor(duracionTotal / 3600);
+    const minutosTotal = Math.floor((duracionTotal % 3600) / 60);
+    const segundosTotal = duracionTotal % 60;
+    const tiempoTotalStr = `${horasTotal.toString().padStart(2, '0')}:${minutosTotal.toString().padStart(2, '0')}:${segundosTotal.toString().padStart(2, '0')}`;
+
+    if (estado === 'pasada') {
+      // Clase pasada: mostrar la duración total
+      return `${tiempoTotalStr} / ${tiempoTotalStr}`;
+    }
+    if (estado === 'pendiente') {
+      // Clase pendiente: mostrar 00:00:00 / duración total
+      return `00:00:00 / ${tiempoTotalStr}`;
+    }
+    if (estado === 'en_curso') {
+      // Clase en curso: mostrar tiempo transcurrido / duración total
+      const tiempoTranscurrido = calcularTiempoTranscurrido(); // En segundos
+      const horasTrans = Math.floor(tiempoTranscurrido / 3600);
+      const minutosTrans = Math.floor((tiempoTranscurrido % 3600) / 60);
+      const segundosTrans = tiempoTranscurrido % 60;
+      const tiempoTransStr = `${horasTrans.toString().padStart(2, '0')}:${minutosTrans.toString().padStart(2, '0')}:${segundosTrans.toString().padStart(2, '0')}`;
+      return `${tiempoTransStr} / ${tiempoTotalStr}`;
+    }
+    return `00:00:00 / ${tiempoTotalStr}`;
   };
 
   if (loading) {
@@ -319,11 +837,13 @@ const ClaseDetallePage: React.FC = () => {
     );
   }
 
-  const nombreCompletoInstructor = ficha.instructorLider?.persona
-    ? `${ficha.instructorLider.persona.nombre1} ${ficha.instructorLider.persona.nombre2 || ''} ${ficha.instructorLider.persona.apellido1} ${ficha.instructorLider.persona.apellido2 || ''}`.trim()
+  // Usar el instructor asignado a esta clase específica, no el instructor líder de la ficha
+  const instructorClase = clase?.instructor;
+  const nombreCompletoInstructor = instructorClase?.persona
+    ? `${instructorClase.persona.nombre1} ${instructorClase.persona.nombre2 || ''} ${instructorClase.persona.apellido1} ${instructorClase.persona.apellido2 || ''}`.trim()
     : 'Sin asignar';
 
-  const emailInstructor = ficha.instructorLider?.persona?.email || 'N/A';
+  const emailInstructor = instructorClase?.persona?.email || 'N/A';
 
   return (
     <Container>
@@ -339,10 +859,10 @@ const ClaseDetallePage: React.FC = () => {
             {/* Header Left */}
             <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                {ficha.asignacion?.programa?.nombrePrograma || 'Sin programa'}
+                {clase?.materia_nombre || 'Sin clase'}
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
+                {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
               </p>
             </div>
 
@@ -394,122 +914,130 @@ const ClaseDetallePage: React.FC = () => {
         </div>
 
         {/* Instructor and Calendar Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          {/* Left Column: Instructor and Date/Time */}
-          <div className="lg:col-span-1 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
+          {/* Left Column: Instructor and Date/Time - Más ancha */}
+          <div className="lg:col-span-8 flex flex-col gap-4 h-full">
             {/* Instructor Card */}
-            <div className="card">
-              <div className="card-body">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Instructor</h2>
-              {ficha.instructorLider?.persona ? (
-                <div className="space-y-4">
+            <div className="card flex-1">
+              <div className="card-body p-6">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-6">Instructor</h2>
+              {instructorClase?.persona ? (() => {
+                const colorInfo = getColorProgreso();
+                const porcentaje = calcularPorcentajeProgreso();
+                const cronometroText = formatCronometro();
+                
+                return (
                   <div className="flex items-start gap-4">
                     <div className="relative flex-shrink-0">
-                      {/* Círculo de progreso */}
-                      <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                        {/* Círculo gris de fondo */}
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r="16"
-                          fill="none"
-                          stroke="#e5e7eb"
-                          strokeWidth="3"
-                        />
-                        {/* Círculo rojo de progreso (aproximadamente 20% del círculo) */}
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r="16"
-                          fill="none"
-                          stroke="#ef4444"
-                          strokeWidth="3"
-                          strokeDasharray="20 100"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      {/* Foto del instructor */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <img
-                          src={ficha.instructorLider.persona.rutaFotoUrl || '/media/avatars/blank.png'}
-                          alt={nombreCompletoInstructor}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-800"
-                        />
+                      {/* Círculo de progreso con anillo dinámico */}
+                      <div className="w-20 h-20 rounded-full border-2 border-gray-200 dark:border-gray-700 relative">
+                        {/* Anillo de progreso dinámico */}
+                        <svg className="absolute inset-0 w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                          <circle
+                            cx="18"
+                            cy="18"
+                            r="16"
+                            fill="none"
+                            stroke={colorInfo.color}
+                            strokeWidth="3"
+                            strokeDasharray={`${porcentaje} 100`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        {/* Foto del instructor */}
+                        <div className="absolute inset-0 flex items-center justify-center p-1.5">
+                          <img
+                            src={instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png'}
+                            alt={nombreCompletoInstructor}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5">
                         {nombreCompletoInstructor}
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
                         {emailInstructor}
                       </p>
+                      {/* Cronómetro y badge en la misma línea debajo del correo */}
+                      <div className="flex items-center gap-2.5">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${colorInfo.bgColor} ${colorInfo.textColor}`}>
+                          <KeenIcon icon="time" className={`${colorInfo.textColor} text-sm`} />
+                          <span>{cronometroText}</span>
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colorInfo.bgColor} ${colorInfo.textColor}`}>
+                          {colorInfo.estado}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <KeenIcon icon="time" className="text-red-500 text-sm" />
-                    <span className="text-xs text-gray-600 dark:text-gray-400">00:07 / 05:00</span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                      Iniciando
-                    </span>
-                  </div>
-                </div>
-              ) : (
+                );
+              })() : (
                 <p className="text-xs text-gray-500 dark:text-gray-400">No hay instructor asignado</p>
               )}
               </div>
             </div>
 
             {/* Date and Time Card */}
-            {ficha.asignacion?.fechaInicialClases && ficha.asignacion?.fechaFinalClases && (
-              <div className="card">
-                <div className="card-body">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Fecha y Hora</h2>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                      <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-sm" />
+            {clase?.fechaInicial && clase?.fechaFinal && (
+              <div className="card flex-1">
+                <div className="card-body p-6 flex flex-col h-full">
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-6">Fecha y Hora</h2>
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Fecha de Inicio */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                        <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-xl" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2.5">Fecha de Inicio</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
+                          {formatDate(clase.fechaInicial)}
+                        </p>
+                        {clase.horaInicial && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Hora inicio: {formatTime12h(clase.horaInicial, clase.jornada_tipo)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">Fecha de Inicio</p>
-                      <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                        {formatDate(ficha.asignacion.fechaInicialClases)}
-                      </p>
-                      <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">
-                        Hora inicio: {ficha.jornada?.horaInicial || 'N/A'}
-                      </p>
+                    {/* Fecha de Fin */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                        <KeenIcon icon="calendar" className="text-red-600 dark:text-red-400 text-xl" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2.5">Fecha de Fin</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
+                          {formatDate(clase.fechaFinal)}
+                        </p>
+                        {clase.horaFinal && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Hora fin: {formatTime12h(clase.horaFinal, clase.jornada_tipo)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                      <KeenIcon icon="calendar" className="text-red-600 dark:text-red-400 text-sm" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">Fecha de Fin</p>
-                      <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                        {formatDate(ficha.asignacion.fechaFinalClases)}
-                      </p>
-                      <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">
-                        Hora fin: {ficha.jornada?.horaFinal || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right Column: Calendar */}
-          <div className="lg:col-span-2 flex justify-end">
-            <div className="card w-full max-w-md">
-              <div className="card-body p-3">
-                <h2 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+          {/* Right Column: Calendar - Mucho más pequeño */}
+          <div className="lg:col-span-4">
+            <div className="card h-full flex flex-col">
+              <div className="card-body p-4 flex flex-col h-full">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                   Calendario de Clases
                 </h2>
               <CalendarComponent
-                fechaInicio={ficha.asignacion?.fechaInicialClases || ''}
-                fechaFin={ficha.asignacion?.fechaFinalClases || ''}
+                fechaInicio={clase?.fechaInicial || ''}
+                fechaFin={clase?.fechaFinal || ''}
+                diaSemana={clase?.dia_semana}
+                todasLasFechasClase={todasLasFechasClase}
               />
               </div>
             </div>
