@@ -130,8 +130,12 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
               {materiasSeleccionadas.length} competencia(s) seleccionada(s)
             </p>
           </div>
-          <button onClick={handleClose} className="text-gray-400 hover:text-danger transition-colors">
-            <i className="ki-outline ki-cross text-xl font-bold"></i>
+          <button 
+            onClick={handleClose} 
+            className="absolute z-10 flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full top-4 right-4 hover:bg-danger hover:text-white hover:scale-110"
+            aria-label="Cerrar modal"
+          >
+            <i className="text-lg ki-outline ki-cross"></i>
           </button>
         </div>
 

@@ -27,11 +27,9 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
-  const [modalHorarios, setModalHorarios] = useState<boolean>(false);
   const { user } = useAuthContext();
   
   // Estados de vista
-  const [vistaCalendario, setVistaCalendario] = useState(false);
   const [errorApi, setErrorApi] = useState<string | null>(null);
   
   // Estados de modales
@@ -154,7 +152,7 @@ const handleGuardarTrimestre = async () => {
 
   const fichaOptions = fichas.map((ficha) => ({
     value: ficha.id,
-    label: `Ficha #${ficha.codigo} • ${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)} • Avance: ${ficha.porcentajeEjecucion}%`
+    label: `Ficha #${ficha.codigo} • ${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)} • Jornada: ${ficha.jornada.nombreJornada}`
   }));
 
   return (
@@ -210,11 +208,13 @@ const handleGuardarTrimestre = async () => {
 
                 {/* Controles de Trimestres */}
                 {selectedFicha && (
-                  <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm">
+                  <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm justify-between">
+                    <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
+                    </div>
                     <button
                       onClick={handleAgregarTrimestre}
                       disabled={trimestres.length === 9 || nuevoTrimestre !== null}
@@ -288,34 +288,6 @@ const handleGuardarTrimestre = async () => {
                     </div>
                   )}
 
-                  {/* Toggle Vista */}
-                  {selectedFicha && trimestres.length > 0 && (
-                    <div className="flex rounded-xl p-1.5 mb-6 bg-gray-100 dark:bg-coal-500 shadow-inner">
-                      <button
-                        onClick={() => setVistaCalendario(false)}
-                        className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
-                          !vistaCalendario
-                            ? 'bg-white dark:bg-primary text-primary dark:text-white shadow-md'
-                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        <List size={18} />
-                        Trimestres
-                      </button>
-                      <button
-                        onClick={() => setVistaCalendario(true)}
-                        className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${
-                          vistaCalendario
-                            ? 'bg-white dark:bg-primary text-primary dark:text-white shadow-md'
-                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        <Calendar size={18} />
-                        Calendario
-                      </button>
-                    </div>
-                  )}
-
                   {/* Contenido: Trimestres o Calendario */}
                   {selectedFicha && 
                     <div className="space-y-5">
@@ -326,7 +298,7 @@ const handleGuardarTrimestre = async () => {
                           <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       :
-                      !vistaCalendario ? (
+                      (
                         trimestres.length > 0 ? (
                           [...trimestres]
                             .sort((a, b) => a.grado?.numeroGrado - b.grado?.numeroGrado)
@@ -342,10 +314,9 @@ const handleGuardarTrimestre = async () => {
                                 <CardTrimestre
                                   trimestre={trimestre}
                                   index={index}
-                                  setModalHorarios={setModalHorarios}
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
-                                  onVerRaps={handleOpenRaps} // ← PASAR LA FUNCIÓN AL COMPONENTE HIJO
+                                  onVerRaps={handleOpenRaps}
                                 />
                               </div>
                             ))
@@ -360,8 +331,6 @@ const handleGuardarTrimestre = async () => {
                             </p>
                           </div>
                         )
-                      ) : (
-                        <Calendario />
                       )}
                     </div>
                   }
@@ -421,12 +390,9 @@ const handleGuardarTrimestre = async () => {
           nombreCompetencia={selectedCompetenciaNombre}
           idFicha={selectedFicha?.id}
           nivelId={selectedNivelId??0}
+          porcentajeEjecucion={selectedFicha?.porcentajeEjecucion??0}
         />
       )}
-
-      {
-        modalHorarios && <HorariosMateria onClose={()=>setModalHorarios(false)} open={false}/>
-      }
 
       <Toast message='Trimestre agregado correctamente' isOpen={toast}  onClose={()=> setToast(false)}/>
     </div>
