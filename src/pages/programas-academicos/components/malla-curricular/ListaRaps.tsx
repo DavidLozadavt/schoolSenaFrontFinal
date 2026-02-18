@@ -42,7 +42,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
     horasFaltantes: 0
   });
 
-  useEffect(() => {
     const cargarRaps = async () => {
       if (!isOpen || !idMateriaPadre) return;
 
@@ -75,6 +74,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
       }
     };
 
+  useEffect(() => {
     cargarRaps();
   }, [isOpen, idMateriaPadre]);
 
@@ -168,7 +168,13 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
 
                   return (
                     <div key={rap.id} className="rounded-xl p-1">
-                      <CardRap materia={materiaTransformada} idTrimestre={nivelId} idFicha={idFicha} setModalHorarios={setModalHorarios} />
+                      <CardRap
+                        materia={materiaTransformada}
+                        idTrimestre={nivelId}
+                        idFicha={idFicha}
+                        setModalHorarios={setModalHorarios}
+                        onAsignacionSuccess={cargarRaps}
+                      />
 
                       {/* Información adicional del RAP */}
                       {(rap.descripcion !== rap.nombreMateria || rap.creditos || rap.DocUrl) && (
