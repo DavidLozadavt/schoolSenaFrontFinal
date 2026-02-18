@@ -2,6 +2,7 @@ import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown } from 'lucide-
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
+import { useSnackbar } from 'notistack';
 
 interface CardRapProps {
   materia: any;
@@ -9,6 +10,7 @@ interface CardRapProps {
   idTrimestre?: number;
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
+  onAsignacionSuccess?: () => void;
 }
 
 export const CardRap = ({
@@ -16,14 +18,18 @@ export const CardRap = ({
   onVerRaps,
   idTrimestre,
   setModalHorarios,
-  idFicha
+  idFicha,
+  onAsignacionSuccess
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
+  const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
   const [instructoresAsignados, setInstructoresAsignados] = useState<any[]>([]);
   const [mostrarSelector, setMostrarSelector] = useState(false);
   const [instructores, setInstructores] = useState<any[]>([]);
   const [cargandoInstructores, setCargandoInstructores] = useState(false);
   const [showInstructorsModal, setShowInstructorsModal] = useState(false);
+  const [asignando, setAsignando] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     let asignados: any[] = [];
@@ -40,6 +46,7 @@ export const CardRap = ({
     }
 
     setHorarios(asignados);
+    setHorariosSinAsignar(sinAsignar);
 
     // Agrupar por instructores únicos
     const unicos: any[] = [];
@@ -74,15 +81,23 @@ export const CardRap = ({
   };
 
   const handleAsignarInstructor = async (instructor: any) => {
+    setAsignando(true);
     try {
-      await axios.post('horarios/asignar-instructor', {
-        idGradoMateria: materia.id,
-        idInstructor: instructor.id
+      await axios.put('asignar/instructor', {
+        idContrato: instructor.id, // instructor es el contrato, los datos personales vienen en instructor.persona
+        horarios: horariosSinAsignar
       });
 
+      enqueueSnackbar('Instructor asignado correctamente', { variant: 'success' });
       setMostrarSelector(false);
-    } catch (error) {
-      console.error('Error al asignar instructor:', error);
+
+      if (onAsignacionSuccess) {
+        onAsignacionSuccess();
+      }
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error al asignar instructor', { variant: 'error' });
+    } finally {
+      setAsignando(false);
     }
   };
 
@@ -204,9 +219,10 @@ export const CardRap = ({
                       {/* Dropdown de cada RAP/Materia */}
                       {mostrarSelector && (
                         <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-coal-300 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-600 z-[100] max-h-60 overflow-y-auto">
-                          {cargandoInstructores ? (
+                          {cargandoInstructores || asignando ? (
                             <div className="p-4 text-center">
                               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                              {asignando && <p className="text-[10px] mt-2 font-bold text-primary animate-pulse">ASIGNANDO...</p>}
                             </div>
                           ) : (
                             <div className="p-1">

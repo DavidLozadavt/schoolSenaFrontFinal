@@ -28,7 +28,7 @@ export const MallaCurricular = ({ isOpen, onClose, program,  }: MallaCurricularP
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
   const { user } = useAuthContext();
-  
+
   // Estados de vista
   const [errorApi, setErrorApi] = useState<string | null>(null);
   
@@ -317,6 +317,7 @@ const handleGuardarTrimestre = async () => {
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
                                   onVerRaps={handleOpenRaps}
+                                  onAsignacionSuccess={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
                                 />
                               </div>
                             ))
