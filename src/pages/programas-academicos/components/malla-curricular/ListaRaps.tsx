@@ -2,44 +2,62 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertCircle, BookOpen, X, FileText } from 'lucide-react';
 import { CardRap } from './CardRap';
+import { HorariosMateria } from './HorariosMateria';
 
 interface ListaRapsProps {
   isOpen: boolean;
   onClose: () => void;
   idMateriaPadre: number;
   nombreCompetencia?: string;
-  idFicha:number;
-  nivelId?:number;
+  idFicha: number;
+  nivelId?: number;
+  porcentajeEjecucion?: number;
 }
 
-export const ListaRaps: React.FC<ListaRapsProps> = ({ 
-  isOpen, 
-  onClose, 
+export const ListaRaps: React.FC<ListaRapsProps> = ({
+  isOpen,
+  onClose,
   idMateriaPadre,
   nombreCompetencia = "Competencia",
   idFicha,
-  nivelId
+  nivelId,
+  porcentajeEjecucion
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalHorarios, setModalHorarios] = useState<{
+    open: boolean;
+    idGradoMateria?: number;
+    idFicha?: number;
+    totalHoras?: number;
+    horasActuales?: number;
+    horasFaltantes?: number;
+  }>({
+    open: false,
+    idGradoMateria: undefined,
+    idFicha: undefined,
+    totalHoras: 0,
+    horasActuales: 0,
+    horasFaltantes: 0
+  });
 
-  useEffect(() => {
     const cargarRaps = async () => {
       if (!isOpen || !idMateriaPadre) return;
 
       setLoading(true);
       setError(null);
-      
+
       try {
-        const response = await axios.get(`materias/raps`, { params: 
+        const response = await axios.get(`materias/raps`, {
+          params:
           {
-            idFicha:idFicha,
-            idMateriaPadre:idMateriaPadre,
+            idFicha: idFicha,
+            idMateriaPadre: idMateriaPadre,
             idGradoPrograma: nivelId
           }
         });
-        
+
         if (Array.isArray(response.data?.data)) {
           setRaps(response.data.data);
         } else if (Array.isArray(response.data)) {
@@ -56,38 +74,46 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
       }
     };
 
+  useEffect(() => {
     cargarRaps();
   }, [isOpen, idMateriaPadre]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-5xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-        
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/10 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+
         {/* Header */}
-        <div className="flex-shrink-0 bg-primary-active p-6 text-white">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 pr-4">
-              <div className="flex items-center gap-3 mb-2">
+        <div className="flex-shrink-0 bg-primary-active p-4 text-white">
+          <div className="flex items-center justify-between flex-col md:flex-row">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                   <BookOpen size={24} />
                 </div>
-                <h2 className="text-2xl font-black uppercase tracking-tight">
-                  Resultados de Aprendizaje (RAPs)
-                </h2>
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight">
+                    Resultados de Aprendizaje (RAPs)
+                  </h2>
+                  <span className="text-sm font-bold text-gray-300">
+                    Total: {raps.length} - {nombreCompetencia}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm font-semibold text-white/90 mt-2 line-clamp-2">
-                {nombreCompetencia}
-              </p>
             </div>
-            
+     
+            <span className="text-md font-bold text-gray-300 mr-12">
+              Porcentaje de Ejecución
+              <p className="text-center text-lg font-bold">{porcentajeEjecucion}%</p>
+            </span>
+       
             <button
               onClick={onClose}
-              className="flex items-center justify-center w-10 h-10 text-white transition-all bg-white/10 border border-white/40 rounded-full hover:bg-white/20 hover:scale-110 backdrop-blur-md"
+              className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
               aria-label="Cerrar modal"
             >
-              <X size={20} />
+              <i className="text-lg ki-outline ki-cross"></i>
             </button>
           </div>
         </div>
@@ -121,21 +147,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Contador de RAPs */}
-              <div className="flex items-center justify-between p-4 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <FileText size={18} className="text-primary" />
-                  </div>
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Total de RAPs:
-                  </span>
-                </div>
-                <span className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-black">
-                  {raps.length}
-                </span>
-              </div>
-
               {/* Lista de RAPs usando CardRap */}
               <div className="space-y-3">
                 {raps.map((rap, index) => {
@@ -143,30 +154,33 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   const materiaTransformada = {
                     id: rap.id,
                     nombre: rap.nombre,
+                    idMateria: rap.idMateria,
+                    idGradoMateria: rap.idGradoMateria,
+                    idMateriaPadre: rap.idMateriaPadre,
                     codigo: rap.codigo,
                     horasTotales: rap.horas,
                     horasActuales: 0,
                     horasFaltantes: rap.horas,
                     porcentajeAvance: 0,
                     descripcion: rap.descripcion,
-                    horarios: []
+                    horarios: rap.horarios || []
                   };
 
                   return (
-                    <div key={rap.id} className="bg-white dark:bg-coal-400 rounded-xl p-1">
-                      <CardRap materia={materiaTransformada} verDescripcion={true}/>
-                      
+                    <div key={rap.id} className="rounded-xl p-1">
+                      <CardRap
+                        materia={materiaTransformada}
+                        idTrimestre={nivelId}
+                        idFicha={idFicha}
+                        setModalHorarios={setModalHorarios}
+                        onAsignacionSuccess={cargarRaps}
+                      />
+
                       {/* Información adicional del RAP */}
                       {(rap.descripcion !== rap.nombreMateria || rap.creditos || rap.DocUrl) && (
                         <div className="px-4 pb-4 space-y-2">
-                          
+
                           <div className="flex items-center justify-between flex-wrap gap-2">
-                            {rap.creditos && (
-                              <span className="text-xs text-gray-600 dark:text-gray-400 font-semibold">
-                                Créditos: {rap.creditos}
-                              </span>
-                            )}
-                            
                             {rap.DocUrl && rap.DocUrl !== 'http://localhost:8000/default/auto.png' && (
                               <a
                                 href={rap.DocUrl}
@@ -194,7 +208,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           <div className="hidden sm:flex items-center gap-2">
             <i className="text-base ki-outline ki-information-2 text-primary"></i>
             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-              {raps.length > 0 
+              {raps.length > 0
                 ? `${raps.length} resultado${raps.length !== 1 ? 's' : ''} de aprendizaje encontrado${raps.length !== 1 ? 's' : ''}`
                 : 'No hay resultados de aprendizaje'}
             </p>
@@ -207,6 +221,24 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal Horarios */}
+      {modalHorarios.open &&
+        <HorariosMateria
+          open={modalHorarios.open}
+          onClose={() => setModalHorarios({
+            open: false,
+            idGradoMateria: undefined
+          })}
+          idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+          idFicha={modalHorarios.idFicha ?? 0}
+          totalHoras={modalHorarios.totalHoras}
+          horasActuales={modalHorarios.horasActuales}
+          horasFaltantes={modalHorarios.horasFaltantes}
+          porcentajeEjecucion={porcentajeEjecucion??0}
+          onGuardado={() => { }}
+        />
+      }
     </div>
   );
 };

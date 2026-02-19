@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Save, X } from 'lucide-react';
-import axios from 'axios';
 
 interface FormNuevoTrimestreProps {
   trimestre: any;
@@ -24,8 +23,8 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   onCancelar,
 }) => {
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl max-h-[95vh] flex flex-col">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {/* HEADER */}
         <div className="p-4 flex justify-between items-center border-b-2 border-gray-200 dark:border-gray-600">
@@ -37,11 +36,12 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
             </span>
           </h3>
 
-          <button
-            onClick={onCancelar}
-            className="text-gray-400 hover:text-danger transition-colors"
+          <button 
+            onClick={onCancelar} 
+            className="absolute z-10 flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full top-4 right-4 hover:bg-danger hover:text-white hover:scale-110"
+            aria-label="Cerrar modal"
           >
-            <X size={22} />
+            <i className="text-lg ki-outline ki-cross"></i>
           </button>
         </div>
 
