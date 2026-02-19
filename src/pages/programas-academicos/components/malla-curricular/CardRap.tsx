@@ -113,7 +113,11 @@ export const CardRap = ({
               {materia.descripcion ? materia.descripcion : ''}
             </p>
           </h3>
-          <div>
+          <div className='flex flex-col items-center'>
+            <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
+              ${materia.estado === 'REALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+              {materia.estado || 'Sin estado'}
+            </span>
             <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
             <p className="text-lg text-center text-blue-500 font-semibold">
               {materia.porcentajeAvance || 0}%
