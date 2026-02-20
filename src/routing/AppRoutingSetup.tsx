@@ -111,6 +111,8 @@ import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
+import Redes from '@/pages/gestion-red/Redes';
+import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgramas';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -787,7 +789,15 @@ const AppRoutingSetup = (): ReactElement => {
 
           {/* --- SECCIÓN GESTIÓN ACADÉMICA --- */}
           <Route
-            path="/gestion-academica/configuracion/programas"
+            path="/gestion-academica/configuracion/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <RedesProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
@@ -976,6 +986,15 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
                 <Infraestructura />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Redes />
               </ProtectedRoute>
             }
           />
