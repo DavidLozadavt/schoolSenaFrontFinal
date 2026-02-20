@@ -8,7 +8,6 @@ const RedesProgramas:React.FC = () => {
       //Para actualizar la Data una vez ocurra un vambio:
       const [evento, setEvento] = useState<boolean>(true);
     
-      const [idSede, setIdSede] = useState<string>('');
       //Toast para el success
       const [toastOpen, setToastOpen] = useState(false);
       const [toastMessage, setToastMessage] = useState('');
@@ -35,7 +34,7 @@ const RedesProgramas:React.FC = () => {
           </div>
           <input
             type="text"
-            placeholder="Buscar Sede..."
+            placeholder="Buscar Redes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-3 text-sm font-medium transition-opacity bg-transparent border-none outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 dark:text-white"
@@ -52,7 +51,7 @@ const RedesProgramas:React.FC = () => {
             <i className="text-lg ki-filled ki-plus"></i>
           </div>
           <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-            Añadir Sede
+            Añadir Red
           </span>
         </button>
       </div>
