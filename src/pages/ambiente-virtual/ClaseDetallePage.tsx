@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ListaActividades, type Actividad } from './actividades';
+import { VerGruposView } from './grupos';
 
 // Componente de Calendario
 const CalendarComponent: React.FC<{ fechaInicio: string; fechaFin: string }> = ({
@@ -201,7 +203,7 @@ interface Estudiante {
   estado?: string;
 }
 
-type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos';
+type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -213,6 +215,60 @@ const ClaseDetallePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenu, setActiveMenu] = useState<MenuOption>('estudiantes');
   const itemsPerPage = 11;
+
+  // Actividades
+  const [actividadesDisponibles, setActividadesDisponibles] = useState<Actividad[]>([]);
+  const [actividadesAsignadas, setActividadesAsignadas] = useState<Actividad[]>([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
+  const [modalActividadOpen, setModalActividadOpen] = useState(false);
+  const [modalVerActividadOpen, setModalVerActividadOpen] = useState(false);
+  const [actividadEditar, setActividadEditar] = useState<Actividad | null>(null);
+  const [actividadVer, setActividadVer] = useState<Actividad | null>(null);
+  const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
+  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
+  const [modalCuestionarioOpen, setModalCuestionarioOpen] = useState(false);
+  const [cuestionarioEditar, setCuestionarioEditar] = useState<Actividad | null>(null);
+  const [idMateriaFicha, setIdMateriaFicha] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchMateriaFicha = async () => {
+      if (!id) return;
+      try {
+        const res = await axios.get(`trimestres-ficha/${id}`);
+        const data = Array.isArray(res.data?.data) ? res.data.data : res.data?.data?.data ?? [];
+        const primerTrimestre = data[0];
+        const primeraMateria = primerTrimestre?.materias?.[0];
+        if (primeraMateria?.id) setIdMateriaFicha(primeraMateria.id);
+      } catch {
+        setIdMateriaFicha(null);
+      }
+    };
+    fetchMateriaFicha();
+  }, [id]);
+
+  const fetchActividades = useCallback(async () => {
+    setLoadingActividades(true);
+    try {
+      const [disponiblesRes, asignadasRes] = await Promise.allSettled([
+        axios.get('actividades').catch(() => ({ data: [] })),
+        id ? axios.get(`planeacionactividades/ficha/${id}`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+      ]);
+      const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
+      const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
+      setActividadesDisponibles(disp);
+      setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
+    } catch (e) {
+      console.warn('Error cargando actividades:', e);
+    } finally {
+      setLoadingActividades(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (activeMenu === 'agregar-actividades' || activeMenu === 'actividades-asignadas') {
+      fetchActividades();
+    }
+  }, [activeMenu, fetchActividades]);
 
   useEffect(() => {
     const fetchFicha = async () => {
@@ -433,7 +489,7 @@ const ClaseDetallePage: React.FC = () => {
                         <img
                           src={ficha.instructorLider.persona.rutaFotoUrl || '/media/avatars/blank.png'}
                           alt={nombreCompletoInstructor}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-800"
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-600"
                         />
                       </div>
                     </div>
@@ -568,6 +624,17 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span>Juicios Evaluativos</span>
                 </button>
+                <button
+                  onClick={() => setActiveMenu('ver-grupos')}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
+                    activeMenu === 'ver-grupos'
+                      ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                  }`}
+                >
+                  <KeenIcon icon="users" className={`text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span>Ver grupos</span>
+                </button>
                 </div>
               </div>
             </div>
@@ -609,7 +676,7 @@ const ClaseDetallePage: React.FC = () => {
                           return (
                             <div
                               key={estudiante.id}
-                              className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
+                              className="bg-gray-50 dark:bg-coal-300 rounded-lg p-3 border border-gray-200 dark:border-gray-900"
                             >
                               <div className="text-center">
                                 <img
@@ -686,28 +753,104 @@ const ClaseDetallePage: React.FC = () => {
 
               {/* Agregar Actividades Section */}
               {activeMenu === 'agregar-actividades' && (
-                <div className="text-center py-12">
-                  <KeenIcon icon="plus-circle" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay actividades</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    Crea una nueva actividad para comenzar
-                  </p>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors mx-auto">
-                    <KeenIcon icon="plus" className="text-sm" />
-                    <span>Crear Actividad</span>
-                  </button>
-                </div>
+                <ListaActividades
+                  actividades={actividadesDisponibles}
+                  loading={loadingActividades}
+                  modo="agregar"
+                  onVer={(act) => {
+                    setActividadVer(act);
+                    setModalVerActividadOpen(true);
+                  }}
+                  onMaterialApoyo={(act) => {
+                    setActividadMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
+                  onCrear={() => {
+                    setActividadEditar(null);
+                    setModalActividadOpen(true);
+                  }}
+                  onCrearCuestionario={() => {
+                    setCuestionarioEditar(null);
+                    setModalCuestionarioOpen(true);
+                  }}
+                  onAsignar={async (act) => {
+                    if (!id || !act.id || !act.idMateria) return;
+                    try {
+                      const planeacionRes = await axios.get(`planeacion/ficha/${id}`);
+                      const idPlaneacion = planeacionRes.data?.id ?? planeacionRes.data;
+                      if (!idPlaneacion) {
+                        console.warn('No se encontró planeación para esta ficha');
+                        return;
+                      }
+                      await axios.post('planeacionactividades', {
+                        idActividad: act.id,
+                        idMateria: act.idMateria,
+                        idPlaneacion
+                      });
+                      fetchActividades();
+                    } catch (e) {
+                      console.warn('Error asignando actividad:', e);
+                    }
+                  }}
+                  onEditar={(act) => {
+                    if (act.tipoActividad === 'cuestionario') {
+                      setCuestionarioEditar(act);
+                      setModalCuestionarioOpen(true);
+                    } else {
+                      setActividadEditar(act);
+                      setModalActividadOpen(true);
+                    }
+                  }}
+                  onEliminar={async (act) => {
+                    if (!act.id || !window.confirm('¿Eliminar esta actividad?')) return;
+                    try {
+                      await axios.delete(`actividades/${act.id}`);
+                      fetchActividades();
+                    } catch (e: any) {
+                      const msg = e.response?.data?.error || e.message || 'Error al eliminar';
+                      alert(msg);
+                    }
+                  }}
+                />
               )}
 
               {/* Actividades Asignadas Section */}
               {activeMenu === 'actividades-asignadas' && (
-                <div className="text-center py-12">
-                  <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay actividades asignadas</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Las actividades que asignes aparecerán aquí
-                  </p>
-                </div>
+                <ListaActividades
+                  actividades={actividadesAsignadas}
+                  loading={loadingActividades}
+                  modo="asignadas"
+                  onVer={(act) => {
+                    setActividadVer(act);
+                    setModalVerActividadOpen(true);
+                  }}
+                  onMaterialApoyo={(act) => {
+                    setActividadMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
+                  onCrearCuestionario={() => {
+                    setCuestionarioEditar(null);
+                    setModalCuestionarioOpen(true);
+                  }}
+                  onQuitar={async (idPlaneacionActividad) => {
+                    if (!window.confirm('¿Quitar esta actividad de la clase?')) return;
+                    try {
+                      await axios.delete(`planeacionactividades/${idPlaneacionActividad}`);
+                      fetchActividades();
+                    } catch (e) {
+                      console.warn('Error quitando actividad:', e);
+                    }
+                  }}
+                  onEditar={(act) => {
+                    if (act.tipoActividad === 'cuestionario') {
+                      setCuestionarioEditar(act);
+                      setModalCuestionarioOpen(true);
+                    } else {
+                      setActividadEditar(act);
+                      setModalActividadOpen(true);
+                    }
+                  }}
+                />
               )}
 
               {/* Juicios Evaluativos Section */}
@@ -720,10 +863,55 @@ const ClaseDetallePage: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Ver grupos Section */}
+              {activeMenu === 'ver-grupos' && id && (
+                <VerGruposView
+                  idFicha={id}
+                  fechaFinalClases={ficha?.asignacion?.fechaFinalClases}
+                />
+              )}
               </div>
             </div>
           </div>
         </div>
+
+        <ModalCrearActividad
+          open={modalActividadOpen}
+          onClose={() => {
+            setModalActividadOpen(false);
+            setActividadEditar(null);
+          }}
+          onSave={fetchActividades}
+          actividadEditar={actividadEditar}
+          idMateria={idMateriaFicha ?? undefined}
+        />
+        <ModalVerActividad
+          open={modalVerActividadOpen}
+          onClose={() => {
+            setModalVerActividadOpen(false);
+            setActividadVer(null);
+          }}
+          actividad={actividadVer}
+        />
+        <ModalMaterialApoyo
+          open={modalMaterialApoyoOpen}
+          onClose={() => {
+            setModalMaterialApoyoOpen(false);
+            setActividadMaterialApoyo(null);
+          }}
+          actividad={actividadMaterialApoyo}
+        />
+        <ModalCrearCuestionario
+          open={modalCuestionarioOpen}
+          onClose={() => {
+            setModalCuestionarioOpen(false);
+            setCuestionarioEditar(null);
+          }}
+          onSave={fetchActividades}
+          idMateria={idMateriaFicha ?? undefined}
+          cuestionarioEditar={cuestionarioEditar}
+        />
     </Container>
   );
 };
