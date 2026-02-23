@@ -374,15 +374,6 @@ const ClaseDetallePage: React.FC = () => {
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  
-  //Juicios evaluativos:
-  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
-  const [idFicha, setIdFicha] = useState<number|undefined>(0);
-  const [idSede, setIdSede] = useState<number|undefined>(0);
-  const [idGrado, setIdGrado] = useState<number|undefined>(0);
-  const [idPrograma, setIdPrograma] = useState<string | undefined>('');
-  const [evento, setEvento] = useState<boolean>(false);
-
 
   //Juicios evaluativos:
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
