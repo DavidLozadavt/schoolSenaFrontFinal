@@ -8,7 +8,7 @@ interface Props {
   searchTerm: string;
   evento: boolean;
   setEvento: (value: boolean) => void;
-  idInstructor?: number; // ID del contrato del instructor (opcional)
+  idInstructor?: number;
 }
 
 interface Clase {
@@ -30,6 +30,8 @@ interface Clase {
   idGradoPrograma: number | null;
   grado_nombre: string | null;
   idHorarioMateria: number;
+  idGradoMateria: number;
+  idMateria: number; 
 }
 
 const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, idInstructor }) => {
@@ -313,15 +315,22 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     return clase.total_sesiones || 0;
   };
 
-  const handleNavigateToClase = (clase: Clase) => {
-    // Usar idHorarioMateria como identificador único de la clase
-    if (clase.idHorarioMateria) {
-      const id = Number(clase.idHorarioMateria);
-      if (!isNaN(id) && id > 0) {
-        navigate(`/ambiente-virtual/clase/${id}`);
-      }
+ const handleNavigateToClase = (clase: Clase) => {
+  if (clase.idHorarioMateria) {
+    const id = Number(clase.idHorarioMateria);
+    if (!isNaN(id) && id > 0) {
+      navigate(`/ambiente-virtual/clase/${id}`, {
+        state: {
+          idMateria: clase.idMateria,
+          idGradoMateria: clase.idGradoMateria,
+          ficha_id: clase.ficha_id,
+          materia_nombre: clase.materia_nombre,
+          programa_nombre: clase.programa_nombre
+        }
+      });
     }
-  };
+  }
+};
 
   const filteredClases = useMemo(() => {
     let filtered = [...clases];
