@@ -48,7 +48,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Redes',
             path: '/redes',
-            requiredPermissions: ['GESTION_REGIONAL']
+            requiredPermissions: ['GESTION_REDES']
           }
         ]
   },
