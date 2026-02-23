@@ -11,7 +11,7 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
-  idFicha: number;
+  idFicha: number | undefined;
   idPrograma: string | undefined;
   idSede:number | undefined;
   idGrado:number | undefined;
@@ -108,6 +108,7 @@ const ModalJuiciosEvaluativos: React.FC<ModalProps> = ({
   };
 
   if (idFicha === 0) return null;
+  if (!idFicha) return null;
   if (!idPrograma) return null;
   if (!idSede) return null;
   if (!idGrado) return null;

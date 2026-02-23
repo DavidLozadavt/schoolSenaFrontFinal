@@ -3,8 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
-import ModalJuiciosEvaluativos from '../programas-academicos/components/ModalJuiciosEvaluativos';
-import StudentListByMateria from './ListaHorarioEstudiantes';
 
 // Componente de Calendario
 const CalendarComponent: React.FC<{
@@ -43,9 +41,8 @@ const CalendarComponent: React.FC<{
     const initialDate = fechaInicio ? parseDate(fechaInicio) || new Date() : new Date();
     const [currentMonth, setCurrentMonth] = useState(initialDate);
 
-    const inicio = fechaInicio ? parseDate(fechaInicio) : null;
-    const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
-
+  const inicio = fechaInicio ? parseDate(fechaInicio) : null;
+  const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
     // Mapeo de nombres de días en español a números (0 = Domingo, 1 = Lunes, etc.)
     const mapeoDias: { [key: string]: number } = {
@@ -283,7 +280,6 @@ const CalendarComponent: React.FC<{
   };
 
 interface Clase {
-  ficha_id: number;
   materia_nombre?: string;
   programa_nombre?: string;
   fechaInicial?: string;
@@ -293,7 +289,6 @@ interface Clase {
   total_sesiones?: number;
   dia_semana?: string;
   jornada_tipo?: string;
-  idGrado: number;
   instructor?: {
     id: number;
     persona?: {
@@ -306,9 +301,6 @@ interface Clase {
       rutaFotoUrl?: string;
     };
   };
-  sede: {
-    id: number;
-  }
   [key: string]: any;
 }
 
@@ -321,7 +313,6 @@ interface FechaClase {
 interface Ficha {
   id: number;
   codigo: string;
-  idSede: number;
   jornada?: {
     id: number;
     nombreJornada: string;
@@ -382,6 +373,15 @@ const ClaseDetallePage: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<MenuOption>('estudiantes');
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  
+  //Juicios evaluativos:
+  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
+  const [idFicha, setIdFicha] = useState<number|undefined>(0);
+  const [idSede, setIdSede] = useState<number|undefined>(0);
+  const [idGrado, setIdGrado] = useState<number|undefined>(0);
+  const [idPrograma, setIdPrograma] = useState<string | undefined>('');
+  const [evento, setEvento] = useState<boolean>(false);
 
 
   //Juicios evaluativos:
@@ -897,36 +897,22 @@ const ClaseDetallePage: React.FC = () => {
     <Container>
       {/* Header con Info Cards */}
       <div className="mb-6">
-        {/* Agregar juicios evaluativos */}
-        <ModalJuiciosEvaluativos
-          open={juiciosEvaluativos}
-          onClose={() => {
-            setJuiciosEvaluativos(false);
-            setIdFicha(0);
-
-          }}
-          onSave={() => setEvento((pre) => !pre)}
-          idFicha={idFicha}
-          idPrograma={idPrograma}
-          idSede={idSede}
-          idGrado={idGrado}
-        />
-        <button
-          onClick={() => navigate('/ambiente-virtual/historial-raps')}
-          className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
-        >
-          <KeenIcon icon="left" className="text-sm" />
-        </button>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Header Left */}
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-              {clase?.materia_nombre || 'Sin clase'}
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
-            </p>
-          </div>
+          <button
+            onClick={() => navigate('/ambiente-virtual/historial-raps')}
+            className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
+          >
+            <KeenIcon icon="left" className="text-sm" />
+          </button>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Header Left */}
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                {clase?.materia_nombre || 'Sin clase'}
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
+              </p>
+            </div>
 
           {/* Info Cards - Compactas */}
           <div className="flex flex-wrap gap-3 items-center">
@@ -1145,18 +1131,12 @@ const ClaseDetallePage: React.FC = () => {
                   <span>Actividades Asignadas</span>
                 </button>
                 <button
-                  onClick={() => {
-                    setJuiciosEvaluativos(true);
-                    setIdFicha(clase?.ficha_id);
-                    setIdPrograma(String(ficha.asignacion?.programa?.id));
-                    setIdSede(ficha?.idSede)
-                    setIdGrado(clase?.idGrado);
-                  }
-                  }
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  onClick={() => setActiveMenu('juicios-evaluativos')}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
+                    activeMenu === 'juicios-evaluativos'
+                      ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                  }`}
                 >
                   <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span>Juicios Evaluativos</span>

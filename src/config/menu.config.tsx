@@ -12,7 +12,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         children: [
           {
             title: 'Programas',
-            path: '/gestion-academica/configuracion/programas',
+            path: '/gestion-academica/configuracion/redes',
             requiredPermissions: ['GESTION_USUARIO']
           },
           {
@@ -44,6 +44,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
             title: 'Ambientes',
             path: '/ambientes',
             requiredPermissions: ['GESTION_REGIONAL']
+          },
+          {
+            title: 'Redes',
+            path: '/redes',
+            requiredPermissions: ['GESTION_REDES']
           }
         ]
   },

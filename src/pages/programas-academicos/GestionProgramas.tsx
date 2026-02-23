@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
 import ConfirmarEliminar from './components/ConfirmarEliminar';
@@ -57,6 +57,8 @@ export const GestionProgramas = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
 
+  const {idRed} = useParams()
+
   useEffect(() => {
     fetchProgramas();
   }, [authContext?.empresa.id]);
@@ -87,7 +89,7 @@ export const GestionProgramas = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`programasporRegional/${authContext?.empresa?.id}`);
+      const response = await axios.get(`programasporRed/${idRed}`);
       if (response.data.status === 'success') {
         setPrograms(response.data.data.map(mapBackendToUi));
       }

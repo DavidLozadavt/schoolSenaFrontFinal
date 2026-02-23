@@ -473,12 +473,13 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                               {values.horarios.map((horario, index: number) => (
                                 <tr key={horario.idDia} className="border-t dark:border-gray-700">
                                   <td className="p-3">
-                                    <input
-                                      type="checkbox"
-                                      checked={horario.activo}
-                                      onChange={() => toggleDia(index)}
-                                      className="w-4 h-4 text-primary rounded border-gray-300"
-                                    />
+                                    <label className="switch">
+                                      <input
+                                        type="checkbox"
+                                        checked={horario.activo}
+                                        onChange={() => toggleDia(index)}
+                                      />
+                                    </label>
                                   </td>
                                   <td>{horario.nombreDia}</td>
                                   <td className="p-3">

@@ -88,7 +88,7 @@ const FormularioTipoInfraestructura: React.FC<Props> = ({
 
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-          {mode === 'create' ? 'Crear tipo de infraestructura' : 'Editar'}
+          {mode === 'create' ? 'Crear tipo de ambiente' : 'Editar'}
         </h2>
         {/* Form */}
         <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">

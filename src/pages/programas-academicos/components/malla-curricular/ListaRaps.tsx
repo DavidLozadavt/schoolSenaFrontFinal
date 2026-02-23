@@ -97,7 +97,10 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     Resultados de Aprendizaje (RAPs)
                   </h2>
                   <span className="text-sm font-bold text-gray-300">
-                    Total: {raps.length} - {nombreCompetencia}
+                    Total: {raps.length} - 
+                    Pendientes:{raps .filter((rap: any) => rap.estado === 'PENDIENTE').length} - 
+                    Realizados:{raps.filter((rap: any) => rap.estado === 'REALIZADO').length} - 
+                    {nombreCompetencia}
                   </span>
                 </div>
               </div>
@@ -154,6 +157,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   const materiaTransformada = {
                     id: rap.id,
                     nombre: rap.nombre,
+                    estado: rap.estado,
                     idMateria: rap.idMateria,
                     idGradoMateria: rap.idGradoMateria,
                     idMateriaPadre: rap.idMateriaPadre,
