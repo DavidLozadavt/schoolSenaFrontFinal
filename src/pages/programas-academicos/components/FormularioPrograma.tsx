@@ -186,7 +186,7 @@ export const FormularioPrograma = ({
             <textarea
               rows={2}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase() })}
               className="w-full border-gray-300 outline-none textarea bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 focus:border-blue-500 text-2sm"
               placeholder="Ingrese el nombre completo"
             />
@@ -268,7 +268,7 @@ export const FormularioPrograma = ({
             <textarea
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase() })}
               className="w-full border-gray-300 outline-none textarea bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 focus:border-blue-500 text-2sm"
               placeholder="Descripción breve del programa"
             />
