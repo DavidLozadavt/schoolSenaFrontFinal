@@ -14,7 +14,8 @@ export const FormularioPrograma = ({
   const [catalogos, setCatalogos] = useState<CatalogosData>({
     niveles: [],
     tipos: [],
-    estados: []
+    estados: [],
+    redes: []
   });
 
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ export const FormularioPrograma = ({
     formacion: '',
     nivel: '',
     status: '',
+    red: '',
     description: ''
   });
 
@@ -39,6 +41,7 @@ export const FormularioPrograma = ({
           formacion: programToEdit.idTipoFormacion?.toString() || '',
           nivel: programToEdit.idNivelEducativo?.toString() || '',
           status: programToEdit.idEstadoPrograma?.toString() || '',
+          red: programToEdit.idRed?.toString() || '',
           description: programToEdit.description || ''
         });
       } else {
@@ -48,6 +51,7 @@ export const FormularioPrograma = ({
           formacion: '',
           nivel: '',
           status: '',
+          red:params.idRed?.toString() || '',
           description: ''
         });
       }
@@ -58,12 +62,16 @@ export const FormularioPrograma = ({
 
   const cargarRecursos = async () => {
     try {
-      const response = await axios.get('/programas_recursos_crear');
-      if (response.data.status === 'success') {
+      const [catalogosRes, redesRes] = await Promise.all([
+        axios.get('/programas_recursos_crear'),
+        axios.get('/red')
+      ]);
+      if (catalogosRes.data.status === 'success') {
         setCatalogos({
-          niveles: response.data.data.niveles_educativos,
-          tipos: response.data.data.tipos_formacion,
-          estados: response.data.data.estados_programa
+          niveles: catalogosRes.data.data.niveles_educativos,
+          tipos: catalogosRes.data.data.tipos_formacion,
+          estados: catalogosRes.data.data.estados_programa,
+          redes: redesRes.data
         });
       }
     } catch (error) {
@@ -111,7 +119,7 @@ export const FormularioPrograma = ({
       idTipoFormacion: formData.formacion,
       idEstadoPrograma: formData.status,
       descripcionPrograma: formData.description,
-      idRed: Number(params.idRed)
+      idRed: Number(formData.red)
     };
 
     try {
@@ -186,7 +194,9 @@ export const FormularioPrograma = ({
             <textarea
               rows={2}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase() })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value.toLocaleUpperCase() })
+              }
               className="w-full border-gray-300 outline-none textarea bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 focus:border-blue-500 text-2sm"
               placeholder="Ingrese el nombre completo"
             />
@@ -219,6 +229,22 @@ export const FormularioPrograma = ({
                 {catalogos.tipos.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="font-bold text-gray-700 uppercase text-2xs">Red</label>
+              <select
+                value={formData.red}
+                onChange={(e) => setFormData({ ...formData, red: e.target.value })}
+                className={selectClass}
+              >
+                <option value="">Seleccionar Red</option>
+                {catalogos.redes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nombre}
                   </option>
                 ))}
               </select>
@@ -268,7 +294,9 @@ export const FormularioPrograma = ({
             <textarea
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase() })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value.toLocaleUpperCase() })
+              }
               className="w-full border-gray-300 outline-none textarea bg-gray-light-100 dark:bg-coal-300 dark:border-coal-100 focus:border-blue-500 text-2sm"
               placeholder="Descripción breve del programa"
             />
