@@ -12,10 +12,15 @@ export interface Program {
   idNivelEducativo?: number | string;
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
+  idRed?:number;
   estado?: {
     id: number;
     nombre: string;
   };
+  red?: {
+    id:number;
+    nombre:string;
+  }
 }
 
 // Props para el componente principal GestionProgramas
