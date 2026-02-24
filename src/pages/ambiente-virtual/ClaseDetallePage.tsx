@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
+import StudentListByMateria from './ListaHorarioEstudiantes';
 
 // Componente de Calendario
 const CalendarComponent: React.FC<{
@@ -41,8 +42,8 @@ const CalendarComponent: React.FC<{
     const initialDate = fechaInicio ? parseDate(fechaInicio) || new Date() : new Date();
     const [currentMonth, setCurrentMonth] = useState(initialDate);
 
-  const inicio = fechaInicio ? parseDate(fechaInicio) : null;
-  const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
+    const inicio = fechaInicio ? parseDate(fechaInicio) : null;
+    const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
     // Mapeo de nombres de días en español a números (0 = Domingo, 1 = Lunes, etc.)
     const mapeoDias: { [key: string]: number } = {
@@ -737,6 +738,57 @@ const ClaseDetallePage: React.FC = () => {
     return 'pendiente';
   };
 
+  // ─── Solo para el botón Presente/Falta ──────────────────────────────────────
+  // Usa las horas del backend TAL CUAL (sin ajuste de jornada).
+  // Lógica: ¿Es hoy un día de clase dentro del rango de fechas Y dentro del horario?
+  const esPeriodoAsistencia = (): boolean => {
+    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.horaInicial || !clase?.horaFinal) return false;
+
+    const parseDate = (s: string): Date => {
+      const parts = s.split('T')[0].split('-');
+      return parts.length === 3
+        ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+        : new Date(s);
+    };
+
+    const ahora = new Date();
+    const hoy = new Date(ahora); hoy.setHours(0, 0, 0, 0);
+
+    const fechaInicio = parseDate(clase.fechaInicial); fechaInicio.setHours(0, 0, 0, 0);
+    const fechaFin = parseDate(clase.fechaFinal); fechaFin.setHours(0, 0, 0, 0);
+
+    // 1. Hoy debe estar dentro del rango general del curso
+    if (hoy.getTime() < fechaInicio.getTime() || hoy.getTime() > fechaFin.getTime()) return false;
+
+    // 2. Hoy debe ser un día programado de clase
+    const mapeoDias: Record<string, number> = {
+      'DOMINGO': 0, 'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'MIÉRCOLES': 3,
+      'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'SÁBADO': 6
+    };
+    const esDiaDeClase = todasLasFechasClase.some(f => {
+      if (!f.fechaInicial) return false;
+      const dIni = parseDate(f.fechaInicial); dIni.setHours(0, 0, 0, 0);
+      const dFin = f.fechaFinal ? parseDate(f.fechaFinal) : new Date(dIni); dFin.setHours(0, 0, 0, 0);
+      if (dIni.getTime() === dFin.getTime()) return dIni.getTime() === hoy.getTime();
+      const diaNumero = mapeoDias[f.dia_semana?.toUpperCase() || ''];
+      return diaNumero !== undefined
+        && dIni.getTime() <= hoy.getTime()
+        && hoy.getTime() <= dFin.getTime()
+        && ahora.getDay() === diaNumero;
+    });
+    if (!esDiaDeClase) return false;
+
+    // 3. Hora actual dentro del rango horaInicial–horaFinal del backend (sin ajuste de jornada)
+    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    const inicio = new Date(ahora); inicio.setHours(hIni, mIni, 0, 0);
+    const fin = new Date(ahora); fin.setHours(hFin, mFin, 0, 0);
+    if (fin.getTime() < inicio.getTime()) fin.setDate(fin.getDate() + 1); // cruza medianoche
+
+    return ahora.getTime() >= inicio.getTime() && ahora.getTime() <= fin.getTime();
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Función para calcular el tiempo transcurrido en segundos (solo si está en curso)
   const calcularTiempoTranscurrido = (): number => {
     const estado = getEstadoClase();
@@ -888,22 +940,22 @@ const ClaseDetallePage: React.FC = () => {
     <Container>
       {/* Header con Info Cards */}
       <div className="mb-6">
-          <button
-            onClick={() => navigate('/ambiente-virtual/historial-raps')}
-            className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
-          >
-            <KeenIcon icon="left" className="text-sm" />
-          </button>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Header Left */}
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                {clase?.materia_nombre || 'Sin clase'}
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
-              </p>
-            </div>
+        <button
+          onClick={() => navigate('/ambiente-virtual/historial-raps')}
+          className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
+        >
+          <KeenIcon icon="left" className="text-sm" />
+        </button>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Header Left */}
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+              {clase?.materia_nombre || 'Sin clase'}
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
+            </p>
+          </div>
 
           {/* Info Cards - Compactas */}
           <div className="flex flex-wrap gap-3 items-center">
@@ -1084,9 +1136,9 @@ const ClaseDetallePage: React.FC = () => {
       </div>
 
       {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Menu Lateral */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-3">
           <div className="card">
             <div className="card-body">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">MENÚ</h2>
@@ -1123,11 +1175,10 @@ const ClaseDetallePage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveMenu('juicios-evaluativos')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
-                    activeMenu === 'juicios-evaluativos'
-                      ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                  }`}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
+                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                    }`}
                 >
                   <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span>Juicios Evaluativos</span>
@@ -1138,7 +1189,7 @@ const ClaseDetallePage: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-9">
           <div className="card">
             <div className="card-body">
               {/* Estudiantes Section */}
@@ -1150,15 +1201,8 @@ const ClaseDetallePage: React.FC = () => {
                     idJornada: ficha?.jornada?.id?.toString() || '',
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
                     programa_nombre: locationState?.programa_nombre || ficha?.asignacion?.programa?.nombrePrograma,
-                    estadoClase: (() => {
-                      // Usar siempre el estado calculado en tiempo real para determinar si está 'EN_CURSO', 'PASADA', o 'PENDIENTE'
-                      const finalStatus = getEstadoClase()?.toUpperCase();
-                      console.log('--- DEBUG ESTADO CLASE ---', {
-                        getEstadoClase: getEstadoClase(),
-                        finalStatus
-                      });
-                      return finalStatus;
-                    })()
+                    // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
+                    estadoClase: esPeriodoAsistencia() ? 'EN_CURSO' : 'PENDIENTE'
                   }}
                 />
               )}

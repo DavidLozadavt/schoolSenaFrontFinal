@@ -175,8 +175,7 @@ const AnotacionesDiciplinariasModal: React.FC<Props> = ({
                       >
                         <option value="Leve">LEVE</option>
                         <option value="Grave">MODERADA</option>
-                        <option value="Grave">GRAVE</option>
-                        <option value="Gravísima">MUY GRAVE</option>
+                        <option value="Gravísima">GRAVE</option>
                       </select>
                     </div>
                   </div>
