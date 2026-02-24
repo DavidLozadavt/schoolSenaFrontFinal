@@ -103,16 +103,15 @@ export const GestionProgramas = ({
     }
   };
 
-  const handleAddProgram = (newProgramFromDB: any) => {
-    setPrograms((prev) => [...prev, mapBackendToUi(newProgramFromDB)]);
+  const handleAddProgram = async (newProgramFromDB: any) => {
+    await fetchProgramas();
     setToastMessage("Programa creado con éxito");
     setShowToast(true);
     onActionComplete();
   };
 
-  const handleUpdateProgram = (updatedFromDB: any) => {
-    const mapped = mapBackendToUi(updatedFromDB);
-    setPrograms(prev => prev.map(p => p.id === mapped.id ? mapped : p));
+  const handleUpdateProgram = async () => {
+    await fetchProgramas();
     setToastMessage("Programa actualizado con éxito");
     setShowToast(true);
     onActionComplete();

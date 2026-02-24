@@ -271,7 +271,7 @@ export const ProgramacionFichasPage = () => {
               </div>
             </div>
             <button
-              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+              onClick={() => navigate(-1)}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
             >
               Volver

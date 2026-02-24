@@ -54,6 +54,7 @@ export interface CatalogosData {
   niveles: CatalogoItem[];
   tipos: CatalogoItem[];
   estados: CatalogoItem[];
+  redes:any[];
 }
 
 export interface MallaCurricularProps {
