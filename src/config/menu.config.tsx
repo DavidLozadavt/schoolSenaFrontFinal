@@ -71,6 +71,23 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
+    title: 'Aula Virtual',
+    icon:'teacher',
+    requiredPermissions:['GESTION_APRENDICES'],
+    children:[
+      {
+        title:'Mis clases',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['GESTION_APRENDICES']
+      },
+      {
+        title:'Mis Notas',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['GESTION_APRENDICES']
+      },
+    ]
+  },
+  {
     title: 'Gestión de Usuarios',
     icon: 'users',
     children: [
