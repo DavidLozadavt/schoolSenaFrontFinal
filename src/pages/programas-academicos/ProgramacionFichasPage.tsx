@@ -26,6 +26,7 @@ interface Ficha {
   sede?: {
     id: number;
     nombre: string;
+    idCentroFormacion:number;
   };
 
   regional?: {
@@ -109,6 +110,9 @@ export const ProgramacionFichasPage = () => {
   //Creacion de ficha:
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
+  // Para filtrar las jornadas por el idCentroFormacion:
+  const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
+
   const loadProgram = async () => {
     if (!programId) return;
     try {
@@ -144,6 +148,8 @@ export const ProgramacionFichasPage = () => {
           ...ficha,
           documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
         }));
+
+      setIdCentroFormacion(user?.idCentroFormacion);
 
         setFichas(fichasConDocumento);
       } else {
@@ -190,7 +196,6 @@ export const ProgramacionFichasPage = () => {
 
   // Función para editar ficha
   const handleEditarFicha = (fichaId: number) => {
-    console.log('✏️ Editando ficha:', fichaId);
     setFichaIdToEdit(fichaId);
     setIsEditModalOpen(true);
   };
@@ -298,6 +303,7 @@ export const ProgramacionFichasPage = () => {
 
           {isModalOpen && (
             <CrearFicha
+              idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}

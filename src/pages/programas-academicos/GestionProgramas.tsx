@@ -9,6 +9,7 @@ import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
+import { number } from 'yup';
 
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   'PREESCOLAR': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
@@ -81,7 +82,8 @@ export const GestionProgramas = ({
       documento: p.documento ? `${backUrl}${p.documento}` : null,
       idNivelEducativo: p.idNivelEducativo,
       idTipoFormacion: p.idTipoFormacion,
-      idEstadoPrograma: p.idEstadoPrograma
+      idEstadoPrograma: p.idEstadoPrograma,
+      red:p.red
     };
   };
 
@@ -254,6 +256,10 @@ export const GestionProgramas = ({
                           <div className="flex items-center gap-2">
                             <i className="text-gray-400 ki-outline ki-book text-xs"></i>
                             <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{program.formacion}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <i className="text-gray-400 ki-outline ki-share text-xs"></i>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">RED: {program.red?.nombre}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <i className="text-gray-400 ki-outline ki-information text-xs"></i>

@@ -3,45 +3,45 @@ import axios from 'axios';
 import clsx from 'clsx';
 import { Container, KeenIcon } from '@/components';
 import { Toolbar, ToolbarDescription, ToolbarHeading, ToolbarPageTitle } from '@/partials/toolbar';
-import CrearJornadaMaterias from './modales/CrearJornadaMaterias';
 import VerJornadaModal from './modales/VerJornadaModal';
-import EditarJornadaMaterias from './modales/EditarJornadaMaterias';
 import Swal from 'sweetalert2';
+import { useAuthContext } from '@/auth';
+import FormJornadaMaterias from './modales/FormJornadaMaterias';
 
 interface Jornada {
-  grupoJornada: number;
+  id: number;
   nombreJornada: string;
   descripcion: string;
   horaInicial: string;
   horaFinal: string;
   numeroHoras: number;
-  tipoHorario: 'Mañana' | 'Tarde' | 'Nocturna';
-  dias: string[];
+  tipoHorario: any;
+  dias: any[];
   estado: string;
 }
 
 const ITEMS_PER_PAGE = 6;
 
 const JornadasPage: React.FC = () => {
-  const [modalCrearOpen, setModalCrearOpen] = useState(false);
+  const [modalFormOpen, setModalFormOpen] = useState(false);
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [modalVerOpen, setModalVerOpen] = useState(false);
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState<Jornada | null>(null);
-  const [modalEditarOpen, setModalEditarOpen] = useState(false);
 
   // Estados para filtros y búsqueda
   const [searchText, setSearchText] = useState('');
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Mañana' | 'Tarde' | 'Nocturna'>('Todos');
   const [filterEstado, setFilterEstado] = useState<'Todos' | 'Activo' | 'Inactivo'>('Todos');
+  const { user } = useAuthContext();
 
   const fetchJornadas = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get('jornadas/agrupadas');
+      const res = await axios.get('jornadas/agrupadas', { params: { idCentroFormacion: user.idCentroFormacion ?? null } });
       setJornadas(res.data.data || []);
     } catch (err: any) {
       console.error(err);
@@ -88,11 +88,11 @@ const JornadasPage: React.FC = () => {
   };
   const handleUpdate = (j: Jornada) => {
     setJornadaSeleccionada(j);
-    setModalEditarOpen(true);
+    setModalFormOpen(true);
   };
 
   const handleDelete = async (j: Jornada) => {
-    if (!j.grupoJornada) return;
+    if (!j.id) return;
 
     const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
     const isDarkMode = theme === 'dark';
@@ -102,7 +102,7 @@ const JornadasPage: React.FC = () => {
 
     Swal.fire({
       title: '¿Estás seguro?',
-      text: `¿Deseas eliminar todas las jornadas del grupo ${j.grupoJornada}? Esta acción no se puede deshacer.`,
+      text: `¿Deseas eliminar la jornada ${j.nombreJornada}? Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -117,7 +117,7 @@ const JornadasPage: React.FC = () => {
     }).then(async (result: { isConfirmed: boolean }) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete('jornadas/eliminar', { data: { grupoJornada: j.grupoJornada } });
+          await axios.delete('jornadas/eliminar', { data: { id: j.id } });
           await fetchJornadas();
 
           const indexOfFirst = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -127,7 +127,7 @@ const JornadasPage: React.FC = () => {
 
           Swal.fire({
             title: 'Eliminado',
-            text: `Se eliminaron las jornadas del grupo ${j.grupoJornada} exitosamente`,
+            text: `Se eliminó la jornada exitosamente`,
             icon: 'success',
             background,
             color,
@@ -149,7 +149,7 @@ const JornadasPage: React.FC = () => {
   };
 
   const handleToggleEstado = async (j: Jornada) => {
-    if (!j.grupoJornada) return;
+    if (!j.id) return;
 
     const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
     const isDarkMode = theme === 'dark';
@@ -159,7 +159,7 @@ const JornadasPage: React.FC = () => {
 
     const result = await Swal.fire({
       title: 'Cambiar estado',
-      text: `¿Deseas cambiar el estado de todas las jornadas del grupo ${j.grupoJornada}?`,
+      text: `¿Deseas cambiar el estado de la jornada ${j.nombreJornada}?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Sí, cambiar',
@@ -175,10 +175,10 @@ const JornadasPage: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        const res = await axios.put('jornadas/cambiar-estado', { grupoJornada: j.grupoJornada });
+        const res = await axios.put('jornadas/cambiar-estado', { id: j.id });
         setJornadas((prev) =>
           prev.map((item) =>
-            item.grupoJornada === j.grupoJornada ? { ...item, estado: res.data.estado } : item
+            item.id === j.id ? { ...item, estado: res.data.estado } : item
           )
         );
         Swal.fire({
@@ -213,7 +213,10 @@ const JornadasPage: React.FC = () => {
 
         <button
           className="btn btn-primary flex items-center gap-2"
-          onClick={() => setModalCrearOpen(true)}
+          onClick={() => {
+            setJornadaSeleccionada(null);
+            setModalFormOpen(true);
+          }}
         >
           <KeenIcon icon="plus" />
           Crear jornada
@@ -232,7 +235,7 @@ const JornadasPage: React.FC = () => {
           }}
           className="px-3 py-2 w-full input"
         />
-        <select
+        {/* <select
           value={filterTipo}
           onChange={(e) => {
             setFilterTipo(e.target.value as any);
@@ -244,7 +247,7 @@ const JornadasPage: React.FC = () => {
           <option value="Mañana">Mañana</option>
           <option value="Tarde">Tarde</option>
           <option value="Nocturna">Nocturna</option>
-        </select>
+        </select> */}
         <select
           value={filterEstado}
           onChange={(e) => {
@@ -273,9 +276,9 @@ const JornadasPage: React.FC = () => {
           </p>
         )}
 
-        {currentJornadas.map((j) => (
+        {currentJornadas.map((j: any) => (
           <div
-            key={j.grupoJornada}
+            key={j.id}
             className={clsx(
               'relative h-60 rounded-xl overflow-hidden shadow-2xl transition-all transform flex',
               j.estado === 'Activo'
@@ -336,7 +339,7 @@ const JornadasPage: React.FC = () => {
                   </div>
 
                   <div className="w-full text-xs text-gray-600 dark:text-neutral-500 mt-1 line-clamp-1">
-                    Días: {j.dias.join(', ')}
+                    Días: {j.dias.map((dia: any) => dia.dia).join(', ')}
                   </div>
                 </div>
               </div>
@@ -451,21 +454,16 @@ const JornadasPage: React.FC = () => {
         </div>
       )}
 
-      <CrearJornadaMaterias
-        open={modalCrearOpen}
-        onClose={() => setModalCrearOpen(false)}
+      <FormJornadaMaterias
+        open={modalFormOpen}
+        onClose={() => setModalFormOpen(false)}
         onSuccess={() => fetchJornadas()}
+        jornada={jornadaSeleccionada}
       />
       <VerJornadaModal
         jornada={jornadaSeleccionada}
         open={modalVerOpen}
         onClose={() => setModalVerOpen(false)}
-      />
-      <EditarJornadaMaterias
-        open={modalEditarOpen}
-        jornada={jornadaSeleccionada}
-        onClose={() => setModalEditarOpen(false)}
-        onSuccess={() => fetchJornadas()}
       />
     </Container>
   );
