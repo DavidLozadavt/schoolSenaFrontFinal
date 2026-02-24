@@ -4,11 +4,10 @@ import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
-import CrearFicha from './components/CrearFicha';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
-import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
 import { useAuthContext } from '@/auth';
 import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
+import CrearEditarFicha from './components/CrearEditarFicha';
 
 interface Ficha {
   id: number;
@@ -302,7 +301,7 @@ export const ProgramacionFichasPage = () => {
           </div>
 
           {isModalOpen && (
-            <CrearFicha
+            <CrearEditarFicha
               idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
@@ -664,11 +663,10 @@ export const ProgramacionFichasPage = () => {
       />
 
       {/* Modal de Edición */}
-      <EditarFicha
+      <CrearEditarFicha
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
         fichaId={fichaIdToEdit}
-        setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
