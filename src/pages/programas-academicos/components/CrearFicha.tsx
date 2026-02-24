@@ -10,6 +10,7 @@ import ModalError from '@/pages/gestion-sedes-sena/ModalError';
 import Toast from './Toast';
 
 interface Props {
+  idCentro?:number;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   programaId: string | undefined;
@@ -190,12 +191,13 @@ const validationSchema = Yup.object({
     })
 });
 
-const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId, onAction }) => {
+const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId, onAction , idCentro}) => {
   const [handleError, setHandleError] = useState<boolean>(false);
   const [messageError, setMessageError] = useState<string>('');
 
   const [handleSuccess, setHandleSuccess] = useState<boolean>(false);
   const [messageSuccess, setMessageSuccess] = useState<string>('');
+  console.log(idCentro);
 
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
@@ -267,7 +269,9 @@ const CrearFicha: React.FC<Props> = ({ isModalOpen, setIsModalOpen, programaId, 
   useEffect(() => {
     const loadData = async () => {
       const [jornadaRes, periodosRes, regionalesRes] = await Promise.all([
-        axios.get('jornadas/agrupadas'),
+        axios.get('jornadas/agrupadas', {
+        params: { idCentroFormacion:idCentro }
+      }),
         axios.get('periodos'),
         axios.get('regional')
       ]);
