@@ -235,7 +235,7 @@ const JornadasPage: React.FC = () => {
           }}
           className="px-3 py-2 w-full input"
         />
-        <select
+        {/* <select
           value={filterTipo}
           onChange={(e) => {
             setFilterTipo(e.target.value as any);
@@ -247,7 +247,7 @@ const JornadasPage: React.FC = () => {
           <option value="Mañana">Mañana</option>
           <option value="Tarde">Tarde</option>
           <option value="Nocturna">Nocturna</option>
-        </select>
+        </select> */}
         <select
           value={filterEstado}
           onChange={(e) => {
