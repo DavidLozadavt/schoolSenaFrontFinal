@@ -12,7 +12,7 @@ interface CardRapProps {
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
-  onEditCompetencia?: (competenciaId: number) => void;
+  onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
 }
 
 export const CardRap = ({
@@ -40,11 +40,9 @@ export const CardRap = ({
     let sinAsignar: any[] = [];
 
     if (materia?.horarios && !Array.isArray(materia.horarios)) {
-      // Nueva estructura: objeto { asignados, sinAsignar }
       asignados = materia.horarios.asignados || [];
       sinAsignar = materia.horarios.sinAsignar || [];
     } else if (Array.isArray(materia?.horarios)) {
-      // Estructura antigua: array
       asignados = materia.horarios.filter((h: any) => h.estado === 'ASIGNADO');
       sinAsignar = materia.horarios.filter((h: any) => h.estado !== 'ASIGNADO');
     }
@@ -398,7 +396,7 @@ export const CardRap = ({
             setModalHorarios({
               open: true,
               idGradoMateria: materia.idGradoMateria,
-              idFicha: idFicha,
+              idFicha: idFicha || undefined,
               totalHoras: materia.horasTotales ?? 0,
               horasActuales: materia.horasActuales ?? 0,
               horasFaltantes: materia.horasFaltantes ?? 0

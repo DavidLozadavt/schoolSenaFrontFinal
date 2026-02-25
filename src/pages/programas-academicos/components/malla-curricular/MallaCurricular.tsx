@@ -44,6 +44,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   // Estados para modal de FormCompetencia (Independiente)
   const [isFormCompetenciaOpen, setIsFormCompetenciaOpen] = useState(false);
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
+  const [postEditCallback, setPostEditCallback] = useState<(() => void) | null>(null);
 
   // Hook de trimestres
   const {
@@ -63,6 +64,23 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setToast,
     loadingTrimestres
   } = useTrimestres(selectedFicha?.id, program?.id);
+
+  // Estados para modal de Horarios
+  const [modalHorarios, setModalHorarios] = useState<{
+    open: boolean;
+    idGradoMateria?: number;
+    idFicha?: number;
+    totalHoras?: number;
+    horasActuales?: number;
+    horasFaltantes?: number;
+  }>({
+    open: false,
+    idGradoMateria: undefined,
+    idFicha: undefined,
+    totalHoras: 0,
+    horasActuales: 0,
+    horasFaltantes: 0
+  });
 
   // Cargar fichas cuando se abre el modal
   useEffect(() => {
@@ -154,14 +172,19 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setIsRapsModalOpen(true);
   };
 
-  const handleEditCompetencia = (competenciaId: number) => {
+  const handleEditCompetencia = (competenciaId: number, callback?: () => void) => {
     setEditingCompetenciaId(competenciaId);
+    setPostEditCallback(() => callback || null);
     setIsFormCompetenciaOpen(true);
   };
 
   const handleFormCompetenciaSuccess = () => {
     if (selectedFicha?.id) {
       cargarTrimestres(selectedFicha.id);
+    }
+    if (postEditCallback) {
+      postEditCallback();
+      setPostEditCallback(null);
     }
   };
 
@@ -343,6 +366,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                                       setSelectedNivelId={setSelectedNivelId}
                                       onVerRaps={handleOpenRaps}
                                       onEditCompetencia={handleEditCompetencia}
+                                      setModalHorarios={setModalHorarios}
+                                      idFicha={selectedFicha?.id}
                                       onAsignacionSuccess={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
                                     />
                                   </div>
@@ -427,6 +452,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
+          onUpdate={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
         />
       )}
 
@@ -439,6 +465,26 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         onSuccess={handleFormCompetenciaSuccess}
         setToast={setToast}
       />
+
+      {/* Modal Horarios */}
+      {modalHorarios.open &&
+        <HorariosMateria
+          open={modalHorarios.open}
+          onClose={() => setModalHorarios({
+            open: false,
+            idGradoMateria: undefined
+          })}
+          idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+          idFicha={modalHorarios.idFicha || selectedFicha?.id || 0}
+          totalHoras={modalHorarios.totalHoras}
+          horasActuales={modalHorarios.horasActuales}
+          horasFaltantes={modalHorarios.horasFaltantes}
+          porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          onGuardado={() => {
+            if (selectedFicha?.id) cargarTrimestres(selectedFicha.id);
+          }}
+        />
+      }
 
       <Toast message='Operación realizada correctamente' isOpen={toast} onClose={() => setToast(false)} />
     </div>

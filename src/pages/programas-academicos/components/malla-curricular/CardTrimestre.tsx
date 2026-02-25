@@ -8,8 +8,10 @@ interface CardTrimestreProps {
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
   onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
-  onEditCompetencia?: (competenciaId: number) => void;
+  onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onAsignacionSuccess?: () => void;
+  setModalHorarios?: any;
+  idFicha?: number;
 }
 
 const formatearFecha = (fecha: Date): string => {
@@ -47,7 +49,9 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
   setSelectedNivelId,
   onVerRaps,
   onEditCompetencia,
-  onAsignacionSuccess
+  onAsignacionSuccess,
+  setModalHorarios,
+  idFicha
 }) => {
   // Verificar si materias es un array
   const materiasArray = Array.isArray(trimestre.materias) ? trimestre.materias : [];
@@ -114,6 +118,8 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
                   onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
                   onEditCompetencia={onEditCompetencia}
                   onAsignacionSuccess={onAsignacionSuccess}
+                  setModalHorarios={setModalHorarios}
+                  idFicha={idFicha || trimestre.idFicha}
                 />
               ))
             ) : (<div ></div>)

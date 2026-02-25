@@ -12,7 +12,8 @@ interface ListaRapsProps {
   idFicha: number;
   nivelId?: number;
   porcentajeEjecucion?: number;
-  onEditCompetencia?: (competenciaId: number) => void;
+  onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
+  onUpdate?: () => void;
 }
 
 export const ListaRaps: React.FC<ListaRapsProps> = ({
@@ -23,7 +24,8 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   idFicha,
   nivelId,
   porcentajeEjecucion,
-  onEditCompetencia
+  onEditCompetencia,
+  onUpdate
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -179,8 +181,11 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                         idTrimestre={nivelId}
                         idFicha={idFicha}
                         setModalHorarios={setModalHorarios}
-                        onAsignacionSuccess={cargarRaps}
-                        onEditCompetencia={onEditCompetencia}
+                        onAsignacionSuccess={() => {
+                          cargarRaps();
+                          if (onUpdate) onUpdate();
+                        }}
+                        onEditCompetencia={(id) => onEditCompetencia && onEditCompetencia(id, cargarRaps)}
                       />
 
                       {/* Información adicional del RAP */}
@@ -238,12 +243,15 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
             idGradoMateria: undefined
           })}
           idGradoMateria={modalHorarios.idGradoMateria ?? 0}
-          idFicha={modalHorarios.idFicha ?? 0}
+          idFicha={modalHorarios.idFicha || idFicha || 0}
           totalHoras={modalHorarios.totalHoras}
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
           porcentajeEjecucion={porcentajeEjecucion ?? 0}
-          onGuardado={() => { }}
+          onGuardado={() => {
+            cargarRaps();
+            if (onUpdate) onUpdate();
+          }}
         />
       }
     </div>
