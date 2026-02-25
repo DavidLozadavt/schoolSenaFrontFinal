@@ -83,7 +83,7 @@ export const GestionProgramas = ({
       idTipoFormacion: p.idTipoFormacion,
       idEstadoPrograma: p.idEstadoPrograma,
       red: p.red,
-      fichas_count: p.fichas_count ?? 0
+      fichas_count: p.fichas_activas_count ?? 0
     };
   };
 
