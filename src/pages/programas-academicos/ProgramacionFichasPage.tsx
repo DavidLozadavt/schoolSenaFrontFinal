@@ -550,12 +550,12 @@ export const ProgramacionFichasPage = () => {
                                 setJuiciosEvaluativos(true);
                                 setIdFicha(ficha.id);
                                 setIdSede(ficha.sede?.id);
-                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado)
+                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1)
                               }}
                               className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                             >
                               <i className="ki-outline ki-book-square"></i>
-                              Agregar juicios Evaluativos
+                              Agregar juicios Evaluativos lo
                             </button>
                             <button
                               type="button"
