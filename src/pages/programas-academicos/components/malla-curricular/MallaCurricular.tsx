@@ -9,6 +9,7 @@ import { CardTrimestre } from './CardTrimestre';
 import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { AsignarMateria } from './AsignarMateria';
 import { ListaRaps } from './ListaRaps';
+import { FormCompetencia } from './FormCompetencia';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
@@ -40,6 +41,11 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   const [selectedCompetenciaId, setSelectedCompetenciaId] = useState<number | null>(null);
   const [selectedCompetenciaNombre, setSelectedCompetenciaNombre] = useState<string>('');
 
+  // Estados para modal de FormCompetencia (Independiente)
+  const [isFormCompetenciaOpen, setIsFormCompetenciaOpen] = useState(false);
+  const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
+  const [postEditCallback, setPostEditCallback] = useState<(() => void) | null>(null);
+
   // Hook de trimestres
   const {
     trimestres,
@@ -58,6 +64,23 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setToast,
     loadingTrimestres
   } = useTrimestres(selectedFicha?.id, program?.id);
+
+  // Estados para modal de Horarios
+  const [modalHorarios, setModalHorarios] = useState<{
+    open: boolean;
+    idGradoMateria?: number;
+    idFicha?: number;
+    totalHoras?: number;
+    horasActuales?: number;
+    horasFaltantes?: number;
+  }>({
+    open: false,
+    idGradoMateria: undefined,
+    idFicha: undefined,
+    totalHoras: 0,
+    horasActuales: 0,
+    horasFaltantes: 0
+  });
 
   // Cargar fichas cuando se abre el modal
   useEffect(() => {
@@ -149,6 +172,22 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setIsRapsModalOpen(true);
   };
 
+  const handleEditCompetencia = (competenciaId: number, callback?: () => void) => {
+    setEditingCompetenciaId(competenciaId);
+    setPostEditCallback(() => callback || null);
+    setIsFormCompetenciaOpen(true);
+  };
+
+  const handleFormCompetenciaSuccess = () => {
+    if (selectedFicha?.id) {
+      cargarTrimestres(selectedFicha.id);
+    }
+    if (postEditCallback) {
+      postEditCallback();
+      setPostEditCallback(null);
+    }
+  };
+
   if (!isOpen || !program) return null;
 
   const fichaOptions = fichas.map((ficha) => ({
@@ -218,14 +257,24 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                     </div>
                     <button
                       onClick={handleAgregarTrimestre}
-                      disabled={trimestres.length === 9 || nuevoTrimestre !== null}
-                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+                      disabled={
+                        nuevoTrimestre !== null ||
+                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7) ||
+                        trimestres.length >= 9
+                      }
+                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
                         <i className="text-lg ki-filled ki-plus"></i>
                       </div>
                       <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-                        Añadir Trimestre
+                        {
+                          (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                            (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7)
+                            ? 'Límite alcanzado'
+                            : 'Añadir Trimestre'
+                        }
                       </span>
                     </button>
                   </div>
@@ -306,8 +355,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                                   <div
                                     key={trimestre.id || index}
                                     className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
-                                        ? 'border-primary animate-pulse-slow'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                                      ? 'border-primary animate-pulse-slow'
+                                      : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
                                       }`}
                                   >
                                     <CardTrimestre
@@ -316,6 +365,9 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                                       onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                       setSelectedNivelId={setSelectedNivelId}
                                       onVerRaps={handleOpenRaps}
+                                      onEditCompetencia={handleEditCompetencia}
+                                      setModalHorarios={setModalHorarios}
+                                      idFicha={selectedFicha?.id}
                                       onAsignacionSuccess={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
                                     />
                                   </div>
@@ -365,6 +417,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           trimestres={trimestres}
           trimestre={nuevoTrimestre}
           guardando={guardandoTrimestre}
+          nivel={program.nivel}
           onActualizarFechaFin={actualizarFechaFin}
           onActualizarFechaInicio={actualizarFechaInicio}
           onActualizarNumeroGrado={actualizarNumeroGrado}
@@ -381,6 +434,11 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         onClose={() => setIsMateriaModalOpen(false)}
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
+        materiasActuales={
+          nuevoTrimestre
+            ? nuevoTrimestre.materias
+            : trimestres.find(t => (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId)?.materias || []
+        }
       />
 
       {/* Modal ListaRaps */}
@@ -393,10 +451,42 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           idFicha={selectedFicha?.id}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          onEditCompetencia={handleEditCompetencia}
+          onUpdate={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
         />
       )}
 
-      <Toast message='Trimestre agregado correctamente' isOpen={toast} onClose={() => setToast(false)} />
+      {/* Modal Independiente de Competencia */}
+      <FormCompetencia
+        isOpen={isFormCompetenciaOpen}
+        onClose={() => setIsFormCompetenciaOpen(false)}
+        programId={program?.id ?? 0}
+        competenciaId={editingCompetenciaId}
+        onSuccess={handleFormCompetenciaSuccess}
+        setToast={setToast}
+      />
+
+      {/* Modal Horarios */}
+      {modalHorarios.open &&
+        <HorariosMateria
+          open={modalHorarios.open}
+          onClose={() => setModalHorarios({
+            open: false,
+            idGradoMateria: undefined
+          })}
+          idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+          idFicha={modalHorarios.idFicha || selectedFicha?.id || 0}
+          totalHoras={modalHorarios.totalHoras}
+          horasActuales={modalHorarios.horasActuales}
+          horasFaltantes={modalHorarios.horasFaltantes}
+          porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          onGuardado={() => {
+            if (selectedFicha?.id) cargarTrimestres(selectedFicha.id);
+          }}
+        />
+      }
+
+      <Toast message='Operación realizada correctamente' isOpen={toast} onClose={() => setToast(false)} />
     </div>
   );
 };

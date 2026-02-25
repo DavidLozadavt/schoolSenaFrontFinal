@@ -83,7 +83,9 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     horasSemana: 0,
     horasProgramadas: 0,
     fechaFinEstimada: '',
-    sesionesPasadas: 0
+    sesionesPasadas: 0,
+    totalSesiones: 0,
+    sesionesRestantes: 0
   });
 
   // Estados adicionales
@@ -280,6 +282,8 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     let fechaFinEstimada = values.fechaFin || '';
     let horasProgramadas = 0;
     let sesionesPasadas = 0;
+    let totalSesiones = 0;
+    let sesionesRestantes = 0;
 
     const horasObjetivo = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
     const horasPendientes = Math.max(0, horasObjetivo - (horasActuales || 0));
@@ -301,6 +305,22 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
         }
         return acc;
       }, {});
+
+      // Calcular total de sesiones desde fechaInicio hasta fechaFin
+      if (values.fechaFin) {
+        const fechaFinObj = new Date(values.fechaFin + 'T00:00:00');
+        const fechaActual = new Date(fechaIteracion);
+        let contadorSesiones = 0;
+
+        while (fechaActual <= fechaFinObj) {
+          const diaSemana = fechaActual.getDay();
+          if (mapaHorarios[diaSemana] !== undefined) {
+            contadorSesiones++;
+          }
+          fechaActual.setDate(fechaActual.getDate() + 1);
+        }
+        totalSesiones = contadorSesiones;
+      }
 
       // Límite de iteraciones para evitar bucles infinitos (ej. 2 años)
       let iteraciones = 0;
@@ -329,6 +349,9 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       horasProgramadas = horasAcumuladas;
       fechaFinEstimada = fechaFinCalculada.toISOString().split('T')[0];
 
+      // Calcular sesiones restantes (total - dadas)
+      sesionesRestantes = Math.max(0, totalSesiones - sesionesPasadas);
+
       // Actualizar fecha fin en formik solo si cambió
       if (values.fechaFin !== fechaFinEstimada) {
         setFieldValue('fechaFin', fechaFinEstimada);
@@ -340,7 +363,9 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       horasSemana: parseFloat(horasSemana.toFixed(2)),
       horasProgramadas: parseFloat(horasProgramadas.toFixed(2)),
       fechaFinEstimada,
-      sesionesPasadas
+      sesionesPasadas,
+      totalSesiones,
+      sesionesRestantes
     });
   };
 
@@ -577,6 +602,17 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                   <div className="p-2 bg-white dark:bg-coal-500 rounded border">
                     <span className="text-gray-500 block">Sesiones Pasadas</span>
                     <span className="font-bold text-lg text-gray-600">{estadisticas.sesionesPasadas}</span>
+                  </div>
+                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
+                    <span className="text-gray-500 block">Total Sesiones</span>
+                    <span className="font-bold text-lg text-blue-600">{estadisticas.totalSesiones}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
+                    <span className="text-gray-500 block">Sesiones Restantes</span>
+                    <span className="font-bold text-lg text-orange-600">{estadisticas.sesionesRestantes}</span>
                   </div>
                   <div className="p-2 bg-white dark:bg-coal-500 rounded border">
                     <span className="text-gray-500 block">Fecha final estimada</span>

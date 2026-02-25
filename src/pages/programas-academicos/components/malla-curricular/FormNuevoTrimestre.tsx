@@ -13,6 +13,7 @@ interface FormNuevoTrimestreProps {
   onGuardar: () => void;
   onCancelar: () => void;
   trimestres: any[];
+  nivel?: string;
 }
 
 const formatearFecha = (fecha: string) =>
@@ -27,7 +28,8 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   onAbrirMaterias,
   onGuardar,
   onCancelar,
-  trimestres
+  trimestres,
+  nivel
 }) => {
   const persistedTrimestres = trimestres
     .filter(t => !t.esNuevo)
@@ -65,7 +67,17 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
     validationSchema: Yup.object({
       numeroGrado: Yup.number()
         .required('El número de trimestre es requerido')
-        .min(1, 'Debe ser al menos 1'),
+        .min(1, 'Debe ser al menos 1')
+        .test('max-trimestre', (value, context) => {
+          const { path, createError } = context;
+          if (nivel?.toUpperCase() === 'TECNICO' && (value || 0) > 3) {
+            return createError({ path, message: 'Para nivel Técnico el máximo son 3 trimestres' });
+          }
+          if (nivel?.toUpperCase() === 'TECNOLOGO' && (value || 0) > 7) {
+            return createError({ path, message: 'Para nivel Tecnólogo el máximo son 7 trimestres' });
+          }
+          return true;
+        }),
       fechaInicio: Yup.date()
         .required('La fecha de inicio es requerida'),
       fechaFin: Yup.date()
@@ -121,7 +133,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                     }}
                     onBlur={formik.handleBlur}
                     disabled={!isFirst}
-                    className={`w-full px-4 py-2 border-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary ${formik.touched.numeroGrado && formik.errors.numeroGrado ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                    className={`w-full input px-4 py-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.numeroGrado && formik.errors.numeroGrado ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
                       } ${!isFirst ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-coal-500' : ''}`}
                   />
                   {formik.touched.numeroGrado && formik.errors.numeroGrado && (
@@ -143,7 +155,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                     onActualizarFechaInicio(e.target.value);
                   }}
                   onBlur={formik.handleBlur}
-                  className={`w-full px-4 py-2 border-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary ${formik.touched.fechaInicio && formik.errors.fechaInicio ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaInicio && formik.errors.fechaInicio ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
                     }`}
                 />
                 {formik.touched.fechaInicio && formik.errors.fechaInicio && (
@@ -164,7 +176,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                     onActualizarFechaFin(e.target.value);
                   }}
                   onBlur={formik.handleBlur}
-                  className={`w-full px-4 py-2 border-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary ${formik.touched.fechaFin && formik.errors.fechaFin ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaFin && formik.errors.fechaFin ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
                     }`}
                 />
                 {formik.touched.fechaFin && formik.errors.fechaFin && (
