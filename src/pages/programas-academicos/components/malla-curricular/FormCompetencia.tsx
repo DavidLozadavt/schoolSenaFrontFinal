@@ -4,13 +4,15 @@ import Select from "react-select";
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { useAuthContext } from '@/auth';
+import { KeenIcon } from '@/components';
 
 type PropsCompetencia = {
+  isOpen: boolean;
+  onClose: () => void;
   programId: number;
   competenciaId?: number;
   onSuccess?: () => void;
-  onCancel?: () => void;
-  setToast:any
+  setToast: (show: boolean) => void;
 };
 
 type AreaConocimiento = {
@@ -19,10 +21,11 @@ type AreaConocimiento = {
 };
 
 export const FormCompetencia: React.FC<PropsCompetencia> = ({
+  isOpen,
+  onClose,
   programId,
   competenciaId,
   onSuccess,
-  onCancel,
   setToast
 }) => {
   const [areasConocimientos, setAreasConocimientos] = useState<AreaConocimiento[]>([]);
@@ -38,7 +41,12 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     idAreaConocimiento: Yup.number()
       .nullable()
       .required('Debe seleccionar un área de conocimiento'),
-    descripcion: Yup.string()
+    descripcion: Yup.string().nullable(),
+    horas: Yup.number().nullable().when('idMateriaPadre', {
+      is: (val: any) => val != null,
+      then: (schema) => schema.required('Las horas son requeridas').positive('Debe ser un número positivo'),
+      otherwise: (schema) => schema.nullable()
+    })
   });
 
   // Configuración de Formik
@@ -47,8 +55,11 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       nombreMateria: '',
       idAreaConocimiento: null as number | null,
       descripcion: '',
-      idCompany: empresa?.id
+      idCompany: empresa?.id,
+      horas: 0,
+      idMateriaPadre: null as number | null
     },
+    enableReinitialize: true,
     validationSchema,
     onSubmit: async (values) => {
       await handleSubmit(values);
@@ -57,11 +68,15 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
 
   // Cargar datos iniciales
   useEffect(() => {
-    getAreas();
-    if (competenciaId) {
-      getCompetencia();
+    if (isOpen) {
+      getAreas();
+      if (competenciaId) {
+        getCompetencia();
+      } else {
+        formik.resetForm();
+      }
     }
-  }, [competenciaId]);
+  }, [isOpen, competenciaId]);
 
   const getAreas = async () => {
     try {
@@ -79,15 +94,18 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     try {
       const res = await axios.get(`materias/${competenciaId}`);
       const data = res.data.data;
-    
+
       formik.setValues({
         nombreMateria: data.nombreMateria || '',
         idAreaConocimiento: data.idAreaConocimiento || null,
         descripcion: data.descripcion || '',
-        idCompany: empresa.id
+        idCompany: empresa.id,
+        horas: data.horas || 0,
+        idMateriaPadre: data.idMateriaPadre || null
       });
-      setLoadingData(false);
-    } catch (error){
+    } catch (error) {
+      console.error("Error al cargar la competencia", error);
+    } finally {
       setLoadingData(false);
     }
   };
@@ -100,8 +118,10 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       const payload = {
         nombreMateria: values.nombreMateria.toLocaleUpperCase(),
         idAreaConocimiento: values.idAreaConocimiento,
-        descripcion: values.descripcion.toLocaleUpperCase(),
+        descripcion: values.descripcion ? values.descripcion.toLocaleUpperCase() : '',
         idCompany: empresa.id,
+        horas: values.horas,
+        creditos: values.horas ? values.horas / 48 : 0,
         ...(!competenciaId && { idPrograma: programId })
       };
 
@@ -110,16 +130,14 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       } else {
         await axios.post(`materias`, payload);
       }
+
+      setToast(true);
       if (onSuccess) {
-        setToast(true);
         onSuccess();
       }
-      if (!competenciaId) {
-        formik.resetForm();
-      }
+      onClose();
 
     } catch (error: any) {
-
       if (error.response?.data?.errors) {
         const backendErrors = error.response.data.errors;
         Object.keys(backendErrors).forEach(key => {
@@ -143,138 +161,192 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     o => o.value === formik.values.idAreaConocimiento
   ) ?? null;
 
-  if (loadingData) {
-    return (
-      <div className="p-5 bg-primary/[0.02] border border-gray-400 rounded-xl animate-fade-in-down">
-        <div className="flex justify-center py-8">
-          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
+  // Cálculo de créditos
+  const calcularCreditos = (horas: number) => {
+    return (horas / 48).toFixed(2);
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="p-5 bg-primary/[0.02] border border-gray-400 rounded-xl animate-fade-in-down space-y-4 shadow-inner">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
 
-      <form onSubmit={formik.handleSubmit} className="space-y-4">
-        
-        {/* Nombre de la competencia */}
-        <div className="space-y-1">
-          <label className="text-4xs font-black uppercase ml-1">
-            Nombre competencia <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="nombreMateria"
-            value={formik.values.nombreMateria}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            className={`w-full bg-white dark:bg-coal-400 border rounded-lg p-2.5 uppercase outline-none focus:ring-1 ${
-              formik.touched.nombreMateria && formik.errors.nombreMateria
-                ? 'border-red-500 focus:ring-red-500'
-                : 'focus:ring-primary'
-            }`}
-            placeholder="Nombre de la competencia"
-          />
-          {formik.touched.nombreMateria && formik.errors.nombreMateria && (
-            <p className="text-xs text-red-500 ml-1 mt-1">
-              {formik.errors.nombreMateria}
-            </p>
-          )}
-        </div>
-
-        {/* Área de conocimiento */}
-        <div className="space-y-1">
-          <label className="text-4xs font-black uppercase ml-1">
-            Área de conocimiento <span className="text-red-500">*</span>
-          </label>
-
-          <Select
-            options={areaOptions}
-            value={selectedArea}
-            placeholder="Selecciona un área..."
-            onChange={(opcion: any) => {
-              formik.setFieldValue(
-                'idAreaConocimiento',
-                opcion ? opcion.value : null
-              );
-            }}
-            onBlur={() => formik.setFieldTouched('idAreaConocimiento', true)}
-            isClearable
-            classNames={{
-              control: () =>
-                `bg-white dark:bg-coal-400 border ${
-                  formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento
-                    ? 'border-red-500'
-                    : 'border-gray-300 dark:border-gray-600'
-                }`,
-              menu: () =>
-                "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600",
-            }}
-          />
-          {formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento && (
-            <p className="text-xs text-red-500 ml-1 mt-1">
-              {formik.errors.idAreaConocimiento}
-            </p>
-          )}
-        </div>
-
-        {/* Descripción */}
-        <div className="space-y-1">
-          <label className="text-4xs font-black uppercase ml-1">
-            Descripción
-          </label>
-          <textarea
-            name="descripcion"
-            rows={3}
-            value={formik.values.descripcion}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            className={`w-full bg-white dark:bg-coal-400 border rounded-lg uppercase p-2.5 resize-none outline-none focus:ring-1 ${
-              formik.touched.descripcion && formik.errors.descripcion
-                ? 'border-red-500 focus:ring-red-500'
-                : 'focus:ring-primary'
-            }`}
-            placeholder="Descripción de la competencia"
-          />
-          {formik.touched.descripcion && formik.errors.descripcion && (
-            <p className="text-xs text-red-500 ml-1 mt-1">
-              {formik.errors.descripcion}
-            </p>
-          )}
-        </div>
-
-        {/* Botones */}
-        <div className="flex gap-3">
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              className="flex-1 bg-gray-200 dark:bg-coal-300 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg font-black text-3xs uppercase tracking-[0.2em] hover:bg-gray-300 transition-all disabled:opacity-60"
-            >
-              Cancelar
-            </button>
-          )}
-          
+        {/* Header */}
+        <div className='p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400'>
+          <h3 className='text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest'>
+            {competenciaId ? (formik.values.idMateriaPadre ? 'Editar RAP' : 'Editar Competencia') : 'Crear Nueva Competencia'}
+          </h3>
           <button
-            type="submit"
-            disabled={loading || !formik.isValid}
-            className="flex-1 bg-primary text-white py-2.5 rounded-lg font-black text-3xs uppercase tracking-[0.2em] hover:bg-primary-active transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={onClose}
+            className="flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full hover:bg-danger hover:text-white hover:scale-110"
+            aria-label="Cerrar modal"
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Guardando...
-              </span>
-            ) : (
-              competenciaId ? 'Actualizar Competencia' : 'Guardar Competencia'
-            )}
+            <KeenIcon icon="cross" className="text-lg" />
           </button>
         </div>
 
-      </form>
+        {/* Content */}
+        <div className="p-8 overflow-y-auto">
+          {loadingData ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xs font-bold text-gray-500 uppercase animate-pulse tracking-widest">Cargando datos...</p>
+            </div>
+          ) : (
+            <form onSubmit={formik.handleSubmit} className="space-y-6">
+              {/* Nombre de la competencia */}
+              <div className="space-y-1.5">
+                <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                  Nombre {formik.values.idMateriaPadre ? 'del RAP' : 'competencia'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="nombreMateria"
+                  value={formik.values.nombreMateria}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.nombreMateria && formik.errors.nombreMateria
+                    ? 'border-red-500 focus:ring-red-500/20'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
+                    }`}
+                  placeholder={formik.values.idMateriaPadre ? "Ej: IDENTIFICAR LOS COMPONENTES..." : "Ej: ALGORITMIA Y PROGRAMACIÓN"}
+                />
+                {formik.touched.nombreMateria && formik.errors.nombreMateria && (
+                  <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                    {formik.errors.nombreMateria}
+                  </p>
+                )}
+              </div>
 
+              {/* Sección de Horas y Créditos (Solo para RAPs) */}
+              {formik.values.idMateriaPadre && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                      Horas <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="horas"
+                      value={formik.values.horas}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.horas && formik.errors.horas
+                        ? 'border-red-500 focus:ring-red-500/20'
+                        : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
+                        }`}
+                      placeholder="0"
+                    />
+                    {formik.touched.horas && formik.errors.horas && (
+                      <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                        {formik.errors.horas}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                      Créditos (Equiv.)
+                    </label>
+                    <div className="w-full bg-gray-100 dark:bg-coal-300 border border-gray-200 dark:border-gray-600 rounded-lg p-3.5 font-bold text-primary flex items-center justify-between">
+                      <span>{calcularCreditos(formik.values.horas || 0)}</span>
+                      <span className="text-[10px] text-gray-400">1 CR = 48H</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Área de conocimiento */}
+              <div className="space-y-1.5">
+                <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                  Área de conocimiento <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  options={areaOptions}
+                  value={selectedArea}
+                  placeholder="Busca o selecciona un área..."
+                  onChange={(opcion: any) => {
+                    formik.setFieldValue(
+                      'idAreaConocimiento',
+                      opcion ? opcion.value : null
+                    );
+                  }}
+                  onBlur={() => formik.setFieldTouched('idAreaConocimiento', true)}
+                  isClearable
+                  classNames={{
+                    control: (state) =>
+                      `bg-gray-50 dark:bg-coal-400 border input rounded-lg transition-all ${formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento
+                        ? 'border-red-500'
+                        : state.isFocused ? 'border-primary input' : 'border-gray-300 dark:border-gray-600'
+                      }`,
+                    menu: () => "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600 shadow-xl",
+                    option: ({ isFocused, isSelected }) =>
+                      `p-3.5 text-sm cursor-pointer transition-colors ${isSelected ? "bg-primary text-white" : isFocused ? "bg-gray-100 dark:bg-coal-300" : "text-gray-700 dark:text-white"
+                      }`,
+                  }}
+                />
+                {formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento && (
+                  <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                    {formik.errors.idAreaConocimiento}
+                  </p>
+                )}
+              </div>
+
+              {/* Descripción */}
+              <div className="space-y-1.5">
+                <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                  Descripción
+                </label>
+                <textarea
+                  name="descripcion"
+                  rows={2}
+                  value={formik.values.descripcion}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className={`w-full h-20 bg-gray-50 dark:bg-coal-400 input rounded-lg uppercase p-3.5 resize-none outline-none transition-all ${formik.touched.descripcion && formik.errors.descripcion
+                    ? 'border-red-500 focus:ring-red-500/20'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
+                    }`}
+                  placeholder="Detalles de la unidad..."
+                />
+                {formik.touched.descripcion && formik.errors.descripcion && (
+                  <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                    {formik.errors.descripcion}
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="flex-1 bg-gray-100 dark:bg-coal-300 text-gray-700 dark:text-gray-300 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading || !formik.isValid}
+                  className="flex-1 bg-primary text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-active transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Guardando...
+                    </span>
+                  ) : (
+                    competenciaId ? 'Actualizar' : 'Guardar'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
