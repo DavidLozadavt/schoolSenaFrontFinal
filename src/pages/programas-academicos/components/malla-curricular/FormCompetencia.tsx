@@ -206,7 +206,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   value={formik.values.nombreMateria}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={`w-full bg-gray-50 dark:bg-coal-400 border rounded-lg p-3.5 uppercase outline-none transition-all focus:ring-2 ${formik.touched.nombreMateria && formik.errors.nombreMateria
+                  className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.nombreMateria && formik.errors.nombreMateria
                     ? 'border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
                     }`}
@@ -232,7 +232,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                       value={formik.values.horas}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
-                      className={`w-full bg-gray-50 dark:bg-coal-400 border rounded-lg p-3.5 uppercase outline-none transition-all focus:ring-2 ${formik.touched.horas && formik.errors.horas
+                      className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.horas && formik.errors.horas
                         ? 'border-red-500 focus:ring-red-500/20'
                         : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
                         }`}
@@ -276,9 +276,9 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   isClearable
                   classNames={{
                     control: (state) =>
-                      `bg-gray-50 dark:bg-coal-400 border p-1 rounded-lg transition-all ${formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento
+                      `bg-gray-50 dark:bg-coal-400 border input rounded-lg transition-all ${formik.touched.idAreaConocimiento && formik.errors.idAreaConocimiento
                         ? 'border-red-500'
-                        : state.isFocused ? 'border-primary ring-2 ring-primary/20' : 'border-gray-300 dark:border-gray-600'
+                        : state.isFocused ? 'border-primary input' : 'border-gray-300 dark:border-gray-600'
                       }`,
                     menu: () => "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600 shadow-xl",
                     option: ({ isFocused, isSelected }) =>
@@ -304,7 +304,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   value={formik.values.descripcion}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={`w-full bg-gray-50 dark:bg-coal-400 border rounded-lg uppercase p-3.5 resize-none outline-none transition-all focus:ring-2 ${formik.touched.descripcion && formik.errors.descripcion
+                  className={`w-full h-20 bg-gray-50 dark:bg-coal-400 input rounded-lg uppercase p-3.5 resize-none outline-none transition-all ${formik.touched.descripcion && formik.errors.descripcion
                     ? 'border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
                     }`}

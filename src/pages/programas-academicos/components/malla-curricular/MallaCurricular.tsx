@@ -234,14 +234,24 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                     </div>
                     <button
                       onClick={handleAgregarTrimestre}
-                      disabled={trimestres.length === 9 || nuevoTrimestre !== null}
-                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+                      disabled={
+                        nuevoTrimestre !== null ||
+                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7) ||
+                        trimestres.length >= 9
+                      }
+                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
                         <i className="text-lg ki-filled ki-plus"></i>
                       </div>
                       <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-                        Añadir Trimestre
+                        {
+                          (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                            (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7)
+                            ? 'Límite alcanzado'
+                            : 'Añadir Trimestre'
+                        }
                       </span>
                     </button>
                   </div>
@@ -382,6 +392,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           trimestres={trimestres}
           trimestre={nuevoTrimestre}
           guardando={guardandoTrimestre}
+          nivel={program.nivel}
           onActualizarFechaFin={actualizarFechaFin}
           onActualizarFechaInicio={actualizarFechaInicio}
           onActualizarNumeroGrado={actualizarNumeroGrado}
