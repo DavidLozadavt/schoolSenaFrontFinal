@@ -12,6 +12,7 @@ interface CardRapProps {
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
+  onEditCompetencia?: (competenciaId: number) => void;
 }
 
 export const CardRap = ({
@@ -20,7 +21,8 @@ export const CardRap = ({
   idTrimestre,
   setModalHorarios,
   idFicha,
-  onAsignacionSuccess
+  onAsignacionSuccess,
+  onEditCompetencia
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
@@ -308,6 +310,7 @@ export const CardRap = ({
         )}
 
         <button
+          onClick={() => onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id)}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
           title="Editar"
         >

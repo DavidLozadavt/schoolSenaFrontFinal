@@ -7,7 +7,8 @@ interface CardTrimestreProps {
   trimestre: any;
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
-  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre:number) => void;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
+  onEditCompetencia?: (competenciaId: number) => void;
   onAsignacionSuccess?: () => void;
 }
 
@@ -40,11 +41,12 @@ const obtenerClaseEstado = (estado: string) => {
 };
 
 export const CardTrimestre: React.FC<CardTrimestreProps> = ({
-  trimestre, 
-  index, 
-  onAbrirMaterias, 
+  trimestre,
+  index,
+  onAbrirMaterias,
   setSelectedNivelId,
   onVerRaps,
+  onEditCompetencia,
   onAsignacionSuccess
 }) => {
   // Verificar si materias es un array
@@ -88,8 +90,8 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Progreso</p>
           <p className="font-bold text-green-600 dark:text-green-400 text-sm flex items-center justify-center gap-1">
             <TrendingUp size={14} />
-            {trimestre.grado.fechaInicio && trimestre.grado.fechaFin 
-              ? calcularProgreso(trimestre.grado.fechaInicio, trimestre.grado.fechaFin) 
+            {trimestre.grado.fechaInicio && trimestre.grado.fechaFin
+              ? calcularProgreso(trimestre.grado.fechaInicio, trimestre.grado.fechaFin)
               : 0}%
           </p>
         </div>
@@ -100,21 +102,22 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
         <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3 mb-4">
           Competencias Asignadas
         </h4>
-        
+
         {materiasArray.length > 0 ? (
           <div className="space-y-3">
             {tieneObjetosCompletos ? (
               materiasArray.map((materia: any) => (
-                <CardRap 
-                  key={materia.id} 
+                <CardRap
+                  key={materia.id}
                   materia={materia}
                   idTrimestre={trimestre.grado.idGradoPrograma}
                   onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
+                  onEditCompetencia={onEditCompetencia}
                   onAsignacionSuccess={onAsignacionSuccess}
                 />
               ))
             ) : (<div ></div>)
-          }
+            }
           </div>
         ) : (
           <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">

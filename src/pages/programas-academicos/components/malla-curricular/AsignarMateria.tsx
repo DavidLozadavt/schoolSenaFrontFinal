@@ -1,16 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AsignarMateriaProps } from '../../types';
-import { Pencil } from 'lucide-react';
+import { Search, Plus, BookOpen, Check, Pencil } from 'lucide-react';
 import { FormCompetencia } from './FormCompetencia';
 import Toast from '../Toast';
 
-export const AsignarMateria: React.FC<AsignarMateriaProps> = ({ 
+interface AsignarMateriaProps {
+  idPrograma: number;
+  isOpen: boolean;
+  onClose: () => void;
+  nivelId: number | null;
+  onMateriasSeleccionadas: (data: { idGradoPrograma: number; materias: any[] }) => void;
+  materiasActuales?: any[];
+}
+
+export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   idPrograma,
-  isOpen, 
-  onClose, 
+  isOpen,
+  onClose,
   nivelId,
-  onMateriasSeleccionadas
+  onMateriasSeleccionadas,
+  materiasActuales = []
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
@@ -20,24 +29,17 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const [buscar, setBuscar] = useState<string>('');
   const [toast, setToast] = useState<boolean>(false);
 
-  // referencia del formulario para cuando le de editar
-  const formRef = useRef<HTMLDivElement>(null);
-
-  // Cargar materias disponibles cuando se abre el modal
+  // Cargar materias disponibles y sincronizar selección inicial
   useEffect(() => {
-      if (showForm && formRef.current) {
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start'
-      });
-    }, 100);
-  }
     if (isOpen) {
       cargarMaterias();
-      setMateriasSeleccionadas([]); // Limpiar selección al abrir
+      if (Array.isArray(materiasActuales)) {
+        setMateriasSeleccionadas([...materiasActuales]);
+      } else {
+        setMateriasSeleccionadas([]);
+      }
     }
-  }, [isOpen, showForm]);
+  }, [isOpen, nivelId, materiasActuales]);
 
   const cargarMaterias = async () => {
     setLoading(true);
@@ -51,60 +53,45 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     }
   };
 
-  // Toggle selección de materia
   const toggleMateria = (materia: any) => {
-    const yaSeleccionada = materiasSeleccionadas.some(m => m.id === materia.id);
-    
+    const yaSeleccionada = materiasSeleccionadas.some(m => (m.idMateria || m.id) === materia.id);
+
     if (yaSeleccionada) {
-      setMateriasSeleccionadas(materiasSeleccionadas.filter(mat => mat.id !== materia.id));
+      setMateriasSeleccionadas(materiasSeleccionadas.filter(mat => (mat.idMateria || mat.id) !== materia.id));
     } else {
       setMateriasSeleccionadas([...materiasSeleccionadas, materia]);
     }
   };
 
-  // Verificar si una materia está seleccionada
   const estaSeleccionada = (materia: any) => {
-    return materiasSeleccionadas.some(m => m.id === materia.id);
+    return materiasSeleccionadas.some(m => (m.idMateria || m.id) === materia.id);
   };
 
-  // Manejar edición de competencia
   const handleEdit = (e: React.MouseEvent, competenciaId: number) => {
-    e.stopPropagation(); // Evitar que se seleccione la competencia
+    e.stopPropagation();
     setEditingCompetenciaId(competenciaId);
     setShowForm(true);
   };
 
-  // Callback cuando se crea/actualiza exitosamente
   const handleFormSuccess = () => {
-    
-    // Cerrar formulario y recargar lista
     setShowForm(false);
     setEditingCompetenciaId(undefined);
     cargarMaterias();
   };
 
-  // Callback para cancelar formulario
   const handleFormCancel = () => {
     setShowForm(false);
     setEditingCompetenciaId(undefined);
   };
 
-  // Confirmar y enviar al componente padre
   const handleConfirmar = () => {
     if (onMateriasSeleccionadas) {
-      onMateriasSeleccionadas({idGradoPrograma:nivelId??0, materias: materiasSeleccionadas});
+      onMateriasSeleccionadas({ idGradoPrograma: nivelId ?? 0, materias: materiasSeleccionadas });
     }
-    
-    // Limpiar selección y cerrar
-    setMateriasSeleccionadas([]);
-    setShowForm(false);
-    setEditingCompetenciaId(undefined);
     onClose();
   };
 
-  // Cerrar modal
   const handleClose = () => {
-    setMateriasSeleccionadas([]);
     setShowForm(false);
     setEditingCompetenciaId(undefined);
     setBuscar('');
@@ -114,185 +101,148 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      
-      <div className="relative w-full max-w-4xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-400 dark:border-gray-dark-300 flex flex-col max-h-[85vh]">
-        
-        <Toast message='Competencia guardada correctamente' isOpen={toast} onClose={()=> setToast(false)}/>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-hidden">
 
-        {/* Header del Modal */}
-        <div className="p-5 border-b border-gray-400 dark:border-gray-dark-100 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
+      <div className="relative w-full max-w-3xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
+
+        <Toast message='Competencia guardada correctamente' isOpen={toast} onClose={() => setToast(false)} />
+
+        {/* Header del Modal - Más compacto */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
           <div>
-            <h3 className="text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest">
+            <h3 className="text-md font-black uppercase text-gray-800 dark:text-white tracking-widest flex items-center gap-2">
+              <BookOpen size={16} className="text-primary" />
               Asignar Competencias
             </h3>
-            <p className="text-4xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-tighter">
-              {materiasSeleccionadas.length} competencia(s) seleccionada(s)
-            </p>
           </div>
-          <button 
-            onClick={handleClose} 
-            className="absolute z-10 flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full top-4 right-4 hover:bg-danger hover:text-white hover:scale-110"
-            aria-label="Cerrar modal"
+          <button
+            onClick={handleClose}
+            className="flex items-center justify-center w-8 h-8 transition-all border border-gray-300 dark:border-gray-600 rounded-full hover:bg-danger hover:text-white hover:scale-105"
           >
-            <i className="text-lg ki-outline ki-cross"></i>
+            <i className="text-base ki-outline ki-cross"></i>
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
-          
-          {/* Listado de Materias */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center gap-3">
-              {/* BUSCADOR DE COMPETENCIAS */}
-              <input 
-                type="text" 
-                value={buscar}
-                onChange={(e) => setBuscar(e.target.value)} 
-                placeholder='Busca por nombre o código de la competencia...'
-                className='input flex-1'
-              />
-              <button 
-                onClick={() => {
-                  if (showForm) {
-                    handleFormCancel();
-                  } else {
-                    setShowForm(true);
-                    setEditingCompetenciaId(undefined);
-                  }
-                }}
-                className={`text-4xs font-black px-3 py-1.5 rounded-lg border-2 transition-all whitespace-nowrap ${
-                  showForm 
-                    ? 'bg-danger/10 border-danger/40 text-danger' 
-                    : 'bg-primary/10 border-primary/40 text-primary disabled:opacity-50 disabled:cursor-not-allowed'
-                }`}
-                disabled={showForm?false:true}
-              >
-                {showForm ? 'CANCELAR' : '+ CREAR NUEVA'}
-              </button>
-            </div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
 
-            {/* Formulario de Creación/Edición */}
-            {showForm && (
-              <div ref={formRef}>
-              <FormCompetencia 
-                programId={idPrograma ?? 0}
-                competenciaId={editingCompetenciaId}
-                onSuccess={handleFormSuccess}
-                onCancel={handleFormCancel}
-                setToast={setToast}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                <input
+                  type="text"
+                  value={buscar}
+                  onChange={(e) => setBuscar(e.target.value)}
+                  placeholder='Nombre o código...'
+                  className='w-full input pl-9 pr-4 py-2 bg-gray-50 dark:bg-coal-600 rounded-lg outline-none transition-all uppercase text-xs font-semibold'
                 />
               </div>
-            )}
 
-            {/* Lista de Materias con Checkboxes */}
+              {/* <button
+                onClick={() => {
+                  setEditingCompetenciaId(undefined);
+                  setShowForm(true);
+                }}
+                disabled={true}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-coal-600 text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg font-black text-[10px] uppercase tracking-widest cursor-not-allowed opacity-60"
+              >
+                <Plus size={14} />
+                Crear Nueva
+              </button> */}
+            </div>
+
+            <FormCompetencia
+              isOpen={showForm}
+              onClose={handleFormCancel}
+              programId={idPrograma ?? 0}
+              competenciaId={editingCompetenciaId}
+              onSuccess={handleFormSuccess}
+              setToast={setToast}
+            />
+
+            {/* Lista de Materias */}
             {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : materiasDisponibles.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
-                <i className="ki-outline ki-book text-3xl text-gray-400 mb-2"></i>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
-                  No hay competencias disponibles
-                </p>
-                <p className="text-xs text-gray-400 mt-2">
-                  Crea tu primera competencia usando el botón "+ CREAR NUEVA"
-                </p>
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest animate-pulse">Cargando...</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-2">
                 {materiasDisponibles
-                  .filter((m: any) => 
-                    m.nombreMateria.toLowerCase().includes(buscar.toLowerCase()) 
-                    || m.codigo.toLowerCase().includes(buscar.toLowerCase())
+                  .filter(Boolean)
+                  .filter((m: any) =>
+                    (m.nombreMateria || '').toLowerCase().includes((buscar || '').toLowerCase())
+                    || (m.codigo || '').toLowerCase().includes((buscar || '').toLowerCase())
                   )
                   .map((materia) => {
                     const seleccionada = estaSeleccionada(materia);
-                    
+
                     return (
-                      <div 
-                        key={materia.id} 
+                      <div
+                        key={materia.id}
                         onClick={() => toggleMateria(materia)}
-                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${
-                          seleccionada
-                            ? 'bg-primary/10 border-primary shadow-md'
-                            : 'bg-white dark:bg-coal-300 border-gray-400 dark:border-gray-dark-100 hover:border-primary/50'
-                        }`}
+                        className={`group flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all duration-200 ${seleccionada
+                          ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
+                          : 'bg-white dark:bg-coal-400 border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
+                          }`}
                       >
-                        <div className="flex items-center gap-3 flex-1">
-                          {/* Checkbox */}
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                            seleccionada
-                              ? 'bg-primary border-primary'
-                              : 'bg-white dark:bg-coal-400 border-gray-400'
-                          }`}>
-                            {seleccionada && (
-                              <i className="ki-outline ki-check text-white text-xs font-bold"></i>
-                            )}
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
                           </div>
 
-                          {/* Icono y datos */}
-                          <div className="w-9 h-9 rounded-lg bg-gray-50 dark:bg-coal-400 flex items-center justify-center text-primary border border-gray-300 shadow-inner">
-                            <i className="ki-outline ki-book text-lg font-bold"></i>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-black text-gray-800 dark:text-white leading-none">
-                              {materia.codigo || 'Sin código'} - {materia.nombreMateria || 'Sin nombre'}
-                            </p>
-                            <p className="text-2xs text-gray-500 font-black uppercase mt-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
+                                {materia.codigo || 'S/C'}
+                              </span>
+                              <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
+                                {materia.nombreMateria || 'Sin nombre'}
+                              </p>
+                            </div>
+                            <p className="text-2xs text-gray-500 font-bold uppercase truncate">
                               {materia.descripcion || 'Sin descripción'}
                             </p>
                           </div>
-                          
+
                           <button
                             onClick={(e) => handleEdit(e, materia.id)}
-                            className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-coal-400 hover:text-blue-600 transition"
+                            className="p-1 rounded-lg text-gray-500 hover:bg-white dark:hover:bg-coal-400 hover:text-primary transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 shadow-sm shrink-0"
                             title="Editar"
                           >
-                            <Pencil size={18} />
+                            <Pencil size={14} />
                           </button>
                         </div>
                       </div>
                     );
                   })}
-                
-                {/* Mensaje si no hay resultados en búsqueda */}
-                {materiasDisponibles.filter((m: any) => 
-                  m.nombreMateria.toLowerCase().includes(buscar.toLowerCase()) 
-                  || m.codigo.toLowerCase().includes(buscar.toLowerCase())
-                ).length === 0 && buscar && (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
-                    <i className="ki-outline ki-magnifier text-3xl text-gray-400 mb-2"></i>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
-                      No se encontraron competencias con "{buscar}"
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-5 bg-gray-50 dark:bg-coal-400 border-t border-gray-400 dark:border-gray-dark-100 flex justify-between items-center gap-3">
-          <div className="text-left">
-            <p className="text-4xs font-black text-gray-600 dark:text-gray-400 uppercase">
-              {materiasSeleccionadas.length} competencia(s) seleccionada(s)
+        {/* Footer - Más compacto */}
+        <div className="p-4 bg-gray-50 dark:bg-coal-400 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+              {materiasSeleccionadas.length}
+            </div>
+            <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
+              Seleccionadas
             </p>
           </div>
-          
-          <div className="flex gap-3">
-            <button 
-              onClick={handleClose} 
-              className="px-6 py-2 text-3xs font-black uppercase text-gray-500 hover:text-red-600 transition-colors tracking-widest"
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 text-[10px] font-black uppercase text-gray-400 hover:text-danger transition-all tracking-widest"
             >
               Cancelar
             </button>
-            <button 
+            <button
               onClick={handleConfirmar}
               disabled={materiasSeleccionadas.length === 0}
-              className="px-10 py-2.5 bg-primary text-white rounded-lg text-3xs font-black uppercase tracking-widest hover:bg-primary-active active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary-active active:scale-95 transition-all shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none min-w-[120px]"
             >
               Confirmar ({materiasSeleccionadas.length})
             </button>

@@ -12,6 +12,7 @@ interface ListaRapsProps {
   idFicha: number;
   nivelId?: number;
   porcentajeEjecucion?: number;
+  onEditCompetencia?: (competenciaId: number) => void;
 }
 
 export const ListaRaps: React.FC<ListaRapsProps> = ({
@@ -21,7 +22,8 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   nombreCompetencia = "Competencia",
   idFicha,
   nivelId,
-  porcentajeEjecucion
+  porcentajeEjecucion,
+  onEditCompetencia
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,37 +44,37 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
     horasFaltantes: 0
   });
 
-    const cargarRaps = async () => {
-      if (!isOpen || !idMateriaPadre) return;
+  const cargarRaps = async () => {
+    if (!isOpen || !idMateriaPadre) return;
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        const response = await axios.get(`materias/raps`, {
-          params:
-          {
-            idFicha: idFicha,
-            idMateriaPadre: idMateriaPadre,
-            idGradoPrograma: nivelId
-          }
-        });
-
-        if (Array.isArray(response.data?.data)) {
-          setRaps(response.data.data);
-        } else if (Array.isArray(response.data)) {
-          setRaps(response.data);
-        } else {
-          setRaps([]);
-          setError('No se encontraron RAPs para esta competencia');
+    try {
+      const response = await axios.get(`materias/raps`, {
+        params:
+        {
+          idFicha: idFicha,
+          idMateriaPadre: idMateriaPadre,
+          idGradoPrograma: nivelId
         }
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Error al cargar los RAPs');
+      });
+
+      if (Array.isArray(response.data?.data)) {
+        setRaps(response.data.data);
+      } else if (Array.isArray(response.data)) {
+        setRaps(response.data);
+      } else {
         setRaps([]);
-      } finally {
-        setLoading(false);
+        setError('No se encontraron RAPs para esta competencia');
       }
-    };
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Error al cargar los RAPs');
+      setRaps([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     cargarRaps();
@@ -97,20 +99,20 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     Resultados de Aprendizaje (RAPs)
                   </h2>
                   <span className="text-sm font-bold text-gray-300">
-                    Total: {raps.length} - 
-                    Pendientes:{raps .filter((rap: any) => rap.estado === 'PENDIENTE').length} - 
-                    Realizados:{raps.filter((rap: any) => rap.estado === 'REALIZADO').length} - 
+                    Total: {raps.length} -
+                    Pendientes:{raps.filter((rap: any) => rap.estado === 'PENDIENTE').length} -
+                    Realizados:{raps.filter((rap: any) => rap.estado === 'REALIZADO').length} -
                     {nombreCompetencia}
                   </span>
                 </div>
               </div>
             </div>
-     
+
             <span className="text-md font-bold text-gray-300 mr-12">
               Porcentaje de Ejecución
               <p className="text-center text-lg font-bold">{porcentajeEjecucion}%</p>
             </span>
-       
+
             <button
               onClick={onClose}
               className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
@@ -178,6 +180,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                         idFicha={idFicha}
                         setModalHorarios={setModalHorarios}
                         onAsignacionSuccess={cargarRaps}
+                        onEditCompetencia={onEditCompetencia}
                       />
 
                       {/* Información adicional del RAP */}
@@ -239,7 +242,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           totalHoras={modalHorarios.totalHoras}
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
-          porcentajeEjecucion={porcentajeEjecucion??0}
+          porcentajeEjecucion={porcentajeEjecucion ?? 0}
           onGuardado={() => { }}
         />
       }

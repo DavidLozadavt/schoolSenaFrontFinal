@@ -9,6 +9,7 @@ import { CardTrimestre } from './CardTrimestre';
 import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { AsignarMateria } from './AsignarMateria';
 import { ListaRaps } from './ListaRaps';
+import { FormCompetencia } from './FormCompetencia';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
@@ -39,6 +40,10 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
   const [selectedCompetenciaId, setSelectedCompetenciaId] = useState<number | null>(null);
   const [selectedCompetenciaNombre, setSelectedCompetenciaNombre] = useState<string>('');
+
+  // Estados para modal de FormCompetencia (Independiente)
+  const [isFormCompetenciaOpen, setIsFormCompetenciaOpen] = useState(false);
+  const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
 
   // Hook de trimestres
   const {
@@ -147,6 +152,17 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     setSelectedCompetenciaNombre(competenciaNombre);
     setSelectedNivelId(idTrimestre);
     setIsRapsModalOpen(true);
+  };
+
+  const handleEditCompetencia = (competenciaId: number) => {
+    setEditingCompetenciaId(competenciaId);
+    setIsFormCompetenciaOpen(true);
+  };
+
+  const handleFormCompetenciaSuccess = () => {
+    if (selectedFicha?.id) {
+      cargarTrimestres(selectedFicha.id);
+    }
   };
 
   if (!isOpen || !program) return null;
@@ -306,8 +322,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                                   <div
                                     key={trimestre.id || index}
                                     className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
-                                        ? 'border-primary animate-pulse-slow'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                                      ? 'border-primary animate-pulse-slow'
+                                      : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
                                       }`}
                                   >
                                     <CardTrimestre
@@ -316,6 +332,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
                                       onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                       setSelectedNivelId={setSelectedNivelId}
                                       onVerRaps={handleOpenRaps}
+                                      onEditCompetencia={handleEditCompetencia}
                                       onAsignacionSuccess={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
                                     />
                                   </div>
@@ -381,6 +398,11 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         onClose={() => setIsMateriaModalOpen(false)}
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
+        materiasActuales={
+          nuevoTrimestre
+            ? nuevoTrimestre.materias
+            : trimestres.find(t => (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId)?.materias || []
+        }
       />
 
       {/* Modal ListaRaps */}
@@ -393,10 +415,21 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           idFicha={selectedFicha?.id}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          onEditCompetencia={handleEditCompetencia}
         />
       )}
 
-      <Toast message='Trimestre agregado correctamente' isOpen={toast} onClose={() => setToast(false)} />
+      {/* Modal Independiente de Competencia */}
+      <FormCompetencia
+        isOpen={isFormCompetenciaOpen}
+        onClose={() => setIsFormCompetenciaOpen(false)}
+        programId={program?.id ?? 0}
+        competenciaId={editingCompetenciaId}
+        onSuccess={handleFormCompetenciaSuccess}
+        setToast={setToast}
+      />
+
+      <Toast message='Operación realizada correctamente' isOpen={toast} onClose={() => setToast(false)} />
     </div>
   );
 };
