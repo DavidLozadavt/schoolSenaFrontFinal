@@ -1122,7 +1122,7 @@ const ClaseDetallePage: React.FC = () => {
                     setIdFicha(clase?.ficha_id);
                     setIdPrograma(String(ficha.asignacion?.programa?.id));
                     setIdSede(ficha?.idSede)
-                    setIdGrado(clase?.idGrado);
+                    setIdGrado(clase?.idGrado ?? 1);
                   }
                   }
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
