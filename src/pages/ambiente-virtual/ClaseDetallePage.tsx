@@ -290,6 +290,7 @@ interface Clase {
   total_sesiones?: number;
   dia_semana?: string;
   jornada_tipo?: string;
+  estado?: string; // Estado calculado por el backend: 'PENDIENTE', 'EN CURSO', 'COMPLETADO'
   instructor?: {
     id: number;
     persona?: {
@@ -636,11 +637,32 @@ const ClaseDetallePage: React.FC = () => {
     return duracionMinutos * 60; // Convertir a segundos
   };
 
-  // Función para determinar el estado de la clase: 'pasada', 'pendiente', 'en_curso'
+  /**
+   * Obtiene el estado de la clase
+   * Usa el estado calculado por el backend para mantener consistencia con el historial
+   * Convierte el formato del backend ('PENDIENTE', 'EN CURSO', 'COMPLETADO') 
+   * al formato usado en este componente ('pendiente', 'en_curso', 'pasada')
+   */
   const getEstadoClase = (): 'pasada' | 'pendiente' | 'en_curso' => {
-    if (!clase?.fechaInicial || !clase?.horaInicial || !clase?.horaFinal || !clase?.fechaFinal) return 'pendiente';
+    // Si el backend ya calculó el estado, usarlo directamente
+    if (clase?.estado) {
+      const estado = clase.estado.toUpperCase();
+      if (estado === 'EN CURSO' || estado === 'EN_CURSO') {
+        return 'en_curso';
+      }
+      if (estado === 'COMPLETADO' || estado === 'COMPLETADA') {
+        return 'pasada';
+      }
+      if (estado === 'PENDIENTE') {
+        return 'pendiente';
+      }
+    }
+    
+    // Fallback: si no hay estado del backend, calcular básico basado solo en fechas
+    if (!clase?.fechaInicial || !clase?.fechaFinal) {
+      return 'pendiente';
+    }
 
-    // Parsear fecha sin problemas de zona horaria
     const parseDate = (dateString: string): Date => {
       if (!dateString) return new Date();
       const parts = dateString.split('T')[0].split('-');
@@ -670,71 +692,7 @@ const ClaseDetallePage: React.FC = () => {
       return 'pendiente';
     }
 
-    // Verificar si hoy es uno de los días de clase
-    const esDiaDeClaseHoy = todasLasFechasClase.some(f => {
-      if (!f.fechaInicial) return false;
-      const d = parseDate(f.fechaInicial);
-      d.setHours(0, 0, 0, 0);
-
-      const dFin = f.fechaFinal ? parseDate(f.fechaFinal) : new Date(d);
-      dFin.setHours(0, 0, 0, 0);
-
-      if (d.getTime() === dFin.getTime()) {
-        return d.getTime() === hoy.getTime();
-      } else {
-        const mapeoDias: { [key: string]: number } = {
-          'DOMINGO': 0, 'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'MIÉRCOLES': 3,
-          'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'SÁBADO': 6
-        };
-        const diaNumero = mapeoDias[f.dia_semana?.toUpperCase() || ''];
-        return d.getTime() <= hoy.getTime() && hoy.getTime() <= dFin.getTime() && hoy.getDay() === diaNumero;
-      }
-    });
-
-    if (!esDiaDeClaseHoy) {
-      // Si hoy no hay clase, está pendiente para la próxima
-      return 'pendiente';
-    }
-
-    // Si es día de clase, verificar el rango de horas
-    const ahora = currentTime;
-    let [horaIni, minIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    let [horaFin, minFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-
-    // Convertir horas según jornada_tipo (el backend devuelve 12h como si fueran 24h)
-    const jornadaTipo = clase.jornada_tipo?.toUpperCase() || '';
-    const esTarde = jornadaTipo.includes('TARDE');
-    const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
-
-    if ((esTarde || esNoche) && horaIni < 12) {
-      horaIni += 12;
-    }
-    if ((esTarde || esNoche) && horaFin < 12) {
-      horaFin += 12;
-    }
-
-    const horaInicio = new Date(ahora);
-    horaInicio.setHours(horaIni, minIni, 0, 0);
-
-    const horaFinClase = new Date(ahora);
-    horaFinClase.setHours(horaFin, minFin, 0, 0);
-
-    // Si la hora final es menor que la inicial, asumimos que cruza medianoche
-    if (horaFinClase.getTime() < horaInicio.getTime()) {
-      horaFinClase.setDate(horaFinClase.getDate() + 1);
-    }
-
-    // Verificar si estamos dentro del rango de la clase
-    if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinClase.getTime()) {
-      return 'en_curso';
-    }
-
-    // Si ya pasó la hora de fin hoy
-    if (ahora.getTime() > horaFinClase.getTime()) {
-      return 'pasada';
-    }
-
-    // Si aún no ha comenzado la hora de hoy
+    // Por defecto, pendiente
     return 'pendiente';
   };
 
