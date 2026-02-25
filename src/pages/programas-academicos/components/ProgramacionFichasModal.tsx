@@ -4,9 +4,7 @@ import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './documentos';
 import { VerDocumentosFichaModal } from './documentos/VerDocumentosFichaModal';
 import MallaCurricular from './malla-curricular/MallaCurricular';
-import CrearFicha from './CrearFicha';
 import { AsignarInstructorLiderModal } from './AsignarInstructorLiderModal';
-import EditarFicha from './EditarFicha';
 import { useAuthContext } from '@/auth';
 
 interface Ficha {
@@ -258,14 +256,6 @@ export const ProgramacionFichasPage = () => {
             </button>
           </div>
 
-          {isModalOpen && (
-            <CrearFicha
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              programaId={programId}
-              onAction={()=> setEvento((prev) => !prev)}
-            />
-          )}
 
           {loading ? (
             <div className="flex justify-center py-12">
@@ -617,16 +607,6 @@ export const ProgramacionFichasPage = () => {
         }}
       />
 
-      {/* Modal de Edición */}
-      <EditarFicha
-        isModalOpen={isEditModalOpen}
-        setIsModalOpen={setIsEditModalOpen}
-        fichaId={fichaIdToEdit}
-        setEvento={setEvento}
-        setShowToast={setShowToast}
-        setMessageToast={setMessageToast}
-        onAction={()=> setEvento((prev) => !prev)}
-      />
 
       {/* Toast de notificación */}
       {showToast && (
