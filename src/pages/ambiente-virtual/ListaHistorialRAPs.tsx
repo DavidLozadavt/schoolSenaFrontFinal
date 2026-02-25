@@ -19,6 +19,7 @@ interface Clase {
   jornada_nombre: string;
   jornada_tipo: string;
   dia_semana: string;
+  idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
   horaInicial: string;
   horaFinal: string;
   fechaInicial: string;
@@ -121,48 +122,45 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     return 'PENDIENTE';
   };
 
+  /**
+   * Formatea una fecha usando Intl.DateTimeFormat (API nativa de JavaScript)
+   * No usa datos hardcodeados, usa la configuración del navegador
+   * 
+   * @param dateString Fecha en formato YYYY-MM-DD
+   * @param jornadaTipo Tipo de jornada para mostrar si es hoy
+   * @returns String formateado: "Jornada (hoy)" o "Mañana (día, fecha)" o "(día, fecha)"
+   */
   const formatDateForGroup = (dateString: string, jornadaTipo: string): string => {
-    // Parsear fecha sin problemas de zona horaria (formato YYYY-MM-DD)
+    // Parsear fecha sin problemas de zona horaria
     const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const months = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
     
     // Verificar si es hoy, mañana o más adelante
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const fecha = new Date(year, month - 1, day);
-    fecha.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
     
-    const diffTime = fecha.getTime() - hoy.getTime();
+    const diffTime = date.getTime() - hoy.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const diaSemana = days[date.getDay()];
-    const diaNumero = date.getDate();
-    const mes = months[date.getMonth()];
+    // Usar Intl.DateTimeFormat para formatear fecha (sin datos hardcodeados)
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
     
     if (diffDays === 0) {
       // Es hoy - usar la jornada
       return `${jornadaTipo} (hoy)`;
     } else if (diffDays === 1) {
       // Es mañana - mostrar "Mañana" + fecha completa
-      return `Mañana (${diaSemana}, ${diaNumero} de ${mes})`;
+      const fechaFormateada = formatter.format(date);
+      return `Mañana (${fechaFormateada})`;
     } else {
       // Es más adelante - solo mostrar la fecha sin jornada
-      return `(${diaSemana}, ${diaNumero} de ${mes})`;
+      const fechaFormateada = formatter.format(date);
+      return `(${fechaFormateada})`;
     }
   };
 
@@ -259,6 +257,20 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   };
 
   /**
+   * Convierte idDia del backend al formato de JavaScript getDay()
+   * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+   * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
+   * 
+   * @param idDia ID del día desde el backend (1-7)
+   * @returns Número del día para JavaScript getDay()
+   */
+  const convertirIdDiaANumeroJS = (idDia: number): number => {
+    // Convertir formato backend (1-7) a formato JavaScript (0-6)
+    // Domingo es 7 en backend pero 0 en JavaScript
+    return idDia === 7 ? 0 : idDia;
+  };
+
+  /**
    * Calcula la próxima fecha de clase pendiente (Date object)
    * Retorna null si no se puede calcular
    */
@@ -277,25 +289,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    // Mapeo de días de la semana
-    const diaSemanaMap: { [key: string]: number } = {
-      'LUNES': 1,
-      'MARTES': 2,
-      'MIÉRCOLES': 3,
-      'MIERCOLES': 3,
-      'JUEVES': 4,
-      'VIERNES': 5,
-      'SÁBADO': 6,
-      'SABADO': 6,
-      'DOMINGO': 0
-    };
-
-    const diaSemanaClase = clase.dia_semana.toUpperCase();
-    const diaNumero = diaSemanaMap[diaSemanaClase];
-    
-    if (diaNumero === undefined) {
+    // Usar idDia directamente del backend (viene de la BD, sin mapeo hardcodeado)
+    if (!clase.idDia) {
       return null;
     }
+    
+    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
 
     // Buscar la próxima fecha del día de la semana
     let fechaBusqueda = new Date(hoy);
@@ -331,23 +330,21 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   /**
    * Calcula la próxima fecha de clase pendiente basada en el día de la semana
-   * Retorna string formateado: "Jueves 26 de febrero"
+   * Retorna string formateado usando Intl.DateTimeFormat (sin datos hardcodeados)
+   * Ejemplo: "jueves, 26 de febrero"
    */
   const getProximaClasePendiente = (clase: Clase): string | null => {
     const fechaBusqueda = calcularProximaFechaClase(clase);
     if (!fechaBusqueda) return null;
 
-    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const meses = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-    ];
+    // Usar Intl.DateTimeFormat para formatear fecha (API nativa, sin datos hardcodeados)
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
 
-    const diaNombre = diasSemana[fechaBusqueda.getDay()];
-    const dia = fechaBusqueda.getDate();
-    const mes = meses[fechaBusqueda.getMonth()];
-
-    return `${diaNombre} ${dia} de ${mes}`;
+    return formatter.format(fechaBusqueda);
   };
 
   /**
