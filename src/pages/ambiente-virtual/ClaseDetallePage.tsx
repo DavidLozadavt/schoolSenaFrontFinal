@@ -45,17 +45,18 @@ const CalendarComponent: React.FC<{
     const inicio = fechaInicio ? parseDate(fechaInicio) : null;
     const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
-    // Mapeo de nombres de días en español a números (0 = Domingo, 1 = Lunes, etc.)
-    const mapeoDias: { [key: string]: number } = {
-      'DOMINGO': 0,
-      'LUNES': 1,
-      'MARTES': 2,
-      'MIERCOLES': 3,
-      'MIÉRCOLES': 3,
-      'JUEVES': 4,
-      'VIERNES': 5,
-      'SABADO': 6,
-      'SÁBADO': 6
+    /**
+     * Convierte idDia del backend al formato de JavaScript getDay()
+     * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+     * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
+     * 
+     * @param idDia ID del día desde el backend (1-7)
+     * @returns Número del día para JavaScript getDay()
+     */
+    const convertirIdDiaANumeroJS = (idDia: number): number => {
+      // Convertir formato backend (1-7) a formato JavaScript (0-6)
+      // Domingo es 7 en backend pero 0 en JavaScript
+      return idDia === 7 ? 0 : idDia;
     };
 
     // Calcular todas las fechas de clase usando las fechas del backend
@@ -77,8 +78,8 @@ const CalendarComponent: React.FC<{
                   fechas.push(new Date(fechaIni));
                 } else {
                   // Si hay rango, agregar todas las fechas en el rango que coincidan con el día
-                  const diaNumero = mapeoDias[fechaClase.dia_semana?.toUpperCase() || ''];
-                  if (diaNumero !== undefined) {
+                  if (fechaClase.idDia) {
+                    const diaNumero = convertirIdDiaANumeroJS(fechaClase.idDia);
                     const fechaActual = new Date(fechaIni);
                     while (fechaActual <= fechaFin) {
                       if (fechaActual.getDay() === diaNumero) {
@@ -95,56 +96,20 @@ const CalendarComponent: React.FC<{
         return fechas;
       }
 
-      // Fallback: calcular basándose en fechaInicio y fechaFin (lógica antigua)
-      if (!inicio || !fin || !diaSemana) {
-        return [];
-      }
-
-      const diaNumero = mapeoDias[diaSemana.toUpperCase()];
-      if (diaNumero === undefined) {
-        return [];
-      }
-
-      const fechas: Date[] = [];
-      const fechaActual = new Date(inicio);
-      fechaActual.setHours(0, 0, 0, 0);
-      const fechaFinal = new Date(fin);
-      fechaFinal.setHours(0, 0, 0, 0);
-
-      // Si fechaInicial y fechaFinal son la misma fecha, verificar solo esa fecha
-      if (fechaActual.getTime() === fechaFinal.getTime()) {
-        if (fechaActual.getDay() === diaNumero) {
-          fechas.push(new Date(fechaActual));
-        }
-      } else {
-        // Si son diferentes, calcular todas las fechas en el rango
-        while (fechaActual <= fechaFinal) {
-          if (fechaActual.getDay() === diaNumero) {
-            fechas.push(new Date(fechaActual));
-          }
-          fechaActual.setDate(fechaActual.getDate() + 1);
-        }
-      }
-
-      return fechas;
+      // Si no hay todasLasFechasClase del backend, retornar vacío
+      // El idDia debe venir siempre del backend
+      return [];
     }, [todasLasFechasClase, inicio, fin, diaSemana]);
 
 
-    const daysOfWeek = ['D', 'L', 'M', 'X', 'J', 'V', 'S']; // D=Dom, L=Lun, M=Mar, X=Mié, J=Jue, V=Vie, S=Sáb
-    const months = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
+    // Abreviaciones de días para el calendario (solo para visualización del header)
+    // Usar Intl.DateTimeFormat para obtener las abreviaciones del navegador
+    const getDayAbbreviation = (dayIndex: number): string => {
+      const date = new Date(2024, 0, dayIndex + 1); // Crear fecha para ese día de la semana
+      return new Intl.DateTimeFormat('es-ES', { weekday: 'narrow' }).format(date).toUpperCase();
+    };
+    
+    const daysOfWeek = [0, 1, 2, 3, 4, 5, 6].map(getDayAbbreviation);
 
     const getDaysInMonth = (date: Date) => {
       const year = date.getFullYear();
@@ -200,7 +165,8 @@ const CalendarComponent: React.FC<{
     };
 
     const days = getDaysInMonth(currentMonth);
-    const monthName = months[currentMonth.getMonth()];
+    // Usar Intl.DateTimeFormat para obtener el nombre del mes (sin datos hardcodeados)
+    const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(currentMonth);
     const year = currentMonth.getFullYear();
 
     const goToPreviousMonth = () => {
@@ -289,6 +255,7 @@ interface Clase {
   horaFinal?: string;
   total_sesiones?: number;
   dia_semana?: string;
+  idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
   jornada_tipo?: string;
   estado?: string; // Estado calculado por el backend: 'PENDIENTE', 'EN CURSO', 'COMPLETADO'
   instructor?: {
@@ -310,6 +277,7 @@ interface FechaClase {
   fechaInicial: string;
   fechaFinal: string | null;
   dia_semana: string;
+  idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
 }
 
 interface Ficha {
@@ -384,6 +352,20 @@ const ClaseDetallePage: React.FC = () => {
   const [idGrado, setIdGrado] = useState<number | undefined>(0);
   const [idPrograma, setIdPrograma] = useState<string | undefined>('');
   const [evento, setEvento] = useState<boolean>(false);
+
+  /**
+   * Convierte idDia del backend al formato de JavaScript getDay()
+   * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+   * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
+   * 
+   * @param idDia ID del día desde el backend (1-7)
+   * @returns Número del día para JavaScript getDay()
+   */
+  const convertirIdDiaANumeroJS = (idDia: number): number => {
+    // Convertir formato backend (1-7) a formato JavaScript (0-6)
+    // Domingo es 7 en backend pero 0 en JavaScript
+    return idDia === 7 ? 0 : idDia;
+  };
 
   // Actualizar el tiempo actual cada segundo para el cronómetro en tiempo real
   useEffect(() => {
@@ -485,42 +467,21 @@ const ClaseDetallePage: React.FC = () => {
       date = new Date(dateString);
     }
 
-    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const monthsNames = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
-    return `${days[date.getDay()]}, ${date.getDate()} de ${monthsNames[date.getMonth()]} ${date.getFullYear()}`;
+    // Usar Intl.DateTimeFormat para formatear fecha (sin datos hardcodeados)
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    return formatter.format(date);
   };
 
   // Calcular la próxima fecha de clase si hoy no hay clase
   const calcularProximaFechaClase = (): string | null => {
-    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.dia_semana) return null;
+    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.idDia) return null;
 
-    const mapeoDias: { [key: string]: number } = {
-      'DOMINGO': 0,
-      'LUNES': 1,
-      'MARTES': 2,
-      'MIERCOLES': 3,
-      'MIÉRCOLES': 3,
-      'JUEVES': 4,
-      'VIERNES': 5,
-      'SABADO': 6,
-      'SÁBADO': 6
-    };
-
-    const diaNumero = mapeoDias[clase.dia_semana.toUpperCase()];
-    if (diaNumero === undefined) return null;
+    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -719,16 +680,14 @@ const ClaseDetallePage: React.FC = () => {
     if (hoy.getTime() < fechaInicio.getTime() || hoy.getTime() > fechaFin.getTime()) return false;
 
     // 2. Hoy debe ser un día programado de clase
-    const mapeoDias: Record<string, number> = {
-      'DOMINGO': 0, 'LUNES': 1, 'MARTES': 2, 'MIERCOLES': 3, 'MIÉRCOLES': 3,
-      'JUEVES': 4, 'VIERNES': 5, 'SABADO': 6, 'SÁBADO': 6
-    };
     const esDiaDeClase = todasLasFechasClase.some(f => {
       if (!f.fechaInicial) return false;
       const dIni = parseDate(f.fechaInicial); dIni.setHours(0, 0, 0, 0);
       const dFin = f.fechaFinal ? parseDate(f.fechaFinal) : new Date(dIni); dFin.setHours(0, 0, 0, 0);
       if (dIni.getTime() === dFin.getTime()) return dIni.getTime() === hoy.getTime();
-      const diaNumero = mapeoDias[f.dia_semana?.toUpperCase() || ''];
+      // Usar idDia directamente del backend (viene de la BD, sin mapeo hardcodeado)
+      if (!f.idDia) return false;
+      const diaNumero = convertirIdDiaANumeroJS(f.idDia);
       return diaNumero !== undefined
         && dIni.getTime() <= hoy.getTime()
         && hoy.getTime() <= dFin.getTime()
