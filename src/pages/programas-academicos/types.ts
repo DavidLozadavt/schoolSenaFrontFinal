@@ -13,6 +13,7 @@ export interface Program {
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
   idRed?:number;
+  fichas_count?: number;
   estado?: {
     id: number;
     nombre: string;
