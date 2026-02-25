@@ -11,6 +11,16 @@ interface Props {
   idInstructor?: number;
 }
 
+interface SesionCompletada {
+  id: number;
+  numeroSesion: number;
+  fechaSesion: string;
+  fechaFormateada: string;
+  fechaCorta: string;
+  estado: string;
+  observacion?: string | null;
+}
+
 interface Clase {
   ficha_id: number;
   ficha_codigo: string;
@@ -28,6 +38,7 @@ interface Clase {
   total_sesiones: number;
   sesiones_dadas?: number;
   sesiones_restantes?: number;
+  sesiones_completadas?: SesionCompletada[];
   contrato_id: number;
   instructor_nombre: string;
   idGradoPrograma: number | null;
@@ -80,15 +91,79 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   /**
    * Obtiene el estado de la clase
-   * El backend ya calcula el estado correctamente basado en fecha, hora y día de la semana
-   * Por lo tanto, usamos directamente el estado del backend para evitar inconsistencias
+   * Considera tanto el estado del backend como las sesiones completadas individuales
    */
   const getStatus = (clase: Clase): 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO' => {
+    // Si hay sesiones completadas, verificar si alguna es de hoy o pasada
+    if (clase.sesiones_completadas && clase.sesiones_completadas.length > 0) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      // Verificar si hay una sesión completada hoy o en el pasado
+      const haySesionCompletada = clase.sesiones_completadas.some(sesion => {
+        const fechaSesion = new Date(sesion.fechaSesion);
+        fechaSesion.setHours(0, 0, 0, 0);
+        return fechaSesion.getTime() <= hoy.getTime();
+      });
+      
+      // Si hay sesiones completadas, verificar el estado actual en tiempo real
+      if (haySesionCompletada && clase.fechaInicial && clase.fechaFinal && clase.horaInicial && clase.horaFinal && clase.idDia) {
+        const ahora = new Date();
+        const parseDate = (dateStr: string) => {
+          const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+          return new Date(year, month - 1, day);
+        };
+
+        const hoy = new Date(ahora);
+        hoy.setHours(0, 0, 0, 0);
+        const fechaInicio = parseDate(clase.fechaInicial);
+        fechaInicio.setHours(0, 0, 0, 0);
+        const fechaFin = parseDate(clase.fechaFinal);
+        fechaFin.setHours(0, 0, 0, 0);
+
+        // Si ya pasó la fecha final del curso completo
+        if (fechaFin.getTime() < hoy.getTime()) {
+          return 'COMPLETADO';
+        }
+
+        // Verificar si hoy es un día de clase
+        const convertirIdDiaANumeroJS = (idDia: number): number => {
+          return idDia === 7 ? 0 : idDia;
+        };
+        const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+        
+        if (ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime()) {
+          // Verificar si estamos dentro del rango de horas
+          const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+          const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+          
+          const horaInicio = new Date(ahora);
+          horaInicio.setHours(hIni, mIni, 0, 0);
+          const horaFinal = new Date(ahora);
+          horaFinal.setHours(hFin, mFin, 0, 0);
+
+          if (horaFinal.getTime() < horaInicio.getTime()) {
+            horaFinal.setDate(horaFinal.getDate() + 1);
+          }
+
+          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+            return 'EN CURSO';
+          }
+        }
+      }
+    }
+
     // Si el backend ya calculó el estado, usarlo directamente
     if (clase.estado) {
       const estado = clase.estado.toUpperCase();
-      if (estado === 'EN CURSO' || estado === 'PENDIENTE' || estado === 'COMPLETADO') {
-        return estado as 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO';
+      if (estado === 'EN CURSO' || estado === 'EN_CURSO') {
+        return 'EN CURSO';
+      }
+      if (estado === 'COMPLETADO' || estado === 'COMPLETADA') {
+        return 'COMPLETADO';
+      }
+      if (estado === 'PENDIENTE') {
+        return 'PENDIENTE';
       }
     }
     
@@ -643,6 +718,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const horario = getHorario(clase);
     const numSesiones = getNumSesiones(clase);
     const proximaClase = showProximaFecha ? getProximaClasePendiente(clase) : null;
+    const sesionesCompletadas = clase.sesiones_completadas || [];
+    const esCompletada = status === 'COMPLETADO';
 
     return (
       <div
@@ -689,6 +766,38 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 </div>
               )}
             </div>
+            
+            {/* Mostrar sesiones completadas individuales si la clase está completada */}
+            {esCompletada && sesionesCompletadas.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <i className="ki-outline ki-check-circle text-xs text-green-600 dark:text-green-400"></i>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Sesiones Completadas ({sesionesCompletadas.length})
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {sesionesCompletadas.map((sesion) => (
+                    <div
+                      key={sesion.id}
+                      className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded px-2 py-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigateToClase(clase);
+                      }}
+                    >
+                      <i className="ki-outline ki-check text-xs text-green-600 dark:text-green-400 flex-shrink-0"></i>
+                      <span className="flex-1">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          Sesión {sesion.numeroSesion}:
+                        </span>{' '}
+                        <span className="capitalize">{sesion.fechaFormateada}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex-shrink-0 pt-1">
             <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>

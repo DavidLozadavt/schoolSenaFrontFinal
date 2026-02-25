@@ -11,11 +11,23 @@ const CalendarComponent: React.FC<{
   fechaFin: string;
   diaSemana?: string;
   todasLasFechasClase?: FechaClase[];
+  idDia?: number;
+  idHorarioMateria?: number;
+  sesionesCompletadas?: Array<{ fechaSesion: string; numeroSesion?: number }>;
+  horaInicial?: string;
+  horaFinal?: string;
+  onDateClick?: (fecha: Date, idHorarioMateria: number) => void;
 }> = ({
   fechaInicio,
   fechaFin,
   diaSemana,
-  todasLasFechasClase = []
+  todasLasFechasClase = [],
+  idDia,
+  idHorarioMateria,
+  sesionesCompletadas = [],
+  horaInicial,
+  horaFinal,
+  onDateClick
 }) => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -59,11 +71,50 @@ const CalendarComponent: React.FC<{
       return idDia === 7 ? 0 : idDia;
     };
 
-    // Calcular todas las fechas de clase usando las fechas del backend
+    // Mapa de fechas a idHorarioMateria para navegación
+    const mapaFechasHorarios = useMemo(() => {
+      const mapa = new Map<string, number>();
+      
+      if (todasLasFechasClase && todasLasFechasClase.length > 0) {
+        todasLasFechasClase.forEach((fechaClase) => {
+          if (fechaClase.fechaInicial && fechaClase.idHorarioMateria) {
+            const fechaIni = parseDate(fechaClase.fechaInicial);
+            if (fechaIni) {
+              fechaIni.setHours(0, 0, 0, 0);
+              const fechaFin = fechaClase.fechaFinal ? parseDate(fechaClase.fechaFinal) : fechaIni;
+              if (fechaFin) {
+                fechaFin.setHours(0, 0, 0, 0);
+                if (fechaIni.getTime() === fechaFin.getTime()) {
+                  const fechaStr = fechaIni.toISOString().split('T')[0];
+                  mapa.set(fechaStr, fechaClase.idHorarioMateria);
+                } else {
+                  if (fechaClase.idDia) {
+                    const diaNumero = convertirIdDiaANumeroJS(fechaClase.idDia);
+                    const fechaActual = new Date(fechaIni);
+                    while (fechaActual <= fechaFin) {
+                      if (fechaActual.getDay() === diaNumero) {
+                        const fechaStr = fechaActual.toISOString().split('T')[0];
+                        mapa.set(fechaStr, fechaClase.idHorarioMateria);
+                      }
+                      fechaActual.setDate(fechaActual.getDate() + 1);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+      
+      return mapa;
+    }, [todasLasFechasClase]);
+
+    // Calcular todas las fechas de clase usando las fechas del backend y sesiones completadas
     const fechasClase = useMemo(() => {
+      const fechas: Date[] = [];
+      
       // Si tenemos todas las fechas del backend, usarlas directamente
       if (todasLasFechasClase && todasLasFechasClase.length > 0) {
-        const fechas: Date[] = [];
         todasLasFechasClase.forEach((fechaClase) => {
           if (fechaClase.fechaInicial) {
             const fechaIni = parseDate(fechaClase.fechaInicial);
@@ -93,13 +144,72 @@ const CalendarComponent: React.FC<{
             }
           }
         });
-        return fechas;
       }
-
-      // Si no hay todasLasFechasClase del backend, retornar vacío
-      // El idDia debe venir siempre del backend
-      return [];
-    }, [todasLasFechasClase, inicio, fin, diaSemana]);
+      
+      // SIEMPRE calcular fechas basándose en fechaInicio, fechaFin e idDia como respaldo
+      // Esto asegura que el calendario siempre muestre las fechas aunque todasLasFechasClase esté vacío
+      // IMPORTANTE: Este cálculo debe ejecutarse SIEMPRE, incluso si todasLasFechasClase tiene datos
+      // porque puede que todasLasFechasClase no tenga todas las fechas individuales
+      if (fechaInicio && fechaFinParaUsar && idDia !== undefined && idDia !== null) {
+        const inicio = parseDate(fechaInicio);
+        const fin = parseDate(fechaFinParaUsar);
+        if (inicio && fin && !isNaN(inicio.getTime()) && !isNaN(fin.getTime())) {
+          inicio.setHours(0, 0, 0, 0);
+          fin.setHours(0, 0, 0, 0);
+          const diaNumero = convertirIdDiaANumeroJS(idDia);
+          
+          // Asegurarse de que el día número sea válido (0-6)
+          if (diaNumero >= 0 && diaNumero <= 6) {
+            const fechaActual = new Date(inicio);
+            
+            // Calcular todas las fechas en el rango que coincidan con el día de la semana
+            // Usar un contador de seguridad para evitar bucles infinitos
+            let contador = 0;
+            const maxIteraciones = 10000; // Máximo de días a calcular (aproximadamente 27 años)
+            
+            while (fechaActual <= fin && contador < maxIteraciones) {
+              if (fechaActual.getDay() === diaNumero) {
+                const fechaClase = new Date(fechaActual);
+                fechaClase.setHours(0, 0, 0, 0);
+                // Verificar que no esté duplicada
+                const existe = fechas.some(f => {
+                  const fDate = new Date(f);
+                  fDate.setHours(0, 0, 0, 0);
+                  return fDate.getTime() === fechaClase.getTime();
+                });
+                if (!existe) {
+                  fechas.push(fechaClase);
+                }
+              }
+              fechaActual.setDate(fechaActual.getDate() + 1);
+              contador++;
+            }
+          }
+        }
+      }
+      
+      // Agregar también las fechas de sesiones completadas
+      sesionesCompletadas.forEach((sesion) => {
+        if (sesion.fechaSesion) {
+          const fechaSesion = parseDate(sesion.fechaSesion);
+          if (fechaSesion) {
+            fechaSesion.setHours(0, 0, 0, 0);
+            // Verificar que no esté duplicada
+            const existe = fechas.some(f => f.getTime() === fechaSesion.getTime());
+            if (!existe) {
+              fechas.push(new Date(fechaSesion));
+            }
+          }
+        }
+      });
+      
+      // Eliminar duplicados
+      const fechasUnicas = fechas.filter((fecha, index, self) =>
+        index === self.findIndex(f => f.getTime() === fecha.getTime())
+      );
+      
+      return fechasUnicas.sort((a, b) => a.getTime() - b.getTime());
+    }, [todasLasFechasClase, fechaInicio, fechaFinParaUsar, idDia, sesionesCompletadas, convertirIdDiaANumeroJS]);
 
 
     // Abreviaciones de días para el calendario (solo para visualización del header)
@@ -133,19 +243,32 @@ const CalendarComponent: React.FC<{
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       date.setHours(0, 0, 0, 0);
 
-      // Verificar si esta fecha es una fecha de clase
-      const esFechaClase = fechasClase.some(fecha => {
+      // Formatear la fecha para comparación (YYYY-MM-DD)
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+      // Verificar si esta fecha es una fecha de clase usando comparación de strings
+      let esFechaClase = false;
+      let fechaEncontrada: Date | null = null;
+      
+      for (const fecha of fechasClase) {
         const fechaClase = new Date(fecha);
         fechaClase.setHours(0, 0, 0, 0);
-        return fechaClase.getTime() === date.getTime();
-      });
+        const fechaClaseStr = `${fechaClase.getFullYear()}-${String(fechaClase.getMonth() + 1).padStart(2, '0')}-${String(fechaClase.getDate()).padStart(2, '0')}`;
+        
+        // Comparar tanto por timestamp como por string para mayor seguridad
+        if (fechaClaseStr === dateStr || fechaClase.getTime() === date.getTime()) {
+          esFechaClase = true;
+          fechaEncontrada = fechaClase;
+          break;
+        }
+      }
+
 
       if (!esFechaClase) {
         return 'normal';
       }
 
-      // Si es una fecha de clase, determinar el estado
-      // IMPORTANTE: Solo marcar como "hoy" si realmente es hoy Y es una fecha de clase
+      // Si es una fecha de clase, determinar el estado basándose en la fecha actual
       const hoyTime = hoy.getTime();
       const dateTime = date.getTime();
 
@@ -157,11 +280,99 @@ const CalendarComponent: React.FC<{
         return 'proxima';
       }
 
+      // Si la fecha es menor que hoy, es pasada (sin importar si está completada o no)
       if (dateTime < hoyTime) {
         return 'pasada';
       }
 
       return 'normal';
+    };
+
+    // Verificar si una fecha tiene sesión completada
+    const tieneSesionCompletada = (fecha: Date): boolean => {
+      const fechaStr = fecha.toISOString().split('T')[0];
+      return sesionesCompletadas.some(sesion => {
+        if (!sesion.fechaSesion) return false;
+        const sesionFecha = sesion.fechaSesion.split('T')[0];
+        return sesionFecha === fechaStr;
+      });
+    };
+
+    // Determinar el estado de una fecha específica
+    const getEstadoFecha = (fecha: Date): 'completada' | 'pendiente' | 'en_curso' => {
+      const fechaStr = fecha.toISOString().split('T')[0];
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const fechaComparar = new Date(fecha);
+      fechaComparar.setHours(0, 0, 0, 0);
+      
+      // Verificar si está completada
+      const esCompletada = tieneSesionCompletada(fecha);
+      if (esCompletada) {
+        return 'completada';
+      }
+      
+      // Si es hoy, verificar si está en curso
+      if (fechaComparar.getTime() === hoy.getTime()) {
+        if (horaInicial && horaFinal) {
+          const ahora = new Date();
+          const [hIni, mIni] = horaInicial.substring(0, 5).split(':').map(Number);
+          const [hFin, mFin] = horaFinal.substring(0, 5).split(':').map(Number);
+          
+          const horaInicio = new Date(ahora);
+          horaInicio.setHours(hIni, mIni, 0, 0);
+          const horaFinalClase = new Date(ahora);
+          horaFinalClase.setHours(hFin, mFin, 0, 0);
+          
+          if (horaFinalClase.getTime() < horaInicio.getTime()) {
+            horaFinalClase.setDate(horaFinalClase.getDate() + 1);
+          }
+          
+          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinalClase.getTime()) {
+            return 'en_curso';
+          }
+        }
+        return 'pendiente';
+      }
+      
+      // Si es pasada y no está completada, es pendiente (no se completó)
+      if (fechaComparar.getTime() < hoy.getTime()) {
+        return 'pendiente';
+      }
+      
+      // Si es futura, es pendiente
+      return 'pendiente';
+    };
+
+    // Manejar clic en una fecha del calendario - navegar directamente al detalle
+    const handleDateClick = (day: number) => {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      date.setHours(0, 0, 0, 0);
+      
+      // Verificar si es una fecha de clase
+      const esFechaClase = fechasClase.some(fecha => {
+        const fechaClase = new Date(fecha);
+        fechaClase.setHours(0, 0, 0, 0);
+        return fechaClase.getTime() === date.getTime();
+      });
+
+      if (esFechaClase) {
+        // Obtener el idHorarioMateria de la fecha clickeada
+        const fechaStr = date.toISOString().split('T')[0];
+        const idHorario = mapaFechasHorarios.get(fechaStr);
+        
+        // Si encontramos el idHorarioMateria, navegar al detalle
+        if (idHorario) {
+          if (onDateClick) {
+            onDateClick(date, idHorario);
+          }
+        } else {
+          // Si no encontramos el idHorarioMateria, usar el actual como fallback
+          if (idHorarioMateria && onDateClick) {
+            onDateClick(date, idHorarioMateria);
+          }
+        }
+      }
     };
 
     const days = getDaysInMonth(currentMonth);
@@ -211,17 +422,23 @@ const CalendarComponent: React.FC<{
               return <div key={index} className="h-8"></div>;
             }
             const status = getDateStatus(day);
+            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+            const esFechaClase = status !== 'normal';
+            
             return (
               <div
                 key={index}
-                className={`h-8 flex items-center justify-center text-sm rounded ${status === 'hoy'
-                  ? 'bg-orange-200 text-orange-900 dark:bg-orange-500 dark:text-white font-semibold'
-                  : status === 'proxima'
-                    ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white'
-                    : status === 'pasada'
-                      ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                onClick={() => esFechaClase && handleDateClick(day)}
+                className={`h-8 flex items-center justify-center text-sm rounded transition-all ${
+                  status === 'hoy'
+                    ? 'bg-orange-200 text-orange-900 dark:bg-orange-500 dark:text-white font-semibold cursor-pointer hover:bg-orange-300 dark:hover:bg-orange-600'
+                    : status === 'proxima'
+                      ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500'
+                      : status === 'pasada'
+                        ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white cursor-pointer hover:bg-green-200 dark:hover:bg-green-500'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+                title={esFechaClase ? 'Click para ver detalle de la clase' : ''}
               >
                 {day}
               </div>
@@ -246,6 +463,16 @@ const CalendarComponent: React.FC<{
     );
   };
 
+interface SesionCompletada {
+  id: number;
+  numeroSesion: number;
+  fechaSesion: string;
+  fechaFormateada: string;
+  fechaCorta: string;
+  estado: string;
+  observacion?: string | null;
+}
+
 interface Clase {
   materia_nombre?: string;
   programa_nombre?: string;
@@ -254,10 +481,13 @@ interface Clase {
   horaInicial?: string;
   horaFinal?: string;
   total_sesiones?: number;
+  sesiones_dadas?: number;
+  sesiones_completadas?: SesionCompletada[];
   dia_semana?: string;
   idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
   jornada_tipo?: string;
   estado?: string; // Estado calculado por el backend: 'PENDIENTE', 'EN CURSO', 'COMPLETADO'
+  idHorarioMateria?: number;
   instructor?: {
     id: number;
     persona?: {
@@ -274,6 +504,7 @@ interface Clase {
 }
 
 interface FechaClase {
+  idHorarioMateria?: number;
   fechaInicial: string;
   fechaFinal: string | null;
   dia_semana: string;
@@ -367,13 +598,104 @@ const ClaseDetallePage: React.FC = () => {
     return idDia === 7 ? 0 : idDia;
   };
 
+  // Estado local para el estado de la clase (se actualiza en tiempo real)
+  const [estadoClaseLocal, setEstadoClaseLocal] = useState<'pasada' | 'pendiente' | 'en_curso'>('pendiente');
+
+  // Función para calcular el estado en tiempo real (sin depender de estadoClaseLocal)
+  const calcularEstadoEnTiempoReal = (tiempoActual: Date): 'pasada' | 'pendiente' | 'en_curso' => {
+    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.horaInicial || !clase?.horaFinal || !clase?.idDia) {
+      return 'pendiente';
+    }
+
+    const parseDate = (dateString: string): Date => {
+      if (!dateString) return new Date();
+      const parts = dateString.split('T')[0].split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+      return new Date(dateString);
+    };
+
+    const ahora = tiempoActual;
+    const hoy = new Date(ahora);
+    hoy.setHours(0, 0, 0, 0);
+
+    const fechaInicio = parseDate(clase.fechaInicial);
+    fechaInicio.setHours(0, 0, 0, 0);
+    const fechaFin = parseDate(clase.fechaFinal);
+    fechaFin.setHours(0, 0, 0, 0);
+
+    // Si ya pasó la fecha final del curso completo
+    if (fechaFin.getTime() < hoy.getTime()) {
+      return 'pasada';
+    }
+
+    // Si aún no ha iniciado el curso completo
+    if (fechaInicio.getTime() > hoy.getTime()) {
+      return 'pendiente';
+    }
+
+    // Verificar si hoy es un día de clase
+    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+    if (ahora.getDay() !== diaNumero) {
+      return 'pendiente';
+    }
+
+    // Verificar si estamos dentro del rango de horas de la clase
+    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    
+    const horaInicio = new Date(ahora);
+    horaInicio.setHours(hIni, mIni, 0, 0);
+    const horaFinal = new Date(ahora);
+    horaFinal.setHours(hFin, mFin, 0, 0);
+
+    // Si la hora final es menor que la inicial, asumimos que cruza medianoche
+    if (horaFinal.getTime() < horaInicio.getTime()) {
+      horaFinal.setDate(horaFinal.getDate() + 1);
+    }
+
+    // Si ya pasó la hora final, la clase está completada
+    if (ahora.getTime() > horaFinal.getTime()) {
+      return 'pasada';
+    }
+
+    // Si estamos dentro del rango de horas, está en curso
+    if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+      return 'en_curso';
+    }
+
+    // Por defecto, pendiente
+    return 'pendiente';
+  };
+
   // Actualizar el tiempo actual cada segundo para el cronómetro en tiempo real
+  // También actualizar el estado de la clase automáticamente
   useEffect(() => {
+    if (!clase) return;
+
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      const nuevoTiempo = new Date();
+      setCurrentTime(nuevoTiempo);
+      
+      // Actualizar estado de la clase en tiempo real
+      const nuevoEstado = calcularEstadoEnTiempoReal(nuevoTiempo);
+      setEstadoClaseLocal((estadoAnterior) => {
+        // Si cambió de estado (especialmente a completada), loguear
+        // Estado actualizado automáticamente
+        return nuevoEstado;
+      });
     }, 1000);
+    
+    // Calcular estado inicial
+    const estadoInicial = calcularEstadoEnTiempoReal(new Date());
+    setEstadoClaseLocal(estadoInicial);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [clase]);
 
   useEffect(() => {
     const fetchFicha = async () => {
@@ -401,7 +723,6 @@ const ClaseDetallePage: React.FC = () => {
           }
         } catch (horarioError: any) {
           // Si falla, intentar con el endpoint antiguo (por si acaso se pasa un ficha_id)
-          console.log('Intentando con endpoint antiguo...');
           response = await axios.get(`fichas/${id}`);
           const fichaData = response.data?.data?.ficha || response.data;
           setFicha(fichaData);
@@ -412,12 +733,7 @@ const ClaseDetallePage: React.FC = () => {
         // Por ahora usamos un array vacío
         setEstudiantes([]);
       } catch (error: any) {
-        console.error('Error al cargar la ficha:', error);
-        console.error('Error details:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          id: id
-        });
+        // Error al cargar la ficha - se maneja silenciosamente
         // Siempre establecer ficha como null en caso de error para mostrar el mensaje apropiado
         setFicha(null);
       } finally {
@@ -446,12 +762,11 @@ const ClaseDetallePage: React.FC = () => {
 
   const totalPages = Math.ceil(filteredEstudiantes.length / itemsPerPage);
 
-  const getNumSesiones = (): number => {
-    // Usar el total de sesiones de la clase específica
-    if (clase?.total_sesiones !== undefined && clase.total_sesiones !== null) {
-      return Number(clase.total_sesiones);
-    }
-    return 0;
+  const getNumSesiones = (): string => {
+    // Usar sesiones_dadas y total_sesiones de la clase específica
+    const total = clase?.total_sesiones || 0;
+    const dadas = clase?.sesiones_dadas || 0;
+    return `${dadas}/${total} sesiones`;
   };
 
   const formatDate = (dateString: string): string => {
@@ -526,41 +841,34 @@ const ClaseDetallePage: React.FC = () => {
     return nombreJornada || 'N/A';
   };
 
-  // Función para convertir hora de 24h a formato 12h con AM/PM basado en la jornada
-  const formatTime12h = (timeString: string, jornadaTipo?: string): string => {
+  /**
+   * Convierte hora de formato 24h a formato 12h con AM/PM
+   * La jornada NO tiene nada que ver, se usa solo la hora en formato 24h
+   * 
+   * @param timeString Hora en formato HH:MM o HH:MM:SS
+   * @returns Hora formateada en 12h con AM/PM (ej: "10:00 AM", "2:30 PM")
+   */
+  const formatTime12h = (timeString: string): string => {
     if (!timeString) return 'N/A';
     const time = timeString.substring(0, 5); // Obtener HH:MM
     const [hours, minutes] = time.split(':');
     const hour24 = parseInt(hours, 10);
-
-    // Determinar AM/PM basado en la jornada
-    const jornadaLower = jornadaTipo?.toLowerCase() || '';
-    const esManana = jornadaLower.includes('mañana') || jornadaLower.includes('manana');
-    const esTarde = jornadaLower.includes('tarde');
-    const esNoche = jornadaLower.includes('noche');
-
-    // Si es Mañana, todas las horas son AM
-    // Si es Tarde o Noche, todas las horas son PM
-    let esPM = false;
-    if (esManana) {
-      esPM = false; // AM
-    } else if (esTarde || esNoche) {
-      esPM = true; // PM
-    } else {
-      // Si no hay jornada definida, usar la lógica estándar basada en la hora
-      esPM = hour24 >= 12;
-    }
-
+    
+    // Determinar AM/PM basado SOLO en la hora (la jornada no tiene nada que ver)
+    const esPM = hour24 >= 12;
+    
     // Convertir a formato 12h
     let hour12: number;
     if (hour24 === 0) {
-      hour12 = 12;
-    } else if (hour24 <= 12) {
-      hour12 = hour24 === 12 ? 12 : hour24;
+      hour12 = 12; // Medianoche = 12 AM
+    } else if (hour24 === 12) {
+      hour12 = 12; // Mediodía = 12 PM
+    } else if (hour24 < 12) {
+      hour12 = hour24; // 1-11 AM
     } else {
-      hour12 = hour24 - 12;
+      hour12 = hour24 - 12; // 1-11 PM
     }
-
+    
     return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
   };
 
@@ -599,62 +907,10 @@ const ClaseDetallePage: React.FC = () => {
   };
 
   /**
-   * Obtiene el estado de la clase
-   * Usa el estado calculado por el backend para mantener consistencia con el historial
-   * Convierte el formato del backend ('PENDIENTE', 'EN CURSO', 'COMPLETADO') 
-   * al formato usado en este componente ('pendiente', 'en_curso', 'pasada')
+   * Obtiene el estado de la clase (usa el estado local actualizado en tiempo real)
    */
   const getEstadoClase = (): 'pasada' | 'pendiente' | 'en_curso' => {
-    // Si el backend ya calculó el estado, usarlo directamente
-    if (clase?.estado) {
-      const estado = clase.estado.toUpperCase();
-      if (estado === 'EN CURSO' || estado === 'EN_CURSO') {
-        return 'en_curso';
-      }
-      if (estado === 'COMPLETADO' || estado === 'COMPLETADA') {
-        return 'pasada';
-      }
-      if (estado === 'PENDIENTE') {
-        return 'pendiente';
-      }
-    }
-    
-    // Fallback: si no hay estado del backend, calcular básico basado solo en fechas
-    if (!clase?.fechaInicial || !clase?.fechaFinal) {
-      return 'pendiente';
-    }
-
-    const parseDate = (dateString: string): Date => {
-      if (!dateString) return new Date();
-      const parts = dateString.split('T')[0].split('-');
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        return new Date(year, month, day);
-      }
-      return new Date(dateString);
-    };
-
-    const fechaInicio = parseDate(clase.fechaInicial);
-    const fechaFin = parseDate(clase.fechaFinal);
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    fechaInicio.setHours(0, 0, 0, 0);
-    fechaFin.setHours(0, 0, 0, 0);
-
-    // Si ya pasó la fecha final del curso completo
-    if (fechaFin.getTime() < hoy.getTime()) {
-      return 'pasada';
-    }
-
-    // Si aún no ha iniciado el curso completo
-    if (fechaInicio.getTime() > hoy.getTime()) {
-      return 'pendiente';
-    }
-
-    // Por defecto, pendiente
-    return 'pendiente';
+    return estadoClaseLocal;
   };
 
   // ─── Solo para el botón Presente/Falta ──────────────────────────────────────
@@ -708,7 +964,7 @@ const ClaseDetallePage: React.FC = () => {
 
   // Función para calcular el tiempo transcurrido en segundos (solo si está en curso)
   const calcularTiempoTranscurrido = (): number => {
-    const estado = getEstadoClase();
+    const estado = estadoClaseLocal;
     if (estado !== 'en_curso' || !clase?.horaInicial) return 0;
 
     const ahora = currentTime;
@@ -732,7 +988,7 @@ const ClaseDetallePage: React.FC = () => {
 
   // Función para calcular el porcentaje de progreso (0-100)
   const calcularPorcentajeProgreso = (): number => {
-    const estado = getEstadoClase();
+    const estado = estadoClaseLocal;
     const duracionTotal = calcularDuracionClase(); // En segundos
 
     if (estado === 'pasada') {
@@ -751,7 +1007,7 @@ const ClaseDetallePage: React.FC = () => {
 
   // Función para determinar el color según el progreso
   const getColorProgreso = (): { color: string; bgColor: string; textColor: string; estado: string } => {
-    const estado = getEstadoClase();
+    const estado = estadoClaseLocal;
     const porcentaje = calcularPorcentajeProgreso();
 
     // Clase pasada o pendiente: gris
@@ -794,7 +1050,7 @@ const ClaseDetallePage: React.FC = () => {
 
   // Función para formatear el tiempo del cronómetro (HH:MM:SS / HH:MM:SS)
   const formatCronometro = (): string => {
-    const estado = getEstadoClase();
+    const estado = estadoClaseLocal;
     const duracionTotal = calcularDuracionClase(); // En segundos
     const horasTotal = Math.floor(duracionTotal / 3600);
     const minutosTotal = Math.floor((duracionTotal % 3600) / 60);
@@ -912,7 +1168,7 @@ const ClaseDetallePage: React.FC = () => {
                     Número de Sesiones
                   </p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                    {getNumSesiones()} sesiones
+                    {getNumSesiones()}
                   </p>
                 </div>
               </div>
@@ -930,6 +1186,8 @@ const ClaseDetallePage: React.FC = () => {
             <div className="card-body p-6">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-6">Instructor</h2>
               {instructorClase?.persona ? (() => {
+                // Usar estado local en tiempo real
+                const estadoActual = estadoClaseLocal;
                 const colorInfo = getColorProgreso();
                 const porcentaje = calcularPorcentajeProgreso();
                 const cronometroText = formatCronometro();
@@ -1006,7 +1264,7 @@ const ClaseDetallePage: React.FC = () => {
                       </p>
                       {clase.horaInicial && (
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Hora inicio: {formatTime12h(clase.horaInicial, clase.jornada_tipo)}
+                          Hora inicio: {formatTime12h(clase.horaInicial)}
                         </p>
                       )}
                     </div>
@@ -1023,7 +1281,7 @@ const ClaseDetallePage: React.FC = () => {
                       </p>
                       {clase.horaFinal && (
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Hora fin: {formatTime12h(clase.horaFinal, clase.jornada_tipo)}
+                          Hora fin: {formatTime12h(clase.horaFinal)}
                         </p>
                       )}
                     </div>
@@ -1041,12 +1299,29 @@ const ClaseDetallePage: React.FC = () => {
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 Calendario de Clases
               </h2>
-              <CalendarComponent
-                fechaInicio={clase?.fechaInicial || ''}
-                fechaFin={clase?.fechaFinal || ''}
-                diaSemana={clase?.dia_semana}
-                todasLasFechasClase={todasLasFechasClase}
-              />
+              {clase?.fechaInicial ? (
+                <CalendarComponent
+                  fechaInicio={clase.fechaInicial}
+                  fechaFin={clase.fechaFinal || clase.fechaInicial}
+                  diaSemana={clase.dia_semana}
+                  todasLasFechasClase={todasLasFechasClase}
+                  idDia={clase.idDia}
+                  idHorarioMateria={clase.idHorarioMateria}
+                  sesionesCompletadas={clase.sesiones_completadas || []}
+                  horaInicial={clase.horaInicial}
+                  horaFinal={clase.horaFinal}
+                  onDateClick={(fecha, idHorarioMateria) => {
+                    // Navegar directamente al detalle de la clase
+                    if (idHorarioMateria) {
+                      navigate(`/ambiente-virtual/clase/${idHorarioMateria}`);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                  No hay fechas disponibles
+                </div>
+              )}
             </div>
           </div>
         </div>
