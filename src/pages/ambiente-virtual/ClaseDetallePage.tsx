@@ -1366,11 +1366,19 @@ const ClaseDetallePage: React.FC = () => {
                   <span>Actividades Asignadas</span>
                 </button>
                 <button
-                  onClick={() => setActiveMenu('juicios-evaluativos')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  onClick={() => {
+                    setJuiciosEvaluativos(true);
+                    setIdFicha(clase?.ficha_id);
+                    setIdPrograma(String(ficha.asignacion?.programa?.id));
+                    setIdSede(ficha?.idSede)
+                    setIdGrado(clase?.idGrado ?? 1);
+                  }
+                  }
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
+                    activeMenu === 'juicios-evaluativos'
+                      ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                  }`}
                 >
                   <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span>Juicios Evaluativos</span>

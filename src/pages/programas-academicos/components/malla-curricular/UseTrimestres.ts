@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { enqueueSnackbar } from 'notistack';
 
 export const useTrimestres = (fichaId: number | undefined, programaId: number | undefined) => {
   const [trimestres, setTrimestres] = useState<any[]>([]);
@@ -135,17 +136,17 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
   // Guardar trimestre
   const crearTrimestre = async (ficha: any): Promise<boolean> => {
     if (!nuevoTrimestre || !ficha) {
-      alert('No se ha proporcionado la ficha');
+      enqueueSnackbar('No se ha proporcionado la ficha', { variant: 'error' });
       return false;
     }
 
     if (!nuevoTrimestre.fechaFin) {
-      alert('Debes asignar una fecha de fin');
+      enqueueSnackbar('Debes asignar una fecha de fin', { variant: 'error' });
       return false;
     }
 
     if (!Array.isArray(nuevoTrimestre.materias) || nuevoTrimestre.materias.length === 0) {
-      alert('Debes asignar al menos una competencia');
+      enqueueSnackbar('Debes asignar al menos una competencia', { variant: 'error' });
       return false;
     }
 
@@ -175,12 +176,12 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
 
   const asignarCompetenciasTrimestre = async (idGradoPrograma: number, materias: any[], idFicha: number): Promise<boolean> => {
     if (!idGradoPrograma) {
-      alert('ID de trimestre no válido');
+      enqueueSnackbar('ID de trimestre no válido', { variant: 'error' });
       return false;
     }
 
     if (!materias || materias.length === 0) {
-      alert('Debes seleccionar al menos una competencia');
+      enqueueSnackbar('Debes seleccionar al menos una competencia', { variant: 'error' });
       return false;
     }
 
@@ -196,7 +197,7 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
       setToast(true);
       return true;
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error al asignar competencias');
+      enqueueSnackbar(error.response?.data?.message || 'Error al asignar competencias', { variant: 'error' });
       return false;
     } finally {
       setGuardandoTrimestre(false);

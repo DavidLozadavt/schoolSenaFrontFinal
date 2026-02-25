@@ -5,6 +5,7 @@ import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { useAuthContext } from '@/auth';
 import { KeenIcon } from '@/components';
+import { enqueueSnackbar } from 'notistack';
 
 type PropsCompetencia = {
   isOpen: boolean;
@@ -42,11 +43,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       .nullable()
       .required('Debe seleccionar un área de conocimiento'),
     descripcion: Yup.string().nullable(),
-    horas: Yup.number().nullable().when('idMateriaPadre', {
-      is: (val: any) => val != null,
-      then: (schema) => schema.required('Las horas son requeridas').positive('Debe ser un número positivo'),
-      otherwise: (schema) => schema.nullable()
-    })
+    horas: Yup.number().required('Las horas son requeridas').positive('Debe ser un número positivo')
   });
 
   // Configuración de Formik
@@ -104,7 +101,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         idMateriaPadre: data.idMateriaPadre || null
       });
     } catch (error) {
-      console.error("Error al cargar la competencia", error);
+      enqueueSnackbar("Error al cargar la competencia", { variant: "error" });
     } finally {
       setLoadingData(false);
     }
@@ -219,43 +216,41 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                 )}
               </div>
 
-              {/* Sección de Horas y Créditos (Solo para RAPs) */}
-              {formik.values.idMateriaPadre && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                      Horas <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="horas"
-                      value={formik.values.horas}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.horas && formik.errors.horas
-                        ? 'border-red-500 focus:ring-red-500/20'
-                        : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
-                        }`}
-                      placeholder="0"
-                    />
-                    {formik.touched.horas && formik.errors.horas && (
-                      <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
-                        {formik.errors.horas}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                      Créditos (Equiv.)
-                    </label>
-                    <div className="w-full bg-gray-100 dark:bg-coal-300 border border-gray-200 dark:border-gray-600 rounded-lg p-3.5 font-bold text-primary flex items-center justify-between">
-                      <span>{calcularCreditos(formik.values.horas || 0)}</span>
-                      <span className="text-[10px] text-gray-400">1 CR = 48H</span>
-                    </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                    Horas <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="horas"
+                    disabled={formik.values.idMateriaPadre ? false : true}
+                    value={formik.values.horas}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.horas && formik.errors.horas
+                      ? 'border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
+                      }`}
+                    placeholder="0"
+                  />
+                  {formik.touched.horas && formik.errors.horas && (
+                    <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                      {formik.errors.horas}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
+                    Créditos (Equiv.)
+                  </label>
+                  <div className="w-full bg-gray-100 dark:bg-coal-300 border border-gray-200 dark:border-gray-600 rounded-lg p-2 font-bold text-primary flex items-center justify-between">
+                    <span>{calcularCreditos(formik.values.horas || 0)}</span>
+                    <span className="text-[10px] text-gray-400">1 CR = 48H</span>
                   </div>
                 </div>
-              )}
+              </div>
+              
 
               {/* Área de conocimiento */}
               <div className="space-y-1.5">
