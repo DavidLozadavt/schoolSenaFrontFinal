@@ -120,6 +120,7 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
                   onAsignacionSuccess={onAsignacionSuccess}
                   setModalHorarios={setModalHorarios}
                   idFicha={idFicha || trimestre.idFicha}
+                  materiasLength={materiasArray.length}
                 />
               ))
             ) : (<div ></div>)
