@@ -13,7 +13,7 @@ const HeaderTopbar = () => {
   const itemAppsRef = useRef<any>(null);
   const itemNotificationsRef = useRef<any>(null);
   const authContext = useAuthContext();
-  const { persona } = authContext;
+  const { persona, auth } = authContext;
   const handleShow = () => {
     window.dispatchEvent(new Event('resize'));
   };
@@ -23,6 +23,9 @@ const HeaderTopbar = () => {
   const handleClose = () => {
     setSearchModalOpen(false);
   };
+
+  // No renderizar dropdowns si no hay sesión activa
+  if (!auth) return null;
 
   return (
     <div className="flex items-stretch gap-1 lg:gap-3.5">
@@ -65,7 +68,7 @@ const HeaderTopbar = () => {
       </Menu>
 
       {/* <Menu className="items-stretch"> */}
-        {/* <MenuItem
+      {/* <MenuItem
           ref={itemAppsRef}
           toggle="dropdown"
           trigger="click"
@@ -108,13 +111,13 @@ const HeaderTopbar = () => {
             ]
           }}
         >
-            <MenuToggle>
-          <div className="relative btn btn-icon btn-icon-lg size-9 rounded-full hover:bg-primary-light hover:text-primary text-gray-500 menu-item-show:bg-primary-light menu-item-show:text-primary">
-            <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
-            <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-            <KeenIcon icon="notification" />
-          </div>
-        </MenuToggle>
+          <MenuToggle>
+            <div className="relative btn btn-icon btn-icon-lg size-9 rounded-full hover:bg-primary-light hover:text-primary text-gray-500 menu-item-show:bg-primary-light menu-item-show:text-primary">
+              <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+              <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+              <KeenIcon icon="notification" />
+            </div>
+          </MenuToggle>
 
 
           {DropdownNotifications({ menuTtemRef: itemNotificationsRef })}
