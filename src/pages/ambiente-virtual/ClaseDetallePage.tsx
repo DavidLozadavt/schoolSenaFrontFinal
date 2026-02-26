@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ListaActividades, type Actividad } from './actividades';
+import { VerGruposView } from './grupos';
 
 // Componente de Calendario
 const CalendarComponent: React.FC<{
@@ -556,7 +558,7 @@ interface Estudiante {
   estado?: string;
 }
 
-type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos';
+type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -582,6 +584,16 @@ const ClaseDetallePage: React.FC = () => {
   const [idGrado, setIdGrado] = useState<number | undefined>(0);
   const [idPrograma, setIdPrograma] = useState<string | undefined>('');
   const [evento, setEvento] = useState<boolean>(false);
+
+  // Actividades
+  const [actividadesDisponibles, setActividadesDisponibles] = useState<Actividad[]>([]);
+  const [actividadesAsignadas, setActividadesAsignadas] = useState<Actividad[]>([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
+  const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
+  const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
+  const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
+  const [modalVerActividadOpen, setModalVerActividadOpen] = useState(false);
+  const [actividadVer, setActividadVer] = useState<Actividad | null>(null);
 
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
@@ -742,6 +754,32 @@ const ClaseDetallePage: React.FC = () => {
 
     fetchFicha();
   }, [id]);
+
+  const fetchActividades = useCallback(async () => {
+    const idFicha = ficha?.id;
+    if (!idFicha) return;
+    setLoadingActividades(true);
+    try {
+      const [disponiblesRes, asignadasRes] = await Promise.allSettled([
+        axios.get('actividades').catch(() => ({ data: [] })),
+        axios.get(`planeacionactividades/ficha/${idFicha}`).catch(() => ({ data: [] }))
+      ]);
+      const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
+      const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
+      setActividadesDisponibles(disp);
+      setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
+    } catch (e) {
+      console.warn('Error cargando actividades:', e);
+    } finally {
+      setLoadingActividades(false);
+    }
+  }, [ficha?.id]);
+
+  useEffect(() => {
+    if ((activeMenu === 'agregar-actividades' || activeMenu === 'actividades-asignadas') && ficha?.id) {
+      fetchActividades();
+    }
+  }, [activeMenu, fetchActividades, ficha?.id]);
 
   const filteredEstudiantes = useMemo(() => {
     if (!searchEstudiante) return estudiantes;
@@ -1365,6 +1403,16 @@ const ClaseDetallePage: React.FC = () => {
                   <span>Actividades Asignadas</span>
                 </button>
                 <button
+                  onClick={() => setActiveMenu('ver-grupos')}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'ver-grupos'
+                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                    }`}
+                >
+                  <KeenIcon icon="users" className={`text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span>Ver grupos</span>
+                </button>
+                <button
                   onClick={() => {
                     setJuiciosEvaluativos(true);
                     setIdFicha(clase?.ficha_id);
@@ -1408,28 +1456,45 @@ const ClaseDetallePage: React.FC = () => {
 
               {/* Agregar Actividades Section */}
               {activeMenu === 'agregar-actividades' && (
-                <div className="text-center py-12">
-                  <KeenIcon icon="plus-circle" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay actividades</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    Crea una nueva actividad para comenzar
-                  </p>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors mx-auto">
-                    <KeenIcon icon="plus" className="text-sm" />
-                    <span>Crear Actividad</span>
-                  </button>
-                </div>
+                <ListaActividades
+                  actividades={actividadesDisponibles}
+                  loading={loadingActividades}
+                  modo="agregar"
+                  onCrear={() => setModalCrearActividadOpen(true)}
+                  onAsignarActividad={(act) => {
+                    setActividadParaAsignar(act);
+                    setModalAsignarActividadOpen(true);
+                  }}
+                  onVer={(act) => {
+                    setActividadVer(act);
+                    setModalVerActividadOpen(true);
+                  }}
+                />
               )}
 
               {/* Actividades Asignadas Section */}
               {activeMenu === 'actividades-asignadas' && (
-                <div className="text-center py-12">
-                  <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay actividades asignadas</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Las actividades que asignes aparecerán aquí
-                  </p>
-                </div>
+                <ListaActividades
+                  actividades={actividadesAsignadas}
+                  loading={loadingActividades}
+                  modo="asignadas"
+                  onAsignarActividad={(act) => {
+                    setActividadParaAsignar(act);
+                    setModalAsignarActividadOpen(true);
+                  }}
+                  onVer={(act) => {
+                    setActividadVer(act);
+                    setModalVerActividadOpen(true);
+                  }}
+                />
+              )}
+
+              {/* Ver grupos Section */}
+              {activeMenu === 'ver-grupos' && ficha?.id && (
+                <VerGruposView
+                  idFicha={String(ficha.id)}
+                  fechaFinalClases={ficha?.asignacion?.fechaFinalClases}
+                />
               )}
 
               {/* Juicios Evaluativos Section */}
@@ -1446,6 +1511,36 @@ const ClaseDetallePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modales de actividades */}
+      <ModalAsignarActividad
+        open={modalAsignarActividadOpen && !!(ficha?.id)}
+        onClose={() => {
+          setModalAsignarActividadOpen(false);
+          setActividadParaAsignar(null);
+        }}
+        onSave={() => {
+          fetchActividades();
+        }}
+        idFicha={ficha?.id ?? 0}
+        actividad={actividadParaAsignar}
+      />
+      <ModalCrearActividad
+        open={modalCrearActividadOpen}
+        onClose={() => setModalCrearActividadOpen(false)}
+        onSave={() => {
+          setModalCrearActividadOpen(false);
+          fetchActividades();
+        }}
+      />
+      <ModalVerActividad
+        open={modalVerActividadOpen}
+        onClose={() => {
+          setModalVerActividadOpen(false);
+          setActividadVer(null);
+        }}
+        actividad={actividadVer}
+      />
     </Container>
   );
 };
