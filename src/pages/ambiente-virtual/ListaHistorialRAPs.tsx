@@ -557,6 +557,66 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   }, [filteredClases]);
 
   /**
+   * Agrupa todas las sesiones completadas de todas las clases por fecha
+   * y las ordena de más reciente a más antigua.
+   * Cada sesión se mostrará en su propia tarjeta independiente.
+   * 
+   * @returns Objeto con todas las sesiones y agrupación por fecha
+   */
+  const sesionesCompletadasAgrupadas = useMemo(() => {
+    // Obtener todas las sesiones completadas de todas las clases
+    const todasLasSesiones: Array<{ clase: Clase; sesion: SesionCompletada }> = [];
+    
+    clasesCompletadas.forEach((clase) => {
+      // Validar que la clase tenga sesiones completadas y que sean válidas
+      if (clase.sesiones_completadas && Array.isArray(clase.sesiones_completadas) && clase.sesiones_completadas.length > 0) {
+        clase.sesiones_completadas.forEach((sesion) => {
+          // Validar que la sesión tenga los campos requeridos
+          if (sesion && sesion.id && sesion.fechaSesion && sesion.numeroSesion) {
+            todasLasSesiones.push({ clase, sesion });
+          }
+        });
+      }
+    });
+
+    // Agrupar sesiones por fecha
+    const grupos: { [fecha: string]: Array<{ clase: Clase; sesion: SesionCompletada }> } = {};
+    
+    todasLasSesiones.forEach((item) => {
+      const fecha = item.sesion.fechaSesion; // YYYY-MM-DD
+      
+      // Validar que la fecha no esté vacía
+      if (fecha && fecha.trim() !== '') {
+        if (!grupos[fecha]) {
+          grupos[fecha] = [];
+        }
+        grupos[fecha].push(item);
+      }
+    });
+
+    // Ordenar fechas de más reciente a más antigua
+    const fechasOrdenadas = Object.keys(grupos)
+      .filter(fecha => {
+        // Validar que la fecha sea válida antes de ordenar
+        const fechaDate = new Date(fecha);
+        return !isNaN(fechaDate.getTime());
+      })
+      .sort((a, b) => {
+        const fechaA = new Date(a).getTime();
+        const fechaB = new Date(b).getTime();
+        return fechaB - fechaA; // Más reciente primero
+      });
+
+    return {
+      todasLasSesiones,
+      sesionesPorFecha: fechasOrdenadas.map((fecha) => ({
+        fecha,
+        items: grupos[fecha] || [],
+      })),
+    };
+  }, [clasesCompletadas]);
+
+  /**
    * Obtiene la próxima fecha de clase como string para agrupar
    * Retorna null si no se puede calcular
    * Usa la misma lógica que getProximaClasePendiente
@@ -707,6 +767,105 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   };
 
   /**
+   * Formatear fecha para el separador (ej: "26 de febrero")
+   * Maneja casos de fechas inválidas o nulas
+   */
+  const formatearFechaSeparador = (fechaStr: string): string => {
+    if (!fechaStr) {
+      return 'Fecha no disponible';
+    }
+    
+    try {
+      const fecha = new Date(fechaStr);
+      
+      // Validar que la fecha sea válida
+      if (isNaN(fecha.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      const meses = [
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+      ];
+      
+      return `${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+    } catch (error) {
+      return 'Fecha inválida';
+    }
+  };
+
+  /**
+   * Componente para renderizar una tarjeta de sesión completada
+   * Cada sesión tiene su propia tarjeta independiente
+   * Esto permite que en el futuro cada tarjeta pueda tener información específica
+   * como lista de asistencia, actividades, etc.
+   * 
+   * @param clase - Información de la clase a la que pertenece la sesión
+   * @param sesion - Información específica de la sesión completada
+   */
+  const SesionCompletadaCard: React.FC<{ 
+    clase: Clase; 
+    sesion: SesionCompletada;
+  }> = ({ clase, sesion }) => {
+    const jornadaType = getJornadaType(clase.jornada_tipo || '');
+    const horario = getHorario(clase);
+
+    return (
+      <div
+        className="group relative bg-transparent dark:bg-transparent border border-blue-200 dark:border-gray-600 rounded-lg p-4 transition-all cursor-pointer hover:shadow-md"
+        onClick={() => handleNavigateToClase(clase)}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-200 dark:border-green-600 flex items-center justify-center">
+            <i className="ki-outline ki-check-circle text-lg text-green-600 dark:text-green-400"></i>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="mb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
+                {clase.materia_nombre || clase.programa_nombre || 'Sin nombre'}
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
+                  <i className="ki-outline ki-check text-xs"></i>
+                  <span>Completado</span>
+                </span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Sesión {sesion.numeroSesion || 'N/A'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap text-xs text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-1.5">
+                <i className="ki-outline ki-document text-sm"></i>
+                <span>Ficha {clase.ficha_codigo}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <i className="ki-outline ki-sun text-sm"></i>
+                <span>{jornadaType}</span>
+              </div>
+              {horario && (
+                <div className="flex items-center gap-1.5">
+                  <i className="ki-outline ki-time text-sm"></i>
+                  <span>{horario}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <i className="ki-outline ki-calendar text-sm"></i>
+                <span className="capitalize">
+                  {sesion.fechaFormateada || sesion.fechaCorta || 'Fecha no disponible'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex-shrink-0 pt-1">
+            <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Componente reutilizable para renderizar una tarjeta de clase
    */
   const ClaseCard: React.FC<{ clase: Clase; showProximaFecha?: boolean }> = ({ 
@@ -767,37 +926,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
               )}
             </div>
             
-            {/* Mostrar sesiones completadas individuales si la clase está completada */}
-            {esCompletada && sesionesCompletadas.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <i className="ki-outline ki-check-circle text-xs text-green-600 dark:text-green-400"></i>
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Sesiones Completadas ({sesionesCompletadas.length})
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {sesionesCompletadas.map((sesion) => (
-                    <div
-                      key={sesion.id}
-                      className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded px-2 py-1.5"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNavigateToClase(clase);
-                      }}
-                    >
-                      <i className="ki-outline ki-check text-xs text-green-600 dark:text-green-400 flex-shrink-0"></i>
-                      <span className="flex-1">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
-                          Sesión {sesion.numeroSesion}:
-                        </span>{' '}
-                        <span className="capitalize">{sesion.fechaFormateada}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           <div className="flex-shrink-0 pt-1">
             <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>
@@ -878,8 +1006,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         </div>
       ))}
 
-      {/* Clases Completadas */}
-      {clasesCompletadas.length > 0 && (
+      {/* Clases Completadas - Una tarjeta por cada sesión */}
+      {clasesCompletadas.length > 0 && sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 py-2">
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
@@ -888,13 +1016,37 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 Clases Completadas
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                {clasesCompletadas.length} {clasesCompletadas.length === 1 ? 'clase' : 'clases'}
+                {sesionesCompletadasAgrupadas.todasLasSesiones.length} {sesionesCompletadasAgrupadas.todasLasSesiones.length === 1 ? 'sesión' : 'sesiones'}
               </span>
             </div>
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
           </div>
-          {clasesCompletadas.map((clase) => (
-            <ClaseCard key={clase.idHorarioMateria} clase={clase} />
+          {/* Agrupar por fecha y mostrar una tarjeta por sesión */}
+          {sesionesCompletadasAgrupadas.sesionesPorFecha.map((grupo) => (
+            <div key={grupo.fecha} className="space-y-3">
+              {/* Separador de fecha */}
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="flex items-center gap-2">
+                  <i className="ki-outline ki-calendar text-sm text-blue-600 dark:text-blue-400"></i>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                    {formatearFechaSeparador(grupo.fecha)}
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {grupo.items.length} {grupo.items.length === 1 ? 'sesión' : 'sesiones'}
+                  </span>
+                </div>
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+              </div>
+              {/* Tarjetas de sesiones de esta fecha */}
+              {grupo.items.map((item) => (
+                <SesionCompletadaCard 
+                  key={`${item.clase.idHorarioMateria}-${item.sesion.id}`} 
+                  clase={item.clase} 
+                  sesion={item.sesion} 
+                />
+              ))}
+            </div>
           ))}
         </div>
       )}
