@@ -29,22 +29,22 @@ const initialValues = {
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuthContext();
+  const { login, roles, activacion } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [deviceToken, setDeviceToken] = useState<string>('');
-  const from = location.state?.from?.pathname || '/';
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { VITE_APP_VAPID_KEY } = import.meta.env;
 
 
 
-  
+
   const requestPermission = useCallback(async () => {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const token = await getToken(messaging, { vapidKey: VITE_APP_VAPID_KEY });
-      setDeviceToken(token); 
+      setDeviceToken(token);
     } else if (permission === 'denied') {
       alert('Has denegado las notificaciones.');
     }
@@ -58,6 +58,21 @@ const Login = () => {
     });
   }, [requestPermission]);
 
+  // Redirect after login once roles and activacion are loaded
+  useEffect(() => {
+    if (!shouldRedirect) return;
+    // Wait until roles have been populated from the server
+    if (roles.length === 0) return;
+    const isAllowed =
+      (roles.includes('DOCENTEUP') || roles.includes('APRENDIZUP')) &&
+      activacion?.state_id == 18;
+    if (isAllowed) {
+      navigate('/perfil');
+    } else {
+      navigate('/');
+    }
+  }, [shouldRedirect, roles, activacion, navigate]);
+
 
 
   const formik = useFormik({
@@ -66,7 +81,7 @@ const Login = () => {
     onSubmit: async (values, { setStatus, setSubmitting }) => {
       setLoading(true);
 
-      
+
       try {
         if (!login) {
           throw new Error('JWTProvider is required for this form.');
@@ -80,7 +95,7 @@ const Login = () => {
           localStorage.removeItem('email');
         }
 
-        navigate('/perfil');
+        setShouldRedirect(true);
       } catch {
         setStatus('Los datos de inicio de sesión son incorrectos.');
         setSubmitting(false);
@@ -95,122 +110,122 @@ const Login = () => {
   };
 
   return (
-  <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
-    <div
-      className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200"
-      style={{ border: '1px solid #e5e7eb' }}
-    >
-      <form
-        className="flex flex-col gap-6 px-6 py-10 sm:px-10"
-        onSubmit={formik.handleSubmit}
-        noValidate
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
+      <div
+        className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200"
+        style={{ border: '1px solid #e5e7eb' }}
       >
+        <form
+          className="flex flex-col gap-6 px-6 py-10 sm:px-10"
+          onSubmit={formik.handleSubmit}
+          noValidate
+        >
 
-        <div className="text-center flex flex-col items-center gap-2">
-          <img
-            src="https://admin.virtualt.org/default/logoweb.png"
-            alt="Logo"
-            className={loading ?'animate-pulse  h-14 object-contain': 'h-14 object-contain'}
-          />
-          <h3 className="text-2xl font-semibold text-gray-900">
-            Iniciar sesión
-          </h3>
-          <p className="text-sm text-gray-500">
-            Ingresa tus credenciales para continuar
-          </p>
-        </div>
+          <div className="text-center flex flex-col items-center gap-2">
+            <img
+              src="https://admin.virtualt.org/default/logoweb.png"
+              alt="Logo"
+              className={loading ? 'animate-pulse  h-14 object-contain' : 'h-14 object-contain'}
+            />
+            <h3 className="text-2xl font-semibold text-gray-900">
+              Iniciar sesión
+            </h3>
+            <p className="text-sm text-gray-500">
+              Ingresa tus credenciales para continuar
+            </p>
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">
-            Correo electrónico
-          </label>
-          <input
-            placeholder="correo@ejemplo.com"
-            autoComplete="off"
-            {...formik.getFieldProps('email')}
-            className={clsx(
-              'w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all',
-              'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
-              'hover:border-gray-400',
-              {
-                'border-red-500 focus:ring-red-500/20':
-                  formik.touched.email && formik.errors.email
-              }
-            )}
-          />
-          {formik.touched.email && formik.errors.email && (
-            <span className="text-xs text-red-500">
-              {formik.errors.email}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">
-            Contraseña
-          </label>
-          <div className="relative">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Correo electrónico
+            </label>
             <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
+              placeholder="correo@ejemplo.com"
               autoComplete="off"
-              {...formik.getFieldProps('password')}
+              {...formik.getFieldProps('email')}
               className={clsx(
-                'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
+                'w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all',
                 'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
                 'hover:border-gray-400',
                 {
                   'border-red-500 focus:ring-red-500/20':
-                    formik.touched.password && formik.errors.password
+                    formik.touched.email && formik.errors.email
                 }
               )}
             />
-            <button
-              onClick={togglePassword}
-              className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
-            >
-              <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
-              <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
-            </button>
+            {formik.touched.email && formik.errors.email && (
+              <span className="text-xs text-red-500">
+                {formik.errors.email}
+              </span>
+            )}
           </div>
-          {formik.touched.password && formik.errors.password && (
-            <span className="text-xs text-red-500">
-              {formik.errors.password}
-            </span>
-          )}
-        </div>
 
-        <button
-          type="submit"
-          disabled={loading || formik.isSubmitting}
-          className={clsx(
-            'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all',
-            'bg-orange-500 hover:bg-orange-700',
-            'focus:outline-none focus:ring-4 focus:ring-orange-500/30',
-            'disabled:opacity-60 disabled:cursor-not-allowed'
-          )}
-        >
-          {loading ? 'Por favor espera…' : 'Iniciar sesión'}
-        </button>
-
-        {formik.status && (
-          <div className="text-center text-xs text-red-500">
-            {formik.status}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                autoComplete="off"
+                {...formik.getFieldProps('password')}
+                className={clsx(
+                  'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
+                  'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
+                  'hover:border-gray-400',
+                  {
+                    'border-red-500 focus:ring-red-500/20':
+                      formik.touched.password && formik.errors.password
+                  }
+                )}
+              />
+              <button
+                onClick={togglePassword}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
+              >
+                <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
+                <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
+              </button>
+            </div>
+            {formik.touched.password && formik.errors.password && (
+              <span className="text-xs text-red-500">
+                {formik.errors.password}
+              </span>
+            )}
           </div>
-        )}
 
-        <div className="flex items-center justify-center">
-          <Link 
-            to="/auth/classic/reset-password"
-            className="text-xs text-gray-600 hover:text-primary font-medium"
+          <button
+            type="submit"
+            disabled={loading || formik.isSubmitting}
+            className={clsx(
+              'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all',
+              'bg-orange-500 hover:bg-orange-700',
+              'focus:outline-none focus:ring-4 focus:ring-orange-500/30',
+              'disabled:opacity-60 disabled:cursor-not-allowed'
+            )}
           >
-            ¿Olvidaste tu contraseña?
-          </Link>
-        </div>
-      </form>
+            {loading ? 'Por favor espera…' : 'Iniciar sesión'}
+          </button>
+
+          {formik.status && (
+            <div className="text-center text-xs text-red-500">
+              {formik.status}
+            </div>
+          )}
+
+          <div className="flex items-center justify-center">
+            <Link
+              to="/auth/classic/reset-password"
+              className="text-xs text-gray-600 hover:text-primary font-medium"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
-);
+  );
 
 
 };

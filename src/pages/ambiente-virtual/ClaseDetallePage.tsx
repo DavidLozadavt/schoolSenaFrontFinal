@@ -74,7 +74,7 @@ const CalendarComponent: React.FC<{
     // Mapa de fechas a idHorarioMateria para navegación
     const mapaFechasHorarios = useMemo(() => {
       const mapa = new Map<string, number>();
-      
+
       if (todasLasFechasClase && todasLasFechasClase.length > 0) {
         todasLasFechasClase.forEach((fechaClase) => {
           if (fechaClase.fechaInicial && fechaClase.idHorarioMateria) {
@@ -105,14 +105,14 @@ const CalendarComponent: React.FC<{
           }
         });
       }
-      
+
       return mapa;
     }, [todasLasFechasClase]);
 
     // Calcular todas las fechas de clase usando las fechas del backend y sesiones completadas
     const fechasClase = useMemo(() => {
       const fechas: Date[] = [];
-      
+
       // Si tenemos todas las fechas del backend, usarlas directamente
       if (todasLasFechasClase && todasLasFechasClase.length > 0) {
         todasLasFechasClase.forEach((fechaClase) => {
@@ -145,7 +145,7 @@ const CalendarComponent: React.FC<{
           }
         });
       }
-      
+
       // SIEMPRE calcular fechas basándose en fechaInicio, fechaFin e idDia como respaldo
       // Esto asegura que el calendario siempre muestre las fechas aunque todasLasFechasClase esté vacío
       // IMPORTANTE: Este cálculo debe ejecutarse SIEMPRE, incluso si todasLasFechasClase tiene datos
@@ -157,16 +157,16 @@ const CalendarComponent: React.FC<{
           inicio.setHours(0, 0, 0, 0);
           fin.setHours(0, 0, 0, 0);
           const diaNumero = convertirIdDiaANumeroJS(idDia);
-          
+
           // Asegurarse de que el día número sea válido (0-6)
           if (diaNumero >= 0 && diaNumero <= 6) {
             const fechaActual = new Date(inicio);
-            
+
             // Calcular todas las fechas en el rango que coincidan con el día de la semana
             // Usar un contador de seguridad para evitar bucles infinitos
             let contador = 0;
             const maxIteraciones = 10000; // Máximo de días a calcular (aproximadamente 27 años)
-            
+
             while (fechaActual <= fin && contador < maxIteraciones) {
               if (fechaActual.getDay() === diaNumero) {
                 const fechaClase = new Date(fechaActual);
@@ -187,7 +187,7 @@ const CalendarComponent: React.FC<{
           }
         }
       }
-      
+
       // Agregar también las fechas de sesiones completadas
       sesionesCompletadas.forEach((sesion) => {
         if (sesion.fechaSesion) {
@@ -202,12 +202,12 @@ const CalendarComponent: React.FC<{
           }
         }
       });
-      
+
       // Eliminar duplicados
       const fechasUnicas = fechas.filter((fecha, index, self) =>
         index === self.findIndex(f => f.getTime() === fecha.getTime())
       );
-      
+
       return fechasUnicas.sort((a, b) => a.getTime() - b.getTime());
     }, [todasLasFechasClase, fechaInicio, fechaFinParaUsar, idDia, sesionesCompletadas, convertirIdDiaANumeroJS]);
 
@@ -218,7 +218,7 @@ const CalendarComponent: React.FC<{
       const date = new Date(2024, 0, dayIndex + 1); // Crear fecha para ese día de la semana
       return new Intl.DateTimeFormat('es-ES', { weekday: 'narrow' }).format(date).toUpperCase();
     };
-    
+
     const daysOfWeek = [0, 1, 2, 3, 4, 5, 6].map(getDayAbbreviation);
 
     const getDaysInMonth = (date: Date) => {
@@ -249,12 +249,12 @@ const CalendarComponent: React.FC<{
       // Verificar si esta fecha es una fecha de clase usando comparación de strings
       let esFechaClase = false;
       let fechaEncontrada: Date | null = null;
-      
+
       for (const fecha of fechasClase) {
         const fechaClase = new Date(fecha);
         fechaClase.setHours(0, 0, 0, 0);
         const fechaClaseStr = `${fechaClase.getFullYear()}-${String(fechaClase.getMonth() + 1).padStart(2, '0')}-${String(fechaClase.getDate()).padStart(2, '0')}`;
-        
+
         // Comparar tanto por timestamp como por string para mayor seguridad
         if (fechaClaseStr === dateStr || fechaClase.getTime() === date.getTime()) {
           esFechaClase = true;
@@ -305,41 +305,41 @@ const CalendarComponent: React.FC<{
       hoy.setHours(0, 0, 0, 0);
       const fechaComparar = new Date(fecha);
       fechaComparar.setHours(0, 0, 0, 0);
-      
+
       // Verificar si está completada
       const esCompletada = tieneSesionCompletada(fecha);
       if (esCompletada) {
         return 'completada';
       }
-      
+
       // Si es hoy, verificar si está en curso
       if (fechaComparar.getTime() === hoy.getTime()) {
         if (horaInicial && horaFinal) {
           const ahora = new Date();
           const [hIni, mIni] = horaInicial.substring(0, 5).split(':').map(Number);
           const [hFin, mFin] = horaFinal.substring(0, 5).split(':').map(Number);
-          
+
           const horaInicio = new Date(ahora);
           horaInicio.setHours(hIni, mIni, 0, 0);
           const horaFinalClase = new Date(ahora);
           horaFinalClase.setHours(hFin, mFin, 0, 0);
-          
+
           if (horaFinalClase.getTime() < horaInicio.getTime()) {
             horaFinalClase.setDate(horaFinalClase.getDate() + 1);
           }
-          
+
           if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinalClase.getTime()) {
             return 'en_curso';
           }
         }
         return 'pendiente';
       }
-      
+
       // Si es pasada y no está completada, es pendiente (no se completó)
       if (fechaComparar.getTime() < hoy.getTime()) {
         return 'pendiente';
       }
-      
+
       // Si es futura, es pendiente
       return 'pendiente';
     };
@@ -348,7 +348,7 @@ const CalendarComponent: React.FC<{
     const handleDateClick = (day: number) => {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       date.setHours(0, 0, 0, 0);
-      
+
       // Verificar si es una fecha de clase
       const esFechaClase = fechasClase.some(fecha => {
         const fechaClase = new Date(fecha);
@@ -360,7 +360,7 @@ const CalendarComponent: React.FC<{
         // Obtener el idHorarioMateria de la fecha clickeada
         const fechaStr = date.toISOString().split('T')[0];
         const idHorario = mapaFechasHorarios.get(fechaStr);
-        
+
         // Si encontramos el idHorarioMateria, navegar al detalle
         if (idHorario) {
           if (onDateClick) {
@@ -424,20 +424,19 @@ const CalendarComponent: React.FC<{
             const status = getDateStatus(day);
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
             const esFechaClase = status !== 'normal';
-            
+
             return (
               <div
                 key={index}
                 onClick={() => esFechaClase && handleDateClick(day)}
-                className={`h-8 flex items-center justify-center text-sm rounded transition-all ${
-                  status === 'hoy'
-                    ? 'bg-orange-200 text-orange-900 dark:bg-orange-500 dark:text-white font-semibold cursor-pointer hover:bg-orange-300 dark:hover:bg-orange-600'
-                    : status === 'proxima'
-                      ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500'
-                      : status === 'pasada'
-                        ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white cursor-pointer hover:bg-green-200 dark:hover:bg-green-500'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`h-8 flex items-center justify-center text-sm rounded transition-all ${status === 'hoy'
+                  ? 'bg-orange-200 text-orange-900 dark:bg-orange-500 dark:text-white font-semibold cursor-pointer hover:bg-orange-300 dark:hover:bg-orange-600'
+                  : status === 'proxima'
+                    ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500'
+                    : status === 'pasada'
+                      ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white cursor-pointer hover:bg-green-200 dark:hover:bg-green-500'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
                 title={esFechaClase ? 'Click para ver detalle de la clase' : ''}
               >
                 {day}
@@ -647,7 +646,7 @@ const ClaseDetallePage: React.FC = () => {
     // Verificar si estamos dentro del rango de horas de la clase
     const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
     const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-    
+
     const horaInicio = new Date(ahora);
     horaInicio.setHours(hIni, mIni, 0, 0);
     const horaFinal = new Date(ahora);
@@ -680,7 +679,7 @@ const ClaseDetallePage: React.FC = () => {
     const interval = setInterval(() => {
       const nuevoTiempo = new Date();
       setCurrentTime(nuevoTiempo);
-      
+
       // Actualizar estado de la clase en tiempo real
       const nuevoEstado = calcularEstadoEnTiempoReal(nuevoTiempo);
       setEstadoClaseLocal((estadoAnterior) => {
@@ -689,11 +688,11 @@ const ClaseDetallePage: React.FC = () => {
         return nuevoEstado;
       });
     }, 1000);
-    
+
     // Calcular estado inicial
     const estadoInicial = calcularEstadoEnTiempoReal(new Date());
     setEstadoClaseLocal(estadoInicial);
-    
+
     return () => clearInterval(interval);
   }, [clase]);
 
@@ -853,10 +852,10 @@ const ClaseDetallePage: React.FC = () => {
     const time = timeString.substring(0, 5); // Obtener HH:MM
     const [hours, minutes] = time.split(':');
     const hour24 = parseInt(hours, 10);
-    
+
     // Determinar AM/PM basado SOLO en la hora (la jornada no tiene nada que ver)
     const esPM = hour24 >= 12;
-    
+
     // Convertir a formato 12h
     let hour12: number;
     if (hour24 === 0) {
@@ -868,7 +867,7 @@ const ClaseDetallePage: React.FC = () => {
     } else {
       hour12 = hour24 - 12; // 1-11 PM
     }
-    
+
     return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
   };
 
@@ -1374,11 +1373,10 @@ const ClaseDetallePage: React.FC = () => {
                     setIdGrado(clase?.idGrado ?? 1);
                   }
                   }
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${
-                    activeMenu === 'juicios-evaluativos'
-                      ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                  }`}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
+                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                    }`}
                 >
                   <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span>Juicios Evaluativos</span>
@@ -1402,7 +1400,8 @@ const ClaseDetallePage: React.FC = () => {
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
                     programa_nombre: locationState?.programa_nombre || ficha?.asignacion?.programa?.nombrePrograma,
                     // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
-                    estadoClase: esPeriodoAsistencia() ? 'EN_CURSO' : 'PENDIENTE'
+                    estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
+                    idHorarioMateria: id ? parseInt(id) : undefined
                   }}
                 />
               )}

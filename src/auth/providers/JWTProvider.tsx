@@ -27,7 +27,7 @@ interface AuthContextProps {
   setPermissions: Dispatch<SetStateAction<string[]>>;
   getUserAuthenticated: () => Promise<void>;
   logout: () => void;
-  login: (email: string, password: string, device_token:string) => Promise<void>;
+  login: (email: string, password: string, device_token: string) => Promise<void>;
   verify: () => Promise<void>;
 }
 
@@ -94,34 +94,35 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
       setRoles(response.data.payload.roles || []);
       setPermissions(response.data.payload.permissions || []);
     } catch (error) {
-    saveAuth(undefined);
+      saveAuth(undefined);
       throw new Error(`Error fetching user: ${error}`);
     }
   };
 
 
-const getUserAuthenticated = async () => {
-  try {
-    const response = await axios.post<any>(`user`);
-    const auth = response.data;
-    setPersona(auth.persona);
-    setUser(auth);
-    await selectCompany();
-    await getActiveUser();
-  } catch (error) {
-    saveAuth(undefined);
-    console.error(`Error fetching authenticated user: ${error}`);
-    logout();
-  }
-};
+  const getUserAuthenticated = async () => {
+    try {
+      const response = await axios.post<any>(`user`);
+      const auth = response.data;
+      setPersona(auth.persona);
+      setUser(auth);
+      await selectCompany();
+      await getActiveUser();
+    } catch (error) {
+      saveAuth(undefined);
+      console.error(`Error fetching authenticated user: ${error}`);
+      logout();
+    }
+  };
 
 
   const getActiveUser = async () => {
     try {
       const response = await axios.post<any>(`active_users`);
-    
+
       if (Array.isArray(response.data) && response.data.length > 0) {
         setEmpresa(response.data[0].company);
+        setActivacion(response.data[0]); // state_id está aquí (e.g. state_id == 18)
       }
     } catch (error) {
       console.error(`Error fetching authenticated user: ${error}`);
