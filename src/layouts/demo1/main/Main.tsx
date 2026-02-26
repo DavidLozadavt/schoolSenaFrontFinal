@@ -4,11 +4,13 @@ import { useLocation } from 'react-router';
 import { useMenuCurrentItem } from '@/components/menu';
 import { Content, Footer, Header, Sidebar, useDemo1Layout } from '../';
 import { useMenus } from '@/providers';
+import { useAuthContext } from '@/auth';
 
 const Main = () => {
   const { layout } = useDemo1Layout();
   const { pathname } = useLocation();
   const { getMenuConfig } = useMenus();
+  const { activacion } = useAuthContext();
   const menuConfig = getMenuConfig('primary');
   const menuItem = useMenuCurrentItem(pathname, menuConfig);
 
@@ -50,7 +52,7 @@ const Main = () => {
       </Helmet>
 
       <div className="flex grow">
-        <Sidebar />
+        {activacion?.state_id !== 18 && <Sidebar />}
 
         <div className="wrapper flex grow flex-col">
           <Header />

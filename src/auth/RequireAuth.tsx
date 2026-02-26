@@ -6,12 +6,16 @@ import { ScreenLoader } from '@/components/loaders';
 import { useAuthContext } from './useAuthContext';
 
 const RequireAuth = () => {
-  const { auth, isLoading } = useAuthContext();
+  const { auth, isLoading, activacion } = useAuthContext();
 
   const location = useLocation();
 
   if (isLoading) {
     return <ScreenLoader />;
+  }
+
+  if (auth && activacion?.state_id === 18 && location.pathname !== '/perfil') {
+    return <Navigate to="/perfil" replace />;
   }
 
   return auth ? <Outlet /> : <Navigate to="/auth" state={{ from: location }} replace />;
