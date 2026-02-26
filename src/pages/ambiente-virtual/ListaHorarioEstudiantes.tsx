@@ -104,6 +104,7 @@ interface StudentListProps {
     horaFinal?: string;
     idGrado?: string | number;
     estadoClase?: string;
+    idHorarioMateria?: number; // Identifica el horario exacto para soportar dos clases el mismo día
   };
 }
 
@@ -136,28 +137,33 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
   // Función para hacer toggle de asistencia directamente desde la card
   const handleAttendanceToggle = async (student: StudentData) => {
     try {
-      // Determine the new status (if it was false/null, make it true. If true, make it false)
       const isCurrentlyPresent = student.asistio === true;
       const newStatus = !isCurrentlyPresent;
 
-      // Optimistic update in UI
+      // Optimistic update en UI
       setStudents(prev => prev.map(s =>
         s.idMatricula === student.idMatricula ? { ...s, asistio: newStatus } : s
       ));
 
-      const payload = {
+      const payload: Record<string, any> = {
         idMatriculaAcademica: student.id,
         idMatricula: student.idMatricula,
         idMateria: typeof materiaData.idMateria === 'string' ? parseInt(materiaData.idMateria) : materiaData.idMateria,
-        idAsignacionPeriodoProgramaJornada: materiaData.idFicha, // Backend usually looks for idFicha here
         asistio: newStatus
       };
+
+      // Pasar el horario exacto si está disponible:
+      // Permite que la misma materia dictada dos veces el mismo día
+      // genere sesiones de asistencia independientes.
+      if (materiaData.idHorarioMateria) {
+        payload.idHorarioMateria = materiaData.idHorarioMateria;
+      }
 
       await axios.put('update_assistance', payload);
 
     } catch (error) {
       console.error("Error al actualizar asistencia", error);
-      // Revert optimistic update on error
+      // Revertir el optimistic update si falla
       fetchStudents();
     }
   };
@@ -170,12 +176,17 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     setError(null);
 
     try {
-      const requestData = {
+      const requestData: Record<string, any> = {
         idMateria: typeof materiaData.idMateria === 'string'
           ? parseInt(materiaData.idMateria)
           : materiaData.idMateria,
         idFicha: materiaData.idFicha
       };
+
+      // Incluir el horario exacto para que el backend cree la sesión correcta
+      if (materiaData.idHorarioMateria) {
+        requestData.idHorarioMateria = materiaData.idHorarioMateria;
+      }
 
       console.log('🎯 [StudentList] Enviando datos al backend:', requestData);
       console.log('🎯 [StudentList] Estado de la clase recibido:', materiaData.estadoClase);
@@ -196,14 +207,40 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       if (Array.isArray(response.data)) {
         console.log('[StudentList] Primer estudiante:', response.data[0]);
-        // Map backend asistencias eagerly if needed, but we can rely on our toggle logic
-        // Extract the raw asitio if sent directly from backend, else default false since our DB sets it to false
+        // Obtener la fecha de hoy en formato YYYY-MM-DD para comparar con fechaSesion
+        const hoyStr = new Date().toISOString().split('T')[0];
+
         const mappedStudents = response.data.map((s: any) => {
           let asistioVal = false;
           if (s.asistencias && s.asistencias.length > 0) {
-            // Find today's assistance if returned, or we just take the last one
-            const latestAst = s.asistencias[s.asistencias.length - 1];
-            asistioVal = latestAst.asistio === 1 || latestAst.asistio === true;
+            // Buscar la asistencia de la sesión EXACTA de HOY:
+            // - Misma fecha (hoy)
+            // - Mismo horario (idHorarioMateria) si está disponible
+            //   → distingue dos clases de la misma materia el mismo día
+            const asistenciaHoy = s.asistencias.find((ast: any) => {
+              const sm = ast.sesion_materia ?? ast.sesionMateria ?? null;
+              const fechaSesion = sm?.fechaSesion ?? sm?.fecha_sesion ?? ast.fecha_sesion ?? null;
+              if (!fechaSesion) return false;
+
+              const fechaMatch = fechaSesion.split('T')[0] === hoyStr;
+              if (!fechaMatch) return false;
+
+              // Si tenemos el horario exacto, verificar que la sesión pertenezca a él
+              // (evita que la asistencia de la clase de las 8am aparezca en la de las 2pm)
+              if (materiaData.idHorarioMateria && sm?.idHorarioMateria !== undefined) {
+                return sm.idHorarioMateria === materiaData.idHorarioMateria;
+              }
+
+              return true; // sin idHorarioMateria, cualquier sesión de hoy sirve
+            });
+
+            if (asistenciaHoy) {
+              // Hay registro de esta sesión de hoy → usar su valor
+              asistioVal = asistenciaHoy.asistio === 1 || asistenciaHoy.asistio === true;
+            } else {
+              // Sin registro para esta sesión → estado inicial Falta
+              asistioVal = false;
+            }
           }
           return { ...s, asistio: asistioVal };
         });
@@ -233,7 +270,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     if (materiaData?.idMateria && materiaData?.idFicha) {
       fetchStudents();
     }
-  }, [materiaData.idMateria, materiaData.idFicha]);
+  }, [materiaData.idMateria, materiaData.idFicha, materiaData.idHorarioMateria]);
 
   // Función para obtener nombre completo
   const getFullName = (student: StudentData): string => {

@@ -26,8 +26,10 @@ interface AuthContextProps {
   permissions: string[];
   setPermissions: Dispatch<SetStateAction<string[]>>;
   getUserAuthenticated: () => Promise<void>;
+  centroF:number;
+  setCentroF:Dispatch<SetStateAction<number>>;
   logout: () => void;
-  login: (email: string, password: string, device_token:string) => Promise<void>;
+  login: (email: string, password: string, device_token: string) => Promise<void>;
   verify: () => Promise<void>;
 }
 
@@ -42,6 +44,9 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [auth, setAuth] = useState<AuthModel | undefined>(authHelper.getAuth());
+
+  //Para ver los centros de formación los usuarios que por su naturaleza no tienen centro de formacion
+  const [centroF, setCentroF] = useState<number>(0);
 
   const verify = async () => {
     if (auth) {
@@ -94,34 +99,35 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
       setRoles(response.data.payload.roles || []);
       setPermissions(response.data.payload.permissions || []);
     } catch (error) {
-    saveAuth(undefined);
+      saveAuth(undefined);
       throw new Error(`Error fetching user: ${error}`);
     }
   };
 
 
-const getUserAuthenticated = async () => {
-  try {
-    const response = await axios.post<any>(`user`);
-    const auth = response.data;
-    setPersona(auth.persona);
-    setUser(auth);
-    await selectCompany();
-    await getActiveUser();
-  } catch (error) {
-    saveAuth(undefined);
-    console.error(`Error fetching authenticated user: ${error}`);
-    logout();
-  }
-};
+  const getUserAuthenticated = async () => {
+    try {
+      const response = await axios.post<any>(`user`);
+      const auth = response.data;
+      setPersona(auth.persona);
+      setUser(auth);
+      await selectCompany();
+      await getActiveUser();
+    } catch (error) {
+      saveAuth(undefined);
+      console.error(`Error fetching authenticated user: ${error}`);
+      logout();
+    }
+  };
 
 
   const getActiveUser = async () => {
     try {
       const response = await axios.post<any>(`active_users`);
-    
+
       if (Array.isArray(response.data) && response.data.length > 0) {
         setEmpresa(response.data[0].company);
+        setActivacion(response.data[0]); // state_id está aquí (e.g. state_id == 18)
       }
     } catch (error) {
       console.error(`Error fetching authenticated user: ${error}`);
@@ -161,6 +167,8 @@ const getUserAuthenticated = async () => {
         setUser,
         getUserAuthenticated,
         login,
+        centroF,
+        setCentroF,
         verify,
         logout
       }}

@@ -11,6 +11,16 @@ interface Props {
   idInstructor?: number;
 }
 
+interface SesionCompletada {
+  id: number;
+  numeroSesion: number;
+  fechaSesion: string;
+  fechaFormateada: string;
+  fechaCorta: string;
+  estado: string;
+  observacion?: string | null;
+}
+
 interface Clase {
   ficha_id: number;
   ficha_codigo: string;
@@ -19,6 +29,7 @@ interface Clase {
   jornada_nombre: string;
   jornada_tipo: string;
   dia_semana: string;
+  idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
   horaInicial: string;
   horaFinal: string;
   fechaInicial: string;
@@ -27,6 +38,7 @@ interface Clase {
   total_sesiones: number;
   sesiones_dadas?: number;
   sesiones_restantes?: number;
+  sesiones_completadas?: SesionCompletada[];
   contrato_id: number;
   instructor_nombre: string;
   idGradoPrograma: number | null;
@@ -79,15 +91,79 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   /**
    * Obtiene el estado de la clase
-   * El backend ya calcula el estado correctamente basado en fecha, hora y día de la semana
-   * Por lo tanto, usamos directamente el estado del backend para evitar inconsistencias
+   * Considera tanto el estado del backend como las sesiones completadas individuales
    */
   const getStatus = (clase: Clase): 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO' => {
+    // Si hay sesiones completadas, verificar si alguna es de hoy o pasada
+    if (clase.sesiones_completadas && clase.sesiones_completadas.length > 0) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      // Verificar si hay una sesión completada hoy o en el pasado
+      const haySesionCompletada = clase.sesiones_completadas.some(sesion => {
+        const fechaSesion = new Date(sesion.fechaSesion);
+        fechaSesion.setHours(0, 0, 0, 0);
+        return fechaSesion.getTime() <= hoy.getTime();
+      });
+      
+      // Si hay sesiones completadas, verificar el estado actual en tiempo real
+      if (haySesionCompletada && clase.fechaInicial && clase.fechaFinal && clase.horaInicial && clase.horaFinal && clase.idDia) {
+        const ahora = new Date();
+        const parseDate = (dateStr: string) => {
+          const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+          return new Date(year, month - 1, day);
+        };
+
+        const hoy = new Date(ahora);
+        hoy.setHours(0, 0, 0, 0);
+        const fechaInicio = parseDate(clase.fechaInicial);
+        fechaInicio.setHours(0, 0, 0, 0);
+        const fechaFin = parseDate(clase.fechaFinal);
+        fechaFin.setHours(0, 0, 0, 0);
+
+        // Si ya pasó la fecha final del curso completo
+        if (fechaFin.getTime() < hoy.getTime()) {
+          return 'COMPLETADO';
+        }
+
+        // Verificar si hoy es un día de clase
+        const convertirIdDiaANumeroJS = (idDia: number): number => {
+          return idDia === 7 ? 0 : idDia;
+        };
+        const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+        
+        if (ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime()) {
+          // Verificar si estamos dentro del rango de horas
+          const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+          const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+          
+          const horaInicio = new Date(ahora);
+          horaInicio.setHours(hIni, mIni, 0, 0);
+          const horaFinal = new Date(ahora);
+          horaFinal.setHours(hFin, mFin, 0, 0);
+
+          if (horaFinal.getTime() < horaInicio.getTime()) {
+            horaFinal.setDate(horaFinal.getDate() + 1);
+          }
+
+          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+            return 'EN CURSO';
+          }
+        }
+      }
+    }
+
     // Si el backend ya calculó el estado, usarlo directamente
     if (clase.estado) {
       const estado = clase.estado.toUpperCase();
-      if (estado === 'EN CURSO' || estado === 'PENDIENTE' || estado === 'COMPLETADO') {
-        return estado as 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO';
+      if (estado === 'EN CURSO' || estado === 'EN_CURSO') {
+        return 'EN CURSO';
+      }
+      if (estado === 'COMPLETADO' || estado === 'COMPLETADA') {
+        return 'COMPLETADO';
+      }
+      if (estado === 'PENDIENTE') {
+        return 'PENDIENTE';
       }
     }
     
@@ -121,48 +197,45 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     return 'PENDIENTE';
   };
 
+  /**
+   * Formatea una fecha usando Intl.DateTimeFormat (API nativa de JavaScript)
+   * No usa datos hardcodeados, usa la configuración del navegador
+   * 
+   * @param dateString Fecha en formato YYYY-MM-DD
+   * @param jornadaTipo Tipo de jornada para mostrar si es hoy
+   * @returns String formateado: "Jornada (hoy)" o "Mañana (día, fecha)" o "(día, fecha)"
+   */
   const formatDateForGroup = (dateString: string, jornadaTipo: string): string => {
-    // Parsear fecha sin problemas de zona horaria (formato YYYY-MM-DD)
+    // Parsear fecha sin problemas de zona horaria
     const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const months = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
     
     // Verificar si es hoy, mañana o más adelante
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const fecha = new Date(year, month - 1, day);
-    fecha.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
     
-    const diffTime = fecha.getTime() - hoy.getTime();
+    const diffTime = date.getTime() - hoy.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const diaSemana = days[date.getDay()];
-    const diaNumero = date.getDate();
-    const mes = months[date.getMonth()];
+    // Usar Intl.DateTimeFormat para formatear fecha (sin datos hardcodeados)
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
     
     if (diffDays === 0) {
       // Es hoy - usar la jornada
       return `${jornadaTipo} (hoy)`;
     } else if (diffDays === 1) {
       // Es mañana - mostrar "Mañana" + fecha completa
-      return `Mañana (${diaSemana}, ${diaNumero} de ${mes})`;
+      const fechaFormateada = formatter.format(date);
+      return `Mañana (${fechaFormateada})`;
     } else {
       // Es más adelante - solo mostrar la fecha sin jornada
-      return `(${diaSemana}, ${diaNumero} de ${mes})`;
+      const fechaFormateada = formatter.format(date);
+      return `(${fechaFormateada})`;
     }
   };
 
@@ -259,6 +332,20 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   };
 
   /**
+   * Convierte idDia del backend al formato de JavaScript getDay()
+   * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+   * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
+   * 
+   * @param idDia ID del día desde el backend (1-7)
+   * @returns Número del día para JavaScript getDay()
+   */
+  const convertirIdDiaANumeroJS = (idDia: number): number => {
+    // Convertir formato backend (1-7) a formato JavaScript (0-6)
+    // Domingo es 7 en backend pero 0 en JavaScript
+    return idDia === 7 ? 0 : idDia;
+  };
+
+  /**
    * Calcula la próxima fecha de clase pendiente (Date object)
    * Retorna null si no se puede calcular
    */
@@ -277,25 +364,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    // Mapeo de días de la semana
-    const diaSemanaMap: { [key: string]: number } = {
-      'LUNES': 1,
-      'MARTES': 2,
-      'MIÉRCOLES': 3,
-      'MIERCOLES': 3,
-      'JUEVES': 4,
-      'VIERNES': 5,
-      'SÁBADO': 6,
-      'SABADO': 6,
-      'DOMINGO': 0
-    };
-
-    const diaSemanaClase = clase.dia_semana.toUpperCase();
-    const diaNumero = diaSemanaMap[diaSemanaClase];
-    
-    if (diaNumero === undefined) {
+    // Usar idDia directamente del backend (viene de la BD, sin mapeo hardcodeado)
+    if (!clase.idDia) {
       return null;
     }
+    
+    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
 
     // Buscar la próxima fecha del día de la semana
     let fechaBusqueda = new Date(hoy);
@@ -331,23 +405,21 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   /**
    * Calcula la próxima fecha de clase pendiente basada en el día de la semana
-   * Retorna string formateado: "Jueves 26 de febrero"
+   * Retorna string formateado usando Intl.DateTimeFormat (sin datos hardcodeados)
+   * Ejemplo: "jueves, 26 de febrero"
    */
   const getProximaClasePendiente = (clase: Clase): string | null => {
     const fechaBusqueda = calcularProximaFechaClase(clase);
     if (!fechaBusqueda) return null;
 
-    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const meses = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-    ];
+    // Usar Intl.DateTimeFormat para formatear fecha (API nativa, sin datos hardcodeados)
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
 
-    const diaNombre = diasSemana[fechaBusqueda.getDay()];
-    const dia = fechaBusqueda.getDate();
-    const mes = meses[fechaBusqueda.getMonth()];
-
-    return `${diaNombre} ${dia} de ${mes}`;
+    return formatter.format(fechaBusqueda);
   };
 
   /**
@@ -646,6 +718,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const horario = getHorario(clase);
     const numSesiones = getNumSesiones(clase);
     const proximaClase = showProximaFecha ? getProximaClasePendiente(clase) : null;
+    const sesionesCompletadas = clase.sesiones_completadas || [];
+    const esCompletada = status === 'COMPLETADO';
 
     return (
       <div
@@ -692,6 +766,38 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 </div>
               )}
             </div>
+            
+            {/* Mostrar sesiones completadas individuales si la clase está completada */}
+            {esCompletada && sesionesCompletadas.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <i className="ki-outline ki-check-circle text-xs text-green-600 dark:text-green-400"></i>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Sesiones Completadas ({sesionesCompletadas.length})
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {sesionesCompletadas.map((sesion) => (
+                    <div
+                      key={sesion.id}
+                      className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded px-2 py-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigateToClase(clase);
+                      }}
+                    >
+                      <i className="ki-outline ki-check text-xs text-green-600 dark:text-green-400 flex-shrink-0"></i>
+                      <span className="flex-1">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          Sesión {sesion.numeroSesion}:
+                        </span>{' '}
+                        <span className="capitalize">{sesion.fechaFormateada}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex-shrink-0 pt-1">
             <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>

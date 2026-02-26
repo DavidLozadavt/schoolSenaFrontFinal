@@ -109,7 +109,7 @@ const DropdownChat = ({ menuTtemRef }: IDropdownChatProps) => {
     }
   };
 
-  const currentUserId = user.id;
+  const currentUserId = user?.id ?? null;
 
   useEffect(() => {
     if (!selectedUserId) return;
@@ -119,7 +119,7 @@ const DropdownChat = ({ menuTtemRef }: IDropdownChatProps) => {
 
     const channel = pusher.subscribe(channelName);
 
-    channel.bind('pusher:subscription_succeeded', () => {});
+    channel.bind('pusher:subscription_succeeded', () => { });
 
     channel.bind('pusher:subscription_error', (error: any) => {
       console.error('Error en la suscripción', error);
@@ -225,7 +225,7 @@ const DropdownChat = ({ menuTtemRef }: IDropdownChatProps) => {
 
     const channel = pusher.subscribe(channelName);
 
-    channel.bind('pusher:subscription_succeeded', () => {});
+    channel.bind('pusher:subscription_succeeded', () => { });
 
     channel.bind('pusher:subscription_error', (error: any) => {
       console.error('Error en la suscripción del grupo', error);

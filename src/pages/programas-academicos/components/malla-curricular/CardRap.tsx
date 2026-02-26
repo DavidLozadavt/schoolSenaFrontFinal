@@ -4,6 +4,7 @@ import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { useSnackbar } from 'notistack';
 import { Calendario } from './Calendario';
+import Swal from 'sweetalert2';
 
 interface CardRapProps {
   materia: any;
@@ -12,6 +13,7 @@ interface CardRapProps {
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
+  onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
 }
 
 export const CardRap = ({
@@ -20,7 +22,8 @@ export const CardRap = ({
   idTrimestre,
   setModalHorarios,
   idFicha,
-  onAsignacionSuccess
+  onAsignacionSuccess,
+  onEditCompetencia
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
@@ -38,11 +41,9 @@ export const CardRap = ({
     let sinAsignar: any[] = [];
 
     if (materia?.horarios && !Array.isArray(materia.horarios)) {
-      // Nueva estructura: objeto { asignados, sinAsignar }
       asignados = materia.horarios.asignados || [];
       sinAsignar = materia.horarios.sinAsignar || [];
     } else if (Array.isArray(materia?.horarios)) {
-      // Estructura antigua: array
       asignados = materia.horarios.filter((h: any) => h.estado === 'ASIGNADO');
       sinAsignar = materia.horarios.filter((h: any) => h.estado !== 'ASIGNADO');
     }
@@ -100,6 +101,46 @@ export const CardRap = ({
       enqueueSnackbar(error.response?.data?.message || 'Error al asignar instructor', { variant: 'error' });
     } finally {
       setAsignando(false);
+    }
+  };
+
+  const handleDesasignarInstructor = async (instructor: any) => {
+    const schedulesToUnassign = horarios.filter((h: any) => (h.instructor?.id || h.persona?.id) === instructor.id);
+
+    if (schedulesToUnassign.length === 0) return;
+
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    const result = await Swal.fire({
+      title: '¿Desasignar instructor?',
+      text: `¿Estás seguro de que deseas desasignar a ${instructor.nombre1} ${instructor.apellido1} de esta competencia?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desasignar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-danger',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.put('desasignar/instructor', {
+          horarios: schedulesToUnassign.map((h: any) => ({ id: h.id }))
+        });
+
+        enqueueSnackbar('Instructor desasignado correctamente', { variant: 'success' });
+        if (onAsignacionSuccess) onAsignacionSuccess();
+        setShowInstructorsModal(false);
+      } catch (error: any) {
+        enqueueSnackbar(error.response?.data?.message || 'Error al desasignar instructor', { variant: 'error' });
+      }
     }
   };
 
@@ -308,6 +349,7 @@ export const CardRap = ({
         )}
 
         <button
+          onClick={() => onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id)}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
           title="Editar"
         >
@@ -368,6 +410,14 @@ export const CardRap = ({
                         {inst.email || 'Sin correo registrado'}
                       </p>
                     </div>
+
+                    <button
+                      onClick={() => handleDesasignarInstructor(inst)}
+                      className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
+                      title="Desasignar Instructor"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -395,7 +445,7 @@ export const CardRap = ({
             setModalHorarios({
               open: true,
               idGradoMateria: materia.idGradoMateria,
-              idFicha: idFicha,
+              idFicha: idFicha || undefined,
               totalHoras: materia.horasTotales ?? 0,
               horasActuales: materia.horasActuales ?? 0,
               horasFaltantes: materia.horasFaltantes ?? 0
