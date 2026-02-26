@@ -60,7 +60,7 @@ export const GestionProgramas = ({
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
   useEffect(() => {
-    if (authContext?.roles?.includes('Admin')) {
+    if (authContext?.roles?.includes('ADMINISTRADOR VT')) {
       const loadRegional = async () => {
         const regional = await axios.get('regional');
         setRegionales(regional.data);
@@ -356,7 +356,7 @@ export const GestionProgramas = ({
         </div>
         <div className="flex">
           {/** Filros para ver regionales por centros de formación */}
-          {authContext?.roles?.includes('Admin') && (
+          {authContext?.roles?.includes('ADMINISTRADOR VT') && (
             <div className="m-2">
               <Select
                 options={optionsRegional}
@@ -374,7 +374,7 @@ export const GestionProgramas = ({
             </div>
           )}
           {(authContext?.roles?.includes('ADMIN REGIONAL') ||
-            authContext?.roles?.includes('Admin')) && (
+            authContext?.roles?.includes('ADMINISTRADOR VT')) && (
             <div className="m-2">
               <Select
                 options={optionsCentro}

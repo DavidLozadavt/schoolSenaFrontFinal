@@ -27,7 +27,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
   const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
-  const { user } = useAuthContext();
+  const { user, centroF } = useAuthContext();
 
   // Estados de vista
   const [errorApi, setErrorApi] = useState<string | null>(null);
@@ -91,9 +91,15 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
       setSelectedFichaOption(null);
       setLoadingFichas(true);
       try {
-        const res = await axios.get(`fichas/programa/${program.id}/${user?.idCentroFormacion}`);
+        const idCentro = centroF && centroF !== 0 ? centroF : user?.idCentroFormacion;
+        const res = await axios.get(`fichas/programa/${program.id}/${idCentro}`);
         if (Array.isArray(res.data?.data)) {
-          setFichas(res.data.data);
+          const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
+          const fichasConDocumento = res.data.data.map((ficha: any) => ({
+            ...ficha,
+            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
+          }));
+          setFichas(fichasConDocumento);
         } else {
           setFichas([]);
         }
@@ -192,7 +198,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
 
   const fichaOptions = fichas.map((ficha) => ({
     value: ficha.id,
-    label: `Ficha #${ficha.codigo} • ${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)} • Jornada: ${ficha.jornada.nombreJornada}`
+    label: `Ficha #${ficha.codigo} • ${ficha.asignacion?.fechaInicialClases ? `${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)}` : 'Sin fechas asignadas'} • Jornada: ${ficha.jornada?.nombreJornada || 'N/A'}`
   }));
 
   return (
