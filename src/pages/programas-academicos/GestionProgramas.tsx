@@ -9,7 +9,7 @@ import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
-import { number } from 'yup';
+import Select from 'react-select';
 
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   PREESCOLAR: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
@@ -21,6 +21,16 @@ const IMAGENES_POR_NIVEL: Record<string, string> = {
   POSTGRADO: 'https://images.unsplash.com/photo-1525921429624-479b6a26d84d?q=80&w=600',
   DEFAULT: 'https://images.unsplash.com/photo-1523050335392-9ae38774b79f?q=80&w=600'
 };
+
+interface Regional {
+  id: number;
+  razonSocial: string;
+}
+
+interface Centro {
+  id: number;
+  nombre: string;
+}
 
 export const GestionProgramas = ({
   onActionComplete = () => {}
@@ -37,6 +47,46 @@ export const GestionProgramas = ({
     setIsMallaOpen(true);
   };
   const authContext = useContext(AuthContext);
+  if (!authContext) {
+    throw new Error('AuthContext debe usarse dentro de AuthProvider');
+  }
+
+  // Filtros para ver los programas por regional:
+  const { setCentroF } = authContext;
+
+  const [regionales, setRegionales] = useState<Regional[]>([]);
+  const [idRegional, setIdRegional] = useState<number>(0);
+  const [centroFormacion, setCentroFormacion] = useState<Centro[]>([]);
+  const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
+
+  useEffect(() => {
+    if (authContext?.roles?.includes('Admin')) {
+      const loadRegional = async () => {
+        const regional = await axios.get('regional');
+        setRegionales(regional.data);
+      };
+      loadRegional();
+      return;
+    }
+    if (authContext?.roles?.includes('ADMIN REGIONAL')) {
+      setIdRegional(authContext?.empresa.id);
+    } else {
+      setIdRegional(authContext.user?.idCentroFormacion);
+    }
+  }, [authContext]);
+
+  useEffect(() => {
+    if (idRegional !== 0) {
+      const loadCentros = async () => {
+        const centro = await axios.get(`centrosFormacion/regional/${idRegional}`);
+        setCentroFormacion(centro.data.data);
+        setIdCentroFormacion(0); // reset centro cuando cambia regional
+      };
+      loadCentros();
+    }
+  }, [idRegional]);
+
+  //Terminan filtros para ver los programas por centro de formacion
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [selectedInfoProgram, setSelectedInfoProgram] = useState<Program | null>(null);
@@ -61,8 +111,10 @@ export const GestionProgramas = ({
   const { idRed } = useParams();
 
   useEffect(() => {
-    fetchProgramas();
-  }, [authContext?.empresa.id]);
+    if (idRed) {
+      fetchProgramas();
+    }
+  }, [authContext, idCentroFormacion]);
 
   const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
 
@@ -91,7 +143,15 @@ export const GestionProgramas = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`programasporRed/${idRed}`);
+
+      let url = `programasporRed/${idRed}`;
+
+      if (idCentroFormacion !== 0) {
+        url += `?centro=${idCentroFormacion}`;
+      }
+
+      const response = await axios.get(url);
+
       if (response.data.status === 'success') {
         setPrograms(response.data.data.map(mapBackendToUi));
       }
@@ -164,6 +224,57 @@ export const GestionProgramas = ({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+  const customSelectStyles = {
+    control: (base: any, state: any) => ({
+      ...base,
+      minHeight: '46px',
+      height: '46px',
+      borderRadius: '12px',
+      backgroundColor: 'rgba(255,255,255,0.8)',
+      backdropFilter: 'blur(8px)',
+      borderColor: state.isFocused ? '#2563eb' : '#d1d5db',
+      boxShadow: state.isFocused ? '0 0 0 2px rgba(37,99,235,0.2)' : 'none',
+      '&:hover': {
+        borderColor: '#2563eb'
+      }
+    }),
+
+    menu: (base: any) => ({
+      ...base,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      zIndex: 50
+    }),
+
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '0.875rem',
+      backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#eff6ff' : 'white',
+      color: state.isSelected ? 'white' : '#374151',
+      cursor: 'pointer'
+    }),
+
+    placeholder: (base: any) => ({
+      ...base,
+      fontSize: '0.875rem',
+      color: '#6b7280'
+    }),
+
+    singleValue: (base: any) => ({
+      ...base,
+      fontSize: '0.875rem',
+      fontWeight: 500,
+      color: '#111827'
+    })
+  };
+  const customSelectTheme = (theme: any) => ({
+    ...theme,
+    colors: {
+      ...theme.colors,
+      primary25: '#eff6ff',
+      primary: '#2563eb'
+    }
+  });
 
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -178,6 +289,16 @@ export const GestionProgramas = ({
     // Navegar a la página de programación de fichas
     navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas`);
   };
+
+  const optionsRegional = regionales.map((val) => ({
+    value: val.id,
+    label: val.razonSocial
+  }));
+
+  const optionsCentro = centroFormacion.map((val) => ({
+    value: val.id,
+    label: val.nombre
+  }));
 
   return (
     <div className="relative flex flex-col w-full h-screen min-h-screen p-4 md:p-8 bg-[#f3f4f7] dark:bg-coal-500 font-sans overflow-hidden">
@@ -232,6 +353,45 @@ export const GestionProgramas = ({
               Añadir Programa
             </span>
           </button>
+        </div>
+        <div className="flex">
+          {/** Filros para ver regionales por centros de formación */}
+          {authContext?.roles?.includes('Admin') && (
+            <div className="m-2">
+              <Select
+                options={optionsRegional}
+                placeholder="Selecciona la regional"
+                styles={customSelectStyles}
+                theme={customSelectTheme}
+                className="w-full max-w-md"
+                onChange={(e) => {
+                  const newRegionalId = Number(e?.value) || 0;
+                  setIdRegional(newRegionalId);
+                  setIdCentroFormacion(0);
+                  setCentroFormacion([]);
+                }}
+              />
+            </div>
+          )}
+          {(authContext?.roles?.includes('ADMIN REGIONAL') ||
+            authContext?.roles?.includes('Admin')) && (
+            <div className="m-2">
+              <Select
+                options={optionsCentro}
+                placeholder="Selecciona el centro de formación"
+                styles={customSelectStyles}
+                theme={customSelectTheme}
+                className="w-full max-w-md"
+                isDisabled={idRegional === 0}
+                value={optionsCentro.find((c) => c.value === idCentroFormacion) || null}
+                onChange={(e) => {
+                  const value = Number(e?.value);
+                  setIdCentroFormacion(value);
+                  setCentroF(value);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Grid de Tarjetas Verticales */}
