@@ -1,4 +1,3 @@
-import { KeenIcon } from '@/components';
 
 interface Ciudad {
   id: number;
@@ -14,15 +13,16 @@ interface Empresa {
 interface Sede {
   id: number;
   nombre: string;
-  jefeInmediato: string;
-  descripcion: string;
-  direccion: string;
-  email: string;
-  telefono: string;
-  celular: string;
-  ciudad: Ciudad;
-  empresa: Empresa;
-  urlImagen:string;
+  jefeInmediato?: string | null;
+  descripcion?: string | null;
+  direccion?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  celular?: string | null;
+  ciudad?: Ciudad | null;
+  empresa?: Empresa | null;
+  urlImagen: string;
+  rutaFotoUrl:string;
 }
 
 interface Props {
@@ -33,7 +33,7 @@ interface Props {
 }
 
 const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
-  const BACK = import.meta.env.VITE_APP_BACKEND_URL
+
   return (
     <div
       className="
@@ -47,8 +47,10 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
       {/* HEADER */}
       <div className="relative h-40">
         <img
-          src={sede.urlImagen === 'sedes\/default.png' ? `${BACK}/default/logoweb.png`: `${BACK}${sede.urlImagen}`}
-          alt={sede.empresa?.razonSocial}
+          src={
+            sede.rutaFotoUrl
+          }
+          alt={sede.empresa?.razonSocial || 'Sede'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
@@ -60,13 +62,13 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           <span
             className="
             inline-flex items-center gap-1.5
-            rounded-full  px-3 py-1
+            rounded-full px-3 py-1
             text-[10px] font-bold uppercase tracking-wide text-gray-700
-            shadow backdrop-blur
+            shadow backdrop-blur bg-white/90
           "
           >
             <i className="ki-outline ki-geolocation text-xs text-blue-600" />
-            {sede.ciudad?.descripcion ?? 'SIN CIUDAD'}
+            {sede.ciudad?.descripcion || 'SIN CIUDAD'}
           </span>
         </div>
 
@@ -80,7 +82,9 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           >
             {sede.nombre}
           </h3>
-          {sede.empresa?.razonSocial}
+          <p className="text-xs text-white/90 mt-1">
+            {sede.empresa?.razonSocial || 'Sin empresa'}
+          </p>
         </div>
       </div>
 
@@ -91,16 +95,42 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
             icon="user-square"
             color="blue"
             label="Jefe inmediato"
-            value={`${sede.jefeInmediato}`}
+            value={sede.jefeInmediato || 'No asignado'}
+            isEmpty={!sede.jefeInmediato}
           />
-          <InfoRow icon="phone" color="purple" label="Teléfono" value={`${sede.telefono}`} />
-          <InfoRow icon="phone" color="purple" label="Celular" value={`${sede.celular}`} />
-          <InfoRow icon="sms" color="green" label="Email" value={sede.email} />
-          <InfoRow icon="map" color="green" label="dirección" multiline value={sede.direccion} />
+          <InfoRow
+            icon="phone"
+            color="purple"
+            label="Teléfono"
+            value={sede.telefono || 'No asignado'}
+            isEmpty={!sede.telefono}
+          />
+          <InfoRow
+            icon="phone"
+            color="purple"
+            label="Celular"
+            value={sede.celular || 'No asignado'}
+            isEmpty={!sede.celular}
+          />
+          <InfoRow
+            icon="sms"
+            color="green"
+            label="Email"
+            value={sede.email || 'No asignado'}
+            isEmpty={!sede.email}
+          />
+          <InfoRow
+            icon="map"
+            color="green"
+            label="Dirección"
+            multiline
+            value={sede.direccion || 'No asignado'}
+            isEmpty={!sede.direccion}
+          />
         </div>
 
         {/* ACCIONES */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mt-4">
           <button
             onClick={onEdit}
             title="Editar"
@@ -112,9 +142,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           <button
             title="Eliminar"
             onClick={onDelete}
-            className="
-            flex items-center justify-center w-full h-8 text-red-600 border border-transparent rounded-lg dark:text-red-300 bg-red-100/30 dark:bg-red-500/10 hover:border-red-500 hover:scale-105 active:scale-95 transition-all
-            "
+            className="flex items-center justify-center w-full h-8 text-red-600 border border-transparent rounded-lg dark:text-red-300 bg-red-100/30 dark:bg-red-500/10 hover:border-red-500 hover:scale-105 active:scale-95 transition-all"
           >
             <i className="text-sm ki-outline ki-trash"></i>
           </button>
@@ -130,16 +158,18 @@ const InfoRow = ({
   label,
   value,
   color,
-  multiline = false
+  multiline = false,
+  isEmpty = false
 }: {
   icon: string;
   label: string;
   value: string;
   color: 'blue' | 'purple' | 'green' | 'red';
   multiline?: boolean;
+  isEmpty?: boolean;
 }) => {
   const colors = {
-    blue: ' ext-blue-600',
+    blue: 'text-blue-600',
     purple: 'text-purple-600',
     green: 'text-green-600',
     red: 'text-red-600'
@@ -150,13 +180,18 @@ const InfoRow = ({
       <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
         <i className={`ki-outline ki-${icon} text-sm`} />
       </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          {label}
+        </p>
         <p
           className={`
-            font-bold text-gray-700 leading-snug
+            font-bold leading-snug
             ${multiline ? 'line-clamp-2 break-words' : 'truncate'}
-
+            ${isEmpty 
+              ? 'text-gray-400 dark:text-gray-500 italic' 
+              : 'text-gray-700 dark:text-gray-200'
+            }
           `}
         >
           {value}

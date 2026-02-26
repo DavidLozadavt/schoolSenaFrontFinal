@@ -11,6 +11,7 @@ interface ListaActividadesProps {
   onCrearCuestionario?: () => void;
   onVer?: (actividad: Actividad) => void;
   onAsignar?: (actividad: Actividad) => void;
+  onAsignarActividad?: (actividad: Actividad) => void;
   onQuitar?: (idPlaneacionActividad: number) => void;
   onMaterialApoyo?: (actividad: Actividad) => void;
   onEditar?: (actividad: Actividad) => void;
@@ -26,6 +27,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onCrearCuestionario,
   onVer,
   onAsignar,
+  onAsignarActividad,
   onQuitar,
   onMaterialApoyo,
   onEditar,
@@ -171,13 +173,13 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-col items-start gap-2">
-                      {modo === 'agregar' && onAsignar && (
+                      {(modo === 'agregar' || modo === 'asignadas') && onAsignarActividad && (
                         <button
-                          onClick={() => onAsignar(act)}
+                          onClick={() => onAsignarActividad(act)}
                           className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded"
                         >
-                          <KeenIcon icon="check" className="text-xs" />
-                          Asignar
+                          <KeenIcon icon="users" className="text-xs" />
+                          Asignar actividad
                         </button>
                       )}
                       {modo === 'asignadas' && onQuitar && (item as { id?: number }).id != null && (

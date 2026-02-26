@@ -7,6 +7,8 @@ interface CardTrimestreProps {
   trimestre: any;
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre:number) => void;
+  onAsignacionSuccess?: () => void;
 }
 
 const formatearFecha = (fecha: Date): string => {
@@ -37,8 +39,15 @@ const obtenerClaseEstado = (estado: string) => {
   return estados[estado] || '';
 };
 
-export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, onAbrirMaterias, setSelectedNivelId }) => {
-  // Verificar si materias es un array de objetos o de IDs
+export const CardTrimestre: React.FC<CardTrimestreProps> = ({
+  trimestre, 
+  index, 
+  onAbrirMaterias, 
+  setSelectedNivelId,
+  onVerRaps,
+  onAsignacionSuccess
+}) => {
+  // Verificar si materias es un array
   const materiasArray = Array.isArray(trimestre.materias) ? trimestre.materias : [];
   const tieneObjetosCompletos = materiasArray.length > 0 && typeof materiasArray[0] === 'object';
 
@@ -46,7 +55,7 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
     <>
       {/* Header del Trimestre */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-5 pb-4 border-b-2 border-gray-100 dark:border-gray-600">
-        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
+        <h3 className="text-2xl font-black text-gray-700 dark:text-gray-600 flex items-center gap-2">
           <span className="text-primary">#{trimestre.grado.numeroGrado || index + 1}</span>
           TRIMESTRE
         </h3>
@@ -58,25 +67,25 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
       {/* Estadísticas del Trimestre */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Inicio</p>
-          <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Inicio</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
             {trimestre.grado.fechaInicio ? formatearFecha(trimestre.grado.fechaInicio) : '--:--:--'}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Fin</p>
-          <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Fin</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
             {trimestre.grado.fechaFin ? formatearFecha(trimestre.grado.fechaFin) : '--:--:--'}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Competencias</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Competencias</p>
           <p className="font-bold text-primary text-sm">
             {materiasArray.length || 0}
           </p>
         </div>
         <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Progreso</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Progreso</p>
           <p className="font-bold text-green-600 dark:text-green-400 text-sm flex items-center justify-center gap-1">
             <TrendingUp size={14} />
             {trimestre.grado.fechaInicio && trimestre.grado.fechaFin 
@@ -95,31 +104,17 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
         {materiasArray.length > 0 ? (
           <div className="space-y-3">
             {tieneObjetosCompletos ? (
-              // Si son objetos completos (trimestres existentes de la API)
               materiasArray.map((materia: any) => (
-                <CardRap key={materia.id} materia={materia} />
+                <CardRap 
+                  key={materia.id} 
+                  materia={materia}
+                  idTrimestre={trimestre.grado.idGradoPrograma}
+                  onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
+                  onAsignacionSuccess={onAsignacionSuccess}
+                />
               ))
-            ) : (
-              // Si son solo IDs (nuevo trimestre temporal)
-              materiasArray.map((idMateria: number) => (
-                <div 
-                  key={idMateria}
-                  className="p-3 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-300 dark:border-gray-600 flex items-center gap-3"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <i className="ki-outline ki-book text-lg font-bold"></i>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-gray-800 dark:text-white">
-                      Competencia ID: {idMateria}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Pendiente de guardar
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
+            ) : (<div ></div>)
+          }
           </div>
         ) : (
           <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -131,8 +126,8 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({ trimestre, index, 
 
         <button
           onClick={() => {
-            onAbrirMaterias(trimestre.id);
-            setSelectedNivelId(trimestre.id);
+            onAbrirMaterias(trimestre.idGradoPrograma);
+            setSelectedNivelId(trimestre.grado.idGradoPrograma);
           }}
           className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
         >

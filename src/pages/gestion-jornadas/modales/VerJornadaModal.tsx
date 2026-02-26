@@ -4,14 +4,14 @@ import React from 'react';
 import clsx from 'clsx';
 
 interface Jornada {
-  grupoJornada: number;
+  id: number;
   nombreJornada: string;
   descripcion: string;
   horaInicial: string;
   horaFinal: string;
   numeroHoras: number;
   tipoHorario: 'Mañana' | 'Tarde' | 'Nocturna';
-  dias: string[];
+  dias: any[];
   estado: string;
 }
 
@@ -112,7 +112,7 @@ const VerJornadaModal: React.FC<VerJornadaModalProps> = ({ jornada, open, onClos
           </div>
 
           <div>
-            <span className="font-semibold">Días:</span> {jornada.dias.join(', ')}
+            <span className="font-semibold">Días:</span> {jornada.dias.map((dia) => dia.dia).join(', ')}
           </div>
 
           <div>

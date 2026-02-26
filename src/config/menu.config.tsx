@@ -44,6 +44,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
             title: 'Ambientes',
             path: '/ambientes',
             requiredPermissions: ['GESTION_REGIONAL']
+          },
+          {
+            title: 'Redes',
+            path: '/redes',
+            requiredPermissions: ['GESTION_REDES']
           }
         ]
   },
@@ -63,6 +68,23 @@ export const MENU_SIDEBAR: TMenuConfig = [
           }
         ]
       }
+    ]
+  },
+  {
+    title: 'Aula Virtual',
+    icon:'teacher',
+    requiredPermissions:['GESTION_APRENDICES'],
+    children:[
+      {
+        title:'Mis clases',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['GESTION_APRENDICES']
+      },
+      {
+        title:'Mis Notas',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['GESTION_APRENDICES']
+      },
     ]
   },
   {

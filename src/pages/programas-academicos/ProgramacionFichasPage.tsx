@@ -4,9 +4,10 @@ import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
-import CrearFicha from './components/CrearFicha';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
-import EditarFicha from './components/EditarFicha'; // IMPORTAR COMPONENTE DE EDICIÓN
+import { useAuthContext } from '@/auth';
+import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
+import CrearEditarFicha from './components/CrearEditarFicha';
 
 interface Ficha {
   id: number;
@@ -14,6 +15,7 @@ interface Ficha {
   porcentajeEjecucion: number;
   idInstructorLider?: number | null;
   documento?: string | null;
+  rutaDocumentoUrl: string | null;
 
   jornada?: {
     id: number;
@@ -23,6 +25,7 @@ interface Ficha {
   sede?: {
     id: number;
     nombre: string;
+    idCentroFormacion:number;
   };
 
   regional?: {
@@ -38,6 +41,14 @@ interface Ficha {
     programa?: {
       id: number;
       nombrePrograma: string;
+      grados:[
+        {
+          id:number;
+          pivot:{
+            idGrado:number;
+          }
+        }
+      ]
     };
   };
 
@@ -65,6 +76,7 @@ interface Program {
 
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [program, setProgram] = useState<Program | null>(null);
@@ -87,8 +99,18 @@ export const ProgramacionFichasPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  //Agregar Juicios evaluativos:
+
+  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
+  const [idFicha, setIdFicha] = useState<number>(0);
+  const [idSede, setIdSede] = useState<number | undefined>(0);
+  const [idGrado, setIdGrado] = useState<number|undefined>(0);
+
   //Creacion de ficha:
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  // Para filtrar las jornadas por el idCentroFormacion:
+  const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
   const loadProgram = async () => {
     if (!programId) return;
@@ -117,7 +139,7 @@ export const ProgramacionFichasPage = () => {
     setLoading(true);
 
     try {
-      const res = await axios.get(`fichas/programa/${programId}`);
+      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {
@@ -125,6 +147,8 @@ export const ProgramacionFichasPage = () => {
           ...ficha,
           documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
         }));
+
+      setIdCentroFormacion(user?.idCentroFormacion);
 
         setFichas(fichasConDocumento);
       } else {
@@ -171,7 +195,6 @@ export const ProgramacionFichasPage = () => {
 
   // Función para editar ficha
   const handleEditarFicha = (fichaId: number) => {
-    console.log('✏️ Editando ficha:', fichaId);
     setFichaIdToEdit(fichaId);
     setIsEditModalOpen(true);
   };
@@ -194,6 +217,20 @@ export const ProgramacionFichasPage = () => {
   return (
     <>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-coal-500">
+        {/* Agregar juicios evaluativos */}
+        <ModalJuiciosEvaluativos
+          open={juiciosEvaluativos}
+          onClose={() => {
+            setJuiciosEvaluativos(false);
+            setIdFicha(0);
+            
+          }}
+          onSave={() => setEvento((pre) => !pre)}
+          idFicha={idFicha}
+          idPrograma={programId}
+          idSede={idSede}
+          idGrado={idGrado}
+        />
         {/* Breadcrumbs */}
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
           <nav className="text-sm text-gray-600 dark:text-gray-400">
@@ -233,7 +270,7 @@ export const ProgramacionFichasPage = () => {
               </div>
             </div>
             <button
-              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+              onClick={() => navigate(-1)}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
             >
               Volver
@@ -264,10 +301,12 @@ export const ProgramacionFichasPage = () => {
           </div>
 
           {isModalOpen && (
-            <CrearFicha
+            <CrearEditarFicha
+              idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
+              onAction={() => setEvento((prev) => !prev)}
             />
           )}
 
@@ -478,7 +517,7 @@ export const ProgramacionFichasPage = () => {
                                   <div className="flex gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => window.open(ficha.documento!, '_blank')}
+                                      onClick={() => window.open(ficha.rutaDocumentoUrl!, '_blank')}
                                       className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                                     >
                                       <i className="ki-outline ki-eye"></i>
@@ -505,6 +544,19 @@ export const ProgramacionFichasPage = () => {
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
                           <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setJuiciosEvaluativos(true);
+                                setIdFicha(ficha.id);
+                                setIdSede(ficha.sede?.id);
+                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado)
+                              }}
+                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <i className="ki-outline ki-book-square"></i>
+                              Agregar juicios Evaluativos
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleEditarFicha(ficha.id)}
@@ -611,13 +663,13 @@ export const ProgramacionFichasPage = () => {
       />
 
       {/* Modal de Edición */}
-      <EditarFicha
+      <CrearEditarFicha
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
         fichaId={fichaIdToEdit}
-        setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
+        onAction={() => setEvento((prev) => !prev)}
       />
 
       {/* Toast de notificación */}

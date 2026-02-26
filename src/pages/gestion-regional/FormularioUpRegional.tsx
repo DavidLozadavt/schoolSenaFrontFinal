@@ -70,7 +70,6 @@ const FormularioUpRegional: React.FC<Props> = ({
 }) => {
   const [logoActual, setLogoActual] = useState<string | null>(null);
   const [toast, setToast] = useState({ isOpen: false, message: '' });
-  const Back = import.meta.env.VITE_APP_BACKEND_URL;
 
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
@@ -173,7 +172,7 @@ const FormularioUpRegional: React.FC<Props> = ({
             ...res.data.data,
             rutaLogo: null
           });
-          setLogoActual(res.data.data.rutaLogo);
+          setLogoActual(res.data.data.rutaLogoUrl);
         } catch (error) {
           alert('Error al cargar la regional');
         }
@@ -399,7 +398,7 @@ const FormularioUpRegional: React.FC<Props> = ({
                 <div className="mt-3">
                   <p className="text-xs text-gray-500 mb-1">Imagen actual</p>
                   <img
-                    src={`${Back}${logoActual}`}
+                    src={`${logoActual}`}
                     alt="Logo actual"
                     className="h-20 rounded-lg border object-contain"
                   />

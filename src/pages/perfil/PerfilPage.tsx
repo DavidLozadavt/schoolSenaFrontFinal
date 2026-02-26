@@ -10,6 +10,7 @@ import { TipoDocumentoInterface } from '../contratacion/model/TipoDocumentoInter
 import { PersonaInterface } from '../contratacion/model/PersonaInterface';
 import { validationFieldPerson } from './utils/validationFieldPerson';
 import { Link } from 'react-router-dom';
+import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 
 interface FormErrors {
   [key: string]: string;
@@ -17,7 +18,7 @@ interface FormErrors {
 
 const PerfilPage = () => {
   const authContext = useAuthContext();
-  const { persona, getUserAuthenticated } = authContext;
+  const { persona, getUserAuthenticated, auth } = authContext;
   const { enqueueSnackbar } = useSnackbar();
 
   const defaultImage = toAbsoluteUrl('/media/avatars/300-35.png');
@@ -30,6 +31,12 @@ const PerfilPage = () => {
   const [previewSrc, setPreviewSrc] = useState<string>(defaultImage);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Estados para el proceso de 2 pasos
+  const [needsPasswordUpdate, setNeedsPasswordUpdate] = useState(false);
+  const [step, setStep] = useState(1); // 1: perfil, 2: contraseña
+  const [profileUpdated, setProfileUpdated] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [formDataPersona, setFormDataPersona] = useState<PersonaInterface>({
@@ -50,7 +57,46 @@ const PerfilPage = () => {
     telefonoFijo: ''
   });
 
-  // Inicializar formulario con datos de persona
+  const checkProfileAccess = async () => {
+    try {
+      const response = await axios.get('profile/access-check', {
+        headers: {
+          'Authorization': `Bearer ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      setNeedsPasswordUpdate(response.data.needs_password_update);
+      
+      if (response.data.needs_password_update) {
+        setStep(1);
+        enqueueSnackbar('Paso 1: Actualice su información personal', { 
+          variant: 'info' 
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error checking profile access:', error);
+      // Fallback por roles si el API no funciona
+      const roles = authContext.roles || [];
+      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('APRENDIZUP');
+      setNeedsPasswordUpdate(needsUpdate);
+      
+      if (needsUpdate) {
+        setStep(1);
+        enqueueSnackbar('Paso 1: Actualice su información personal', { 
+          variant: 'info' 
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (auth) {
+      checkProfileAccess();
+    }
+  }, [auth]);
+
   useEffect(() => {
     if (persona) {
       setFormDataPersona({
@@ -95,7 +141,7 @@ const PerfilPage = () => {
     setErrors({});
   }, [persona]);
 
-  // Preview de la foto
+
   useEffect(() => {
     if (selectedFilePersona instanceof File) {
       const reader = new FileReader();
@@ -119,7 +165,6 @@ const PerfilPage = () => {
     if (name === 'departamento') fetchCiudades(value);
   };
 
-  // Manejo de archivo de foto
   const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
     setSelectedFilePersona(file);
@@ -134,12 +179,11 @@ const PerfilPage = () => {
 
   const handleFilePersonaDelete = () => setSelectedFilePersona(null);
 
-  // Fetch inicial
+
   useEffect(() => {
     fetchTipoIdentificacion();
     fetchDepartamentos();
     
-    // Si hay ciudad seleccionada, cargar ciudades del departamento
     if (persona?.ciudad_ubicacion?.departamento?.id) {
       fetchCiudades(persona.ciudad_ubicacion.departamento.id);
     }
@@ -178,7 +222,6 @@ const PerfilPage = () => {
     }
   };
 
-  // Guardar datos personales
   const handleSubmitPropietarios = async () => {
     let validationErrors: Partial<any> = {};
     Object.entries(formDataPersona).forEach(([name, value]) => {
@@ -201,9 +244,22 @@ const PerfilPage = () => {
 
     try {
       setSaving(true);
+      
       await axios.post(`update_person`, data);
       await getUserAuthenticated();
-      enqueueSnackbar('Datos actualizados con éxito.', { variant: 'success' });
+      
+      if (needsPasswordUpdate) {
+
+        setProfileUpdated(true);
+        setStep(2);
+        enqueueSnackbar('Paso 1 completado. Ahora actualice su contraseña', { variant: 'success' });
+        setTimeout(() => {
+          setShowPasswordModal(true);
+        }, 1000);
+      } else {
+        enqueueSnackbar('Datos actualizados con éxito.', { variant: 'success' });
+      }
+      
     } catch (error) {
       enqueueSnackbar('Error al actualizar los datos.', { variant: 'error' });
     } finally {
@@ -211,7 +267,6 @@ const PerfilPage = () => {
     }
   };
 
-  // Función para cancelar edición
   const handleCancelEditing = () => {
     if (persona) {
       setFormDataPersona({
@@ -235,6 +290,69 @@ const PerfilPage = () => {
       setSelectedFilePersona(persona.foto || null);
     }
     setErrors({});
+  };
+
+
+  const handlePasswordChangeSuccess = async () => {
+    setShowPasswordModal(false);
+    
+    try {
+      console.log('Verificando estado después de cambiar contraseña...');
+      
+      // Verificar el estado actual del perfil
+      const response = await axios.get('profile/access-check', {
+        headers: {
+          'Authorization': `Bearer ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response del access-check:', response.data);
+      
+      // Actualizar el estado local
+      setNeedsPasswordUpdate(response.data.needs_password_update);
+      
+      if (!response.data.needs_password_update) {
+        enqueueSnackbar('¡Proceso completado! Redirigiendo al inicio de sesión...', { variant: 'success' });
+        console.log('Ejecutando logout en 2 segundos...');
+        
+        setTimeout(() => {
+          console.log('Ejecutando logout...');
+          authContext.logout();
+        }, 2000);
+      } else {
+        enqueueSnackbar('Contraseña actualizada, pero el proceso no se completó. Contacte al administrador.', { variant: 'warning' });
+      }
+      
+    } catch (error) {
+      enqueueSnackbar('Error al verificar el estado de la contraseña.', { variant: 'error' });
+      console.error('Error en handlePasswordChangeSuccess:', error);
+    }
+  };
+
+
+  const renderStepIndicator = () => {
+    if (!needsPasswordUpdate) return null;
+    
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-center">
+          <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+              1
+            </div>
+            <span className="ml-2 font-medium">Perfil</span>
+          </div>
+          <div className={`w-16 h-1 mx-4 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+          <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+              2
+            </div>
+            <span className="ml-2 font-medium">Contraseña</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -269,24 +387,50 @@ const PerfilPage = () => {
           </div>
         </Container>
       </div>
-      {/* Formulario de Perfil (siempre visible) */}
-      <div className="rounded-xl shadow-lg p-6">
+
+      {/* Indicador de pasos */}
+      {renderStepIndicator()}
+      
+      {/* Alerta si necesita actualizar contraseña */}
+      {needsPasswordUpdate && (
+        <div className={`p-4 mb-6 border-l-4 ${
+          step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
+        }`}>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <KeenIcon icon={step === 1 ? "information" : "warning"} className={`h-5 w-5 ${step === 1 ? 'text-blue-400' : 'text-yellow-400'}`} />
+            </div>
+            <div className="ml-3">
+              <p className={`text-sm ${step === 1 ? 'text-blue-700' : 'text-yellow-700'}`}>
+                <strong>Proceso de activación en 2 pasos:</strong> 
+                {step === 1 && ' Complete su información personal para continuar.'}
+                {step === 2 && ' Establezca su nueva contraseña para finalizar.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Formulario de Perfil */}
+      <div className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="font-semibold text-lg">Editar Información Personal</h2>
+          <h2 className="font-semibold text-lg">
+            {step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)'}
+          </h2>
           <div className="flex gap-2">
             <button
               className="btn btn-secondary btn-sm"
               onClick={handleCancelEditing}
-              disabled={saving}
+              disabled={saving || step === 2}
             >
               Cancelar
             </button>
             <button
               className="btn btn-primary btn-sm"
               onClick={handleSubmitPropietarios}
-              disabled={saving}
+              disabled={saving || step === 2}
             >
-              {saving ? 'Guardando...' : 'Guardar Cambios'}
+              {saving ? 'Guardando...' : step === 1 ? 'Continuar al Paso 2' : 'Guardado'}
             </button>
           </div>
         </div>
@@ -302,6 +446,7 @@ const PerfilPage = () => {
                     value={formDataPersona.idtipoIdentificacion}
                     onChange={handleChangeFormPerson}
                     className="input"
+                    disabled={step === 2}
                   >
                     <option value="">Seleccione una Opción</option>
                     {tipoIdentificaciones.map((tipoIdentificacion) => (
@@ -336,6 +481,7 @@ const PerfilPage = () => {
                     value={formDataPersona.nombre1}
                     onChange={handleChangeFormPerson}
                     className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
+                    disabled={step === 2}
                   />
                   {errors.nombre1 && (
                     <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>
@@ -351,6 +497,7 @@ const PerfilPage = () => {
                     value={formDataPersona.nombre2}
                     onChange={handleChangeFormPerson}
                     className="input"
+                    disabled={step === 2}
                   />
                   {errors.nombre2 && (
                     <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>
@@ -368,6 +515,7 @@ const PerfilPage = () => {
                     value={formDataPersona.apellido1}
                     onChange={handleChangeFormPerson}
                     className="input"
+                    disabled={step === 2}
                   />
                   {errors.apellido1 && (
                     <p className="text-red-500 text-sm mt-1">{errors.apellido1}</p>
@@ -382,6 +530,7 @@ const PerfilPage = () => {
                     value={formDataPersona.apellido2}
                     onChange={handleChangeFormPerson}
                     className="input"
+                    disabled={step === 2}
                   />
                   {errors.apellido2 && (
                     <p className="text-red-500 text-sm mt-1">{errors.apellido2}</p>
@@ -403,6 +552,7 @@ const PerfilPage = () => {
                     onChange={handleFilePersonaChange}
                     className="file-input w-full"
                     ref={fileInputRef}
+                    disabled={step === 2}
                   />
                 ) : (
                   <div className="flex items-center">
@@ -429,6 +579,7 @@ const PerfilPage = () => {
                 value={formDataPersona.sexo}
                 onChange={handleChangeFormPerson}
                 className="input"
+                disabled={step === 2}
               >
                 <option value="">Seleccione una Opción</option>
                 <option value="F">FEMENINO</option>
@@ -444,6 +595,7 @@ const PerfilPage = () => {
                 value={formDataPersona.rh}
                 onChange={handleChangeFormPerson}
                 className="input"
+                disabled={step === 2}
               >
                 <option value="">Seleccione una Opción</option>
                 <option value="A+">A POSITIVO</option>
@@ -466,6 +618,7 @@ const PerfilPage = () => {
                 onChange={handleChangeFormPerson}
                 className="input"
                 max={new Date().toISOString().split('T')[0]}
+                disabled={step === 2}
               />
               {errors.fechaNac && <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>}
             </div>
@@ -479,6 +632,7 @@ const PerfilPage = () => {
                 value={formDataPersona.departamento}
                 onChange={handleChangeFormPerson}
                 className="input"
+                disabled={step === 2}
               >
                 <option value="">Seleccione un departamento</option>
                 {departamentos.map((departamento) => (
@@ -499,6 +653,7 @@ const PerfilPage = () => {
                 value={formDataPersona.idCiudadUbicacion}
                 onChange={handleChangeFormPerson}
                 className="input"
+                disabled={step === 2}
               >
                 <option value="">Seleccione una ciudad</option>
                 {ciudades.map((ciudad) => (
@@ -520,6 +675,7 @@ const PerfilPage = () => {
                 value={formDataPersona.direccion}
                 onChange={handleChangeFormPerson}
                 className={`input ${errors.direccion ? 'border-red-500' : ''}`}
+                disabled={step === 2}
               />
               {errors.direccion && (
                 <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>
@@ -537,6 +693,7 @@ const PerfilPage = () => {
                 value={formDataPersona.email}
                 onChange={handleChangeFormPerson}
                 className={`input ${errors.email ? 'border-red-500' : ''}`}
+                disabled={step === 2}
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
@@ -549,6 +706,7 @@ const PerfilPage = () => {
                 value={formDataPersona.celular}
                 onChange={handleChangeFormPerson}
                 className={`input ${errors.celular ? 'border-red-500' : ''}`}
+                disabled={step === 2}
               />
               {errors.celular && <p className="text-red-500 text-sm mt-1">{errors.celular}</p>}
             </div>
@@ -561,11 +719,49 @@ const PerfilPage = () => {
                 value={formDataPersona.telefonoFijo}
                 onChange={handleChangeFormPerson}
                 className={`input ${errors.telefonoFijo ? 'border-red-500' : ''}`}
+                disabled={step === 2}
               />
             </div>
           </div>
         </form>
       </div>
+
+      {/* Sección de Seguridad - Solo en paso 2 */}
+      {needsPasswordUpdate && step === 2 && (
+        <div className="rounded-xl shadow-lg p-6 mt-6 bg-yellow-50">
+          <h2 className="font-semibold text-lg mb-4 text-yellow-800">
+            <KeenIcon icon="lock" className="mr-2" />
+            Paso 2: Establecer Contraseña
+          </h2>
+          <div className="bg-yellow-100 border-l-4 border-yellow-400 p-4 mb-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <KeenIcon icon="key" className="h-5 w-5 text-yellow-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  <strong>Último paso:</strong> Establezca su contraseña para completar el proceso de activación.
+                </p>
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn btn-warning w-full"
+            onClick={() => setShowPasswordModal(true)}
+          >
+            <KeenIcon icon="key" className="mr-2" />
+            Establecer Contraseña (Finalizar)
+          </button>
+        </div>
+      )}
+
+      {/* Modal de Cambio de Contraseña */}
+      <ResetPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userEmail={persona?.email || ''}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </Container>
   );
 };

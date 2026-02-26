@@ -12,11 +12,6 @@ export interface Grupo {
   tipoGrupo?: { id: number; nombreTipoGrupo: string };
 }
 
-interface TipoGrupoOption {
-  id: number;
-  nombreTipoGrupo: string;
-}
-
 interface ModalCrearGrupoProps {
   open: boolean;
   onClose: () => void;
@@ -35,24 +30,11 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [cantidadParticipantes, setCantidadParticipantes] = useState<string>('');
   const [descripcion, setDescripcion] = useState('');
-  const [idTipoGrupo, setIdTipoGrupo] = useState<number>(0);
-  const [tiposGrupo, setTiposGrupo] = useState<TipoGrupoOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const isEdit = !!grupoEditar?.id;
 
-  useEffect(() => {
-    if (open && idFicha) {
-      axios.get(`fichas/${idFicha}/grupos/datos-crear`).then((res) => {
-        const tipos = res.data?.tiposGrupo ?? [];
-        setTiposGrupo(Array.isArray(tipos) ? tipos : []);
-        if (tipos.length > 0 && !idTipoGrupo) {
-          setIdTipoGrupo(tipos[0].id);
-        }
-      }).catch(() => setTiposGrupo([]));
-    }
-  }, [open, idFicha]);
 
   useEffect(() => {
     if (open) {
@@ -60,7 +42,6 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
         setNombreGrupo(grupoEditar.nombreGrupo || '');
         setCantidadParticipantes(String(grupoEditar.cantidadParticipantes ?? ''));
         setDescripcion(grupoEditar.descripcion || '');
-        if (grupoEditar.idTipoGrupo) setIdTipoGrupo(grupoEditar.idTipoGrupo);
       } else {
         setNombreGrupo('');
         setCantidadParticipantes('');
@@ -82,25 +63,19 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
       setError('La cantidad de participantes debe ser un número mayor a 0');
       return;
     }
-    if (!idTipoGrupo && tiposGrupo.length > 0) {
-      setError('Selecciona un tipo de grupo');
-      return;
-    }
     setSaving(true);
     try {
       if (isEdit && grupoEditar?.id) {
         await axios.put(`fichas/${idFicha}/grupos/${grupoEditar.id}`, {
           nombreGrupo: nombreGrupo.trim(),
           cantidadParticipantes: cantidad,
-          descripcion: descripcion.trim() || '',
-          idTipoGrupo: idTipoGrupo || tiposGrupo[0]?.id
+          descripcion: descripcion.trim() || ''
         });
       } else {
         await axios.post(`fichas/${idFicha}/grupos`, {
           nombreGrupo: nombreGrupo.trim(),
           cantidadParticipantes: cantidad,
-          descripcion: descripcion.trim() || '',
-          idTipoGrupo: idTipoGrupo || tiposGrupo[0]?.id
+          descripcion: descripcion.trim() || ''
         });
       }
       onSave();
@@ -143,22 +118,6 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
                 placeholder="Ej: Grupo 1"
               />
             </div>
-            {tiposGrupo.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tipo de grupo
-                </label>
-                <select
-                  value={idTipoGrupo}
-                  onChange={(e) => setIdTipoGrupo(Number(e.target.value))}
-                  className="input w-full text-sm"
-                >
-                  {tiposGrupo.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombreTipoGrupo}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cantidad de participantes

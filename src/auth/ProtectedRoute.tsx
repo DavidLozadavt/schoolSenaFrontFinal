@@ -15,11 +15,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, ch
     return <Navigate to="/auth" />;
   }
 
-  const hasPermission = requiredPermissions.every((perm) => permissions.includes(perm));
+/*   const hasPermission = requiredPermissions.every((perm) => permissions.includes(perm));
 
-  if (!auth) {
+    if (!auth) {
     return <Navigate to="/error/403" />;
-  }
+  } */
 
   return <>{children || <Outlet />}</>;
 };

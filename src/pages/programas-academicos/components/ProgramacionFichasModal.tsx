@@ -7,6 +7,7 @@ import MallaCurricular from './malla-curricular/MallaCurricular';
 import CrearFicha from './CrearFicha';
 import { AsignarInstructorLiderModal } from './AsignarInstructorLiderModal';
 import EditarFicha from './EditarFicha';
+import { useAuthContext } from '@/auth';
 
 interface Ficha {
   id: number;
@@ -65,6 +66,7 @@ interface Program {
 
 export const ProgramacionFichasPage = () => {
   const { programId } = useParams<{ programId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [program, setProgram] = useState<Program | null>(null);
@@ -117,7 +119,7 @@ export const ProgramacionFichasPage = () => {
     if (!programId) return;
     setLoading(true);
     try {
-      const res = await axios.get(`fichas/programa/${programId}`);
+      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
       if (res.status === 200) {
         setFichas(res.data.data);
         console.log('Fichas cargadas:', res.data.data);
@@ -261,6 +263,7 @@ export const ProgramacionFichasPage = () => {
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
+              onAction={()=> setEvento((prev) => !prev)}
             />
           )}
 
@@ -448,7 +451,6 @@ export const ProgramacionFichasPage = () => {
                                 {ficha.regional?.razonSocial || '—'}
                               </p>
                             </div>
-                            
                           </div>
                           {ficha.documento ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
@@ -623,6 +625,7 @@ export const ProgramacionFichasPage = () => {
         setEvento={setEvento}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}
+        onAction={()=> setEvento((prev) => !prev)}
       />
 
       {/* Toast de notificación */}

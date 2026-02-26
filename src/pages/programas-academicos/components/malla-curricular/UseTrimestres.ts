@@ -5,22 +5,24 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
   const [trimestres, setTrimestres] = useState<any[]>([]);
   const [nuevoTrimestre, setNuevoTrimestre] = useState<any | null>(null);
   const [guardandoTrimestre, setGuardandoTrimestre] = useState(false);
+  const [loadingTrimestres, setLoadingTrimestres] = useState<boolean>(false);
 
   // estado para toast
   const [toast, setToast] = useState<boolean>(false);
-
 
   // Cargar trimestres
   const cargarTrimestres = async (fichaIdParam?: number) => {
     const idFicha = fichaIdParam || fichaId;
     if (!idFicha) {
       setTrimestres([]);
+      setLoadingTrimestres(true);
       return;
     }
 
     try {
       const response = await axios.get(`trimestres-ficha/${idFicha}`);
       setTrimestres(response.data.data || []);
+      setLoadingTrimestres(true);
       setNuevoTrimestre(null);
     } catch {
       setTrimestres([]);
@@ -31,26 +33,34 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
   const calcularFechaInicio = (ficha: any) => {
     if (trimestres.length > 0) {
       const ultimo = trimestres[trimestres.length - 1];
-      return ultimo.grado?.fechaFin || ultimo.fechaFin || ficha?.asignacion?.fechaInicialClases;
+      return ultimo.grado?.fechaFin || ultimo.fechaFin || new Date().toISOString().split('T')[0];
     }
-    return new Date(ficha?.asignacion?.fechaInicialClases).toISOString().split('T')[0] || null;
+    return new Date().toISOString().split('T')[0];
   };
 
-  // Agregar nuevo trimestre temporal
+
   const agregarNuevoTrimestre = (ficha: any) => {
     if (!ficha || !programaId || nuevoTrimestre) return;
+
+    // Calcular el siguiente número de trimestre basado en el máximo existente
+    const maxGrado = trimestres.reduce((max, t) => {
+      const num = t.grado?.numeroGrado || t.numeroGrado || 0;
+      return num > max ? num : max;
+    }, 0);
+
+    const siguienteGrado = maxGrado + 1;
 
     const nuevo = {
       id: `temp-${Date.now()}`,
       idPrograma: programaId,
-      numeroGrado: trimestres.length + 1,
+      numeroGrado: siguienteGrado,
       fechaInicio: calcularFechaInicio(ficha),
       fechaFin: '',
       idFicha: ficha.id,
       materias: [],
       esNuevo: true,
       grado: {
-        numeroGrado: trimestres.length + 1,
+        numeroGrado: siguienteGrado,
         fechaInicio: calcularFechaInicio(ficha),
         fechaFin: '',
         estado: 'NUEVO'
@@ -82,6 +92,34 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
     setTrimestres(trimestres.map(t => (t.id === nuevoTrimestre.id ? actualizado : t)));
   };
 
+  // Actualizar fecha inicio
+  const actualizarFechaInicio = (fechaInicio: string) => {
+    if (!nuevoTrimestre) return;
+
+    const actualizado = {
+      ...nuevoTrimestre,
+      fechaInicio,
+      grado: { ...nuevoTrimestre.grado, fechaInicio }
+    };
+
+    setNuevoTrimestre(actualizado);
+    setTrimestres(trimestres.map(t => (t.id === nuevoTrimestre.id ? actualizado : t)));
+  };
+
+  // Actualizar numero grado
+  const actualizarNumeroGrado = (numeroGrado: number) => {
+    if (!nuevoTrimestre) return;
+
+    const actualizado = {
+      ...nuevoTrimestre,
+      numeroGrado,
+      grado: { ...nuevoTrimestre.grado, numeroGrado }
+    };
+
+    setNuevoTrimestre(actualizado);
+    setTrimestres(trimestres.map(t => (t.id === nuevoTrimestre.id ? actualizado : t)));
+  };
+
   const actualizarMaterias = (idsMateria: number[]) => {
     if (!nuevoTrimestre) return;
 
@@ -95,7 +133,7 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
   };
 
   // Guardar trimestre
-  const guardarTrimestre = async (ficha: any): Promise<boolean> => {
+  const crearTrimestre = async (ficha: any): Promise<boolean> => {
     if (!nuevoTrimestre || !ficha) {
       alert('No se ha proporcionado la ficha');
       return false;
@@ -123,28 +161,45 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
         materias: nuevoTrimestre.materias
       };
       await axios.post('trimestres-ficha', payload);
-        setToast(true)
+      setToast(true)
       await cargarTrimestres(ficha.id);
-      
+
       return true;
     } catch (error: any) {
-      
+
       return false;
     } finally {
       setGuardandoTrimestre(false);
     }
   };
 
-  // Quitar último trimestre
-  const quitarUltimoTrimestre = () => {
-    if (trimestres.length === 0) return;
+  const asignarCompetenciasTrimestre = async (idGradoPrograma: number, materias: any[], idFicha: number): Promise<boolean> => {
+    if (!idGradoPrograma) {
+      alert('ID de trimestre no válido');
+      return false;
+    }
 
-    const ultimo = trimestres[trimestres.length - 1];
+    if (!materias || materias.length === 0) {
+      alert('Debes seleccionar al menos una competencia');
+      return false;
+    }
 
-    if (ultimo.esNuevo) {
-      cancelarNuevoTrimestre();
-    } else {
-      setTrimestres(trimestres.slice(0, -1));
+    try {
+      setGuardandoTrimestre(true);
+
+      await axios.post('competencias/trimestre', {
+        idGradoPrograma,
+        materias: materias,
+        idFicha: idFicha
+      });
+
+      setToast(true);
+      return true;
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Error al asignar competencias');
+      return false;
+    } finally {
+      setGuardandoTrimestre(false);
     }
   };
 
@@ -156,10 +211,14 @@ export const useTrimestres = (fichaId: number | undefined, programaId: number | 
     agregarNuevoTrimestre,
     cancelarNuevoTrimestre,
     actualizarFechaFin,
+    actualizarFechaInicio,
+    actualizarNumeroGrado,
     actualizarMaterias,
-    guardarTrimestre,
-    quitarUltimoTrimestre,
+    crearTrimestre,
+    asignarCompetenciasTrimestre,
     toast,
-    setToast
+    setToast,
+    loadingTrimestres,
+    programaId
   };
 };

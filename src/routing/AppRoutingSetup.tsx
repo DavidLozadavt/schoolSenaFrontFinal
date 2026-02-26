@@ -98,6 +98,7 @@ import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
+import ProgramasEntryPage from '@/pages/programas-academicos/ProgramasEntryPage';
 import { ProgramacionFichasPage } from '@/pages/programas-academicos/ProgramacionFichasPage';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
@@ -110,7 +111,9 @@ import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
-
+import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
+import Redes from '@/pages/gestion-red/Redes';
+import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgramas';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -790,6 +793,22 @@ const AppRoutingSetup = (): ReactElement => {
             path="/gestion-academica/configuracion/programas"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ProgramasEntryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <RedesProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
               </ProtectedRoute>
             }
@@ -980,6 +999,15 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
 
+          <Route
+            path="/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Redes />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Ambiente Virtual */}
           <Route
             path="/ambiente-virtual/historial-raps"
@@ -998,6 +1026,7 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
         </Route>
+        
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />
       <Route path="auth/*" element={<AuthPage />} />
