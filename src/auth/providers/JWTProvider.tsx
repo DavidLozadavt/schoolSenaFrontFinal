@@ -26,6 +26,8 @@ interface AuthContextProps {
   permissions: string[];
   setPermissions: Dispatch<SetStateAction<string[]>>;
   getUserAuthenticated: () => Promise<void>;
+  centroF:number;
+  setCentroF:Dispatch<SetStateAction<number>>;
   logout: () => void;
   login: (email: string, password: string, device_token: string) => Promise<void>;
   verify: () => Promise<void>;
@@ -42,6 +44,9 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [auth, setAuth] = useState<AuthModel | undefined>(authHelper.getAuth());
+
+  //Para ver los centros de formación los usuarios que por su naturaleza no tienen centro de formacion
+  const [centroF, setCentroF] = useState<number>(0);
 
   const verify = async () => {
     if (auth) {
@@ -162,6 +167,8 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
         setUser,
         getUserAuthenticated,
         login,
+        centroF,
+        setCentroF,
         verify,
         logout
       }}

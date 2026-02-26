@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
@@ -8,6 +8,7 @@ import { AsignarInstructorLiderModal } from './components/AsignarInstructorLider
 import { useAuthContext } from '@/auth';
 import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface Ficha {
   id: number;
@@ -25,7 +26,7 @@ interface Ficha {
   sede?: {
     id: number;
     nombre: string;
-    idCentroFormacion:number;
+    idCentroFormacion: number;
   };
 
   regional?: {
@@ -41,14 +42,14 @@ interface Ficha {
     programa?: {
       id: number;
       nombrePrograma: string;
-      grados:[
+      grados: [
         {
-          id:number;
-          pivot:{
-            idGrado:number;
-          }
+          id: number;
+          pivot: {
+            idGrado: number;
+          };
         }
-      ]
+      ];
     };
   };
 
@@ -104,7 +105,7 @@ export const ProgramacionFichasPage = () => {
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
   const [idFicha, setIdFicha] = useState<number>(0);
   const [idSede, setIdSede] = useState<number | undefined>(0);
-  const [idGrado, setIdGrado] = useState<number|undefined>(0);
+  const [idGrado, setIdGrado] = useState<number | undefined>(0);
 
   //Creacion de ficha:
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -133,27 +134,55 @@ export const ProgramacionFichasPage = () => {
       console.error('Error al cargar programa:', error);
     }
   };
+  const authContext = useContext(AuthContext);
+
+  if (!authContext) {
+    throw new Error('AuthContext debe usarse dentro de AuthProvider');
+  }
+
+  const {centroF} = authContext;
 
   const loadFichas = async () => {
     if (!programId) return;
     setLoading(true);
 
     try {
-      const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
-      const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
-      if (res.status === 200 && Array.isArray(res.data.data)) {
-        const fichasConDocumento = res.data.data.map((ficha: any) => ({
-          ...ficha,
-          documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
-        }));
-
-      setIdCentroFormacion(user?.idCentroFormacion);
-
-        setFichas(fichasConDocumento);
-      } else {
-        setFichas([]);
+      if(centroF != 0){
+        const res = await axios.get(`fichas/programa/${programId}/${centroF}`);
+        const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
+  
+        if (res.status === 200 && Array.isArray(res.data.data)) {
+          const fichasConDocumento = res.data.data.map((ficha: any) => ({
+            ...ficha,
+            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
+          }));
+  
+          setIdCentroFormacion(user?.idCentroFormacion);
+  
+          setFichas(fichasConDocumento);
+        } else {
+          setFichas([]);
+        }
+        
+      }else{
+        const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
+        const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
+  
+        if (res.status === 200 && Array.isArray(res.data.data)) {
+          const fichasConDocumento = res.data.data.map((ficha: any) => ({
+            ...ficha,
+            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
+          }));
+  
+          setIdCentroFormacion(user?.idCentroFormacion);
+  
+          setFichas(fichasConDocumento);
+        } else {
+          setFichas([]);
+        }
       }
+
     } catch (error) {
       console.error('Error cargando fichas', error);
       setFichas([]);
@@ -223,7 +252,6 @@ export const ProgramacionFichasPage = () => {
           onClose={() => {
             setJuiciosEvaluativos(false);
             setIdFicha(0);
-            
           }}
           onSave={() => setEvento((pre) => !pre)}
           idFicha={idFicha}
@@ -550,7 +578,9 @@ export const ProgramacionFichasPage = () => {
                                 setJuiciosEvaluativos(true);
                                 setIdFicha(ficha.id);
                                 setIdSede(ficha.sede?.id);
-                                setIdGrado(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1)
+                                setIdGrado(
+                                  ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1
+                                );
                               }}
                               className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                             >
