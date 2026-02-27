@@ -396,16 +396,14 @@ export const CardRap = ({
         >
           <Pencil size={18} />
         </button>
-
-        {materia.idMateriaPadre != null && (
-          <button
-            onClick={() => setIsCalendarioOpen(true)}
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
-            title="Horarios"
-          >
-            <Calendar size={18} />
-          </button>
-        )}
+       
+        <button
+          onClick={() => setIsCalendarioOpen(true)}
+          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+          title="Horarios"
+        >
+          <Calendar size={18} />
+        </button>       
 
         <button
           onClick={handleEliminarCompetencia}
