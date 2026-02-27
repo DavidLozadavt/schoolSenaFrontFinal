@@ -594,34 +594,34 @@ export const ProgramacionFichasPage = () => {
                                   ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1
                                 );
                               }}
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 rounded-lg transition-all"
+                              title='Juicios evaluativos'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-green-700 dark:text-green-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-book-square text-base"></i>
-                              Juicios
                             </button>
                             <button
                               type="button"
                               onClick={() => setVerHorariosFicha(ficha)}
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
+                              title='Horarios'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-calendar text-base"></i>
-                              Horarios
                             </button>
                             <button
                               type="button"
                               onClick={() => handleEditarFicha(ficha.id)}
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 rounded-lg transition-all"
+                              title='Editar'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-notepad-edit text-base"></i>
-                              Editar
                             </button>
                             <button
                               type="button"
                               onClick={() => handleEliminarFicha(ficha.id)}
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 rounded-lg transition-all"
+                              title='Eliminar'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-trash text-base"></i>
-                              Eliminar
                             </button>
                           </div>
                         </div>
