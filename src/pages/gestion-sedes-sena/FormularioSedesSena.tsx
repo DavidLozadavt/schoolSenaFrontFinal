@@ -265,6 +265,8 @@ const FormularioSedesSena: React.FC<Props> = ({
     formik.setFieldValue(field, value.toUpperCase());
   };
 
+  const { resetForm, setValues } = formik;
+
   // Cargar datos de la sede en modo edición
   useEffect(() => {
     if (mode === 'edit' && idSede) {
@@ -280,7 +282,7 @@ const FormularioSedesSena: React.FC<Props> = ({
           }
 
           // Mapear los datos a la estructura del formulario
-          formik.setValues({
+          setValues({
             nombre: data.nombre || '',
             jefeInmediato: data.jefeInmediato || '',
             descripcion: data.descripcion || '',
@@ -328,11 +330,11 @@ const FormularioSedesSena: React.FC<Props> = ({
       loadSede();
     } else {
       // Resetear en modo crear
-      formik.resetForm();
+      resetForm();
       setImagenActual(null);
       setCentrosFormacion([]);
     }
-  }, [idSede, mode]);
+  }, [idSede, mode, resetForm, setValues]);
 
   // Cargar centros de formación cuando se selecciona una regional
   const handleChangeRegional = async (value: { value: number; label: string } | null) => {

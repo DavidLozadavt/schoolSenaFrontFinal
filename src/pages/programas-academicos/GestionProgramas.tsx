@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
@@ -114,36 +114,33 @@ export const GestionProgramas = ({
 
   const { idRed } = useParams();
 
-  useEffect(() => {
-    if (idRed) {
-      fetchProgramas();
-    }
-  }, [authContext, idCentroFormacion]);
-
   const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
 
-  const mapBackendToUi = (p: any): Program => {
-    const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
-    return {
-      id: p.id,
-      name: p.nombrePrograma,
-      codigo: p.codigoPrograma,
-      status: p.estado?.nombre || 'ACTIVO',
-      estado: p.estado,
-      nivel: p.nivel?.nombreNivel || 'N/A',
-      formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
-      imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
-      description: p.descripcionPrograma,
-      documento: p.documento ? `${backUrl}${p.documento}` : null,
-      idNivelEducativo: p.idNivelEducativo,
-      idTipoFormacion: p.idTipoFormacion,
-      idEstadoPrograma: p.idEstadoPrograma,
-      red: p.red,
-      fichas_count: p.fichas_activas_count ?? 0
-    };
-  };
+  const mapBackendToUi = useCallback(
+    (p: any): Program => {
+      const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
+      return {
+        id: p.id,
+        name: p.nombrePrograma,
+        codigo: p.codigoPrograma,
+        status: p.estado?.nombre || 'ACTIVO',
+        estado: p.estado,
+        nivel: p.nivel?.nombreNivel || 'N/A',
+        formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
+        imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
+        description: p.descripcionPrograma,
+        documento: p.documento ? `${backUrl}${p.documento}` : null,
+        idNivelEducativo: p.idNivelEducativo,
+        idTipoFormacion: p.idTipoFormacion,
+        idEstadoPrograma: p.idEstadoPrograma,
+        red: p.red,
+        fichas_count: p.fichas_activas_count ?? 0
+      };
+    },
+    [backUrl]
+  );
 
-  const fetchProgramas = async () => {
+  const fetchProgramas = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -165,7 +162,13 @@ export const GestionProgramas = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [idCentroFormacion, idRed, mapBackendToUi]);
+
+  useEffect(() => {
+    if (idRed) {
+      fetchProgramas();
+    }
+  }, [idRed, fetchProgramas]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
