@@ -70,8 +70,12 @@ export const GestionProgramas = ({
     }
     if (authContext?.roles?.includes('ADMIN REGIONAL')) {
       setIdRegional(authContext?.empresa.id);
-    } else {
-      setIdRegional(authContext.user?.idCentroFormacion);
+      return
+    } 
+    if(authContext?.roles?.includes('ADMIN CENTRO')) {
+      setIdRegional(authContext?.empresa.id);
+      setIdCentroFormacion(authContext?.user?.idCentroFormacion)
+      return
     }
   }, [authContext]);
 
