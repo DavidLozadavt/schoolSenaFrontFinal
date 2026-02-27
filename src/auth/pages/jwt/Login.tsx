@@ -115,9 +115,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen w-full flex items-center justify-center px-4">
       <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200"
+        className="w-full max-w-md rounded-2xl  shadow-xl border border-gray-200"
         style={{ border: '1px solid #e5e7eb' }}
       >
         <form
@@ -149,7 +149,7 @@ const Login = () => {
               autoComplete="off"
               {...formik.getFieldProps('email')}
               className={clsx(
-                'w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all',
+                'w-full rounded-xl border px-4 py-3 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
                 'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
                 'hover:border-gray-400',
                 {
@@ -176,7 +176,7 @@ const Login = () => {
                 autoComplete="off"
                 {...formik.getFieldProps('password')}
                 className={clsx(
-                  'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
+                  'w-full rounded-xl border px-4 py-3 pr-12 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
                   'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
                   'hover:border-gray-400',
                   {
