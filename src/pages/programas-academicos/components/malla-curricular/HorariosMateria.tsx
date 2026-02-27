@@ -370,7 +370,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   };
 
   return (
-    <div className='fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/5 backdrop-blur-sm animate-fade-in'>
+    <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 bg-black/5 backdrop-blur-sm animate-fade-in'>
       <ModalContent className="w-full max-w-6xl p-4 max-h-[95vh]">
         <ModalHeader>
           <ModalTitle>Configurar Horarios de la Materia - Jornada: {jornada}</ModalTitle>
