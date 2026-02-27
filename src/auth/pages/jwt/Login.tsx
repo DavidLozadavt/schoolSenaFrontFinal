@@ -10,10 +10,15 @@ import { messaging } from '../../../../src/firebase/firebaseConfig';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
-    .email('Wrong email format')
     .min(3, 'Minimum 3 symbols')
     .max(50, 'Maximum 50 symbols')
-    .required('Email is required'),
+    .test('email-or-number', 'Email or user number is invalid', (value) => {
+      if (!value) return false;
+      const isEmail = Yup.string().email().isValidSync(value);
+      const isNumber = /^\d+$/.test(value);
+      return isEmail || isNumber;
+    })
+    .required('Email or user number is required'),
   password: Yup.string()
     .min(3, 'Minimum 3 symbols')
     .max(50, 'Maximum 50 symbols')
@@ -137,10 +142,10 @@ const Login = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">
-              Correo electrónico
+              Usuario
             </label>
             <input
-              placeholder="correo@ejemplo.com"
+              placeholder="correo@ejemplo.com o 123456"
               autoComplete="off"
               {...formik.getFieldProps('email')}
               className={clsx(
@@ -231,3 +236,4 @@ const Login = () => {
 };
 
 export { Login };
+
