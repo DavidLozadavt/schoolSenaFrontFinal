@@ -234,7 +234,6 @@ export const GestionProgramas = ({
       minHeight: '46px',
       height: '46px',
       borderRadius: '12px',
-      backgroundColor: 'rgba(255,255,255,0.8)',
       backdropFilter: 'blur(8px)',
       borderColor: state.isFocused ? '#2563eb' : '#d1d5db',
       boxShadow: state.isFocused ? '0 0 0 2px rgba(37,99,235,0.2)' : 'none',
@@ -275,7 +274,6 @@ export const GestionProgramas = ({
     ...theme,
     colors: {
       ...theme.colors,
-      primary25: '#eff6ff',
       primary: '#2563eb'
     }
   });

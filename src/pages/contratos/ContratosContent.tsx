@@ -43,7 +43,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
 
     console.log('Roles del AuthContext:', roles);
     
-    const adminRoles = ['ADMINISTRADOR VT', 'ADMINISTRADOR REGIONAL'];
+    const adminRoles = ['ADMINISTRADOR VT', 'ADMIN REGIONAL'];
     const hasAdminRole = roles.some((role: string) => adminRoles.includes(role.toUpperCase()));
     
     console.log('¿Es admin?', hasAdminRole);
@@ -54,8 +54,8 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
       console.log('Configurando para ADMINISTRADOR VT');
       setShowEmpresaSelect(true);
       setShowCentroSelect(true);
-    } else if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR REGIONAL')) {
-      console.log('Configurando para ADMINISTRADOR REGIONAL');
+    } else if (roles.some((role: string) => role.toUpperCase() === 'ADMIN REGIONAL')) {
+      console.log('Configurando para ADMIN REGIONAL');
       setShowEmpresaSelect(false);
       setShowCentroSelect(true);
     } else {
@@ -174,8 +174,8 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
         await fetchDatosAdminVT();
         return;
       }
-      else if (roles.some((role: string) => role.toUpperCase() === 'ADMINISTRADOR REGIONAL')) {
-        console.log('Es ADMINISTRADOR REGIONAL');
+      else if (roles.some((role: string) => role.toUpperCase() === 'ADMIN REGIONAL')) {
+        console.log('Es ADMIN REGIONAL');
         if (selectedCentroFormacion !== null) {
           params.idCentroFormacion = selectedCentroFormacion;
           console.log('Agregando idCentroFormacion:', selectedCentroFormacion);

@@ -79,7 +79,7 @@ const PerfilPage = () => {
       console.error('Error checking profile access:', error);
       // Fallback por roles si el API no funciona
       const roles = authContext.roles || [];
-      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('APRENDIZUP');
+      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('ESTUDIANTEUP');
       setNeedsPasswordUpdate(needsUpdate);
       
       if (needsUpdate) {
