@@ -330,7 +330,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500"></div><span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Asignado</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div><span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Pendiente</span></div>
           </div>
-          {materia.idMateriaPadre != null && !idFicha &&
+          {materia.idMateriaPadre != null &&
             <button onClick={onAddSchedule} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
               <Plus size={14} />Programar Horario
             </button>
