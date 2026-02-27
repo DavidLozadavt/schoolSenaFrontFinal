@@ -5,14 +5,17 @@ import { KeenIcon } from '@/components';
 
 const VITE_APP_API_URL = import.meta.env.VITE_APP_API_URL;
 
+
 interface ResetPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string;
+  identification?: string;
+  isApprentice?: boolean;
   onSuccess?: () => void;
 }
 
-const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPasswordModalProps) => {
+const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isApprentice, onSuccess }: ResetPasswordModalProps) => {
   const { enqueueSnackbar } = useSnackbar();
 
 
@@ -20,9 +23,9 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
   const [emailForReset, setEmailForReset] = useState<string>(userEmail);
   const [otpCode, setOtpCode] = useState<string[]>(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
-  
+
   const [verifiedToken, setVerifiedToken] = useState<string>('');
-  
+
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [showPassword, setShowPassword] = useState(false);
@@ -30,9 +33,16 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
 
   useEffect(() => {
     if (userEmail) {
-      setEmailForReset(userEmail);
+      // Si el email es solo números, probablemente es la identificación y no el correo de la persona
+      const isOnlyDigits = /^\d+$/.test(userEmail);
+
+      if (isApprentice && isOnlyDigits) {
+        setEmailForReset('');
+      } else {
+        setEmailForReset(userEmail);
+      }
     }
-  }, [userEmail]);
+  }, [userEmail, isApprentice]);
 
   useEffect(() => {
     if (countdown > 0 && currentStep === 'otp') {
@@ -60,13 +70,13 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
     setLoading(true);
     try {
       await axios.post(`${VITE_APP_API_URL}password/send-otp`, {
-        email: emailForReset
+        email: emailForReset.trim().toLowerCase()
       });
 
       enqueueSnackbar('Código enviado correctamente', { variant: 'success' });
       setCurrentStep('otp');
       setCountdown(60);
-      
+
     } catch (error: any) {
       if (error.response?.status === 404) {
         enqueueSnackbar('No encontramos una cuenta con ese email', { variant: 'error' });
@@ -83,7 +93,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
-    
+
     const newOtpCode = [...otpCode];
     newOtpCode[index] = value.slice(0, 1);
     setOtpCode(newOtpCode);
@@ -117,9 +127,10 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
     setLoading(true);
     try {
       const response = await axios.post(`${VITE_APP_API_URL}password/verify-otp`, {
-        email: emailForReset,
-        otp: otp
-        
+        email: emailForReset.trim().toLowerCase(),
+        otp: otp,
+        identificacion: identification
+
       });
 
       let token = '';
@@ -136,7 +147,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
       setVerifiedToken(token);
       enqueueSnackbar('Código verificado correctamente', { variant: 'success' });
       setCurrentStep('newPassword');
-      
+
     } catch (error: any) {
       if (error.response?.data?.message) {
         enqueueSnackbar(error.response.data.message, { variant: 'error' });
@@ -153,7 +164,9 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
 
     setLoading(true);
     try {
-      await axios.post(`${VITE_APP_API_URL}password/send-otp`, { email: emailForReset });
+      await axios.post(`${VITE_APP_API_URL}password/send-otp`, {
+        email: emailForReset.trim().toLowerCase()
+      });
       enqueueSnackbar('Código reenviado. Revisa tu correo.', { variant: 'success' });
       setCountdown(60);
       setOtpCode(['', '', '', '', '', '']);
@@ -185,16 +198,17 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
     setLoading(true);
     try {
       const response = await axios.post(`${VITE_APP_API_URL}password/reset`, {
-        email: emailForReset,
+        email: emailForReset.trim().toLowerCase(),
         password: newPassword.password,
         password_confirmation: newPassword.confirmPassword,
-        token: verifiedToken
+        token: verifiedToken,
+        identificacion: identification
       });
 
       enqueueSnackbar(response.data?.message || '¡Contraseña cambiada exitosamente!', { variant: 'success' });
       if (onSuccess) onSuccess();
       handleClose();
-      
+
     } catch (error: any) {
       if (error.response?.status === 422) {
         // Errores de validación
@@ -349,7 +363,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
             <input
               type={showPassword ? 'text' : 'password'}
               value={newPassword.password}
-              onChange={(e) => setNewPassword({...newPassword, password: e.target.value})}
+              onChange={(e) => setNewPassword({ ...newPassword, password: e.target.value })}
               placeholder="Mínimo 8 caracteres"
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
             />
@@ -369,7 +383,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={newPassword.confirmPassword}
-              onChange={(e) => setNewPassword({...newPassword, confirmPassword: e.target.value})}
+              onChange={(e) => setNewPassword({ ...newPassword, confirmPassword: e.target.value })}
               placeholder="Repite tu contraseña"
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
             />
@@ -408,7 +422,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, onSuccess }: ResetPass
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
-      
+
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
           <div className="p-6">
