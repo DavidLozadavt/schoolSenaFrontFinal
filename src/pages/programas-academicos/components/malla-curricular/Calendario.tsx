@@ -32,7 +32,7 @@ const mapeoDias: { [key: string]: number } = {
   'SÁBADO': 6
 };
 
-const daysOfWeek = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+const daysOfWeek = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
 const months = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
@@ -170,9 +170,10 @@ export const Calendario: React.FC<CalendarioProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 !z-[500] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <ModalContent className="w-full max-w-5xl max-h-[95vh] flex flex-col p-0 overflow-visible">
-        <ModalHeader className="px-6 pr-12 py-4 flex flex-col md:flex-row md:items-center justify-between relative !z-[10]">
+    <div className="fixed inset-0 z-[40] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
+      <ModalContent className="w-full max-w-5xl h-[90vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+
+        <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <CalendarIcon size={20} />
@@ -210,7 +211,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </button>
         </ModalHeader>
 
-        <ModalBody className="flex-1 bg-gray-50 dark:bg-coal-600 custom-scrollbar !overflow-visible relative !z-[50]">
+        <ModalBody className="flex-grow bg-gray-50 dark:bg-coal-600 custom-scrollbar overflow-y-auto overflow-x-hidden p-6 pb-20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-bold capitalize dark:text-white flex items-center">
               <ChevronLeft size={18} className="cursor-pointer text-gray-400 hover:text-primary transition-colors" onClick={() => navigate(-1)} />
@@ -224,9 +225,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
             <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-700 rounded-md text-[10px] font-bold uppercase transition-all dark:text-white hover:bg-gray-100">Hoy</button>
           </div>
 
-          <div className="bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-visible">
+          <div className="bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
             {viewMode === 'month' && (
-              <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/50 overflow-visible">
+              <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/50">
                 {daysOfWeek.map(d => <div key={d} className="py-2 text-center text-[10px] font-black text-gray-400 uppercase">{d}</div>)}
               </div>
             )}
@@ -237,83 +238,59 @@ export const Calendario: React.FC<CalendarioProps> = ({
                 const events = getEventsForDate(date);
                 const isToday = date.toDateString() === new Date().toDateString();
 
+                // Lógica de posición del tooltip para evitar recortes
+                const colIndex = i % 7;
+                const isRightCol = colIndex >= 4;
+                const isBottomRow = i >= 21;
+
                 return (
-                  <div key={i} className={`min-h-[60px] m-1 border-r border-b border-gray-100 dark:border-gray-700 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
+                  <div key={i} className={`min-h-[60px] m-1 border-r border-b border-gray-100 dark:border-gray-700 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
                     <span className={`text-xs font-semibold mb-1 inline-block h-5 w-5 rounded-full flex items-center justify-center transition-colors ${isToday ? 'bg-primary text-white' : 'text-gray-500 dark:text-gray-400'}`}>{date.getDate()}</span>
                     <div className="space-y-0.5 w-full">
                       {events.map((ev, idx) => {
                         const hIni = ev.horaInicial || ev.horaInicio;
                         const hFin = ev.horaFinal || ev.horaFin;
-                        const isFirstRow = i < 7;
                         const instructor = ev.instructor || ev.contrato?.persona;
                         const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
 
                         return (
-                          <div key={idx} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default ${ev.type === 'assigned' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
+                          <div key={idx} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${ev.type === 'assigned' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
 
-                            {viewMode === 'month' ? (
-                              <div className="truncate">{format12h(hIni)} - {format12h(hFin)}</div>
-                            ) : (
-                              <div className="flex items-center gap-2 py-0.5 overflow-visible">
-                                {instructor && (
-                                  <div className="w-6 h-6 rounded-full border border-white shrink-0 overflow-hidden bg-gray-200 bg-cover bg-center" style={{ backgroundImage: (instructor.rutaFotoUrl || instructor.rutaFoto) ? `url(${instructor.rutaFotoUrl || instructor.rutaFoto})` : 'none' }}>
-                                    {!(instructor.rutaFotoUrl || instructor.rutaFoto) && <User size={12} className="m-auto mt-1.5 text-gray-400" />}
-                                  </div>
-                                )}
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate leading-tight uppercase font-black tracking-tight">
-                                    {format12h(hIni)} - {format12h(hFin)} • {instructor?.nombre1 || 'Sin asignar'}
-                                  </span>
-                                  {instructor?.email && (
-                                    <span className="text-[8px] font-normal opacity-70 truncate lowercase tracking-normal">
-                                      {instructor.email}
-                                    </span>
+                            <div className="truncate">{format12h(hIni)} - {format12h(hFin)}</div>
+
+                            {/* Tooltip con posicionamiento dinámico */}
+                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-52 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
+                              {instructor && (
+                                <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500">
+                                  {(instructor.rutaFotoUrl || instructor.rutaFoto) ? (
+                                    <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
                                   )}
                                 </div>
-                              </div>
-                            )}
-
-                            {/* Tooltip solo en vista Mes */}
-                            {viewMode === 'month' && (
-                              <div className={`absolute left-1/2 -translate-x-1/2 ${isFirstRow ? 'top-full' : 'bottom-full mb-2'} w-52 p-0 bg-white dark:bg-coal-300 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-300 z-[400] pointer-events-none scale-90 group-hover/event:scale-100 ${isFirstRow ? 'origin-top' : 'origin-bottom'}`}>
-                                {instructor && (
-                                  <div className="h-28 w-full relative overflow-hidden rounded-t-2xl bg-gray-100 dark:bg-coal-500">
-                                    {(instructor.rutaFotoUrl || instructor.rutaFoto) ? (
-                                      <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
-                                    )}
+                              )}
+                              <div className="p-3 text-left">
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2 text-primary">
+                                    <Clock size={12} className="shrink-0" />
+                                    <span className="text-[10px] uppercase font-black tracking-wider">{format12h(hIni)} - {format12h(hFin)}</span>
                                   </div>
-                                )}
-                                <div className="p-2 text-left">
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex items-center gap-2 text-primary">
-                                      <Clock size={12} className="shrink-0" />
-                                      <span className="text-[10px] uppercase font-black tracking-wider">{format12h(hIni)} - {format12h(hFin)}</span>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-4xs text-gray-400 font-bold uppercase">Materia / RAP</p>
+                                    <p className="text-[10px] font-black leading-tight dark:text-white uppercase line-clamp-2">{materiaNombre}</p>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-4xs text-gray-400 font-bold uppercase">Instructor</p>
+                                    <div className="flex items-center gap-2 dark:text-white">
+                                      <User size={12} className="text-gray-400 shrink-0" />
+                                      <span className="text-[11px] font-bold leading-tight truncate">
+                                        {instructor ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}` : <span className="text-orange-500 uppercase tracking-tighter">Sin asignar</span>}
+                                      </span>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                      <p className="text-4xs text-gray-400 font-bold uppercase">Materia / RAP</p>
-                                      <p className="text-[10px] font-black leading-tight dark:text-white uppercase line-clamp-2">{materiaNombre}</p>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <p className="text-4xs text-gray-400 font-bold uppercase">Instructor</p>
-                                      <div className="flex items-center gap-2 dark:text-white">
-                                        <User size={12} className="text-gray-400 shrink-0" />
-                                        <span className="text-[11px] font-bold leading-tight">
-                                          {instructor ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}` : <span className="text-orange-500 uppercase tracking-tighter">Sin asignar aún</span>}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    {instructor?.email && (
-                                      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 overflow-hidden">
-                                        <Info size={10} className="shrink-0" /><span className="text-[9px] truncate italic">{instructor.email}</span>
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
-                                <div className={`absolute ${isFirstRow ? 'bottom-full rotate-180 mb-0' : 'top-full'} left-1/2 -translate-x-1/2 border-[8px] border-transparent border-t-white dark:border-t-coal-300`}></div>
                               </div>
-                            )}
+                            </div>
                           </div>
                         );
                       })}

@@ -10,10 +10,12 @@ import { enqueueSnackbar } from 'notistack';
 type PropsCompetencia = {
   isOpen: boolean;
   onClose: () => void;
-  programId: number;
+  programId?: number;
   competenciaId?: number;
+  idGradoPrograma?: number;
   onSuccess?: () => void;
-  setToast: (show: boolean) => void;
+  idMateriaPadre?: number;
+  idFicha?: number;
 };
 
 type AreaConocimiento = {
@@ -27,7 +29,9 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   programId,
   competenciaId,
   onSuccess,
-  setToast
+  idGradoPrograma,
+  idMateriaPadre,
+  idFicha
 }) => {
   const [areasConocimientos, setAreasConocimientos] = useState<AreaConocimiento[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,8 +44,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       .required('El nombre de la competencia es requerido')
       .min(3, 'El nombre debe tener al menos 3 caracteres'),
     idAreaConocimiento: Yup.number()
-      .nullable()
-      .required('Debe seleccionar un área de conocimiento'),
+      .nullable(),
     descripcion: Yup.string().nullable(),
     horas: Yup.number().required('Las horas son requeridas').positive('Debe ser un número positivo')
   });
@@ -118,7 +121,10 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         descripcion: values.descripcion ? values.descripcion.toLocaleUpperCase() : '',
         idCompany: empresa.id,
         horas: values.horas,
+        idFicha: idFicha,
+        idGradoPrograma: idGradoPrograma,
         creditos: values.horas ? values.horas / 48 : 0,
+        idMateriaPadre: idMateriaPadre || null,
         ...(!competenciaId && { idPrograma: programId })
       };
 
@@ -128,7 +134,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         await axios.post(`materias`, payload);
       }
 
-      setToast(true);
+      enqueueSnackbar(`${idMateriaPadre ? 'RAP' : 'Competencia'} ${competenciaId ? 'actualizado' : 'creado'} exitosamente`, { variant: "success" });
       if (onSuccess) {
         onSuccess();
       }
@@ -172,7 +178,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         {/* Header */}
         <div className='p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400'>
           <h3 className='text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest'>
-            {competenciaId ? (formik.values.idMateriaPadre ? 'Editar RAP' : 'Editar Competencia') : 'Crear Nueva Competencia'}
+            {competenciaId ? (formik.values.idMateriaPadre ? 'Editar RAP' : 'Editar Competencia') : (idMateriaPadre ? 'Crear Nuevo RAP' : 'Crear Nueva Competencia')}
           </h3>
           <button
             onClick={onClose}
@@ -224,7 +230,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   <input
                     type="number"
                     name="horas"
-                    disabled={formik.values.idMateriaPadre ? false : true}
+                    disabled={!(formik.values.idMateriaPadre || idMateriaPadre)}
                     value={formik.values.horas}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
@@ -250,16 +256,17 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   </div>
                 </div>
               </div>
-              
+
 
               {/* Área de conocimiento */}
               <div className="space-y-1.5">
                 <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                  Área de conocimiento <span className="text-red-500">*</span>
+                  Área de conocimiento
                 </label>
                 <Select
                   options={areaOptions}
                   value={selectedArea}
+                  isDisabled={formik.values.idMateriaPadre == null ? false : true}
                   placeholder="Busca o selecciona un área..."
                   onChange={(opcion: any) => {
                     formik.setFieldValue(
