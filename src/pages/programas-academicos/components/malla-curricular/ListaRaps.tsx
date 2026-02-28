@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AlertCircle, BookOpen, X, FileText } from 'lucide-react';
+import { AlertCircle, BookOpen, X, FileText, Plus } from 'lucide-react';
 import { CardRap } from './CardRap';
 import { HorariosMateria } from './HorariosMateria';
+import { FormCompetencia } from './FormCompetencia';
 
 interface ListaRapsProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ListaRapsProps {
   idFicha: number;
   nivelId?: number;
   porcentajeEjecucion?: number;
+  programId: number;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
 }
@@ -24,12 +26,14 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   idFicha,
   nivelId,
   porcentajeEjecucion,
+  programId,
   onEditCompetencia,
   onUpdate
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agregarRap, setAgregarRap] = useState<boolean>(false);
   const [modalHorarios, setModalHorarios] = useState<{
     open: boolean;
     idGradoMateria?: number;
@@ -218,12 +222,9 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         {/* Footer */}
         <div className="flex-shrink-0 flex items-center justify-between p-5 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
           <div className="hidden sm:flex items-center gap-2">
-            <i className="text-base ki-outline ki-information-2 text-primary"></i>
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-              {raps.length > 0
-                ? `${raps.length} resultado${raps.length !== 1 ? 's' : ''} de aprendizaje encontrado${raps.length !== 1 ? 's' : ''}`
-                : 'No hay resultados de aprendizaje'}
-            </p>
+            <button onClick={()=> setAgregarRap(true)} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
+              <Plus size={14} />Agregar RAP
+            </button>
           </div>
           <button
             onClick={onClose}
@@ -254,6 +255,21 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           }}
         />
       }
+
+      {agregarRap && (
+        <FormCompetencia
+          isOpen={agregarRap}
+          onClose={() => setAgregarRap(false)}
+          programId={programId||0}
+          idGradoPrograma={nivelId}
+          idFicha={idFicha}
+          idMateriaPadre={idMateriaPadre}
+          onSuccess={() => {
+            cargarRaps();
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
     </div>
   );
 };
