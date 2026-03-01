@@ -416,7 +416,7 @@ const CrearEditarFicha: React.FC<Props> = ({
   if (!isModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex bg-black/60 items-center justify-center px-4">
       <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400 shadow-xl">
 
         {/* Cerrar */}

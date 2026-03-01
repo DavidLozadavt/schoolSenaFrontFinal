@@ -515,6 +515,7 @@ interface FechaClase {
 interface Ficha {
   id: number;
   codigo: string;
+    idSede?: number;
   jornada?: {
     id: number;
     nombreJornada: string;

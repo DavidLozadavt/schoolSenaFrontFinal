@@ -80,8 +80,8 @@ interface StudentData {
   idGradoMateria: number;
   idMatricula: number;
   estado: string;
-  asistio?: boolean | null; // <--- ADDED START
-  idAsistencia?: number; // <--- ADDED END
+  asistio?: boolean | null;
+  idAsistencia?: number;
   created_at?: string | null;
   updated_at?: string | null;
   idEvaluador?: number | null;
@@ -104,7 +104,7 @@ interface StudentListProps {
     horaFinal?: string;
     idGrado?: string | number;
     estadoClase?: string;
-    idHorarioMateria?: number; // Identifica el horario exacto para soportar dos clases el mismo día
+    idHorarioMateria?: number;
   };
 }
 

@@ -65,27 +65,27 @@ const PerfilPage = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       setNeedsPasswordUpdate(response.data.needs_password_update);
-      
+
       if (response.data.needs_password_update) {
         setStep(1);
-        enqueueSnackbar('Paso 1: Actualice su información personal', { 
-          variant: 'info' 
+        enqueueSnackbar('Paso 1: Actualice su información personal', {
+          variant: 'info'
         });
       }
-      
+
     } catch (error) {
       console.error('Error checking profile access:', error);
       // Fallback por roles si el API no funciona
       const roles = authContext.roles || [];
-      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('APRENDIZUP');
+      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('ESTUDIANTEUP');
       setNeedsPasswordUpdate(needsUpdate);
-      
+
       if (needsUpdate) {
         setStep(1);
-        enqueueSnackbar('Paso 1: Actualice su información personal', { 
-          variant: 'info' 
+        enqueueSnackbar('Paso 1: Actualice su información personal', {
+          variant: 'info'
         });
       }
     }
@@ -99,6 +99,9 @@ const PerfilPage = () => {
 
   useEffect(() => {
     if (persona) {
+      const isApprentice = authContext.roles?.some(role => ['ESTUDIANTEUP'].includes(role));
+      const isEmailIdentity = persona.email === persona.identificacion;
+
       setFormDataPersona({
         id: persona.id || undefined,
         nombre1: persona.nombre1 || '',
@@ -112,7 +115,7 @@ const PerfilPage = () => {
         idCiudadUbicacion: persona.idCiudadUbicacion || '',
         departamento: persona.ciudad_ubicacion?.departamento?.id || '',
         apellido2: persona.apellido2 || '',
-        email: persona.email || '',
+        email: (isApprentice && isEmailIdentity) ? '' : (persona.email || ''),
         direccion: persona.direccion || '',
         celular: persona.celular || '',
         telefonoFijo: persona.telefonoFijo || ''
@@ -183,7 +186,7 @@ const PerfilPage = () => {
   useEffect(() => {
     fetchTipoIdentificacion();
     fetchDepartamentos();
-    
+
     if (persona?.ciudad_ubicacion?.departamento?.id) {
       fetchCiudades(persona.ciudad_ubicacion.departamento.id);
     }
@@ -244,10 +247,10 @@ const PerfilPage = () => {
 
     try {
       setSaving(true);
-      
+
       await axios.post(`update_person`, data);
       await getUserAuthenticated();
-      
+
       if (needsPasswordUpdate) {
 
         setProfileUpdated(true);
@@ -259,7 +262,7 @@ const PerfilPage = () => {
       } else {
         enqueueSnackbar('Datos actualizados con éxito.', { variant: 'success' });
       }
-      
+
     } catch (error) {
       enqueueSnackbar('Error al actualizar los datos.', { variant: 'error' });
     } finally {
@@ -295,10 +298,10 @@ const PerfilPage = () => {
 
   const handlePasswordChangeSuccess = async () => {
     setShowPasswordModal(false);
-    
+
     try {
       console.log('Verificando estado después de cambiar contraseña...');
-      
+
       // Verificar el estado actual del perfil
       const response = await axios.get('profile/access-check', {
         headers: {
@@ -306,16 +309,16 @@ const PerfilPage = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Response del access-check:', response.data);
-      
+
       // Actualizar el estado local
       setNeedsPasswordUpdate(response.data.needs_password_update);
-      
+
       if (!response.data.needs_password_update) {
         enqueueSnackbar('¡Proceso completado! Redirigiendo al inicio de sesión...', { variant: 'success' });
         console.log('Ejecutando logout en 2 segundos...');
-        
+
         setTimeout(() => {
           console.log('Ejecutando logout...');
           authContext.logout();
@@ -323,7 +326,7 @@ const PerfilPage = () => {
       } else {
         enqueueSnackbar('Contraseña actualizada, pero el proceso no se completó. Contacte al administrador.', { variant: 'warning' });
       }
-      
+
     } catch (error) {
       enqueueSnackbar('Error al verificar el estado de la contraseña.', { variant: 'error' });
       console.error('Error en handlePasswordChangeSuccess:', error);
@@ -333,7 +336,7 @@ const PerfilPage = () => {
 
   const renderStepIndicator = () => {
     if (!needsPasswordUpdate) return null;
-    
+
     return (
       <div className="mb-6">
         <div className="flex items-center justify-center">
@@ -390,19 +393,18 @@ const PerfilPage = () => {
 
       {/* Indicador de pasos */}
       {renderStepIndicator()}
-      
+
       {/* Alerta si necesita actualizar contraseña */}
       {needsPasswordUpdate && (
-        <div className={`p-4 mb-6 border-l-4 ${
-          step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
-        }`}>
+        <div className={`p-4 mb-6 border-l-4 ${step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
+          }`}>
           <div className="flex">
             <div className="flex-shrink-0">
               <KeenIcon icon={step === 1 ? "information" : "warning"} className={`h-5 w-5 ${step === 1 ? 'text-blue-400' : 'text-yellow-400'}`} />
             </div>
             <div className="ml-3">
               <p className={`text-sm ${step === 1 ? 'text-blue-700' : 'text-yellow-700'}`}>
-                <strong>Proceso de activación en 2 pasos:</strong> 
+                <strong>Proceso de activación en 2 pasos:</strong>
                 {step === 1 && ' Complete su información personal para continuar.'}
                 {step === 2 && ' Establezca su nueva contraseña para finalizar.'}
               </p>
@@ -759,7 +761,8 @@ const PerfilPage = () => {
       <ResetPasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
-        userEmail={persona?.email || ''}
+        userEmail={formDataPersona.email || ''}
+        isApprentice={authContext.roles?.some(role => ['ESTUDIANTEUP'].includes(role))}
         onSuccess={handlePasswordChangeSuccess}
       />
     </Container>

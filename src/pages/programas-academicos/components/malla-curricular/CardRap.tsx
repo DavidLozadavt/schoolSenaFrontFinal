@@ -14,6 +14,7 @@ interface CardRapProps {
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
+  materiasLength?: number;
 }
 
 export const CardRap = ({
@@ -23,7 +24,8 @@ export const CardRap = ({
   setModalHorarios,
   idFicha,
   onAsignacionSuccess,
-  onEditCompetencia
+  onEditCompetencia,
+  materiasLength
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
@@ -140,6 +142,45 @@ export const CardRap = ({
         setShowInstructorsModal(false);
       } catch (error: any) {
         enqueueSnackbar(error.response?.data?.message || 'Error al desasignar instructor', { variant: 'error' });
+      }
+    }
+  };
+
+  const handleEliminarCompetencia = async () => {
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    const result = await Swal.fire({
+      title: materia.idMateriaPadre? '¿Eliminar RAP?' : '¿Eliminar competencia?',
+      text: materiasLength && materiasLength == 1 ? 
+        `Si eliminas esta competencia, se eliminará tambien el trimestre. El trimestre debe tener al menos una competencia.` : 
+        `¿Estás seguro de que deseas eliminar "${materia.nombre || materia.nombreMateria}" de este trimestre?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-danger',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`grado-materia`, {
+          params: {
+            id: materia.idGradoMateria,
+            eliminarTrimestre: materiasLength && materiasLength == 1 ? true : false
+          }
+        });
+        enqueueSnackbar('Competencia eliminada correctamente', { variant: 'success' });
+        if (onAsignacionSuccess) onAsignacionSuccess();
+      } catch (error: any) {
+        enqueueSnackbar(error.response?.data?.message || 'Error al eliminar la competencia', { variant: 'error' });
       }
     }
   };
@@ -355,18 +396,17 @@ export const CardRap = ({
         >
           <Pencil size={18} />
         </button>
-
-        {materia.idMateriaPadre != null && (
-          <button
-            onClick={() => setIsCalendarioOpen(true)}
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
-            title="Horarios"
-          >
-            <Calendar size={18} />
-          </button>
-        )}
+       
+        <button
+          onClick={() => setIsCalendarioOpen(true)}
+          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+          title="Horarios"
+        >
+          <Calendar size={18} />
+        </button>       
 
         <button
+          onClick={handleEliminarCompetencia}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
           title="Eliminar"
         >

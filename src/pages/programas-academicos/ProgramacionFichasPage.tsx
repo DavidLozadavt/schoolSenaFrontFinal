@@ -1,14 +1,17 @@
 import React, { useContext, useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
+import { Calendario } from './components/malla-curricular/Calendario';
 import { useAuthContext } from '@/auth';
 import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
+import { enqueueSnackbar } from 'notistack';
 
 interface Ficha {
   id: number;
@@ -88,6 +91,7 @@ export const ProgramacionFichasPage = () => {
   const [fichaExpandida, setFichaExpandida] = useState<number | null>(null);
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
+  const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
 
   // Estados para edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -148,35 +152,35 @@ export const ProgramacionFichasPage = () => {
 
     try {
 
-      if(centroF != 0){
+      if (centroF != 0) {
         const res = await axios.get(`fichas/programa/${programId}/${centroF}`);
         const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
-  
+
         if (res.status === 200 && Array.isArray(res.data.data)) {
           const fichasConDocumento = res.data.data.map((ficha: any) => ({
             ...ficha,
             documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
           }));
-  
+
           setIdCentroFormacion(user?.idCentroFormacion);
-  
+
           setFichas(fichasConDocumento);
         } else {
           setFichas([]);
         }
-        
-      }else{
+
+      } else {
         const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
         const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
-  
+
         if (res.status === 200 && Array.isArray(res.data.data)) {
           const fichasConDocumento = res.data.data.map((ficha: any) => ({
             ...ficha,
             documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
           }));
-  
+
           setIdCentroFormacion(user?.idCentroFormacion);
-  
+
           setFichas(fichasConDocumento);
         } else {
           setFichas([]);
@@ -230,15 +234,24 @@ export const ProgramacionFichasPage = () => {
 
   // Función para eliminar ficha
   const handleEliminarFicha = async (fichaId: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar esta ficha?')) {
+    const result = await Swal.fire({
+      title: '¿Está seguro?',
+      text: "Esta acción no se puede deshacer.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       try {
         await axios.delete(`fichas/${fichaId}`);
-        setMessageToast('Ficha eliminada correctamente');
-        setShowToast(true);
+        enqueueSnackbar('Ficha eliminada correctamente', { variant: 'success' });
         setEvento((prev) => !prev);
       } catch (error: any) {
-        setMessageToast(error.response?.data?.message || 'Error al eliminar la ficha');
-        setShowToast(true);
+        enqueueSnackbar(error.response?.data?.message || 'Error al eliminar la ficha', { variant: 'error' });
       }
     }
   };
@@ -403,11 +416,10 @@ export const ProgramacionFichasPage = () => {
                                   )}
                                 </h3>
                                 <span
-                                  className={`px-2 py-1 text-xs font-bold uppercase rounded ${
-                                    ficha.asignacion?.estado === 'EN CURSO'
+                                  className={`px-2 py-1 text-xs font-bold uppercase rounded ${ficha.asignacion?.estado === 'EN CURSO'
                                       ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
                                       : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-                                  }`}
+                                    }`}
                                 >
                                   {ficha.asignacion?.estado || 'N/A'}
                                 </span>
@@ -421,8 +433,8 @@ export const ProgramacionFichasPage = () => {
                                     Inicio:{' '}
                                     {ficha.asignacion?.fechaInicialClases
                                       ? new Date(
-                                          ficha.asignacion.fechaInicialClases
-                                        ).toLocaleDateString()
+                                        ficha.asignacion.fechaInicialClases
+                                      ).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
@@ -432,8 +444,8 @@ export const ProgramacionFichasPage = () => {
                                     Fin:{' '}
                                     {ficha.asignacion?.fechaFinalClases
                                       ? new Date(
-                                          ficha.asignacion.fechaFinalClases
-                                        ).toLocaleDateString()
+                                        ficha.asignacion.fechaFinalClases
+                                      ).toLocaleDateString()
                                       : '—'}
                                   </span>
                                 </div>
@@ -499,8 +511,8 @@ export const ProgramacionFichasPage = () => {
                               <p className="text-sm text-gray-700 dark:text-gray-300">
                                 {ficha.asignacion?.fechaInicialClases
                                   ? new Date(
-                                      ficha.asignacion.fechaInicialClases
-                                    ).toLocaleDateString()
+                                    ficha.asignacion.fechaInicialClases
+                                  ).toLocaleDateString()
                                   : '—'}
                               </p>
                             </div>
@@ -571,7 +583,7 @@ export const ProgramacionFichasPage = () => {
                           )}
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
-                          <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -582,26 +594,34 @@ export const ProgramacionFichasPage = () => {
                                   ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1
                                 );
                               }}
-                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                              title='Juicios evaluativos'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-book-square"></i>
-                              Agregar juicios Evaluativos lo
+                              <i className="ki-outline ki-book-square text-base"></i>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setVerHorariosFicha(ficha)}
+                              title='Horarios'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-calendar text-base"></i>
                             </button>
                             <button
                               type="button"
                               onClick={() => handleEditarFicha(ficha.id)}
-                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                              title='Editar'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-notepad-edit"></i>
-                              Editar Ficha
+                              <i className="ki-outline ki-notepad-edit text-base"></i>
                             </button>
                             <button
                               type="button"
                               onClick={() => handleEliminarFicha(ficha.id)}
-                              className="flex-1 px-4 py-2 text-sm font-bold uppercase bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                              title='Eliminar'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-trash"></i>
-                              Eliminar Ficha
+                              <i className="ki-outline ki-trash text-base"></i>
                             </button>
                           </div>
                         </div>
@@ -701,6 +721,16 @@ export const ProgramacionFichasPage = () => {
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
       />
+
+      {verHorariosFicha && (
+        <Calendario
+          isOpen={!!verHorariosFicha}
+          onClose={() => setVerHorariosFicha(null)}
+          materia={{ nombre: `Ficha ${verHorariosFicha?.codigo}` }}
+          idFicha={verHorariosFicha?.id || 0}
+          onAddSchedule={() => { }}
+        />
+      )}
 
       {/* Toast de notificación */}
       {showToast && (

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
@@ -60,7 +60,7 @@ export const GestionProgramas = ({
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
   useEffect(() => {
-    if (authContext?.roles?.includes('Admin')) {
+    if (authContext?.roles?.includes('ADMINISTRADOR VT')) {
       const loadRegional = async () => {
         const regional = await axios.get('regional');
         setRegionales(regional.data);
@@ -70,8 +70,12 @@ export const GestionProgramas = ({
     }
     if (authContext?.roles?.includes('ADMIN REGIONAL')) {
       setIdRegional(authContext?.empresa.id);
-    } else {
-      setIdRegional(authContext.user?.idCentroFormacion);
+      return
+    } 
+    if(authContext?.roles?.includes('ADMIN CENTRO')) {
+      setIdRegional(authContext?.empresa.id);
+      setIdCentroFormacion(authContext?.user?.idCentroFormacion)
+      return
     }
   }, [authContext]);
 
@@ -110,36 +114,33 @@ export const GestionProgramas = ({
 
   const { idRed } = useParams();
 
-  useEffect(() => {
-    if (idRed) {
-      fetchProgramas();
-    }
-  }, [authContext, idCentroFormacion]);
-
   const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
 
-  const mapBackendToUi = (p: any): Program => {
-    const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
-    return {
-      id: p.id,
-      name: p.nombrePrograma,
-      codigo: p.codigoPrograma,
-      status: p.estado?.nombre || 'ACTIVO',
-      estado: p.estado,
-      nivel: p.nivel?.nombreNivel || 'N/A',
-      formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
-      imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
-      description: p.descripcionPrograma,
-      documento: p.documento ? `${backUrl}${p.documento}` : null,
-      idNivelEducativo: p.idNivelEducativo,
-      idTipoFormacion: p.idTipoFormacion,
-      idEstadoPrograma: p.idEstadoPrograma,
-      red: p.red,
-      fichas_count: p.fichas_activas_count ?? 0
-    };
-  };
+  const mapBackendToUi = useCallback(
+    (p: any): Program => {
+      const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
+      return {
+        id: p.id,
+        name: p.nombrePrograma,
+        codigo: p.codigoPrograma,
+        status: p.estado?.nombre || 'ACTIVO',
+        estado: p.estado,
+        nivel: p.nivel?.nombreNivel || 'N/A',
+        formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
+        imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
+        description: p.descripcionPrograma,
+        documento: p.documento ? `${backUrl}${p.documento}` : null,
+        idNivelEducativo: p.idNivelEducativo,
+        idTipoFormacion: p.idTipoFormacion,
+        idEstadoPrograma: p.idEstadoPrograma,
+        red: p.red,
+        fichas_count: p.fichas_activas_count ?? 0
+      };
+    },
+    [backUrl]
+  );
 
-  const fetchProgramas = async () => {
+  const fetchProgramas = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -161,7 +162,13 @@ export const GestionProgramas = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [idCentroFormacion, idRed, mapBackendToUi]);
+
+  useEffect(() => {
+    if (idRed) {
+      fetchProgramas();
+    }
+  }, [idRed, fetchProgramas]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
@@ -230,7 +237,6 @@ export const GestionProgramas = ({
       minHeight: '46px',
       height: '46px',
       borderRadius: '12px',
-      backgroundColor: 'rgba(255,255,255,0.8)',
       backdropFilter: 'blur(8px)',
       borderColor: state.isFocused ? '#2563eb' : '#d1d5db',
       boxShadow: state.isFocused ? '0 0 0 2px rgba(37,99,235,0.2)' : 'none',
@@ -271,7 +277,6 @@ export const GestionProgramas = ({
     ...theme,
     colors: {
       ...theme.colors,
-      primary25: '#eff6ff',
       primary: '#2563eb'
     }
   });
@@ -356,7 +361,7 @@ export const GestionProgramas = ({
         </div>
         <div className="flex">
           {/** Filros para ver regionales por centros de formación */}
-          {authContext?.roles?.includes('Admin') && (
+          {authContext?.roles?.includes('ADMINISTRADOR VT') && (
             <div className="m-2">
               <Select
                 options={optionsRegional}
@@ -374,7 +379,7 @@ export const GestionProgramas = ({
             </div>
           )}
           {(authContext?.roles?.includes('ADMIN REGIONAL') ||
-            authContext?.roles?.includes('Admin')) && (
+            authContext?.roles?.includes('ADMINISTRADOR VT')) && (
             <div className="m-2">
               <Select
                 options={optionsCentro}
