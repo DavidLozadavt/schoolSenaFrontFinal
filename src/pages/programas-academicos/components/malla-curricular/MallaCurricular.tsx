@@ -209,7 +209,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         {/* Header con Banner */}
         <div className="relative flex-shrink-0 w-full h-36 overflow-hidden">
           <img
-            src={program.imageUrl || '/icon-512-maskable.png'}
+            src={program.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600'}
             className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
             alt="Banner del programa"
           />
