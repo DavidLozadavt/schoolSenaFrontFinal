@@ -6,21 +6,21 @@ import { useSnackbar } from 'notistack';
 
 // Definimos endpoints por entidad
 const ENDPOINTS: Record<string, { upload: string; procedure: string }> = {
-  trabajadores: { 
+  trabajadores: {
     upload: '/cargar-trabajadores',
     procedure: '/ejecutar_procedimiento_trabajadores'
   },
-  estudiantes: { 
-    upload: '/cargar-estudiantes', 
-    procedure: '/procedimientoEstudiantes' 
+  estudiantes: {
+    upload: '/cargar-estudiantes',
+    procedure: '/procedimientoEstudiantes'
   },
-  productos: { 
-    upload: '/cargar-productos', 
-    procedure: '/procedimientoProductos' 
+  productos: {
+    upload: '/cargar-productos',
+    procedure: '/procedimientoProductos'
   },
-  infraestructura: { 
-    upload: '/cargar-infraestructura', 
-    procedure: '/procedimientoInfraestructura' 
+  infraestructura: {
+    upload: '/cargar-infraestructura',
+    procedure: '/procedimientoInfraestructura'
   },
 };
 
@@ -98,29 +98,34 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
   };
 
 
+  if (!open) return null;
+
   return (
-    <Modal open={open}>
-      <ModalContent className="border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 max-w-[700px] top-[15%] p-0 rounded-xl">
-        <ModalHeader className="relative justify-center border-none pt-8">
-          <ModalTitle>
-            <h2 className="text-2xl font-semibold text-gray-800 text-center">
-              Carga masiva de {label}.
-            </h2>
-          </ModalTitle>
+    <div className="fixed inset-0 z-50 flex bg-black/60 items-center justify-center px-4">
+      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400 shadow-xl p-0 transition-all duration-300">
+        {/* Cerrar */}
+        <button
+          type="button"
+          aria-label="Cerrar modal"
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
+        >
+          ✕
+        </button>
 
-          <button
-            className="absolute top-4 right-4 btn btn-sm btn-icon btn-light btn-clear"
-            onClick={onClose}
-          >
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
+        {/* Header */}
+        <div className="border-b px-6 py-4 flex items-center justify-start">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Carga masiva de {label}.
+          </h2>
+        </div>
 
-        <ModalBody>
+        <ModalBody className="p-6 overflow-y-auto max-h-[70vh]">
           <div className="mb-6">
-            <label className="block text-gray-700 font-medium mb-2">Archivo Excel</label>
-            
-            {/* 🔹 INPUT FILE CORREGIDO */}
+            <p className="text-xs font-bold mb-2 text-gray-800 dark:text-gray-100 uppercase">
+              Archivo Excel <span className="text-gray-500">(XLSX, XLS, CSV)</span>
+            </p>
+
             <div className="relative">
               <input
                 ref={fileInputRef}
@@ -132,35 +137,34 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
               />
               <label
                 htmlFor="fileUpload"
-                className="cursor-pointer bg-white border border-gray-300 px-4 py-2 rounded-md text-sm shadow hover:bg-gray-50 transition-colors inline-block"
+                className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-coal-100 rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500 bg-white dark:bg-coal-400"
               >
-                Seleccionar archivo
+                <div className="flex items-center gap-3">
+                  <KeenIcon icon="file" className="text-gray-500" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[400px]">
+                    {file ? file.name : 'Seleccionar archivo Excel'}
+                  </span>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white font-medium">
+                  Examinar
+                </span>
               </label>
-              <span className="ml-3 text-sm text-gray-600">
-                {file ? file.name : 'Sin archivos seleccionados'}
-              </span>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-blue-800 mb-2">Instrucciones:</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Descarga la plantilla haciendo clic en "DESCARGAR"</li>
-              <li>• Llena los datos siguiendo el formato de las columnas</li>
-              <li>• No modifiques los nombres de las columnas</li>
-              <li>• Formatos admitidos: .xlsx, .xls, .csv</li>
-            </ul>
-          </div>
-
-          <hr className="my-6" />
-
-          <div className="flex justify-end gap-3 mt-4">
-            <button className="btn btn-sm btn-secondary" onClick={onClose}>
+          {/* Botones */}
+          <div className="flex justify-end gap-2 mt-6 border-t pt-4">
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-300 transition-colors duration-200"
+              onClick={onClose}
+            >
               CANCELAR
             </button>
-            <button 
-              type="button" 
-              className="btn btn-sm btn-primary" 
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors duration-200 ${!file ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                }`}
               onClick={handleSave}
               disabled={!file}
             >
@@ -168,8 +172,8 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
             </button>
           </div>
         </ModalBody>
-      </ModalContent>
-    </Modal>
+      </div>
+    </div>
   );
 };
 
