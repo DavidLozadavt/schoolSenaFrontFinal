@@ -16,6 +16,7 @@ import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
 import { useAuthContext } from '@/auth';
 import { HorariosMateria } from './HorariosMateria';
+//import {  } from '../../../../../public/media/'
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];
@@ -208,7 +209,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         {/* Header con Banner */}
         <div className="relative flex-shrink-0 w-full h-36 overflow-hidden">
           <img
-            src={program.imageUrl || '/default-banner.jpg'}
+            src={program.imageUrl || '/icon-512-maskable.png'}
             className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
             alt="Banner del programa"
           />
@@ -455,6 +456,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           idMateriaPadre={selectedCompetenciaId}
           nombreCompetencia={selectedCompetenciaNombre}
           idFicha={selectedFicha?.id}
+          programId={program?.id}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
@@ -469,7 +471,6 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
         programId={program?.id ?? 0}
         competenciaId={editingCompetenciaId}
         onSuccess={handleFormCompetenciaSuccess}
-        setToast={setToast}
       />
 
       {/* Modal Horarios */}

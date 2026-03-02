@@ -92,6 +92,7 @@ export const ProgramacionFichasPage = () => {
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
   const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
+  const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
 
   // Estados para edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -255,6 +256,8 @@ export const ProgramacionFichasPage = () => {
       }
     }
   };
+
+  console.log(program);
 
   return (
     <>
@@ -617,6 +620,14 @@ export const ProgramacionFichasPage = () => {
                             </button>
                             <button
                               type="button"
+                              onClick={() => setVerMallaCurricular(true)}
+                              title='Malla curricular'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-notepad-edit text-base"></i>
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleEliminarFicha(ficha.id)}
                               title='Eliminar'
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
@@ -721,6 +732,14 @@ export const ProgramacionFichasPage = () => {
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
       />
+
+      {verMallaCurricular && (
+        <MallaCurricular
+          isOpen={verMallaCurricular}
+          onClose={() => setVerMallaCurricular(false)}
+          program={program}
+        />
+      )}
 
       {verHorariosFicha && (
         <Calendario
