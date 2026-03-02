@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Search, Plus, BookOpen, Check, Pencil } from 'lucide-react';
 import { FormCompetencia } from './FormCompetencia';
 import Toast from '../Toast';
+import { enqueueSnackbar } from 'notistack';
 
 interface AsignarMateriaProps {
   idPrograma: number;
@@ -28,6 +29,9 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const [loading, setLoading] = useState(false);
   const [buscar, setBuscar] = useState<string>('');
   const [toast, setToast] = useState<boolean>(false);
+  const [raps, setRaps] = useState<any[]>([]);
+  const [openRapsId, setOpenRapsId] = useState<number | null>(null);
+  const [loadingRaps, setLoadingRaps] = useState<boolean>(false);
 
   // Cargar materias disponibles y sincronizar selección inicial
   useEffect(() => {
@@ -94,16 +98,43 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const handleClose = () => {
     setShowForm(false);
     setEditingCompetenciaId(undefined);
+    setOpenRapsId(null);
     setBuscar('');
     onClose();
   };
+
+  const truncate = (text: string, length: number) => {
+    if (!text) return '';
+    return text.length > length ? text.substring(0, length) + '...' : text;
+  };
+
+  const cargarRaps = async (idMateriaPadre: number) => {
+    if (openRapsId === idMateriaPadre) {
+      setOpenRapsId(null);
+      return;
+    }
+
+    setLoadingRaps(true);
+    setOpenRapsId(idMateriaPadre);
+    setRaps([]);
+
+    try {
+      const response = await axios.get(`materias/hijas/${idMateriaPadre}`);
+      setRaps(response.data.data || []);
+    } catch (error) {
+      enqueueSnackbar("Error al cargar los RAPs", { variant: "error" });
+      setOpenRapsId(null);
+    } finally {
+      setLoadingRaps(false);
+    }
+  }
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-hidden">
 
-      <div className="relative w-full max-w-3xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
 
         <Toast message='Competencia guardada correctamente' isOpen={toast} onClose={() => setToast(false)} />
 
@@ -157,7 +188,6 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
               programId={idPrograma ?? 0}
               competenciaId={editingCompetenciaId}
               onSuccess={handleFormSuccess}
-              setToast={setToast}
             />
 
             {/* Lista de Materias */}
@@ -181,38 +211,89 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                       <div
                         key={materia.id}
                         onClick={() => toggleMateria(materia)}
-                        className={`group flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all duration-200 ${seleccionada
+                        className={`group flex flex-col p-3 border rounded-xl cursor-pointer transition-all duration-200 ${seleccionada
                           ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
                           : 'bg-white dark:bg-coal-400 border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
                           }`}
                       >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
-                          </div>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
+                            </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
-                                {materia.codigo || 'S/C'}
-                              </span>
-                              <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
-                                {materia.nombreMateria || 'Sin nombre'}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
+                                  {materia.codigo || 'S/C'}
+                                </span>
+                                <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
+                                  {materia.nombreMateria || 'Sin nombre'}
+                                </p>
+                              </div>
+                              <p className="text-2xs text-gray-500 font-bold uppercase truncate">
+                                {materia.descripcion || 'Sin descripción'}
                               </p>
                             </div>
-                            <p className="text-2xs text-gray-500 font-bold uppercase truncate">
-                              {materia.descripcion || 'Sin descripción'}
-                            </p>
                           </div>
 
-                          <button
-                            onClick={(e) => handleEdit(e, materia.id)}
-                            className="p-1 rounded-lg text-gray-500 hover:bg-white dark:hover:bg-coal-400 hover:text-primary transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 shadow-sm shrink-0"
-                            title="Editar"
-                          >
-                            <Pencil size={14} />
-                          </button>
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); cargarRaps(materia.id); }}
+                              className={`p-1.5 rounded-lg transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 shadow-sm shrink-0 ${openRapsId === materia.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-white dark:hover:bg-coal-400 hover:text-primary'}`}
+                              title="Ver RAPs"
+                            >
+                              <BookOpen size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => handleEdit(e, materia.id)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:bg-white dark:hover:bg-coal-400 hover:text-primary transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 shadow-sm shrink-0"
+                              title="Editar"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Desplegable de RAPs */}
+                        {openRapsId === materia.id && (
+                          <div
+                            className="mt-3 ml-12 p-3 bg-gray-50 dark:bg-coal-600 rounded-lg border border-gray-100 dark:border-gray-600 animate-in fade-in slide-in-from-top-2 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
+                                <Check size={12} className="text-primary" />
+                                Resultados de Aprendizaje
+                              </h4>
+                              {loadingRaps && (
+                                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              )}
+                            </div>
+
+                            {loadingRaps ? (
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest animate-pulse py-1">Cargando...</p>
+                            ) : raps.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-1">
+                                {raps.map((rap) => (
+                                  <div key={rap.id} className="flex items-center gap-2 group/rap">
+                                    <div className="w-1 h-1 rounded-full bg-primary/50 group-hover/rap:bg-primary transition-colors"></div>
+                                    <p
+                                      className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:text-primary transition-colors underline decoration-transparent hover:decoration-primary/30"
+                                      title={rap.nombreMateria}
+                                    >
+                                      {truncate(rap.nombreMateria || '', 35)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="py-2 px-1 border-l-2 border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-gray-400 font-medium italic">No se encontraron RAPs vinculados</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

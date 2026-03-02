@@ -302,7 +302,7 @@ export const ProgramacionFichasPage = () => {
             <div>
               <h1 className="text-xl font-bold">
                 {program?.codigo} {program?.name}
-              </h1>
+              </h1>          
               <div className="flex items-center gap-4 mt-2 text-sm">
                 <span>{program?.formacion}</span>
                 <span>•</span>
@@ -311,6 +311,15 @@ export const ProgramacionFichasPage = () => {
                 <span>Presencial</span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setVerMallaCurricular(true)}
+              title='Malla curricular'
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+            >
+              <i className="ki-outline ki-book-square text-lg"></i>
+              Malla curricular
+            </button>
             <button
               onClick={() => navigate(-1)}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
@@ -330,7 +339,7 @@ export const ProgramacionFichasPage = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Gestiona las fichas del programa y asigna líderes
               </p>
-            </div>
+            </div>        
             {/* Botón Crear Ficha */}
             <button
               type="button"
@@ -584,7 +593,7 @@ export const ProgramacionFichasPage = () => {
                           )}
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
-                          <div className="grid grid-cols-3 md:grid-cols-5 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -607,14 +616,6 @@ export const ProgramacionFichasPage = () => {
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-calendar text-base"></i>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setVerMallaCurricular(true)}
-                              title='Malla curricular'
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 rounded-lg transition-all"
-                            >
-                              <i className="ki-outline ki-book-square text-base"></i>
                             </button>
                             <button
                               type="button"
