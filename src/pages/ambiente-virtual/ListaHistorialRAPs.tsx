@@ -54,6 +54,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   const [loading, setLoading] = useState(true);
   const [clases, setClases] = useState<Clase[]>([]);
   const [selectedStatus, setSelectedStatus] = useState('Todos los estados');
+  // Estado para actualizar el tiempo en tiempo real y recalcular estados de clases
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const fetchClases = async () => {
@@ -89,14 +91,47 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     }
   }, [evento, setEvento, idInstructor]);
 
+  // Actualizar el tiempo cada segundo para recalcular estados en tiempo real
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // Actualizar cada segundo
+
+    return () => clearInterval(interval);
+  }, []);
+
   /**
-   * Obtiene el estado de la clase
+   * Obtiene el estado de la clase en tiempo real
    * Considera tanto el estado del backend como las sesiones completadas individuales
+   * Se actualiza automáticamente cada segundo usando currentTime
    */
   const getStatus = (clase: Clase): 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO' => {
-    // Si hay sesiones completadas, verificar si alguna es de hoy o pasada
+    // Usar currentTime en lugar de new Date() para actualización en tiempo real
+    const ahora = currentTime;
+    
+    const parseDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    // PRIMERO: Verificar si ya pasó la fecha final del curso completo (siempre completada)
+    if (clase.fechaInicial && clase.fechaFinal) {
+      const hoy = new Date(ahora);
+      hoy.setHours(0, 0, 0, 0);
+      const fechaFin = parseDate(clase.fechaFinal);
+      fechaFin.setHours(0, 0, 0, 0);
+      
+      if (fechaFin.getTime() < hoy.getTime()) {
+        return 'COMPLETADO';
+      }
+    }
+
+    // NO usar el estado del backend directamente - calcular siempre en tiempo real
+    // El estado del backend puede estar desactualizado, por eso calculamos en tiempo real
+
+    // Si hay sesiones completadas, verificar el estado en tiempo real
     if (clase.sesiones_completadas && clase.sesiones_completadas.length > 0) {
-      const hoy = new Date();
+      const hoy = new Date(ahora);
       hoy.setHours(0, 0, 0, 0);
       
       // Verificar si hay una sesión completada hoy o en el pasado
@@ -106,25 +141,14 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         return fechaSesion.getTime() <= hoy.getTime();
       });
       
-      // Si hay sesiones completadas, verificar el estado actual en tiempo real
+      // Si hay sesiones completadas y todos los datos necesarios, verificar estado en tiempo real
       if (haySesionCompletada && clase.fechaInicial && clase.fechaFinal && clase.horaInicial && clase.horaFinal && clase.idDia) {
-        const ahora = new Date();
-        const parseDate = (dateStr: string) => {
-          const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-          return new Date(year, month - 1, day);
-        };
-
         const hoy = new Date(ahora);
         hoy.setHours(0, 0, 0, 0);
         const fechaInicio = parseDate(clase.fechaInicial);
         fechaInicio.setHours(0, 0, 0, 0);
         const fechaFin = parseDate(clase.fechaFinal);
         fechaFin.setHours(0, 0, 0, 0);
-
-        // Si ya pasó la fecha final del curso completo
-        if (fechaFin.getTime() < hoy.getTime()) {
-          return 'COMPLETADO';
-        }
 
         // Verificar si hoy es un día de clase
         const convertirIdDiaANumeroJS = (idDia: number): number => {
@@ -146,52 +170,75 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
             horaFinal.setDate(horaFinal.getDate() + 1);
           }
 
-          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
-            return 'EN CURSO';
-          }
+        // Si estamos dentro del horario de la clase
+        if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+          return 'EN CURSO';
+        }
+        
+        // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
+        // No esperar a que exista sesión en BD, se creará en la próxima sincronización
+        if (ahora.getTime() > horaFinal.getTime()) {
+          return 'COMPLETADO';
+        }
         }
       }
     }
-
-    // Si el backend ya calculó el estado, usarlo directamente
-    if (clase.estado) {
-      const estado = clase.estado.toUpperCase();
-      if (estado === 'EN CURSO' || estado === 'EN_CURSO') {
-        return 'EN CURSO';
-      }
-      if (estado === 'COMPLETADO' || estado === 'COMPLETADA') {
-        return 'COMPLETADO';
-      }
-      if (estado === 'PENDIENTE') {
-        return 'PENDIENTE';
-      }
-    }
     
-    // Fallback: si no hay estado del backend, calcular básico
+    // Fallback: calcular básico en tiempo real
     if (!clase.fechaInicial) {
       return 'PENDIENTE';
     }
 
-    const parseDate = (dateStr: string) => {
-      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-      return new Date(year, month - 1, day);
-    };
-
     const fechaInicio = parseDate(clase.fechaInicial);
     const fechaFin = clase.fechaFinal ? parseDate(clase.fechaFinal) : null;
-    const hoy = new Date();
+    const hoy = new Date(ahora);
     hoy.setHours(0, 0, 0, 0);
     fechaInicio.setHours(0, 0, 0, 0);
     if (fechaFin) {
       fechaFin.setHours(0, 0, 0, 0);
     }
 
+    // Si la clase aún no ha comenzado
     if (fechaInicio.getTime() > hoy.getTime()) {
       return 'PENDIENTE';
     }
 
-    if (fechaFin && fechaFin.getTime() < hoy.getTime()) {
-      return 'COMPLETADO';
+    // Si estamos dentro del rango de fechas, verificar si es un día de clase y el horario
+    if (clase.fechaInicial && fechaFin && clase.horaInicial && clase.horaFinal && clase.idDia) {
+      const convertirIdDiaANumeroJS = (idDia: number): number => {
+        return idDia === 7 ? 0 : idDia;
+      };
+      const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+      
+      // Verificar si hoy es un día de clase (día de la semana coincide Y está en el rango de fechas)
+      const esDiaDeClase = ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime();
+      
+      if (esDiaDeClase) {
+        // Verificar si estamos dentro del rango de horas
+        const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+        const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+        
+        const horaInicio = new Date(ahora);
+        horaInicio.setHours(hIni, mIni, 0, 0);
+        const horaFinal = new Date(ahora);
+        horaFinal.setHours(hFin, mFin, 0, 0);
+
+        // Si la hora final es menor que la inicial, significa que cruza medianoche
+        if (horaFinal.getTime() < horaInicio.getTime()) {
+          horaFinal.setDate(horaFinal.getDate() + 1);
+        }
+
+        // Si estamos dentro del horario de la clase
+        if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+          return 'EN CURSO';
+        }
+        
+        // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
+        // No esperar a que exista sesión en BD, se creará en la próxima sincronización
+        if (ahora.getTime() > horaFinal.getTime()) {
+          return 'COMPLETADO';
+        }
+      }
     }
 
     return 'PENDIENTE';
@@ -504,7 +551,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     });
 
     return filtered;
-  }, [clases, searchTerm, selectedStatus]);
+  }, [clases, searchTerm, selectedStatus, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   const classesToday = useMemo(() => {
     const today = filteredClases.filter((clase) => {
@@ -521,6 +568,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   }, [filteredClases]);
 
   // Separar clases por estado para agrupar
+  // IMPORTANTE: Incluir currentTime como dependencia para recalcular en tiempo real
   const clasesEnCurso = useMemo(() => {
     const enCurso = filteredClases.filter((c) => getStatus(c) === 'EN CURSO');
     // Ordenar por fecha y luego por hora inicial
@@ -534,11 +582,11 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       const horaB = b.horaInicial || '00:00:00';
       return horaA.localeCompare(horaB);
     });
-  }, [filteredClases]);
+  }, [filteredClases, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   const clasesPendientes = useMemo(() => {
     return filteredClases.filter((c) => getStatus(c) === 'PENDIENTE');
-  }, [filteredClases]);
+  }, [filteredClases, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   const clasesCompletadas = useMemo(() => {
     const completadas = filteredClases.filter((c) => getStatus(c) === 'COMPLETADO');
@@ -554,20 +602,25 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       const horaB = b.horaFinal || '00:00:00';
       return horaB.localeCompare(horaA); // Descendente
     });
-  }, [filteredClases]);
+  }, [filteredClases, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   /**
    * Agrupa todas las sesiones completadas de todas las clases por fecha
    * y las ordena de más reciente a más antigua.
    * Cada sesión se mostrará en su propia tarjeta independiente.
    * 
+   * IMPORTANTE: Incluye sesiones de TODAS las clases que tengan sesiones completadas,
+   * no solo de las clases marcadas como COMPLETADO, para mostrar todas las sesiones
+   * que están guardadas en sesionMateria.
+   * 
    * @returns Objeto con todas las sesiones y agrupación por fecha
    */
   const sesionesCompletadasAgrupadas = useMemo(() => {
-    // Obtener todas las sesiones completadas de todas las clases
+    // Obtener todas las sesiones completadas de TODAS las clases (no solo las completadas)
     const todasLasSesiones: Array<{ clase: Clase; sesion: SesionCompletada }> = [];
     
-    clasesCompletadas.forEach((clase) => {
+    // Iterar sobre TODAS las clases filtradas, no solo las completadas
+    filteredClases.forEach((clase) => {
       // Validar que la clase tenga sesiones completadas y que sean válidas
       if (clase.sesiones_completadas && Array.isArray(clase.sesiones_completadas) && clase.sesiones_completadas.length > 0) {
         clase.sesiones_completadas.forEach((sesion) => {
@@ -614,7 +667,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         items: grupos[fecha] || [],
       })),
     };
-  }, [clasesCompletadas]);
+  }, [filteredClases]); // Cambiar dependencia a filteredClases para incluir todas las clases
 
   /**
    * Obtiene la próxima fecha de clase como string para agrupar
@@ -776,7 +829,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     }
     
     try {
-      const fecha = new Date(fechaStr);
+      // Parsear fechaSesion (formato YYYY-MM-DD) sin problemas de zona horaria
+      const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
+      const fecha = new Date(year, month - 1, day);
       
       // Validar que la fecha sea válida
       if (isNaN(fecha.getTime())) {
@@ -789,6 +844,39 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       ];
       
       return `${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+    } catch (error) {
+      return 'Fecha inválida';
+    }
+  };
+
+  /**
+   * Formatea la fecha de sesión para mostrar en la tarjeta
+   * Usa la misma fecha que se usa para agrupar (fechaSesion) para garantizar consistencia
+   */
+  const formatearFechaSesion = (fechaSesion: string): string => {
+    if (!fechaSesion) {
+      return 'Fecha no disponible';
+    }
+    
+    try {
+      // Parsear fechaSesion (formato YYYY-MM-DD) sin problemas de zona horaria
+      const [year, month, day] = fechaSesion.split('T')[0].split('-').map(Number);
+      const fecha = new Date(year, month - 1, day);
+      
+      // Validar que la fecha sea válida
+      if (isNaN(fecha.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      // Usar Intl.DateTimeFormat para formatear (sin datos hardcodeados)
+      const formatter = new Intl.DateTimeFormat('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      
+      return formatter.format(fecha);
     } catch (error) {
       return 'Fecha inválida';
     }
@@ -809,6 +897,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   }> = ({ clase, sesion }) => {
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
+    
+    // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
+    const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
 
     return (
       <div
@@ -852,7 +943,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
               <div className="flex items-center gap-1.5">
                 <i className="ki-outline ki-calendar text-sm"></i>
                 <span className="capitalize">
-                  {sesion.fechaFormateada || sesion.fechaCorta || 'Fecha no disponible'}
+                  {fechaMostrar}
                 </span>
               </div>
             </div>
@@ -1007,7 +1098,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       ))}
 
       {/* Clases Completadas - Una tarjeta por cada sesión */}
-      {clasesCompletadas.length > 0 && sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
+      {/* Mostrar sesiones completadas si hay alguna, independientemente del estado de la clase */}
+      {sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 py-2">
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
