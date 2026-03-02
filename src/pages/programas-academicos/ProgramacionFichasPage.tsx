@@ -257,8 +257,6 @@ export const ProgramacionFichasPage = () => {
     }
   };
 
-  console.log(program);
-
   return (
     <>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-coal-500">
