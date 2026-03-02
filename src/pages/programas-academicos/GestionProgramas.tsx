@@ -172,7 +172,6 @@ export const GestionProgramas = ({
   useEffect(() => {
   if (!idRed) return;
 
-  // Si es admin centro, esperar a que tenga centro asignado
   if (
     authContext?.roles?.includes('ADMIN CENTRO') &&
     idCentroFormacion === 0
@@ -181,7 +180,7 @@ export const GestionProgramas = ({
   }
 
   fetchProgramas();
-}, [idRed, idCentroFormacion, authContext?.roles]);
+}, [idRed, idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
