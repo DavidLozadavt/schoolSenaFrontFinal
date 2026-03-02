@@ -42,8 +42,8 @@ interface Sede {
   celular: string;
   ciudad: Ciudades;
   empresa: Empresa;
-  urlImagen:string;
-  rutaFotoUrl:string;
+  urlImagen: string;
+  rutaFotoUrl: string;
 }
 
 const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
@@ -61,6 +61,10 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   // Succes sedes eliminar
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Informaciòn adicional de la sede
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [sedeInfo, setSedeInfo] = useState<Sede | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -211,6 +215,10 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
                 setSedeAEliminar(sede); // guardas la sede
                 setIsDeleteOpen(true); // abres modal
               }}
+              onInfo={() => {
+                setSedeInfo(sede);
+                setIsInfoOpen(true);
+              }}
             />
           </div>
         ))}
@@ -241,7 +249,129 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
         nombre={sedeAEliminar?.nombre}
         loading={deleting}
       />
+
+      {isInfoOpen && sedeInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => {
+            setIsInfoOpen(false);
+            setSedeInfo(null);
+          }}
+        >
+          <div
+            className="bg-white dark:bg-coal-400 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* HEADER con imagen */}
+            <div className="relative h-36">
+              <img
+                src={sedeInfo.rutaFotoUrl}
+                alt={sedeInfo.nombre}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setSedeInfo(null);
+                }}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-red-500 text-white flex items-center justify-center transition-all"
+              >
+                <i className="ki-outline ki-cross text-xs"></i>
+              </button>
+
+              <div className="absolute bottom-3 left-4 right-12">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-white/80 mb-1">
+                  <i className="ki-outline ki-geolocation text-xs" />
+                  {sedeInfo.ciudad?.descripcion || 'Sin ciudad'}
+                </span>
+                <h3 className="text-lg font-extrabold uppercase text-white leading-snug line-clamp-1">
+                  {sedeInfo.nombre}
+                </h3>
+                <p className="text-xs text-white/80">
+                  {sedeInfo.empresa?.razonSocial || 'Sin empresa'}
+                </p>
+              </div>
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-3">
+              <ModalInfoRow
+                icon="user-square"
+                color="blue"
+                label="Jefe inmediato"
+                value={sedeInfo.jefeInmediato}
+              />
+              <ModalInfoRow
+                icon="phone"
+                color="purple"
+                label="Teléfono"
+                value={sedeInfo.telefono}
+              />
+              <ModalInfoRow icon="phone" color="purple" label="Celular" value={sedeInfo.celular} />
+              <ModalInfoRow icon="sms" color="green" label="Email" value={sedeInfo.email} />
+              <ModalInfoRow
+                icon="map"
+                color="orange"
+                label="Dirección"
+                value={sedeInfo.direccion}
+              />
+            </div>
+
+            {/* FOOTER */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setSedeInfo(null);
+                }}
+                className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
+    </div>
+  );
+};
+
+const ModalInfoRow = ({
+  icon, label, value, color
+}: {
+  icon: string;
+  label: string;
+  value?: string | null;
+  color: 'blue' | 'purple' | 'green' | 'orange' | 'red';
+}) => {
+  const colors = {
+    blue:   'bg-blue-50 text-blue-600 dark:bg-blue-500/10',
+    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10',
+    green:  'bg-green-50 text-green-600 dark:bg-green-500/10',
+    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10',
+    red:    'bg-red-50 text-red-600 dark:bg-red-500/10',
+  };
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-coal-300 hover:bg-gray-100 transition-colors">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors[color]}`}>
+        <i className={`ki-outline ki-${icon} text-sm`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          {label}
+        </p>
+        <p className={`text-sm font-semibold truncate ${!value ? 'text-gray-400 italic' : 'text-gray-700 dark:text-gray-200'}`}>
+          {value || 'No asignado'}
+        </p>
+      </div>
+      {/* Chip si tiene valor */}
+      {value && (
+        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-400" />
+      )}
     </div>
   );
 };

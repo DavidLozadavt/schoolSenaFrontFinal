@@ -1,4 +1,3 @@
-
 interface Ciudad {
   id: number;
   descripcion: string;
@@ -22,7 +21,7 @@ interface Sede {
   ciudad?: Ciudad | null;
   empresa?: Empresa | null;
   urlImagen: string;
-  rutaFotoUrl:string;
+  rutaFotoUrl: string;
 }
 
 interface Props {
@@ -32,8 +31,7 @@ interface Props {
   onDelete?: () => void;
 }
 
-const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
-
+const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete, onInfo }) => {
   return (
     <div
       className="
@@ -47,9 +45,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
       {/* HEADER */}
       <div className="relative h-40">
         <img
-          src={
-            sede.rutaFotoUrl
-          }
+          src={sede.rutaFotoUrl}
           alt={sede.empresa?.razonSocial || 'Sede'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -82,9 +78,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           >
             {sede.nombre}
           </h3>
-          <p className="text-xs text-white/90 mt-1">
-            {sede.empresa?.razonSocial || 'Sin empresa'}
-          </p>
+          <p className="text-xs text-white/90 mt-1">{sede.empresa?.razonSocial || 'Sin empresa'}</p>
         </div>
       </div>
 
@@ -112,21 +106,16 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
             value={sede.celular || 'No asignado'}
             isEmpty={!sede.celular}
           />
-          <InfoRow
-            icon="sms"
-            color="green"
-            label="Email"
-            value={sede.email || 'No asignado'}
-            isEmpty={!sede.email}
-          />
-          <InfoRow
-            icon="map"
-            color="green"
-            label="Dirección"
-            multiline
-            value={sede.direccion || 'No asignado'}
-            isEmpty={!sede.direccion}
-          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={onInfo}
+            title="Editar"
+            className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+          >
+            <i className="text-sm ki-outline ki-eye"></i>
+          </button>
         </div>
 
         {/* ACCIONES */}
@@ -188,9 +177,10 @@ const InfoRow = ({
           className={`
             font-bold leading-snug
             ${multiline ? 'line-clamp-2 break-words' : 'truncate'}
-            ${isEmpty 
-              ? 'text-gray-400 dark:text-gray-500 italic' 
-              : 'text-gray-700 dark:text-gray-200'
+            ${
+              isEmpty
+                ? 'text-gray-400 dark:text-gray-500 italic'
+                : 'text-gray-700 dark:text-gray-200'
             }
           `}
         >
