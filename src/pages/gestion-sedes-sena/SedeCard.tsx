@@ -1,3 +1,5 @@
+import ModalInfoRow from "../gestion-regional/ModalInfoRow";
+
 interface Ciudad {
   id: number;
   descripcion: string;
@@ -85,21 +87,21 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete, onInfo }) => {
       {/* BODY */}
       <div className="p-5 space-y-4">
         <div className="space-y-3 text-xs flex-1 overflow-hidden">
-          <InfoRow
+          <ModalInfoRow
             icon="user-square"
             color="blue"
             label="Jefe inmediato"
             value={sede.jefeInmediato || 'No asignado'}
             isEmpty={!sede.jefeInmediato}
           />
-          <InfoRow
+          <ModalInfoRow
             icon="phone"
             color="purple"
             label="Teléfono"
             value={sede.telefono || 'No asignado'}
             isEmpty={!sede.telefono}
           />
-          <InfoRow
+          <ModalInfoRow
             icon="phone"
             color="purple"
             label="Celular"
@@ -108,6 +110,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete, onInfo }) => {
           />
         </div>
 
+           {/* VER MAS */}
         <div className="grid grid-cols-1 gap-2 mt-4">
           <button
             onClick={onInfo}
@@ -136,56 +139,6 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete, onInfo }) => {
             <i className="text-sm ki-outline ki-trash"></i>
           </button>
         </div>
-      </div>
-    </div>
-  );
-};
-
-/* Subcomponente reutilizable */
-const InfoRow = ({
-  icon,
-  label,
-  value,
-  color,
-  multiline = false,
-  isEmpty = false
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: 'blue' | 'purple' | 'green' | 'red';
-  multiline?: boolean;
-  isEmpty?: boolean;
-}) => {
-  const colors = {
-    blue: 'text-blue-600',
-    purple: 'text-purple-600',
-    green: 'text-green-600',
-    red: 'text-red-600'
-  };
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
-        <i className={`ki-outline ki-${icon} text-sm`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-          {label}
-        </p>
-        <p
-          className={`
-            font-bold leading-snug
-            ${multiline ? 'line-clamp-2 break-words' : 'truncate'}
-            ${
-              isEmpty
-                ? 'text-gray-400 dark:text-gray-500 italic'
-                : 'text-gray-700 dark:text-gray-200'
-            }
-          `}
-        >
-          {value}
-        </p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import SedeCard from './SedeCard';
 import ModalEliminar from './ModalEliminar';
 import Toast from '../programas-academicos/components/Toast';
 import FormularioSedesSena from './FormularioSedesSena';
+import ModalInfoRow from '../gestion-regional/ModalInfoRow';
 
 interface Props {
   searchTerm: string;
@@ -64,7 +65,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
 
   // Informaciòn adicional de la sede
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [sedeInfo, setSedeInfo] = useState<Sede | null>(null);
+  const [info, setInfo] = useState<Sede | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -216,7 +217,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
                 setIsDeleteOpen(true); // abres modal
               }}
               onInfo={() => {
-                setSedeInfo(sede);
+                setInfo(sede);
                 setIsInfoOpen(true);
               }}
             />
@@ -250,12 +251,12 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
         loading={deleting}
       />
 
-      {isInfoOpen && sedeInfo && (
+      {isInfoOpen && info && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => {
             setIsInfoOpen(false);
-            setSedeInfo(null);
+            setInfo(null);
           }}
         >
           <div
@@ -265,8 +266,8 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
             {/* HEADER con imagen */}
             <div className="relative h-36">
               <img
-                src={sedeInfo.rutaFotoUrl}
-                alt={sedeInfo.nombre}
+                src={info.rutaFotoUrl}
+                alt={info.nombre}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -274,7 +275,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
               <button
                 onClick={() => {
                   setIsInfoOpen(false);
-                  setSedeInfo(null);
+                  setInfo(null);
                 }}
                 className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-red-500 text-white flex items-center justify-center transition-all"
               >
@@ -284,13 +285,13 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
               <div className="absolute bottom-3 left-4 right-12">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-white/80 mb-1">
                   <i className="ki-outline ki-geolocation text-xs" />
-                  {sedeInfo.ciudad?.descripcion || 'Sin ciudad'}
+                  {info.ciudad?.descripcion || 'Sin ciudad'}
                 </span>
                 <h3 className="text-lg font-extrabold uppercase text-white leading-snug line-clamp-1">
-                  {sedeInfo.nombre}
+                  {info.nombre}
                 </h3>
                 <p className="text-xs text-white/80">
-                  {sedeInfo.empresa?.razonSocial || 'Sin empresa'}
+                  {info.empresa?.razonSocial || 'Sin empresa'}
                 </p>
               </div>
             </div>
@@ -301,21 +302,21 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
                 icon="user-square"
                 color="blue"
                 label="Jefe inmediato"
-                value={sedeInfo.jefeInmediato}
+                value={info.jefeInmediato}
               />
               <ModalInfoRow
                 icon="phone"
                 color="purple"
                 label="Teléfono"
-                value={sedeInfo.telefono}
+                value={info.telefono}
               />
-              <ModalInfoRow icon="phone" color="purple" label="Celular" value={sedeInfo.celular} />
-              <ModalInfoRow icon="sms" color="green" label="Email" value={sedeInfo.email} />
+              <ModalInfoRow icon="phone" color="purple" label="Celular" value={info.celular} />
+              <ModalInfoRow icon="sms" color="green" label="Email" value={info.email} />
               <ModalInfoRow
                 icon="map"
                 color="orange"
                 label="Dirección"
-                value={sedeInfo.direccion}
+                value={info.direccion}
               />
             </div>
 
@@ -324,7 +325,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
               <button
                 onClick={() => {
                   setIsInfoOpen(false);
-                  setSedeInfo(null);
+                  setInfo(null);
                 }}
                 className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all hover:scale-[1.02] active:scale-95"
               >
@@ -339,41 +340,6 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   );
 };
 
-const ModalInfoRow = ({
-  icon, label, value, color
-}: {
-  icon: string;
-  label: string;
-  value?: string | null;
-  color: 'blue' | 'purple' | 'green' | 'orange' | 'red';
-}) => {
-  const colors = {
-    blue:   'bg-blue-50 text-blue-600 dark:bg-blue-500/10',
-    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10',
-    green:  'bg-green-50 text-green-600 dark:bg-green-500/10',
-    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10',
-    red:    'bg-red-50 text-red-600 dark:bg-red-500/10',
-  };
 
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-coal-300 hover:bg-gray-100 transition-colors">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors[color]}`}>
-        <i className={`ki-outline ki-${icon} text-sm`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-          {label}
-        </p>
-        <p className={`text-sm font-semibold truncate ${!value ? 'text-gray-400 italic' : 'text-gray-700 dark:text-gray-200'}`}>
-          {value || 'No asignado'}
-        </p>
-      </div>
-      {/* Chip si tiene valor */}
-      {value && (
-        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-400" />
-      )}
-    </div>
-  );
-};
 
 export default ListaSedesSena;
