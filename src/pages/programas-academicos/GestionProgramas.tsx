@@ -70,12 +70,12 @@ export const GestionProgramas = ({
     }
     if (authContext?.roles?.includes('ADMIN REGIONAL')) {
       setIdRegional(authContext?.empresa.id);
-      return
-    } 
-    if(authContext?.roles?.includes('ADMIN CENTRO')) {
+      return;
+    }
+    if (authContext?.roles?.includes('ADMIN CENTRO')) {
       setIdRegional(authContext?.empresa.id);
-      setIdCentroFormacion(authContext?.user?.idCentroFormacion)
-      return
+      setIdCentroFormacion(authContext?.user?.idCentroFormacion);
+      return;
     }
   }, [authContext]);
 
@@ -84,8 +84,13 @@ export const GestionProgramas = ({
       const loadCentros = async () => {
         const centro = await axios.get(`centrosFormacion/regional/${idRegional}`);
         setCentroFormacion(centro.data.data);
-        setIdCentroFormacion(0); // reset centro cuando cambia regional
+
+        // Solo resetear si NO es admin centro
+        if (!authContext?.roles?.includes('ADMIN CENTRO')) {
+          setIdCentroFormacion(0);
+        }
       };
+
       loadCentros();
     }
   }, [idRegional]);
