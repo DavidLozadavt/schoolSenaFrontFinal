@@ -92,6 +92,7 @@ export const ProgramacionFichasPage = () => {
   const [isMallaOpen, setIsMallaOpen] = useState(false);
   const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
   const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
+  const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
 
   // Estados para edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -144,7 +145,7 @@ export const ProgramacionFichasPage = () => {
     throw new Error('AuthContext debe usarse dentro de AuthProvider');
   }
 
-  const {centroF} = authContext;
+  const { centroF } = authContext;
 
   const loadFichas = async () => {
     if (!programId) return;
@@ -255,6 +256,8 @@ export const ProgramacionFichasPage = () => {
       }
     }
   };
+
+  console.log(program);
 
   return (
     <>
@@ -417,8 +420,8 @@ export const ProgramacionFichasPage = () => {
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${ficha.asignacion?.estado === 'EN CURSO'
-                                      ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
                                     }`}
                                 >
                                   {ficha.asignacion?.estado || 'N/A'}
@@ -583,7 +586,7 @@ export const ProgramacionFichasPage = () => {
                           )}
 
                           {/* BOTONES DE ACCIÓN - EDITAR Y ELIMINAR */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-3 border-t border-gray-200 dark:border-coal-100">
+                          <div className="grid grid-cols-3 md:grid-cols-5 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -597,7 +600,7 @@ export const ProgramacionFichasPage = () => {
                               title='Juicios evaluativos'
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-book-square text-base"></i>
+                              <i className="ki-outline ki-element-11 text-base"></i>
                             </button>
                             <button
                               type="button"
@@ -606,6 +609,14 @@ export const ProgramacionFichasPage = () => {
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-calendar text-base"></i>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setVerMallaCurricular(true)}
+                              title='Malla curricular'
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-book-square text-base"></i>
                             </button>
                             <button
                               type="button"
@@ -721,6 +732,14 @@ export const ProgramacionFichasPage = () => {
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
       />
+
+      {verMallaCurricular && (
+        <MallaCurricular
+          isOpen={verMallaCurricular}
+          onClose={() => setVerMallaCurricular(false)}
+          program={program}
+        />
+      )}
 
       {verHorariosFicha && (
         <Calendario
