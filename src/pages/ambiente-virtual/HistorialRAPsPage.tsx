@@ -42,6 +42,7 @@ const HistorialRAPsPage: React.FC = () => {
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </Fragment>
   );
+  
 };
 
 export default HistorialRAPsPage;
