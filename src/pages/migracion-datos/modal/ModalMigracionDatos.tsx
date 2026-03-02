@@ -102,7 +102,7 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/60 items-center justify-center px-4">
-      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400 shadow-xl p-0 transition-all duration-300">
+      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400 shadow-xl">
         {/* Cerrar */}
         <button
           type="button"
@@ -114,63 +114,63 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
         </button>
 
         {/* Header */}
-        <div className="border-b px-6 py-4 flex items-center justify-start">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Carga masiva de {label}.
-          </h2>
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-6 py-4 border-b">
+          Carga masiva de {label}
+        </h2>
 
-        <ModalBody className="p-6 overflow-y-auto max-h-[70vh]">
-          <div className="mb-6">
-            <p className="text-xs font-bold mb-2 text-gray-800 dark:text-gray-100 uppercase">
-              Archivo Excel <span className="text-gray-500">(XLSX, XLS, CSV)</span>
-            </p>
+        <ModalBody className="grid gap-5 px-0 py-5">
+          <form className="p-6 overflow-y-auto max-h-[70vh]">
+            <div className="mb-6">
+              <p className="text-xs font-bold mb-2 text-gray-800 dark:text-gray-100 uppercase">
+                Archivo Excel <span className="text-gray-500">(XLSX, XLS, CSV)</span>
+              </p>
 
-            <div className="relative">
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                id="fileUpload"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileChange}
-              />
-              <label
-                htmlFor="fileUpload"
-                className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-coal-100 rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500 bg-white dark:bg-coal-400"
-              >
-                <div className="flex items-center gap-3">
-                  <KeenIcon icon="file" className="text-gray-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[400px]">
-                    {file ? file.name : 'Seleccionar archivo Excel'}
+              <div className="relative">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  id="fileUpload"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                />
+                <label
+                  htmlFor="fileUpload"
+                  className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-coal-100 rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500 bg-white dark:bg-coal-400"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">📄</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {file ? file.name : 'Seleccionar archivo Excel'}
+                    </span>
+                  </div>
+                  <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white font-medium transition hover:bg-blue-700">
+                    Examinar
                   </span>
-                </div>
-                <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white font-medium">
-                  Examinar
-                </span>
-              </label>
+                </label>
+              </div>
             </div>
-          </div>
 
-          {/* Botones */}
-          <div className="flex justify-end gap-2 mt-6 border-t pt-4">
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-300 transition-colors duration-200"
-              onClick={onClose}
-            >
-              CANCELAR
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors duration-200 ${!file ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                }`}
-              onClick={handleSave}
-              disabled={!file}
-            >
-              SUBIR
-            </button>
-          </div>
+            {/* Botones */}
+            <div className="flex justify-end gap-2 mt-6 border-t pt-4">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-300 transition-colors duration-200"
+                onClick={onClose}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg text-sm text-white transition-colors duration-200 ${!file ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                  }`}
+                onClick={handleSave}
+                disabled={!file}
+              >
+                Subir
+              </button>
+            </div>
+          </form>
         </ModalBody>
       </div>
     </div>
