@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { MallaCurricularProps } from '../../types';
-import { AlertCircle, BookOpen, Calendar, Search } from 'lucide-react';
-import Select from "react-select";
+import { BookOpen, Calendar, Search } from 'lucide-react';
 
 // Componentes separados
 import { CardTrimestre } from './CardTrimestre';
@@ -14,24 +12,10 @@ import { FormCompetencia } from './FormCompetencia';
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
-import { useAuthContext } from '@/auth';
 import { HorariosMateria } from './HorariosMateria';
+import { enqueueSnackbar } from 'notistack';
 
-const formatearFecha = (fecha: Date): string => {
-  return new Date(fecha).toISOString().split('T')[0];
-};
-
-export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularProps) => {
-  // Estados de fichas
-  const [fichas, setFichas] = useState<any[]>([]);
-  const [loadingFichas, setLoadingFichas] = useState(false);
-  const [selectedFicha, setSelectedFicha] = useState<any | null>(null);
-  const [selectedFichaOption, setSelectedFichaOption] = useState<any>(null);
-  const { user, centroF } = useAuthContext();
-
-  // Estados de vista
-  const [errorApi, setErrorApi] = useState<string | null>(null);
-
+export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurricularProps) => {
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
@@ -45,6 +29,12 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   const [isFormCompetenciaOpen, setIsFormCompetenciaOpen] = useState(false);
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
   const [postEditCallback, setPostEditCallback] = useState<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (ficha?.id) {
+      cargarTrimestres(ficha?.id);
+    }
+  }, [ficha?.id]);
 
   // Hook de trimestres
   const {
@@ -63,7 +53,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     toast,
     setToast,
     loadingTrimestres
-  } = useTrimestres(selectedFicha?.id, program?.id);
+  } = useTrimestres(ficha?.id, program?.id);
 
   // Estados para modal de Horarios
   const [modalHorarios, setModalHorarios] = useState<{
@@ -82,55 +72,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
     horasFaltantes: 0
   });
 
-  // Cargar fichas cuando se abre el modal
-  useEffect(() => {
-    const cargarFichas = async () => {
-      if (!isOpen || !program?.id) return;
-
-      setSelectedFicha(null);
-      setSelectedFichaOption(null);
-      setLoadingFichas(true);
-      try {
-        const idCentro = centroF && centroF !== 0 ? centroF : user?.idCentroFormacion;
-        const res = await axios.get(`fichas/programa/${program.id}/${idCentro}`);
-        if (Array.isArray(res.data?.data)) {
-          const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
-          const fichasConDocumento = res.data.data.map((ficha: any) => ({
-            ...ficha,
-            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
-          }));
-          setFichas(fichasConDocumento);
-        } else {
-          setFichas([]);
-        }
-      } catch (error) {
-        setFichas([]);
-      } finally {
-        setLoadingFichas(false);
-      }
-    };
-
-    if (isOpen && program?.id) {
-      cargarFichas();
-      setErrorApi(null);
-    }
-  }, [isOpen, program?.id]);
-
-  // Handlers
-  const handleSeleccionarFicha = (opcion: any) => {
-    if (opcion) {
-      setSelectedFichaOption(opcion);
-      const ficha = fichas.find(f => f.id === opcion.value);
-      setSelectedFicha(ficha || null);
-      cargarTrimestres(opcion.value);
-    } else {
-      setSelectedFichaOption(null);
-      setSelectedFicha(null);
-    }
-  };
-
   const handleAgregarTrimestre = () => {
-    agregarNuevoTrimestre(selectedFicha);
+    agregarNuevoTrimestre(ficha);
   };
 
   const handleOpenMateriaFromTrimestre = (nivelId: any) => {
@@ -148,10 +91,10 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   }) => {
     if (nuevoTrimestre) {
       actualizarMaterias(data.materias);
-    } else if (selectedFicha?.id) {
-      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias, selectedFicha.id);
+    } else if (ficha?.id) {
+      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias, ficha.id);
       if (success) {
-        await cargarTrimestres(selectedFicha.id);
+        await cargarTrimestres(ficha?.id);
         setIsMateriaModalOpen(false);
       }
     }
@@ -159,14 +102,14 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
 
 
   const handleGuardarTrimestre = async () => {
-    if (!selectedFicha) {
-      alert('Debes seleccionar una ficha');
+    if (!ficha) {
+      enqueueSnackbar('Debes seleccionar una ficha', { variant: 'error' });
       return;
     }
 
-    const success = await crearTrimestre(selectedFicha);
+    const success = await crearTrimestre(ficha);
     if (success) {
-      await cargarTrimestres(selectedFicha.id);
+      await cargarTrimestres(ficha?.id);
     }
   };
 
@@ -185,8 +128,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   };
 
   const handleFormCompetenciaSuccess = () => {
-    if (selectedFicha?.id) {
-      cargarTrimestres(selectedFicha.id);
+    if (ficha?.id) {
+      cargarTrimestres(ficha?.id);
     }
     if (postEditCallback) {
       postEditCallback();
@@ -195,11 +138,6 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
   };
 
   if (!isOpen || !program) return null;
-
-  const fichaOptions = fichas.map((ficha) => ({
-    value: ficha.id,
-    label: `Ficha #${ficha.codigo} • ${ficha.asignacion?.fechaInicialClases ? `${formatearFecha(ficha.asignacion.fechaInicialClases)} - ${formatearFecha(ficha.asignacion.fechaFinalClases)}` : 'Sin fechas asignadas'} • Jornada: ${ficha.jornada?.nombreJornada || 'N/A'}`
-  }));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-x-hidden bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -224,7 +162,7 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
 
           <div className="absolute text-white bottom-5 left-6">
             <span className="px-3 py-1 text-xs font-extrabold tracking-wider uppercase bg-primary rounded-md mb-2 inline-block shadow-lg">
-              {program.estado?.nombre || "SIN ESTADO"}
+              {program.estado?.nombre || program.status || "SIN ESTADO"}
             </span>
             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
               {program.name || "Programa sin nombre"}
@@ -238,164 +176,106 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
 
         {/* Contenido Principal */}
         <div className="flex-grow min-h-96 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-          {errorApi && (
-            <div className="p-4 mb-6 border-l-4 border-danger bg-danger/10 rounded-lg text-danger flex items-center gap-3 animate-pulse">
-              <AlertCircle size={20} />
-              <span className="font-semibold text-sm">{errorApi}</span>
-            </div>
-          )}
 
-          {!errorApi && (
-            <div className="mb-8">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-                <h4 className="text-lg font-black uppercase text-gray-800 dark:text-white border-l-4 border-primary pl-4">
-                  Fichas del Programa
-                </h4>
-
-                {/* Controles de Trimestres */}
-                {selectedFicha && (
-                  <div className="flex items-center gap-3 bg-white dark:bg-coal-400 px-4 py-2 rounded-lg shadow-sm justify-between">
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
-                      <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
-                        {trimestres.length}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleAgregarTrimestre}
-                      disabled={
-                        nuevoTrimestre !== null ||
-                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
-                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7) ||
-                        trimestres.length >= 9
-                      }
-                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
-                        <i className="text-lg ki-filled ki-plus"></i>
-                      </div>
-                      <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-                        {
-                          (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
-                            (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7)
-                            ? 'Límite alcanzado'
-                            : 'Añadir Trimestre'
-                        }
-                      </span>
-                    </button>
+          <div className="mb-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+              {/* Controles de Trimestres */}
+              {ficha && (
+                <div className="flex w-full items-center gap-3 px-4 justify-between">
+                  <div>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
+                    <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
+                      {trimestres.length}
+                    </span>
                   </div>
-                )}
-              </div>
-
-              {/* Selector de Fichas */}
-              {loadingFichas ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : fichas.length === 0 ? (
-                <div className="py-12 text-center bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <BookOpen size={48} className="mx-auto text-gray-400 mb-3" />
-                  <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
-                    No hay fichas asignadas a este programa
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-6 bg-white dark:bg-coal-400 rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Select
-                      options={fichaOptions}
-                      value={selectedFichaOption}
-                      placeholder="Selecciona una ficha para ver sus trimestres..."
-                      onChange={handleSeleccionarFicha}
-                      classNames={{
-                        control: () =>
-                          "bg-white dark:bg-coal-400 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white",
-                        menu: () =>
-                          "bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600",
-                        option: ({ isFocused, isSelected }) =>
-                          `cursor-pointer ${isSelected
-                            ? "bg-blue-600 text-white"
-                            : isFocused
-                              ? "bg-gray-100 dark:bg-coal-300"
-                              : "text-gray-700 dark:text-white"
-                          }`,
-                        singleValue: () =>
-                          "text-gray-700 dark:text-white",
-                        placeholder: () =>
-                          "text-gray-400 dark:text-gray-300",
-                        input: () =>
-                          "text-gray-700 dark:text-white",
-                        clearIndicator: () =>
-                          "text-gray-400 dark:text-gray-300 hover:text-red-500",
-                        dropdownIndicator: () =>
-                          "text-gray-400 dark:text-gray-300 hover:text-gray-600",
-                      }}
-                      isClearable
-                    />
-                  </div>
-
-                  {!selectedFicha && (
-                    <div className="py-8 rounded-lg text-center bg-white dark:bg-coal-400">
-                      <Search size={48} className="mx-auto text-gray-400 mb-3" />
-                      <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
-                        Busca y selecciona una ficha para continuar
-                      </p>
+                  <button
+                    onClick={handleAgregarTrimestre}
+                    disabled={
+                      nuevoTrimestre !== null ||
+                      (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                      (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7) ||
+                      trimestres.length >= 9
+                    }
+                    className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                      <i className="text-lg ki-filled ki-plus"></i>
                     </div>
-                  )}
-
-                  {/* Contenido: Trimestres o Calendario */}
-                  {selectedFicha &&
-                    <div className="space-y-5">
+                    <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
                       {
-                        !loadingTrimestres ?
-
-                          <div className="flex justify-center py-8">
-                            <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                          :
-                          (
-                            trimestres.length > 0 ? (
-                              [...trimestres]
-                                .sort((a, b) => a.grado?.numeroGrado - b.grado?.numeroGrado)
-                                .map((trimestre, index) => (
-                                  <div
-                                    key={trimestre.id || index}
-                                    className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
-                                      ? 'border-primary animate-pulse-slow'
-                                      : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
-                                      }`}
-                                  >
-                                    <CardTrimestre
-                                      trimestre={trimestre}
-                                      index={index}
-                                      onAbrirMaterias={handleOpenMateriaFromTrimestre}
-                                      setSelectedNivelId={setSelectedNivelId}
-                                      onVerRaps={handleOpenRaps}
-                                      onEditCompetencia={handleEditCompetencia}
-                                      setModalHorarios={setModalHorarios}
-                                      idFicha={selectedFicha?.id}
-                                      onAsignacionSuccess={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
-                                    />
-                                  </div>
-                                ))
-                            ) : (
-                              <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
-                                <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
-                                <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
-                                  No hay trimestres configurados
-                                </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  Utiliza los controles superiores para agregar trimestres
-                                </p>
-                              </div>
-                            )
-                          )}
-                    </div>
-                  }
-                </>
+                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres.length >= 3) ||
+                          (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres.length >= 7)
+                          ? 'Límite alcanzado'
+                          : 'Añadir Trimestre'
+                      }
+                    </span>
+                  </button>
+                </div>
               )}
             </div>
-          )}
+
+            <>
+              {!ficha && (
+                <div className="py-8 rounded-lg text-center bg-white dark:bg-coal-400">
+                  <Search size={48} className="mx-auto text-gray-400 mb-3" />
+                  <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                    selecciona una ficha para continuar
+                  </p>
+                </div>
+              )}
+
+              {/* Contenido: Trimestres o Calendario */}
+              {ficha &&
+                <div className="space-y-5">
+                  {
+                    !loadingTrimestres ?
+
+                      <div className="flex justify-center py-8">
+                        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                      :
+                      (
+                        trimestres.length > 0 ? (
+                          [...trimestres]
+                            .sort((a, b) => a.grado?.numeroGrado - b.grado?.numeroGrado)
+                            .map((trimestre, index) => (
+                              <div
+                                key={trimestre.id || index}
+                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
+                                  ? 'border-primary animate-pulse-slow'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                                  }`}
+                              >
+                                <CardTrimestre
+                                  trimestre={trimestre}
+                                  index={index}
+                                  onAbrirMaterias={handleOpenMateriaFromTrimestre}
+                                  setSelectedNivelId={setSelectedNivelId}
+                                  onVerRaps={handleOpenRaps}
+                                  onEditCompetencia={handleEditCompetencia}
+                                  setModalHorarios={setModalHorarios}
+                                  idFicha={ficha?.id}
+                                  onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
+                                />
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                            <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
+                            <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
+                              No hay trimestres configurados
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Utiliza los controles superiores para agregar trimestres
+                            </p>
+                          </div>
+                        )
+                      )}
+                </div>
+              }
+            </>
+
+          </div>
         </div>
 
         {/* Footer */}
@@ -403,8 +283,8 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           <div className="items-center hidden sm:flex gap-2">
             <i className="text-base ki-outline ki-information-2 text-primary"></i>
             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-              {selectedFicha
-                ? `Ficha #${selectedFicha.codigo} seleccionada`
+              {ficha
+                ? `Ficha #${ficha?.codigo} seleccionada`
                 : 'Selecciona una ficha para comenzar'}
             </p>
           </div>
@@ -454,12 +334,12 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
           onClose={() => setIsRapsModalOpen(false)}
           idMateriaPadre={selectedCompetenciaId}
           nombreCompetencia={selectedCompetenciaNombre}
-          idFicha={selectedFicha?.id}
+          idFicha={ficha?.id}
           programId={program?.id}
           nivelId={selectedNivelId ?? 0}
-          porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
-          onUpdate={() => selectedFicha && cargarTrimestres(selectedFicha.id)}
+          onUpdate={() => ficha && cargarTrimestres(ficha?.id)}
         />
       )}
 
@@ -481,13 +361,13 @@ export const MallaCurricular = ({ isOpen, onClose, program }: MallaCurricularPro
             idGradoMateria: undefined
           })}
           idGradoMateria={modalHorarios.idGradoMateria ?? 0}
-          idFicha={modalHorarios.idFicha || selectedFicha?.id || 0}
+          idFicha={modalHorarios.idFicha || ficha?.id || 0}
           totalHoras={modalHorarios.totalHoras}
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
-          porcentajeEjecucion={selectedFicha?.porcentajeEjecucion ?? 0}
+          porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           onGuardado={() => {
-            if (selectedFicha?.id) cargarTrimestres(selectedFicha.id);
+            if (ficha?.id) cargarTrimestres(ficha?.id);
           }}
         />
       }

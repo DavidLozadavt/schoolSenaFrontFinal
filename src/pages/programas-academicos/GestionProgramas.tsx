@@ -521,37 +521,6 @@ export const GestionProgramas = ({
                             </div>
                           </div>
 
-                          {/* Botones de acción rápida */}
-                          <div className="grid grid-cols-4 gap-2 mb-4">
-                            <button
-                              title="Periodos abiertos"
-                              className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              <i className="text-sm ki-outline ki-entrance-right"></i>
-                            </button>
-                            <button
-                              title="Malla curricular"
-                              onClick={() => openMallaModal(program)}
-                              className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              <i className="text-sm ki-outline ki-book-open"></i>
-                            </button>
-                            <button
-                              title="Configurar pagos"
-                              className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              <i className="text-sm ki-outline ki-setting-2"></i>
-                            </button>
-                            <button
-                              title="Configurar documentos"
-                              type="button"
-                              onClick={openTiposDocumentoModal}
-                              className="flex items-center justify-center w-full h-8 text-gray-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              <i className="text-sm ki-outline ki-files"></i>
-                            </button>
-                          </div>
-
                           {/* Botón principal */}
                           <button
                             onClick={() => handleOpenProgramacionFichas(program)}

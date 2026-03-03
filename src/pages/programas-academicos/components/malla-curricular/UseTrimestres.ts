@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 
-export const useTrimestres = (fichaId: number | undefined, programaId: number | undefined) => {
+export const useTrimestres = (fichaId: number , programaId: number | undefined) => {
   const [trimestres, setTrimestres] = useState<any[]>([]);
   const [nuevoTrimestre, setNuevoTrimestre] = useState<any | null>(null);
   const [guardandoTrimestre, setGuardandoTrimestre] = useState(false);
