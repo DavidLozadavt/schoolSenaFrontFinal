@@ -16,7 +16,6 @@ import { useTrimestres } from './UseTrimestres';
 import Toast from '../Toast';
 import { useAuthContext } from '@/auth';
 import { HorariosMateria } from './HorariosMateria';
-//import {  } from '../../../../../public/media/'
 
 const formatearFecha = (fecha: Date): string => {
   return new Date(fecha).toISOString().split('T')[0];

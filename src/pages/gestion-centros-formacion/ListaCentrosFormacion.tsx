@@ -4,6 +4,7 @@ import { KeenIcon } from '@/components';
 import CentroFormacionCard from './CentroFormacionCard';
 import FormularioCentrosFormacion from './FormularioCentrosFormacion';
 import Toast from '../programas-academicos/components/Toast';
+import ModalInfoRow from '../gestion-regional/ModalInfoRow';
 
 interface Props {
   searchTerm: string;
@@ -37,7 +38,7 @@ interface CentrosFormacion {
   idEmpresa: number | null;
   empresa?: Empresa | null;
   foto: string;
-  rutaFotoUrl:string;
+  rutaFotoUrl: string;
 }
 
 const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento, showToast }) => {
@@ -52,6 +53,10 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Informaciòn adicional de la regional
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [info, setInfo] = useState<CentrosFormacion | null>(null);
 
   const showToastLocal = (message: string) => {
     setToastMessage(message);
@@ -200,7 +205,10 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
                 setIdCentroFormacion(String(centro.id));
                 setIsModalOpen(true);
               }}
-              onInfo={() => {}}
+              onInfo={() => {
+                setInfo(centro);
+                setIsInfoOpen(true);
+              }}
               onDelete={() => setDeleteConfirm(centro.id)}
             />
           </div>
@@ -214,12 +222,8 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
                 <KeenIcon icon="information" className="text-2xl text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  ¿Eliminar centro de formación?
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Esta acción no se puede deshacer
-                </p>
+                <h3 className="text-lg font-bold text-gray-900">¿Eliminar centro de formación?</h3>
+                <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
               </div>
             </div>
 
@@ -259,6 +263,92 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
           showToast={showToast}
           mode="edit"
         />
+      )}
+
+      {isInfoOpen && info && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => {
+            setIsInfoOpen(false);
+            setInfo(null);
+          }}
+        >
+          <div
+            className="bg-white dark:bg-coal-400 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* HEADER con imagen del centro */}
+            <div className="relative h-36">
+              {info.rutaFotoUrl ? (
+                <img
+                  src={info.rutaFotoUrl}
+                  alt={info.nombre}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+                  <i className="ki-outline ki-building text-6xl text-white/40" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setInfo(null);
+                }}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-red-500 text-white flex items-center justify-center transition-all"
+              >
+                <i className="ki-outline ki-cross text-xs"></i>
+              </button>
+
+              <div className="absolute bottom-3 left-4 right-12">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-white/80 mb-1">
+                  <i className="ki-outline ki-geolocation text-xs" />
+                  {info.ciudad?.descripcion || 'Sin ciudad'}
+                </span>
+                <h3 className="text-lg font-extrabold uppercase text-white leading-snug line-clamp-1">
+                  {info.nombre}
+                </h3>
+                <p className="text-xs text-white/70">
+                  {info.empresa?.razonSocial || 'Sin regional'}
+                </p>
+              </div>
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-3">
+              <ModalInfoRow
+                icon="user-square"
+                color="blue"
+                label="Subdirector"
+                value={info.subdirector}
+              />
+              <ModalInfoRow icon="sms" color="green" label="Email centro" value={info.correo} />
+              <ModalInfoRow
+                icon="sms"
+                color="purple"
+                label="Email subdirector"
+                value={info.correosubdirector}
+              />
+              <ModalInfoRow icon="phone" color="orange" label="Teléfono" value={info.telefono} />
+              <ModalInfoRow icon="map" color="red" label="Dirección" value={info.direccion} />
+            </div>
+
+            {/* FOOTER */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setInfo(null);
+                }}
+                className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </div>

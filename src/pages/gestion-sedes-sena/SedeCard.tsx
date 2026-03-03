@@ -1,3 +1,4 @@
+import ModalInfoRow from "../gestion-regional/ModalInfoRow";
 
 interface Ciudad {
   id: number;
@@ -22,7 +23,7 @@ interface Sede {
   ciudad?: Ciudad | null;
   empresa?: Empresa | null;
   urlImagen: string;
-  rutaFotoUrl:string;
+  rutaFotoUrl: string;
 }
 
 interface Props {
@@ -32,8 +33,7 @@ interface Props {
   onDelete?: () => void;
 }
 
-const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
-
+const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete, onInfo }) => {
   return (
     <div
       className="
@@ -47,9 +47,7 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
       {/* HEADER */}
       <div className="relative h-40">
         <img
-          src={
-            sede.rutaFotoUrl
-          }
+          src={sede.rutaFotoUrl}
           alt={sede.empresa?.razonSocial || 'Sede'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -82,51 +80,45 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
           >
             {sede.nombre}
           </h3>
-          <p className="text-xs text-white/90 mt-1">
-            {sede.empresa?.razonSocial || 'Sin empresa'}
-          </p>
+          <p className="text-xs text-white/90 mt-1">{sede.empresa?.razonSocial || 'Sin empresa'}</p>
         </div>
       </div>
 
       {/* BODY */}
       <div className="p-5 space-y-4">
         <div className="space-y-3 text-xs flex-1 overflow-hidden">
-          <InfoRow
+          <ModalInfoRow
             icon="user-square"
             color="blue"
             label="Jefe inmediato"
             value={sede.jefeInmediato || 'No asignado'}
             isEmpty={!sede.jefeInmediato}
           />
-          <InfoRow
+          <ModalInfoRow
             icon="phone"
             color="purple"
             label="Teléfono"
             value={sede.telefono || 'No asignado'}
             isEmpty={!sede.telefono}
           />
-          <InfoRow
+          <ModalInfoRow
             icon="phone"
             color="purple"
             label="Celular"
             value={sede.celular || 'No asignado'}
             isEmpty={!sede.celular}
           />
-          <InfoRow
-            icon="sms"
-            color="green"
-            label="Email"
-            value={sede.email || 'No asignado'}
-            isEmpty={!sede.email}
-          />
-          <InfoRow
-            icon="map"
-            color="green"
-            label="Dirección"
-            multiline
-            value={sede.direccion || 'No asignado'}
-            isEmpty={!sede.direccion}
-          />
+        </div>
+
+           {/* VER MAS */}
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={onInfo}
+            title="Editar"
+            className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+          >
+            <i className="text-sm ki-outline ki-eye"></i>
+          </button>
         </div>
 
         {/* ACCIONES */}
@@ -147,55 +139,6 @@ const SedeCard: React.FC<Props> = ({ sede, onEdit, onDelete }) => {
             <i className="text-sm ki-outline ki-trash"></i>
           </button>
         </div>
-      </div>
-    </div>
-  );
-};
-
-/* Subcomponente reutilizable */
-const InfoRow = ({
-  icon,
-  label,
-  value,
-  color,
-  multiline = false,
-  isEmpty = false
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: 'blue' | 'purple' | 'green' | 'red';
-  multiline?: boolean;
-  isEmpty?: boolean;
-}) => {
-  const colors = {
-    blue: 'text-blue-600',
-    purple: 'text-purple-600',
-    green: 'text-green-600',
-    red: 'text-red-600'
-  };
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
-        <i className={`ki-outline ki-${icon} text-sm`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-          {label}
-        </p>
-        <p
-          className={`
-            font-bold leading-snug
-            ${multiline ? 'line-clamp-2 break-words' : 'truncate'}
-            ${isEmpty 
-              ? 'text-gray-400 dark:text-gray-500 italic' 
-              : 'text-gray-700 dark:text-gray-200'
-            }
-          `}
-        >
-          {value}
-        </p>
       </div>
     </div>
   );

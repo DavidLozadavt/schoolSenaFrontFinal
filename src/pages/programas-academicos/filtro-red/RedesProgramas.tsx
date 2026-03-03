@@ -44,19 +44,7 @@ const RedesProgramas:React.FC = () => {
           />
         </div>
 
-        <button
-          onClick={() => {
-            setIsModalOpen(true);
-          }}
-          className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
-        >
-          <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
-            <i className="text-lg ki-filled ki-plus"></i>
-          </div>
-          <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-            Añadir Red
-          </span>
-        </button>
+        
       </div>
         <FormularioRedes
           open={isModalOpen}
