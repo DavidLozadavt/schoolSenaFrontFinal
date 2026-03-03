@@ -27,8 +27,9 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   isOpen,
   onClose,
   programId,
-  competenciaId,
+  competenciaId, // para editar rap o competencia
   onSuccess,
+  // estos 3 props son para crear rap
   idGradoPrograma,
   idMateriaPadre,
   idFicha
@@ -258,7 +259,8 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
               </div>
 
 
-              {/* Área de conocimiento */}
+            {/* Área de conocimiento */}
+            {!idMateriaPadre && !idFicha && !idGradoPrograma && 
               <div className="space-y-1.5">
                 <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
                   Área de conocimiento
@@ -294,6 +296,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                   </p>
                 )}
               </div>
+            }
 
               {/* Descripción */}
               <div className="space-y-1.5">

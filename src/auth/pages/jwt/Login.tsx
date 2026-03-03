@@ -10,19 +10,13 @@ import { messaging } from '../../../../src/firebase/firebaseConfig';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
-    .min(3, 'Minimum 3 symbols')
-    .max(50, 'Maximum 50 symbols')
-    .test('email-or-number', 'Email or user number is invalid', (value) => {
-      if (!value) return false;
-      const isEmail = Yup.string().email().isValidSync(value);
-      const isNumber = /^\d+$/.test(value);
-      return isEmail || isNumber;
-    })
-    .required('Email or user number is required'),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(50, 'Máximo 50 caracteres')
+    .required('Correo o número de documento es requerido'),
   password: Yup.string()
-    .min(3, 'Minimum 3 symbols')
-    .max(50, 'Maximum 50 symbols')
-    .required('Password is required'),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(50, 'Máximo 50 caracteres')
+    .required('Contraseña es requerida'),
   remember: Yup.boolean()
 });
 
@@ -142,11 +136,12 @@ const Login = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">
-              Usuario
+              Correo electrónico o número de documento
             </label>
             <input
-              placeholder="correo@ejemplo.com o 123456"
+              placeholder="correo@ejemplo.com o número de documento"
               autoComplete="off"
+              type="text"
               {...formik.getFieldProps('email')}
               className={clsx(
                 'w-full rounded-xl border px-4 py-3 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
