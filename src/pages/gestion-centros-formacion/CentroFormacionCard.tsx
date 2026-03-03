@@ -1,3 +1,4 @@
+import ModalInfoRow from "../gestion-regional/ModalInfoRow";
 
 /* Interfaces */
 interface Ciudad {
@@ -32,7 +33,7 @@ interface Props {
 }
 
 /* Componente */
-const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
+const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete, onInfo }) => {
   return (
     <div
       className="
@@ -77,10 +78,20 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
       <div className="p-5 space-y-4">
         {/* INFO */}
         <div className="space-y-3 text-xs flex-1 overflow-hidden">
-          <InfoRow icon="user-square" color="blue" label="Subdirector" value={centro.subdirector} />
-          <InfoRow icon="sms" color="green" label="Correo" value={centro.correo} />
-          <InfoRow icon="phone" color="purple" label="Teléfono" value={centro.telefono} />
-          <InfoRow icon="map" color="green" label="Dirección" value={centro.direccion} multiline />
+          <ModalInfoRow icon="user-square" color="blue" label="Subdirector" value={centro.subdirector} />
+          <ModalInfoRow icon="sms" color="green" label="Correo" value={centro.correo} />
+          <ModalInfoRow icon="map" color="green" label="Dirección" value={centro.direccion} multiline />
+        </div>
+
+        {/* VER MAS */}
+         <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={onInfo}
+            title="Editar"
+            className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+          >
+            <i className="text-sm ki-outline ki-eye"></i>
+          </button>
         </div>
 
         {/* ACCIONES */}
@@ -107,37 +118,5 @@ const CentroFormacionCard: React.FC<Props> = ({ centro, onEdit, onDelete }) => {
   );
 };
 
-/* Subcomponente reutilizable */
-const InfoRow = ({
-  icon,
-  label,
-  value,
-  color
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: 'blue' | 'purple' | 'green' | 'red';
-  multiline?: boolean;
-}) => {
-  const colors = {
-    blue: 'text-blue-600',
-    purple: 'text-purple-600',
-    green: 'text-green-600',
-    red: 'text-red-600'
-  };
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
-        <i className={`ki-outline ki-${icon} text-sm`} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-        <p className="font-bold text-gray-700 truncate">{value}</p>
-      </div>
-    </div>
-  );
-};
 
 export default CentroFormacionCard;

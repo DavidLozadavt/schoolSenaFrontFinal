@@ -40,7 +40,7 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Informaciòn adicional de la sede
+  // Informaciòn adicional de la regional
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [info, setInfo] = useState<Regional | null>(null);
 
