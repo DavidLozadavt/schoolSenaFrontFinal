@@ -1,4 +1,4 @@
-import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown } from 'lucide-react';
+import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
@@ -88,10 +88,15 @@ export const CardRap = ({
   const handleAsignarInstructor = async (instructor: any) => {
     setAsignando(true);
     try {
-      await axios.put('asignar/instructor', {
+      const res = await axios.put('asignar/instructor', {
         idContrato: instructor.id, // instructor es el contrato, los datos personales vienen en instructor.persona
         horarios: horariosSinAsignar
       });
+
+      if(res.data.conflicto){
+        enqueueSnackbar(res.data.message, { variant: 'error' });
+        return;
+      }
 
       enqueueSnackbar('Instructor asignado correctamente', { variant: 'success' });
       setMostrarSelector(false);
@@ -184,6 +189,37 @@ export const CardRap = ({
       }
     }
   };
+
+  const handleFinalizarRap = async () => {
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    const result = await Swal.fire({
+      title: '¿Finalizar RAP?',
+      text: `¿Estás seguro de que deseas finalizar "${materia.nombre || materia.nombreMateria}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, finalizar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-success',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color
+    });
+
+    if (result.isConfirmed) {
+      try {
+        enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
+      } catch (error: any) {
+        enqueueSnackbar(error.response?.data?.message || 'Error al finalizar el RAP', { variant: 'error' });
+      }
+    }
+  }
+
 
   return (
     <div className="rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 bg-white dark:bg-coal-400 hover:border-primary/50 transition-all duration-300">
@@ -396,10 +432,18 @@ export const CardRap = ({
         >
           <Pencil size={18} />
         </button>
+
+        {materia.idMateriaPadre && <button
+          onClick={() => handleFinalizarRap()}
+          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+          title="Finalizar RAP"
+        >
+          <Check size={18} />
+        </button>}
        
         <button
           onClick={() => setIsCalendarioOpen(true)}
-          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
           title="Horarios"
         >
           <Calendar size={18} />

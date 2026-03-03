@@ -62,6 +62,7 @@ export interface MallaCurricularProps {
   isOpen?: boolean;
   onClose?: () => void;
   program?: Program | any;
+  ficha?: any;
 }
 
 export interface AsignarMateriaProps {
