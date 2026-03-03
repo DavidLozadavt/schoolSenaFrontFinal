@@ -379,43 +379,11 @@ export const ProgramacionFichasPage = () => {
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            {/* Foto del instructor */}
-                            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden">
-                              {ficha.instructorLider?.persona?.rutaFotoUrl ? (
-                                <img
-                                  src={ficha.instructorLider.persona.rutaFotoUrl}
-                                  alt={`${ficha.instructorLider.persona.nombre1} ${ficha.instructorLider.persona.apellido1}`}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const fallback = target.nextElementSibling as HTMLElement;
-                                    if (fallback) fallback.style.display = 'flex';
-                                  }}
-                                />
-                              ) : null}
-                              {ficha.idInstructorLider && (
-                                <div
-                                  className={`absolute inset-0 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-sm ${ficha.instructorLider?.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
-                                >
-                                  {ficha.instructorLider?.persona
-                                    ? `${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase()
-                                    : '?'}
-                                </div>
-                              )}
-                            </div>
-
                             {/* Información Principal */}
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
                                   Ficha {ficha.codigo}
-                                  {ficha.idInstructorLider && ficha.instructorLider?.persona && (
-                                    <span className="font-normal text-gray-600 dark:text-gray-400 ml-2">
-                                      - {ficha.instructorLider.persona.nombre1 || ''}{' '}
-                                      {ficha.instructorLider.persona.apellido1 || ''}
-                                    </span>
-                                  )}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${ficha.asignacion?.estado === 'EN CURSO'
@@ -458,18 +426,60 @@ export const ProgramacionFichasPage = () => {
                               </div>
                             </div>
 
-                            {/* Líder y Botón Asignar */}
+                            {/* Líder: foto, nombre y botón Asignar */}
                             <div className="flex items-center gap-3">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">
-                                {ficha.idInstructorLider ? 'Líder asignado' : 'Sin líder asignado'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setFichaAsignarLider(ficha)}
-                                className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Asignar
-                              </button>
+                              {ficha.idInstructorLider && ficha.instructorLider?.persona ? (
+                                <>
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-coal-100 ring-2 ring-blue-500/30">
+                                      {ficha.instructorLider.persona.rutaFotoUrl ? (
+                                        <img
+                                          src={ficha.instructorLider.persona.rutaFotoUrl}
+                                          alt=""
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            const t = e.target as HTMLImageElement;
+                                            t.style.display = 'none';
+                                            const fallback = t.nextElementSibling as HTMLElement;
+                                            if (fallback) fallback.style.display = 'flex';
+                                          }}
+                                        />
+                                      ) : null}
+                                      <div
+                                        className={`w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs ${ficha.instructorLider.persona.rutaFotoUrl ? 'hidden' : 'flex'}`}
+                                      >
+                                        {`${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase() || '?'}
+                                      </div>
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                                      {[ficha.instructorLider.persona.nombre1, ficha.instructorLider.persona.nombre2]
+                                        .filter(Boolean)
+                                        .join(' ')}{' '}
+                                      {[ficha.instructorLider.persona.apellido1, ficha.instructorLider.persona.apellido2]
+                                        .filter(Boolean)
+                                        .join(' ')}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFichaAsignarLider(ficha)}
+                                    className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                                  >
+                                    Cambiar
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-sm text-gray-500 dark:text-gray-400">Sin líder asignado</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFichaAsignarLider(ficha)}
+                                    className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                  >
+                                    Asignar
+                                  </button>
+                                </>
+                              )}
                             </div>
 
                             {/* Botón Expandir/Colapsar */}
