@@ -4,6 +4,7 @@ import { KeenIcon } from '@/components';
 import FormularioUpRegional from './FormularioUpRegional';
 import RegionalCard from './RegionalCard';
 import Toast from '../programas-academicos/components/Toast';
+import ModalInfoRow from './ModalInfoRow';
 
 interface Props {
   searchTerm: string;
@@ -38,6 +39,10 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Informaciòn adicional de la regional
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [info, setInfo] = useState<Regional | null>(null);
 
   //Eliminar la regional
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -191,7 +196,8 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
                 setIsModalOpen(true);
               }}
               onInfo={() => {
-                console.log('Info regional', regional);
+                setInfo(regional);
+                setIsInfoOpen(true);
               }}
               onDelete={() => setDeleteConfirm(regional.id)}
             />
@@ -250,6 +256,94 @@ const ListaRegionales: React.FC<Props> = ({ searchTerm, evento, setEvento }) => 
             setEvento={setEvento}
             mode="edit"
           />
+        </div>
+      )}
+
+      {isInfoOpen && info && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => {
+            setIsInfoOpen(false);
+            setInfo(null);
+          }}
+        >
+          <div
+            className="bg-white dark:bg-coal-400 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* HEADER con logo/gradiente */}
+            <div className="relative h-36 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+              {info.rutaLogoUrl ? (
+                <img
+                  src={info.rutaLogoUrl}
+                  alt={info.razonSocial}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <i className="ki-outline ki-building text-6xl text-white/40" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setInfo(null);
+                }}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-red-500 text-white flex items-center justify-center transition-all"
+              >
+                <i className="ki-outline ki-cross text-xs"></i>
+              </button>
+
+              <div className="absolute bottom-3 left-4 right-12">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-white/80 mb-1">
+                  <i className="ki-outline ki-geolocation text-xs" />
+                  {info.ciudad?.descripcion || 'Sin ciudad'}
+                </span>
+                <h3 className="text-lg font-extrabold uppercase text-white leading-snug line-clamp-1">
+                  {info.razonSocial}
+                </h3>
+                <p className="text-xs text-white/70">
+                  NIT: {info.nit} - {info.digitoVerificacion}
+                </p>
+              </div>
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-3">
+              <ModalInfoRow
+                icon="user-square"
+                color="blue"
+                label="Representante legal"
+                value={info.representanteLegal}
+              />
+              <ModalInfoRow icon="sms" color="green" label="Email" value={info.email} />
+              <ModalInfoRow
+                icon="map"
+                color="orange"
+                label="Dirección"
+                value={info.direccion}
+              />
+              <ModalInfoRow
+                icon="geolocation"
+                color="purple"
+                label="Ciudad"
+                value={info.ciudad?.descripcion}
+              />
+            </div>
+
+            {/* FOOTER */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => {
+                  setIsInfoOpen(false);
+                  setInfo(null);
+                }}
+                className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />

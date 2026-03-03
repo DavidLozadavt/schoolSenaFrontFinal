@@ -1,3 +1,4 @@
+import ModalInfoRow from "./ModalInfoRow";
 
 
 interface Props {
@@ -65,22 +66,34 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onDelete, onInfo }) =
       <div className="p-5 space-y-4">
         {/* INFO */}
         <div className="space-y-3 text-xs">
-          <InfoRow
+          <ModalInfoRow
             icon="abstract-14"
             color="blue"
             label="NIT"
             value={`${regional.nit}-${regional.digitoVerificacion}`}
           />
-          <InfoRow
+          <ModalInfoRow
             icon="user"
             color="purple"
             label="Representante"
             value={regional.representanteLegal}
           />
-          <InfoRow icon="sms" color="green" label="Email" value={regional.email} />
+          <ModalInfoRow icon="sms" color="green" label="Email" value={regional.email} />
         </div>
 
         <div className="h-px " />
+
+           {/* VER MAS */}
+         <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={onInfo}
+            title="Editar"
+            className="flex items-center justify-center w-full h-8 text-blue-600 border border-transparent rounded-lg dark:text-blue-300 bg-blue-100/30 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105 active:scale-95 transition-all"
+          >
+            <i className="text-sm ki-outline ki-eye"></i>
+          </button>
+        </div>
+
 
         {/* ACTIONS */}
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -107,35 +120,5 @@ const RegionalCard: React.FC<Props> = ({ regional, onEdit, onDelete, onInfo }) =
   );
 };
 
-/* Subcomponente reutilizable */
-const InfoRow = ({
-  icon,
-  label,
-  value,
-  color
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: 'blue' | 'purple' | 'green';
-}) => {
-  const colors = {
-    blue: 'text-blue-600',
-    purple: 'text-purple-600',
-    green: 'text-green-600'
-  };
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${colors[color]}`}>
-        <i className={`ki-outline ki-${icon} text-sm`} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-        <p className="font-bold text-gray-700 truncate">{value}</p>
-      </div>
-    </div>
-  );
-};
 
 export default RegionalCard;
