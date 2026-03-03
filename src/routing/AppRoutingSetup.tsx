@@ -98,6 +98,7 @@ import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
+import ProgramasEntryPage from '@/pages/programas-academicos/ProgramasEntryPage';
 import { ProgramacionFichasPage } from '@/pages/programas-academicos/ProgramacionFichasPage';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
@@ -788,6 +789,14 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           {/* --- SECCIÓN GESTIÓN ACADÉMICA --- */}
+          <Route
+            path="/gestion-academica/configuracion/programas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ProgramasEntryPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/gestion-academica/configuracion/redes"
             element={

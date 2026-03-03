@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
+import { useLocation } from 'react-router-dom';
 import FormularioRedes from '@/pages/gestion-red/FormularioRedes';
 import ListaRedesProgramas from './ListaRedesProgramas';
 
 const RedesProgramas:React.FC = () => {
+    const location = useLocation();
+    const esProgramas = location.pathname.includes('/programas');
     const [searchTerm, setSearchTerm] = useState<string>('');
       const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
       //Para actualizar la Data una vez ocurra un vambio:
@@ -21,10 +24,10 @@ const RedesProgramas:React.FC = () => {
         {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
-          Elige la red
+          {esProgramas ? 'Programas' : 'Elige la red'}
         </h1>
         <p className="mt-1 text-xs font-medium tracking-widest text-gray-500 uppercase">
-          Configuración Sena
+          {esProgramas ? 'Elige una red para ver sus programas' : 'Configuración Sena'}
         </p>
       </div>
       <div className="flex items-center justify-between w-full max-w-5xl gap-4 px-2 mx-auto mb-8">
