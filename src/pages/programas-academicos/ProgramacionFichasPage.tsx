@@ -12,6 +12,7 @@ import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
+import { User } from 'lucide-react';
 
 interface Ficha {
   id: number;
@@ -379,6 +380,55 @@ export const ProgramacionFichasPage = () => {
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
+                            {/* Vista izquierda: foto de perfil o icono (nombre solo en tooltip al pasar el mouse) */}
+                            <div
+                              className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-coal-200 border border-gray-200 dark:border-coal-100 flex items-center justify-center"
+                              title={
+                                ficha.idInstructorLider && ficha.instructorLider?.persona
+                                  ? [
+                                      ficha.instructorLider.persona.nombre1,
+                                      ficha.instructorLider.persona.nombre2,
+                                      ficha.instructorLider.persona.apellido1,
+                                      ficha.instructorLider.persona.apellido2
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' ')
+                                  : 'Sin líder asignado'
+                              }
+                            >
+                              {ficha.idInstructorLider && ficha.instructorLider?.persona ? (
+                                <>
+                                  {ficha.instructorLider.persona.rutaFotoUrl ? (
+                                    <img
+                                      src={ficha.instructorLider.persona.rutaFotoUrl}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const t = e.target as HTMLImageElement;
+                                        t.style.display = 'none';
+                                        const fallback = t.nextElementSibling as HTMLElement;
+                                        if (fallback) fallback.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <span
+                                    className={`absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-coal-200 text-blue-600 dark:text-blue-400 font-bold text-sm ${ficha.instructorLider.persona.rutaFotoUrl ? 'hidden' : ''}`}
+                                    style={ficha.instructorLider.persona.rutaFotoUrl ? { display: 'none' } : undefined}
+                                  >
+                                    {[ficha.instructorLider.persona.nombre1?.charAt(0), ficha.instructorLider.persona.apellido1?.charAt(0)]
+                                      .filter(Boolean)
+                                      .join('')
+                                      .toUpperCase() || '?'}
+                                  </span>
+                                </>
+                              ) : null}
+                              {!ficha.idInstructorLider && (
+                                <div className="w-full h-full rounded-full bg-primary/10 border border-dashed border-primary flex items-center justify-center">
+                                  <User className="text-primary" size={14} />
+                                </div>
+                              )}
+                            </div>
+
                             {/* Información Principal */}
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
@@ -426,40 +476,10 @@ export const ProgramacionFichasPage = () => {
                               </div>
                             </div>
 
-                            {/* Líder: foto, nombre y botón Asignar */}
+                            {/* Líder: botón Asignar/Cambiar (nombre solo en tooltip de la foto a la izquierda) */}
                             <div className="flex items-center gap-3">
                               {ficha.idInstructorLider && ficha.instructorLider?.persona ? (
                                 <>
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-coal-100 ring-2 ring-blue-500/30">
-                                      {ficha.instructorLider.persona.rutaFotoUrl ? (
-                                        <img
-                                          src={ficha.instructorLider.persona.rutaFotoUrl}
-                                          alt=""
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            const t = e.target as HTMLImageElement;
-                                            t.style.display = 'none';
-                                            const fallback = t.nextElementSibling as HTMLElement;
-                                            if (fallback) fallback.style.display = 'flex';
-                                          }}
-                                        />
-                                      ) : null}
-                                      <div
-                                        className={`w-full h-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs ${ficha.instructorLider.persona.rutaFotoUrl ? 'hidden' : 'flex'}`}
-                                      >
-                                        {`${ficha.instructorLider.persona.nombre1?.charAt(0) || ''}${ficha.instructorLider.persona.apellido1?.charAt(0) || ''}`.toUpperCase() || '?'}
-                                      </div>
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
-                                      {[ficha.instructorLider.persona.nombre1, ficha.instructorLider.persona.nombre2]
-                                        .filter(Boolean)
-                                        .join(' ')}{' '}
-                                      {[ficha.instructorLider.persona.apellido1, ficha.instructorLider.persona.apellido2]
-                                        .filter(Boolean)
-                                        .join(' ')}
-                                    </span>
-                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => setFichaAsignarLider(ficha)}
