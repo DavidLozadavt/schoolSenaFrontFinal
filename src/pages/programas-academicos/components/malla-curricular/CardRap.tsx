@@ -1,4 +1,4 @@
-import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check } from 'lucide-react';
+import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
@@ -46,8 +46,8 @@ export const CardRap = ({
       asignados = materia.horarios.asignados || [];
       sinAsignar = materia.horarios.sinAsignar || [];
     } else if (Array.isArray(materia?.horarios)) {
-      asignados = materia.horarios.filter((h: any) => h.estado === 'ASIGNADO');
-      sinAsignar = materia.horarios.filter((h: any) => h.estado !== 'ASIGNADO');
+      asignados = materia.horarios.filter((h: any) => h.estado !== 'PENDIENTE');
+      sinAsignar = materia.horarios.filter((h: any) => h.estado === 'PENDIENTE');
     }
 
     setHorarios(asignados);
@@ -93,7 +93,7 @@ export const CardRap = ({
         horarios: horariosSinAsignar
       });
 
-      if(res.data.conflicto){
+      if (res.data.conflicto) {
         enqueueSnackbar(res.data.message, { variant: 'error' });
         return;
       }
@@ -158,9 +158,9 @@ export const CardRap = ({
     const color = isDarkMode ? 'white' : '#4B5675';
 
     const result = await Swal.fire({
-      title: materia.idMateriaPadre? '¿Eliminar RAP?' : '¿Eliminar competencia?',
-      text: materiasLength && materiasLength == 1 ? 
-        `Si eliminas esta competencia, se eliminará tambien el trimestre. El trimestre debe tener al menos una competencia.` : 
+      title: materia.idMateriaPadre ? '¿Eliminar RAP?' : '¿Eliminar competencia?',
+      text: materiasLength && materiasLength == 1 ?
+        `Si eliminas esta competencia, se eliminará tambien el trimestre. El trimestre debe tener al menos una competencia.` :
         `¿Estás seguro de que deseas eliminar "${materia.nombre || materia.nombreMateria}" de este trimestre?`,
       icon: 'warning',
       showCancelButton: true,
@@ -190,6 +190,36 @@ export const CardRap = ({
     }
   };
 
+  const handleInterrumpirRap = async () => {
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    const result = await Swal.fire({
+      title: '¿Interrumpir RAP?',
+      text: `¿Estás seguro de que deseas interrumpir "${materia.nombre || materia.nombreMateria}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, interrumpir',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-success',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color
+    });
+
+    if (result.isConfirmed) {
+      try {
+        enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
+      } catch (error: any) {
+        enqueueSnackbar(error.response?.data?.message || 'Error al finalizar el RAP', { variant: 'error' });
+      }
+    }
+  }
+
   const handleFinalizarRap = async () => {
     const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
     const isDarkMode = theme === 'dark';
@@ -213,12 +243,26 @@ export const CardRap = ({
 
     if (result.isConfirmed) {
       try {
+        await axios.put(`materias/finalizar-rap`, {
+          idGradoMateria: materia.idGradoMateria
+        });
+        if (onAsignacionSuccess) onAsignacionSuccess();
         enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
       } catch (error: any) {
         enqueueSnackbar(error.response?.data?.message || 'Error al finalizar el RAP', { variant: 'error' });
       }
     }
   }
+  const totalHorarios = horarios.length + horariosSinAsignar.length;
+  // Cuenta cuántos horarios están finalizados o realizados dentro de "horarios"
+  const cantidadFinalizados = horarios.filter((rap: any) => rap.estado === 'FINALIZADO').length;
+  // Cuenta cuántos están interrumpidos
+  const cantidadInterrumpidos = horarios.filter((rap: any) => rap.estado === 'INTERRUMPIDO').length;
+
+  // Mostramos "Finalizar" solo si no están TODOS los horarios finalizados
+  const mostrarFinalizar = totalHorarios > 0 && cantidadFinalizados < totalHorarios;
+  // Mostramos "Interrumpir" solo si no están todos interrumpidos NI todos finalizados
+  const mostrarInterrumpir = totalHorarios > 0 && cantidadInterrumpidos < totalHorarios && cantidadFinalizados < totalHorarios;
 
 
   return (
@@ -234,10 +278,10 @@ export const CardRap = ({
             </p>
           </h3>
           <div className='flex flex-col items-center'>
-            <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
+            {/* <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
               ${materia.estado === 'REALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
               {materia.estado || 'Sin estado'}
-            </span>
+            </span> */}
             <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
             <p className="text-lg text-center text-blue-500 font-semibold">
               {materia.porcentajeAvance || 0}%
@@ -249,11 +293,11 @@ export const CardRap = ({
         {(() => {
           const horariosData = materia?.horarios;
           const hasAsignados = Array.isArray(horariosData)
-            ? horariosData.some((h: any) => h.estado === 'ASIGNADO')
+            ? horariosData.some((h: any) => h.estado !== 'PENDIENTE')
             : (horariosData?.asignados?.length > 0);
 
           const hasSinAsignar = Array.isArray(horariosData)
-            ? horariosData.some((h: any) => h.estado !== 'ASIGNADO')
+            ? horariosData.some((h: any) => h.estado == 'PENDIENTE')
             : (horariosData?.sinAsignar?.length > 0);
 
           return (
@@ -433,21 +477,29 @@ export const CardRap = ({
           <Pencil size={18} />
         </button>
 
-        {materia.idMateriaPadre && <button
+        {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
           onClick={() => handleFinalizarRap()}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
           title="Finalizar RAP"
         >
           <Check size={18} />
         </button>}
-       
+
+        {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarInterrumpir && <button
+          onClick={() => handleInterrumpirRap()}
+          className="p-2 rounded-md text-gray-500 dark:text-indigo-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-indigo-600 transition"
+          title="Interrumpir RAP"
+        >
+          <Pause size={18} />
+        </button>}
+
         <button
           onClick={() => setIsCalendarioOpen(true)}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
           title="Horarios"
         >
           <Calendar size={18} />
-        </button>       
+        </button>
 
         <button
           onClick={handleEliminarCompetencia}

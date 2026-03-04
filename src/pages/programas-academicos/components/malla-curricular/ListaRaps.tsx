@@ -90,7 +90,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/10 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
 
         {/* Header */}
         <div className="flex-shrink-0 bg-primary-active p-4 text-white">
