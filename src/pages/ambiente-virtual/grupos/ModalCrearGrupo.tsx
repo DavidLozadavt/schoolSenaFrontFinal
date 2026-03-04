@@ -14,6 +14,7 @@ export interface Grupo {
   tipoGrupo?: { id: number; nombreTipoGrupo: string };
 }
 
+
 interface ModalCrearGrupoProps {
   open: boolean;
   onClose: () => void;
