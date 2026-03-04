@@ -73,27 +73,32 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isOpen && idFicha) {
+    if (materia?.horarios && !Array.isArray(materia.horarios)) {
+      setHorariosFicha([...(materia.horarios.asignados || []), ...(materia.horarios.sinAsignar || [])]);
+    } else {
       axios.get(`horario/ficha/${idFicha}`)
         .then(res => setHorariosFicha(res.data.data || []))
         .catch(() => setHorariosFicha([]));
     }
-  }, [isOpen, idFicha]);
+  }, []);
 
   // Procesar horarios
-  const { asignados, sinAsignar } = useMemo(() => {
-    const data = (horariosFicha.length > 0) ? horariosFicha : materia?.horarios;
+  const { asignados, sinAsignar, finalizados, interrumpidos, evaluados } = useMemo(() => {
+    const data = horariosFicha;
     let a: any[] = [];
     let s: any[] = [];
-    if (data && !Array.isArray(data)) {
-      a = data.asignados || [];
-      s = data.sinAsignar || [];
-    } else if (Array.isArray(data)) {
-      a = data.filter((h: any) => h.estado === 'ASIGNADO');
-      s = data.filter((h: any) => h.estado !== 'ASIGNADO');
-    }
-    return { asignados: a, sinAsignar: s };
-  }, [materia, horariosFicha]);
+    let f: any[] = [];
+    let i: any[] = [];
+    let e: any[] = [];
+
+    a = data.filter((h: any) => h.estado === 'ASIGNADO');
+    s = data.filter((h: any) => h.estado === 'PENDIENTE');
+    /* f = data.filter((h: any) => h.estado === 'FINALIZADO');
+    i = data.filter((h: any) => h.estado === 'INTERRUMPIDO');
+    e = data.filter((h: any) => h.estado === 'EVALUADO'); */
+    
+    return { asignados: a, sinAsignar: s, finalizados: f, interrumpidos: i, evaluados: e };
+  }, [horariosFicha]);
 
   // Función para obtener eventos de una fecha
   const getEventsForDate = (date: Date) => {
@@ -127,8 +132,11 @@ export const Calendario: React.FC<CalendarioProps> = ({
     };
 
     return [
-      ...asignados.filter(filterFn).map(h => ({ ...h, type: 'assigned' })),
-      ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'unassigned' }))
+      ...asignados.filter(filterFn).map(h => ({ ...h, type: 'asignados' })),
+      ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' })),
+      ...finalizados.filter(filterFn).map(h => ({ ...h, type: 'finalizados' })),
+      ...interrumpidos.filter(filterFn).map(h => ({ ...h, type: 'interrumpidos' })),
+      ...evaluados.filter(filterFn).map(h => ({ ...h, type: 'evaluados' }))
     ];
   };
 
@@ -169,9 +177,26 @@ export const Calendario: React.FC<CalendarioProps> = ({
     setCurrentDate(newDate);
   };
 
+  const handleColors = (estado: string) => {
+    switch (estado) {
+      case 'asignados':
+        return 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/60';
+      case 'sinAsignar':
+        return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-950/40 dark:text-gray-400 dark:border-gray-800/60';
+      case 'finalizados':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60';
+      case 'interrumpidos':
+        return 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60';
+      case 'evaluados':
+        return 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800/60';
+      default:
+        return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-950/40 dark:text-gray-400 dark:border-gray-800/60';
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[40] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-      <ModalContent className="w-full max-w-5xl h-[90vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+      <ModalContent className="w-full max-w-5xl h-[95vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
 
         <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
           <div className="flex items-center gap-3">
@@ -244,7 +269,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                 const isBottomRow = i >= 21;
 
                 return (
-                  <div key={i} className={`min-h-[60px] m-1 border-r border-b border-gray-100 dark:border-gray-700 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
+                  <div key={i} className={`min-h-[80px] m-1 border-r border-b border-gray-100 dark:border-gray-700 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
                     <span className={`text-xs font-semibold mb-1 inline-block h-5 w-5 rounded-full flex items-center justify-center transition-colors ${isToday ? 'bg-primary text-white' : 'text-gray-500 dark:text-gray-400'}`}>{date.getDate()}</span>
                     <div className="space-y-0.5 w-full">
                       {events.map((ev, idx) => {
@@ -254,7 +279,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                         const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
 
                         return (
-                          <div key={idx} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${ev.type === 'assigned' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
+                          <div key={idx} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
 
                             <div className="truncate">{format12h(hIni)} - {format12h(hFin)}</div>
 
@@ -270,6 +295,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                 </div>
                               )}
                               <div className="p-3 text-left">
+                                <p>{ev.estado || 'SIN ESTADO'}</p>
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center gap-2 text-primary">
                                     <Clock size={12} className="shrink-0" />
@@ -302,11 +328,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </div>
         </ModalBody>
 
-        <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-coal-500 rounded-b-2xl">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500"></div><span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Asignado</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div><span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Pendiente</span></div>
-          </div>
+        <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
           {materia.idMateriaPadre != null &&
             <button onClick={onAddSchedule} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
               <Plus size={14} />Programar Horario
