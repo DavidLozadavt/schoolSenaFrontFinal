@@ -71,24 +71,36 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Aula Virtual',
+    title: 'Aula Virtual Instructor',
     icon:'teacher',
-    requiredPermissions:['GESTION_APRENDICES'],
+    requiredPermissions:['AULA_VIRTUAL_INSTRUCTOR'],
     children:[
       {
-        title:'Mis clases',
-        path: '/gestion-academica/configuracion/redes',
-        requiredPermissions: ['GESTION_APRENDICES']
-      },
-      {
-        title:'Mis Notas',
-        path: '/gestion-academica/configuracion/redes',
-        requiredPermissions: ['GESTION_APRENDICES']
+        title:'Historial Raps',
+        path: '/ambiente-virtual/historial-raps',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
     ]
   },
   {
-    title: 'Administrador',
+    title: 'Aula Virtual Aprendiz',
+    icon:'teacher',
+    requiredPermissions:['AULA_VIRTUAL_APRENDIZ'],
+    children:[
+      {
+        title:'Mis clases',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      },
+      {
+        title:'Mis Notas',
+        path: '/gestion-academica/configuracion/redes',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      },
+    ]
+  },
+  {
+    title: 'Administrativo',
     icon:'teacher',
     children:[
       {
