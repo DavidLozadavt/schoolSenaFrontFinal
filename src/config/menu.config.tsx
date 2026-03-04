@@ -4,46 +4,46 @@ export const MENU_SIDEBAR: TMenuConfig = [
   {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_USUARIO'],
+    requiredPermissions: ['GESTION_USUARIO'], //Cambiar por GESTION_ACADEMICA
     children: [
       {
         title: 'Configuración académica',
-        requiredPermissions: ['GESTION_REGIONAL'],
+        requiredPermissions: ['GESTION_REGIONAL'], //Cambiar por CONFIGURACION_ACADEMICA
         children: [
           {
             title: 'Programas',
-            path: '/gestion-academica/configuracion/programas',
+            path: '/gestion-academica/configuracion/redes',
             requiredPermissions: ['GESTION_USUARIO']
           },
           {
             title: 'Periodos',
             path: '/gestion-academica/configuracion/periodos',
-            requiredPermissions: ['GESTION_USUARIO']
+            requiredPermissions: ['GESTION_USUARIO'] //Cambiar por GESTION_PERIODOS
           },
           {
             title: 'Jornadas',
             path: '/gestion-academica/configuracion/jornadas',
-            requiredPermissions: ['GESTION_USUARIO']
+            requiredPermissions: ['GESTION_USUARIO'] // Cambiar por GESTION_JORNADAS
           },
           {
             title: 'Regionales',
             path: '/regionales',
-            requiredPermissions: ['GESTION_REGIONAL']
+            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_REGIONALES
           },
           {
             title: 'Centro Formación',
             path: '/centrosFormacion',
-            requiredPermissions: ['GESTION_REGIONAL']
+            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_CENTROS_FORMACION
           },
           {
             title: 'Sedes',
             path: '/sedesSena',
-            requiredPermissions: ['GESTION_REGIONAL']
+            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_SEDES
           },
           {
             title: 'Ambientes',
             path: '/ambientes',
-            requiredPermissions: ['GESTION_REGIONAL']
+            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_AMBIENTES
           },
           {
             title: 'Redes',
@@ -84,6 +84,17 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title:'Mis Notas',
         path: '/gestion-academica/configuracion/redes',
         requiredPermissions: ['GESTION_APRENDICES']
+      },
+    ]
+  },
+  {
+    title: 'Administrador',
+    icon:'teacher',
+    children:[
+      {
+        title:'RMI',
+        path: '/rmi',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
     ]
   },
