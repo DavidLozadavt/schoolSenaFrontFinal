@@ -12,6 +12,7 @@ interface AsignarMateriaProps {
   nivelId: number | null;
   onMateriasSeleccionadas: (data: { idGradoPrograma: number; materias: any[] }) => void;
   materiasActuales?: any[];
+  idFicha?: number;
 }
 
 export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
@@ -20,7 +21,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   onClose,
   nivelId,
   onMateriasSeleccionadas,
-  materiasActuales = []
+  materiasActuales = [],
+  idFicha
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
@@ -119,7 +121,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     setRaps([]);
 
     try {
-      const response = await axios.get(`materias/hijas/${idMateriaPadre}`);
+      const response = await axios.get(`materias/hijas`, { params: { idMateriaPadre, idFicha: idFicha } });
       setRaps(response.data.data || []);
     } catch (error) {
       enqueueSnackbar("Error al cargar los RAPs", { variant: "error" });

@@ -4,7 +4,7 @@ import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
 import { useSnackbar } from 'notistack';
 import { ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
-import { Clock, Save, X, Copy } from 'lucide-react';
+import { Clock, Save } from 'lucide-react';
 
 interface HorarioDia {
   idDia: number;
@@ -126,6 +126,32 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     }
   }, [open]);
 
+  // Seleccionar automáticamente el día cuando cambia la fecha de inicio
+  useEffect(() => {
+    if (values.fechaInicio && values.horarios.length > 0) {
+      const fecha = new Date(values.fechaInicio + 'T00:00:00');
+      const diaSemana = fecha.getDay();
+      const diaBD = diaSemana === 0 ? 7 : diaSemana;
+
+      const diaExiste = values.horarios.some((h: HorarioDia) => h.idDia === diaBD);
+    
+      if (!diaExiste) {
+        enqueueSnackbar('La fecha inicial no coincide con ningún día configurado en el sistema', { variant: 'warning' });
+        return;
+      }
+
+      const horariosActualizados = values.horarios.map((h: HorarioDia) => ({
+        ...h,
+        activo: h.idDia === diaBD,
+        horaInicio: h.idDia === diaBD ? h.horaInicio : '',
+        horaFin: h.idDia === diaBD ? h.horaFin : ''
+      }));
+
+      setFieldValue('horarios', horariosActualizados);
+      enqueueSnackbar(`Día ${values.horarios.find(h => h.idDia === diaBD)?.nombreDia} seleccionado automáticamente`, { variant: 'info' });
+    }
+  }, [values.fechaInicio, values.horarios.length, loadingDias]);
+
   // Cargar días desde la API
   const cargarDias = async () => {
     setLoadingDias(true);
@@ -186,16 +212,33 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     }
   };
 
-  // Activar/desactivar un día
-  const toggleDia = (index: number) => {
-    const horarios = [...values.horarios];
-    horarios[index].activo = !horarios[index].activo;
-    if (!horarios[index].activo) {
-      horarios[index].horaInicio = '';
-      horarios[index].horaFin = '';
+// Activar/desactivar un día
+const toggleDia = (index: number) => {
+  const horarios = [...values.horarios];
+  const diaActual = horarios[index];
+  
+  // Obtener el día de la fecha inicial
+  if (values.fechaInicio) {
+    const fecha = new Date(values.fechaInicio + 'T00:00:00');
+    const diaSemana = fecha.getDay();
+    const diaBD = diaSemana === 0 ? 7 : diaSemana;
+    
+    // Si intenta desmarcar el día que coincide con la fecha inicial
+    if (diaActual.activo && diaActual.idDia === diaBD) {
+      enqueueSnackbar('No puedes desmarcar el día que corresponde a la fecha inicial', { 
+        variant: 'warning' 
+      });
+      return;
     }
-    setFieldValue('horarios', horarios);
-  };
+  }
+  
+  horarios[index].activo = !horarios[index].activo;
+  if (!horarios[index].activo) {
+    horarios[index].horaInicio = '';
+    horarios[index].horaFin = '';
+  }
+  setFieldValue('horarios', horarios);
+};
 
   // Aplicar misma hora a múltiples días
   const aplicarHoraGlobal = () => {
@@ -395,6 +438,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                   <input
                     type="date"
                     name="fechaInicio"
+                    disabled={loadingDias}
                     value={values.fechaInicio}
                     onChange={handleChange}
                     className={`input w-full p-2 border rounded-md ${errors.fechaInicio && touched.fechaInicio ? 'border-red-500' : ''
