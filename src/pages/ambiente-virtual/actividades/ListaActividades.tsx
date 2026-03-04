@@ -1,8 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { KeenIcon } from '@/components';
 import type { Actividad } from './ModalCrearActividad';
 
-const ACTIVIDADES_POR_PAGINA = 6;
+const ACTIVIDADES_POR_PAGINA = 5;
+const MAX_PALABRAS = 6;
+
+const truncarAPalabras = (texto: string | undefined, maxPalabras: number = MAX_PALABRAS): string => {
+  if (!texto || !String(texto).trim()) return '-';
+  const palabras = String(texto).trim().split(/\s+/);
+  if (palabras.length <= maxPalabras) return texto;
+  return palabras.slice(0, maxPalabras).join(' ') + '…';
+};
+
+const CeldaConTooltip: React.FC<{ textoCompleto: string; textoTruncado: string }> = ({ textoCompleto, textoTruncado }) => {
+  const necesitaTooltip = textoCompleto !== textoTruncado && textoCompleto.length > 0 && textoCompleto !== '-';
+  return (
+    <span
+      className={`${necesitaTooltip ? 'cursor-help underline decoration-dotted decoration-gray-400' : ''}`}
+      title={necesitaTooltip ? `Más información: ${textoCompleto}` : undefined}
+    >
+      {textoTruncado}
+    </span>
+  );
+};
 
 interface ListaActividadesProps {
   actividades: (Actividad & { actividad?: Actividad; id?: number })[];
@@ -16,6 +36,8 @@ interface ListaActividadesProps {
   onMaterialApoyo?: (actividad: Actividad) => void;
   onEditar?: (actividad: Actividad) => void;
   onEliminar?: (actividad: Actividad) => void;
+  /** Solo se muestra el botón eliminar si esta función retorna true. Si no se pasa, se usa onEliminar cuando existe. */
+  puedeEliminar?: (actividad: Actividad) => boolean;
   modo: 'agregar' | 'asignadas';
   emptyMessage?: string;
 }
@@ -32,6 +54,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onMaterialApoyo,
   onEditar,
   onEliminar,
+  puedeEliminar,
   modo,
   emptyMessage
 }) => {
@@ -39,12 +62,47 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     if (!p) return 'Sin asignar';
     return `${p.nombre1 || ''} ${p.nombre2 || ''} ${p.apellido1 || ''} ${p.apellido2 || ''}`.trim() || 'Sin asignar';
   };
+  const [busqueda, setBusqueda] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
+
+  const actividadesFiltradas = useMemo(() => {
+    if (!busqueda.trim()) return actividades;
+    const q = busqueda.toLowerCase().trim();
+    return actividades.filter((item) => {
+      const act = item.actividad || item;
+      const autor = nombreCompleto(act.persona).toLowerCase();
+      const titulo = (act.tituloActividad || '').toLowerCase();
+      const entregables = (act.entregables || '').toLowerCase();
+      const materia = `${act.materia?.codigo || ''} ${act.materia?.nombreMateria || ''}`.toLowerCase();
+      const tipo = (act.tipoActividad || '').toLowerCase();
+      const descripcion = (act.descripcionActividad || '').toLowerCase();
+      return (
+        autor.includes(q) ||
+        titulo.includes(q) ||
+        entregables.includes(q) ||
+        materia.includes(q) ||
+        tipo.includes(q) ||
+        descripcion.includes(q)
+      );
+    });
+  }, [actividades, busqueda]);
+
   const actividadesPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA;
-    return actividades.slice(inicio, inicio + ACTIVIDADES_POR_PAGINA);
-  }, [actividades, paginaActual]);
-  const totalPaginas = Math.ceil(actividades.length / ACTIVIDADES_POR_PAGINA);
+    return actividadesFiltradas.slice(inicio, inicio + ACTIVIDADES_POR_PAGINA);
+  }, [actividadesFiltradas, paginaActual]);
+  const totalPaginas = Math.ceil(actividadesFiltradas.length / ACTIVIDADES_POR_PAGINA);
+
+  const handleBusquedaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBusqueda(e.target.value);
+    setPaginaActual(1);
+  };
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas && totalPaginas > 0) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
   const defaultEmpty =
     modo === 'agregar'
@@ -89,9 +147,20 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
 
   return (
     <div className="space-y-3">
-      {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario) && (
-        <div className="flex justify-end gap-2 mb-3">
-          {onCrearCuestionario && (
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+        <div className="flex-1 relative">
+          <KeenIcon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+          <input
+            type="text"
+            placeholder="Buscar por título, autor, materia, entregables..."
+            value={busqueda}
+            onChange={handleBusquedaChange}
+            className="input w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-coal-400"
+          />
+        </div>
+        {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario) && (
+          <div className="flex gap-2 shrink-0">
+            {onCrearCuestionario && (
             <button
               onClick={onCrearCuestionario}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
@@ -100,17 +169,23 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
               Crear cuestionario
             </button>
           )}
-          {onCrear && (
-            <button
-              onClick={onCrear}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
-            >
-              <KeenIcon icon="plus" className="text-sm" />
-              Crear Actividad
-            </button>
-          )}
+            {onCrear && (
+              <button
+                onClick={onCrear}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
+              >
+                <KeenIcon icon="plus" className="text-sm" />
+                Crear Actividad
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {actividadesFiltradas.length === 0 ? (
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+          No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
-      )}
+      ) : (
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px]">
           <thead>
@@ -125,7 +200,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           <tbody>
             {actividadesPaginadas.map((item, idx) => {
               const act = item.actividad || item;
-              const codigo = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA + idx + 1;
+              const indiceGlobal = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA + idx;
+              const codigo = indiceGlobal + 1;
               return (
                 <tr
                   key={act.id || act.tituloActividad}
@@ -147,21 +223,26 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                     </div>
                   </td>
                   <td className="py-3 px-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{act.tituloActividad}</p>
-                      {act.descripcionActividad && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-0.5">
-                          {act.descripcionActividad}
-                        </p>
-                      )}
+                    <div className="max-w-[180px]">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <CeldaConTooltip
+                          textoCompleto={act.tituloActividad || ''}
+                          textoTruncado={truncarAPalabras(act.tituloActividad)}
+                        />
+                      </p>
                     </div>
                   </td>
-                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300">
-                    {act.entregables || '-'}
+                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 max-w-[140px]">
+                    <CeldaConTooltip
+                      textoCompleto={act.entregables || '-'}
+                      textoTruncado={truncarAPalabras(act.entregables)}
+                    />
                   </td>
-                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300">
-                    {act.materia?.codigo ? `${act.materia.codigo} - ` : ''}
-                    {act.materia?.nombreMateria || '-'}
+                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 max-w-[160px]">
+                    <CeldaConTooltip
+                      textoCompleto={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}
+                      textoTruncado={truncarAPalabras(`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-')}
+                    />
                   </td>
                   <td className="py-3 px-3">
                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
@@ -220,11 +301,11 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                             <KeenIcon icon="pencil" className="text-sm" />
                           </button>
                         )}
-                        {onEliminar && (
+                        {onEliminar && (!puedeEliminar || puedeEliminar(act)) && (
                           <button
                             onClick={() => onEliminar(act)}
                             className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600"
-                            title="Eliminar"
+                            title="Eliminar (solo si no está asignada)"
                           >
                             <KeenIcon icon="trash" className="text-sm" />
                           </button>
@@ -238,11 +319,12 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           </tbody>
         </table>
       </div>
-      {actividades.length > ACTIVIDADES_POR_PAGINA && (
+      )}
+      {actividadesFiltradas.length > ACTIVIDADES_POR_PAGINA && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Mostrando {(paginaActual - 1) * ACTIVIDADES_POR_PAGINA + 1}-
-            {Math.min(paginaActual * ACTIVIDADES_POR_PAGINA, actividades.length)} de {actividades.length}
+            {Math.min(paginaActual * ACTIVIDADES_POR_PAGINA, actividadesFiltradas.length)} de {actividadesFiltradas.length}
           </p>
           <div className="flex items-center gap-2">
             <button

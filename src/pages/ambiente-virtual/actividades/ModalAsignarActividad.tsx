@@ -164,7 +164,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       const data = res?.data;
       if (data?.exitosas === 0 && data?.omitidas === 0) {
         setError(
-          'No se creó ninguna asignación. Los grupos seleccionados pueden no tener participantes. Verifica que los estudiantes se hayan unido a los grupos.'
+          'No se creó ninguna asignación. Verifica que los estudiantes o grupos seleccionados tengan matrícula académica.'
         );
         return;
       }

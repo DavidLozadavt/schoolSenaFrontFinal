@@ -593,8 +593,13 @@ const ClaseDetallePage: React.FC = () => {
   const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
   const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
   const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
+  const [actividadParaEditar, setActividadParaEditar] = useState<Actividad | null>(null);
+  const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
   const [modalVerActividadOpen, setModalVerActividadOpen] = useState(false);
   const [actividadVer, setActividadVer] = useState<Actividad | null>(null);
+  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
+  const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
+  const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
 
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
@@ -781,6 +786,32 @@ const ClaseDetallePage: React.FC = () => {
       fetchActividades();
     }
   }, [activeMenu, fetchActividades, ficha?.id]);
+
+  const idsActividadesAsignadas = useMemo(() => {
+    const set = new Set<number>();
+    actividadesAsignadas.forEach((a: any) => {
+      const act = a.actividad || a;
+      const id = act?.id;
+      if (id != null) set.add(Number(id));
+    });
+    return set;
+  }, [actividadesAsignadas]);
+
+  const handleEliminarActividad = useCallback(async (act: Actividad) => {
+    if (!act?.id) return;
+    if (idsActividadesAsignadas.has(act.id)) {
+      alert('No se puede eliminar una actividad que está asignada a una clase. Quítela primero de la clase.');
+      return;
+    }
+    if (!window.confirm('¿Eliminar esta actividad?')) return;
+    try {
+      await axios.delete(`actividades/${act.id}`);
+      fetchActividades();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Error al eliminar';
+      alert(msg);
+    }
+  }, [idsActividadesAsignadas, fetchActividades]);
 
   const filteredEstudiantes = useMemo(() => {
     if (!searchEstudiante) return estudiantes;
@@ -1461,7 +1492,14 @@ const ClaseDetallePage: React.FC = () => {
                   actividades={actividadesDisponibles}
                   loading={loadingActividades}
                   modo="agregar"
-                  onCrear={() => setModalCrearActividadOpen(true)}
+                  onCrear={() => {
+                    setActividadParaEditar(null);
+                    setModalCrearActividadOpen(true);
+                  }}
+                  onCrearCuestionario={() => {
+                    setCuestionarioParaEditar(null);
+                    setModalCrearCuestionarioOpen(true);
+                  }}
                   onAsignarActividad={(act) => {
                     setActividadParaAsignar(act);
                     setModalAsignarActividadOpen(true);
@@ -1470,6 +1508,21 @@ const ClaseDetallePage: React.FC = () => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
                   }}
+                  onMaterialApoyo={(act) => {
+                    setActividadMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
+                  onEditar={(act) => {
+                    if (act.tipoActividad === 'cuestionario' && act.id) {
+                      setCuestionarioParaEditar({ id: act.id });
+                      setModalCrearCuestionarioOpen(true);
+                    } else {
+                      setActividadParaEditar(act);
+                      setModalCrearActividadOpen(true);
+                    }
+                  }}
+                  onEliminar={handleEliminarActividad}
+                  puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
                 />
               )}
 
@@ -1479,6 +1532,10 @@ const ClaseDetallePage: React.FC = () => {
                   actividades={actividadesAsignadas}
                   loading={loadingActividades}
                   modo="asignadas"
+                  onCrearCuestionario={() => {
+                    setCuestionarioParaEditar(null);
+                    setModalCrearCuestionarioOpen(true);
+                  }}
                   onAsignarActividad={(act) => {
                     setActividadParaAsignar(act);
                     setModalAsignarActividadOpen(true);
@@ -1486,6 +1543,19 @@ const ClaseDetallePage: React.FC = () => {
                   onVer={(act) => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
+                  }}
+                  onMaterialApoyo={(act) => {
+                    setActividadMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
+                  onEditar={(act) => {
+                    if (act.tipoActividad === 'cuestionario' && act.id) {
+                      setCuestionarioParaEditar({ id: act.id });
+                      setModalCrearCuestionarioOpen(true);
+                    } else {
+                      setActividadParaEditar(act);
+                      setModalCrearActividadOpen(true);
+                    }
                   }}
                 />
               )}
@@ -1528,11 +1598,25 @@ const ClaseDetallePage: React.FC = () => {
       />
       <ModalCrearActividad
         open={modalCrearActividadOpen}
-        onClose={() => setModalCrearActividadOpen(false)}
+        onClose={() => {
+          setModalCrearActividadOpen(false);
+          setActividadParaEditar(null);
+        }}
         onSave={() => {
           setModalCrearActividadOpen(false);
+          setActividadParaEditar(null);
           fetchActividades();
         }}
+        actividadEditar={actividadParaEditar}
+        idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
+      />
+      <ModalMaterialApoyo
+        open={modalMaterialApoyoOpen}
+        onClose={() => {
+          setModalMaterialApoyoOpen(false);
+          setActividadMaterialApoyo(null);
+        }}
+        actividad={actividadMaterialApoyo}
       />
       <ModalVerActividad
         open={modalVerActividadOpen}
@@ -1541,6 +1625,20 @@ const ClaseDetallePage: React.FC = () => {
           setActividadVer(null);
         }}
         actividad={actividadVer}
+      />
+      <ModalCrearCuestionario
+        open={modalCrearCuestionarioOpen}
+        onClose={() => {
+          setModalCrearCuestionarioOpen(false);
+          setCuestionarioParaEditar(null);
+        }}
+        onSave={() => {
+          setModalCrearCuestionarioOpen(false);
+          setCuestionarioParaEditar(null);
+          fetchActividades();
+        }}
+        idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
+        cuestionarioEditar={cuestionarioParaEditar}
       />
     </Container>
   );

@@ -113,45 +113,43 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
               key={grupo.id}
               className="bg-gray-50 dark:bg-coal-300 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-700 transition-colors"
             >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate flex-1">
-                  {grupo.nombreGrupo}
-                </h3>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      setGrupoVer(grupo);
-                      setModalVerOpen(true);
-                    }}
-                    className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
-                    title="Ver"
-                  >
-                    <KeenIcon icon="eye" className="text-sm" />
-                  </button>
-                  <button
-                    onClick={() => handleEditar(grupo)}
-                    className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
-                    title="Actualizar"
-                  >
-                    <KeenIcon icon="pencil" className="text-sm" />
-                  </button>
-                  <button
-                    onClick={() => handleEliminar(grupo)}
-                    className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
-                    title="Eliminar"
-                  >
-                    <KeenIcon icon="trash" className="text-sm" />
-                  </button>
-                </div>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white break-words mb-2">
+                {grupo.nombreGrupo}
+              </h3>
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                 Máx. {grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0} participante{(grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0) !== 1 ? 's' : ''}
               </p>
               {grupo.descripcion && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
+                <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mb-3">
                   {grupo.descripcion}
                 </p>
               )}
+              <div className="flex items-center gap-1.5 pt-2 border-t border-gray-200 dark:border-gray-600">
+                <button
+                  onClick={() => {
+                    setGrupoVer(grupo);
+                    setModalVerOpen(true);
+                  }}
+                  className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
+                  title="Ver"
+                >
+                  <KeenIcon icon="eye" className="text-sm" />
+                </button>
+                <button
+                  onClick={() => handleEditar(grupo)}
+                  className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
+                  title="Actualizar"
+                >
+                  <KeenIcon icon="pencil" className="text-sm" />
+                </button>
+                <button
+                  onClick={() => handleEliminar(grupo)}
+                  className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
+                  title="Eliminar"
+                >
+                  <KeenIcon icon="trash" className="text-sm" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

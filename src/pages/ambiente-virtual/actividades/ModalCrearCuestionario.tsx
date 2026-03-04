@@ -153,7 +153,8 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       });
 
       if (isEdit && cuestionarioEditar?.id) {
-        await axios.put(`cuestionarios/${cuestionarioEditar.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        fd.append('_method', 'PUT');
+        await axios.post(`cuestionarios/${cuestionarioEditar.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
         await axios.post('cuestionarios', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       }
