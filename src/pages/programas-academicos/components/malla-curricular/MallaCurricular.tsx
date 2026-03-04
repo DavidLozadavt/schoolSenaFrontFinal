@@ -320,6 +320,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
         onClose={() => setIsMateriaModalOpen(false)}
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
+        idFicha={ficha?.id}
         materiasActuales={
           nuevoTrimestre
             ? nuevoTrimestre.materias

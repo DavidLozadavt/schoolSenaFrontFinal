@@ -7,7 +7,6 @@ import {
   Plus,
   Clock,
   User,
-  Info,
   X
 } from "lucide-react";
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
@@ -38,7 +37,6 @@ const months = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
 ];
 
-// Helper para parsear fechas sin problemas de zona horaria
 const parseDate = (dateString: string): Date | null => {
   if (!dateString) return null;
   const parts = dateString.split('T')[0].split('-');
@@ -55,7 +53,12 @@ export const Calendario: React.FC<CalendarioProps> = ({
   idFicha,
   onAddSchedule
 }) => {
-  if (!isOpen) return null;
+  // Mover el return null después de todos los hooks
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const format12h = (timeStr?: any) => {
     if (!timeStr || typeof timeStr !== 'string') return '';
@@ -68,77 +71,111 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return `${h}:${m} ${ampm}`;
   };
 
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
-
+  // Efecto para cargar horarios - SOLO cuando se abre el modal
   useEffect(() => {
-    if (materia?.horarios && !Array.isArray(materia.horarios)) {
-      setHorariosFicha([...(materia.horarios.asignados || []), ...(materia.horarios.sinAsignar || [])]);
-    } else {
-      axios.get(`horario/ficha/${idFicha}`)
-        .then(res => setHorariosFicha(res.data.data || []))
-        .catch(() => setHorariosFicha([]));
+    let isMounted = true;
+
+    const cargarHorarios = async () => {
+      if (!isOpen) return;
+      
+      setLoading(true);
+      try {
+        if (materia?.horarios && !Array.isArray(materia.horarios)) {
+          const horariosCombinados = [
+            ...(materia.horarios.asignados || []),
+            ...(materia.horarios.sinAsignar || [])
+          ];
+          if (isMounted) {
+            setHorariosFicha(horariosCombinados);
+          }
+        } else {
+          const response = await axios.get(`horario/ficha/${idFicha}`);
+          if (isMounted) {
+            setHorariosFicha(response.data.data || []);
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          setHorariosFicha([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          setInitialLoadComplete(true);
+        }
+      }
+    };
+
+    if (isOpen) {
+      cargarHorarios();
     }
-  }, []);
 
-  // Procesar horarios
-  const { asignados, sinAsignar, finalizados, interrumpidos, evaluados } = useMemo(() => {
-    const data = horariosFicha;
-    let a: any[] = [];
-    let s: any[] = [];
-    let f: any[] = [];
-    let i: any[] = [];
-    let e: any[] = [];
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, idFicha]);
 
-    a = data.filter((h: any) => h.estado === 'ASIGNADO');
-    s = data.filter((h: any) => h.estado === 'PENDIENTE');
-    /* f = data.filter((h: any) => h.estado === 'FINALIZADO');
-    i = data.filter((h: any) => h.estado === 'INTERRUMPIDO');
-    e = data.filter((h: any) => h.estado === 'EVALUADO'); */
+  // Resetear estado cuando se cierra el modal
+  useEffect(() => {
+    if (!isOpen) {
+      setHorariosFicha([]);
+      setLoading(true);
+      setInitialLoadComplete(false);
+      setCurrentDate(new Date());
+      setViewMode('month');
+    }
+  }, [isOpen]);
+
+  // Procesar horarios - usando useMemo
+  const { asignados, sinAsignar } = useMemo(() => {
+    if (!horariosFicha.length) {
+      return { asignados: [], sinAsignar: [] };
+    }
+
+    const a = horariosFicha.filter((h: any) => h.estado === 'ASIGNADO');
+    const s = horariosFicha.filter((h: any) => h.estado === 'PENDIENTE');
     
-    return { asignados: a, sinAsignar: s, finalizados: f, interrumpidos: i, evaluados: e };
+    return { asignados: a, sinAsignar: s };
   }, [horariosFicha]);
 
   // Función para obtener eventos de una fecha
-  const getEventsForDate = (date: Date) => {
-    const dayName = Object.keys(mapeoDias).find(key => mapeoDias[key] === date.getDay());
-    if (!dayName) return [];
+  const getEventsForDate = useMemo(() => {
+    return (date: Date) => {
+      const dayName = Object.keys(mapeoDias).find(key => mapeoDias[key] === date.getDay());
+      if (!dayName) return [];
 
-    const compareDate = new Date(date);
-    compareDate.setHours(0, 0, 0, 0);
+      const compareDate = new Date(date);
+      compareDate.setHours(0, 0, 0, 0);
 
-    const filterFn = (h: any) => {
-      const fInicio = h.fechaInicial || h.fechaInicio;
-      const fFin = h.fechaFinal || h.fechaFin;
+      const filterFn = (h: any) => {
+        const fInicio = h.fechaInicial || h.fechaInicio;
+        const fFin = h.fechaFinal || h.fechaFin;
 
-      const start = parseDate(fInicio);
-      const end = parseDate(fFin);
-      if (!start || !end) return false;
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
+        const start = parseDate(fInicio);
+        const end = parseDate(fFin);
+        if (!start || !end) return false;
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
 
-      const dayNum = date.getDay();
-      const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
-      const jsDayFromId = idDiaRaw !== undefined ? (idDiaRaw === 7 ? 0 : idDiaRaw) : -1;
+        const dayNum = date.getDay();
+        const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
+        const jsDayFromId = idDiaRaw !== undefined ? (idDiaRaw === 7 ? 0 : idDiaRaw) : -1;
 
-      const matchDay = (h.dia?.dia?.toUpperCase() === dayName) ||
-        (h.dia_semana?.toUpperCase() === dayName) ||
-        (h.nombreDia?.toUpperCase() === dayName) ||
-        (mapeoDias[h.dia_semana?.toUpperCase()] === dayNum) ||
-        (jsDayFromId === dayNum);
+        const matchDay = (h.dia?.dia?.toUpperCase() === dayName) ||
+          (h.dia_semana?.toUpperCase() === dayName) ||
+          (h.nombreDia?.toUpperCase() === dayName) ||
+          (mapeoDias[h.dia_semana?.toUpperCase()] === dayNum) ||
+          (jsDayFromId === dayNum);
 
-      return matchDay && compareDate >= start && compareDate <= end;
+        return matchDay && compareDate >= start && compareDate <= end;
+      };
+
+      return [
+        ...asignados.filter(filterFn).map(h => ({ ...h, type: 'asignados' })),
+        ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' }))
+      ];
     };
-
-    return [
-      ...asignados.filter(filterFn).map(h => ({ ...h, type: 'asignados' })),
-      ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' })),
-      ...finalizados.filter(filterFn).map(h => ({ ...h, type: 'finalizados' })),
-      ...interrumpidos.filter(filterFn).map(h => ({ ...h, type: 'interrumpidos' })),
-      ...evaluados.filter(filterFn).map(h => ({ ...h, type: 'evaluados' }))
-    ];
-  };
+  }, [asignados, sinAsignar]);
 
   // Generar días del mes
   const daysInMonth = useMemo(() => {
@@ -193,6 +230,47 @@ export const Calendario: React.FC<CalendarioProps> = ({
         return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-950/40 dark:text-gray-400 dark:border-gray-800/60';
     }
   };
+
+  // Mostrar skeleton mientras carga
+  if (!isOpen) return null;
+
+  if (loading || !initialLoadComplete) {
+    return (
+      <div className="fixed inset-0 z-[40] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
+        <ModalContent className="w-full max-w-5xl h-[95vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+          <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                <CalendarIcon size={20} />
+              </div>
+              <div className="min-w-0 text-left">
+                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">
+                  Calendario de Horarios
+                </ModalTitle>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
+                  {materia.nombre || materia.nombreMateria}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm"
+            >
+              <X size={16} />
+            </button>
+          </ModalHeader>
+          <div className="flex-grow flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                Cargando horarios...
+              </p>
+            </div>
+          </div>
+        </ModalContent>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[40] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
@@ -279,11 +357,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
                         const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
 
                         return (
-                          <div key={idx} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-
+                          <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
                             <div className="truncate">{format12h(hIni)} - {format12h(hFin)}</div>
-
-                            {/* Tooltip con posicionamiento dinámico */}
                             <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-52 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
                               {instructor && (
                                 <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500">

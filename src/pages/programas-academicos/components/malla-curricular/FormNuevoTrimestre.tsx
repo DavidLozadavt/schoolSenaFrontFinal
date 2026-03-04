@@ -198,7 +198,19 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                       key={materia.id}
                       className="p-3 border rounded-lg bg-gray-50 dark:bg-coal-400 text-gray-800 dark:text-white font-semibold"
                     >
-                      • {materia.nombreMateria || 'Sin nombre'}
+                      <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
+                                  {materia.codigo || 'S/C'}
+                                </span>
+                                <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
+                                  {materia.nombreMateria || 'Sin nombre'}
+                                </p>
+                              </div>
+                              <p className="text-2xs text-gray-500 font-bold uppercase truncate">
+                                {materia.descripcion || 'Sin descripción'}
+                              </p>
+                            </div>
                     </div>
                   ))}
                 </div>
