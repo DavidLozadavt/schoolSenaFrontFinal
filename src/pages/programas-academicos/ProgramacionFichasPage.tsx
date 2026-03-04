@@ -642,7 +642,7 @@ export const ProgramacionFichasPage = () => {
                             <button
                               type="button"
                               onClick={() => {setVerMallaCurricular(true); setFichaSelected(ficha);}}
-                              title='Horarios'
+                              title='Malla curricular'
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-book-square text-base"></i>
