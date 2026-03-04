@@ -7,10 +7,13 @@ export interface Grupo {
   id?: number;
   nombreGrupo: string;
   cantidadParticipantes: number;
+  /** Algunas APIs devuelven cantidadEstudiantes como alternativa */
+  cantidadEstudiantes?: number;
   descripcion?: string;
   idTipoGrupo?: number;
   tipoGrupo?: { id: number; nombreTipoGrupo: string };
 }
+
 
 interface ModalCrearGrupoProps {
   open: boolean;

@@ -4,8 +4,9 @@ import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useAuthContext } from '@/auth';
 
-export const TIPO_ACTIVIDAD_ENUM = ['sin evidencia', 'con evidencia'] as const;
+export const TIPO_ACTIVIDAD_ENUM = ['sin evidencia', 'con evidencia', 'cuestionario'] as const;
 export type TipoActividadEnum = (typeof TIPO_ACTIVIDAD_ENUM)[number];
+
 
 export interface PersonaCreador {
   id?: number;
