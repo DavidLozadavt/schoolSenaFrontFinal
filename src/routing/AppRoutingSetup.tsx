@@ -114,6 +114,7 @@ import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt'
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 import Redes from '@/pages/gestion-red/Redes';
 import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgramas';
+import RmiGeneral from '@/pages/gestion-rmi/RmiGeneral';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -843,6 +844,16 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <JornadasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* --- SECCIÓN PARA EL RMI --- */}
+          <Route
+            path="/rmi"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <RmiGeneral/>
               </ProtectedRoute>
             }
           />
