@@ -24,6 +24,8 @@ interface ModalAsignarActividadProps {
   onSave: () => void;
   idFicha: number;
   actividad: Actividad | null;
+  /** Varias actividades para asignar en bloque */
+  actividades?: Actividad[] | null;
 }
 
 const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
@@ -31,8 +33,10 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   onClose,
   onSave,
   idFicha,
-  actividad
+  actividad,
+  actividades: actividadesProp
 }) => {
+  const actividadesAAsignar = actividadesProp?.length ? actividadesProp : (actividad ? [actividad] : []);
   const [aprendices, setAprendices] = useState<Aprendiz[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [actividades, setActividades] = useState<any[]>([]);
@@ -106,7 +110,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!actividad?.id) {
+    if (actividadesAAsignar.length === 0) {
       setError('No hay actividad seleccionada');
       return;
     }
@@ -127,26 +131,28 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
 
     setSaving(true);
     try {
-      // Si la actividad viene del banco (agregar), añadirla a planeación primero
-      if (actividad.idMateria) {
-        try {
-          const planeacionRes = await axios.get(`planeacion/ficha/${idFicha}`);
-          const data = planeacionRes.data;
-          const idPlaneacion = typeof data?.id === 'number' ? data.id : (typeof data?.id === 'string' ? parseInt(data.id, 10) : null);
-          if (idPlaneacion && !Number.isNaN(idPlaneacion)) {
-            await axios.post('planeacionactividades', {
-              idActividad: actividad.id,
-              idMateria: actividad.idMateria,
-              idPlaneacion
-            });
+      // Añadir cada actividad a planeación si aplica
+      try {
+        const planeacionRes = await axios.get(`planeacion/ficha/${idFicha}`);
+        const data = planeacionRes.data;
+        const idPlaneacion = typeof data?.id === 'number' ? data.id : (typeof data?.id === 'string' ? parseInt(data.id, 10) : null);
+        if (idPlaneacion && !Number.isNaN(idPlaneacion)) {
+          for (const act of actividadesAAsignar) {
+            if (act.id && act.idMateria) {
+              await axios.post('planeacionactividades', {
+                idActividad: act.id,
+                idMateria: act.idMateria,
+                idPlaneacion
+              });
+            }
           }
-        } catch {
-          // Ya está en planeación o error; continuar con la asignación
         }
+      } catch {
+        // Ya está en planeación o error; continuar con la asignación
       }
 
       const payload: any = {
-        actividades: [actividad.id]
+        actividades: actividadesAAsignar.map((a) => a.id).filter((id): id is number => id != null)
       };
       if (fechaInicial) payload.fechaInicial = fechaInicial + 'T00:00:00';
       if (fechaFinal) payload.fechaFinal = fechaFinal + 'T23:59:59';
@@ -207,9 +213,13 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
           <ModalTitle>Asignar actividad</ModalTitle>
         </ModalHeader>
         <ModalBody>
-          {actividad && (
+          {actividadesAAsignar.length > 0 && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-              Actividad: <span className="font-semibold">{actividad.tituloActividad}</span>
+              {actividadesAAsignar.length === 1 ? (
+                <>Actividad: <span className="font-semibold">{actividadesAAsignar[0].tituloActividad}</span></>
+              ) : (
+                <><span className="font-semibold">{actividadesAAsignar.length} actividades</span> seleccionadas</>
+              )}
             </p>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">

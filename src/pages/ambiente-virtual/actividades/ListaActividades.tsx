@@ -32,6 +32,8 @@ interface ListaActividadesProps {
   onVer?: (actividad: Actividad) => void;
   onAsignar?: (actividad: Actividad) => void;
   onAsignarActividad?: (actividad: Actividad) => void;
+  /** Asignar varias actividades a la vez (solo en modo agregar) */
+  onAsignarActividades?: (actividades: Actividad[]) => void;
   onQuitar?: (idPlaneacionActividad: number) => void;
   onMaterialApoyo?: (actividad: Actividad) => void;
   onEditar?: (actividad: Actividad) => void;
@@ -40,6 +42,8 @@ interface ListaActividadesProps {
   puedeEliminar?: (actividad: Actividad) => boolean;
   modo: 'agregar' | 'asignadas';
   emptyMessage?: string;
+  /** Incrementar para limpiar la selección (ej. tras asignación masiva exitosa) */
+  resetSelectionKey?: number;
 }
 
 const ListaActividades: React.FC<ListaActividadesProps> = ({
@@ -50,14 +54,17 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onVer,
   onAsignar,
   onAsignarActividad,
+  onAsignarActividades,
   onQuitar,
   onMaterialApoyo,
   onEditar,
   onEliminar,
   puedeEliminar,
   modo,
-  emptyMessage
+  emptyMessage,
+  resetSelectionKey
 }) => {
+  const [actividadesSeleccionadas, setActividadesSeleccionadas] = useState<Set<number>>(new Set());
   const nombreCompleto = (p: Actividad['persona']) => {
     if (!p) return 'Sin asignar';
     return `${p.nombre1 || ''} ${p.nombre2 || ''} ${p.apellido1 || ''} ${p.apellido2 || ''}`.trim() || 'Sin asignar';
@@ -104,6 +111,12 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     }
   }, [paginaActual, totalPaginas]);
 
+  useEffect(() => {
+    if (resetSelectionKey != null && resetSelectionKey > 0) {
+      setActividadesSeleccionadas(new Set());
+    }
+  }, [resetSelectionKey]);
+
   const defaultEmpty =
     modo === 'agregar'
       ? 'No hay actividades disponibles. Crea una nueva para comenzar.'
@@ -143,7 +156,32 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     );
   }
 
-  const headers = ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones'];
+  const mostrarSeleccion = modo === 'agregar' && onAsignarActividades;
+  const toggleActividad = (id: number) => {
+    setActividadesSeleccionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleTodasActividades = () => {
+    if (actividadesSeleccionadas.size === actividadesPaginadas.length) {
+      setActividadesSeleccionadas(new Set());
+    } else {
+      setActividadesSeleccionadas(new Set(actividadesPaginadas.map((item) => (item.actividad || item).id).filter((id): id is number => id != null)));
+    }
+  };
+  const handleAsignarSeleccionadas = () => {
+    const seleccionadas = actividadesFiltradas.filter((item) => {
+      const act = item.actividad || item;
+      return act.id != null && actividadesSeleccionadas.has(act.id);
+    });
+    const acts = seleccionadas.map((item) => item.actividad || item) as Actividad[];
+    if (acts.length > 0) onAsignarActividades?.(acts);
+  };
+
+  const headers = mostrarSeleccion ? ['', 'Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones'] : ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones'];
 
   return (
     <div className="space-y-3">
@@ -158,8 +196,17 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             className="input w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-coal-400"
           />
         </div>
-        {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario) && (
-          <div className="flex gap-2 shrink-0">
+        {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario || onAsignarActividades) && (
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            {modo === 'agregar' && onAsignarActividades && actividadesSeleccionadas.size > 0 && (
+              <button
+                onClick={handleAsignarSeleccionadas}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium"
+              >
+                <KeenIcon icon="users" className="text-sm" />
+                Asignar {actividadesSeleccionadas.size} seleccionada(s)
+              </button>
+            )}
             {onCrearCuestionario && (
             <button
               onClick={onCrearCuestionario}
@@ -191,8 +238,17 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
               {headers.map((h) => (
-                <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                  {h}
+                <th key={h === '' ? 'sel' : h} className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  {h === '' && mostrarSeleccion ? (
+                    <input
+                      type="checkbox"
+                      checked={actividadesPaginadas.length > 0 && actividadesPaginadas.every((item) => (item.actividad || item).id != null && actividadesSeleccionadas.has((item.actividad || item).id!))}
+                      onChange={toggleTodasActividades}
+                      className="rounded border-gray-300"
+                    />
+                  ) : (
+                    h
+                  )}
                 </th>
               ))}
             </tr>
@@ -207,6 +263,16 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                   key={act.id || act.tituloActividad}
                   className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors"
                 >
+                  {mostrarSeleccion && (
+                    <td className="py-3 px-3">
+                      <input
+                        type="checkbox"
+                        checked={act.id != null && actividadesSeleccionadas.has(act.id)}
+                        onChange={() => act.id != null && toggleActividad(act.id)}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
+                  )}
                   <td className="py-3 px-3 text-xs font-medium text-gray-900 dark:text-white">
                     {codigo}
                   </td>
@@ -254,7 +320,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-col items-start gap-2">
-                      {(modo === 'agregar' || modo === 'asignadas') && onAsignarActividad && (
+                      {modo === 'agregar' && onAsignarActividad && (
                         <button
                           onClick={() => onAsignarActividad(act)}
                           className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded"

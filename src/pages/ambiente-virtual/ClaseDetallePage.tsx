@@ -592,6 +592,8 @@ const ClaseDetallePage: React.FC = () => {
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
   const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
+  const [actividadesParaAsignar, setActividadesParaAsignar] = useState<Actividad[] | null>(null);
+  const [assignSuccessCounter, setAssignSuccessCounter] = useState(0);
   const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
   const [actividadParaEditar, setActividadParaEditar] = useState<Actividad | null>(null);
   const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
@@ -1502,6 +1504,12 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                   onAsignarActividad={(act) => {
                     setActividadParaAsignar(act);
+                    setActividadesParaAsignar(null);
+                    setModalAsignarActividadOpen(true);
+                  }}
+                  onAsignarActividades={(acts) => {
+                    setActividadesParaAsignar(acts);
+                    setActividadParaAsignar(null);
                     setModalAsignarActividadOpen(true);
                   }}
                   onVer={(act) => {
@@ -1523,10 +1531,11 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
+                  resetSelectionKey={assignSuccessCounter}
                 />
               )}
 
-              {/* Actividades Asignadas Section */}
+              {/* Actividades Asignadas Section - Sin botón Asignar (ya están asignadas) */}
               {activeMenu === 'actividades-asignadas' && (
                 <ListaActividades
                   actividades={actividadesAsignadas}
@@ -1535,10 +1544,6 @@ const ClaseDetallePage: React.FC = () => {
                   onCrearCuestionario={() => {
                     setCuestionarioParaEditar(null);
                     setModalCrearCuestionarioOpen(true);
-                  }}
-                  onAsignarActividad={(act) => {
-                    setActividadParaAsignar(act);
-                    setModalAsignarActividadOpen(true);
                   }}
                   onVer={(act) => {
                     setActividadVer(act);
@@ -1589,12 +1594,17 @@ const ClaseDetallePage: React.FC = () => {
         onClose={() => {
           setModalAsignarActividadOpen(false);
           setActividadParaAsignar(null);
+          setActividadesParaAsignar(null);
         }}
         onSave={() => {
           fetchActividades();
+          setActividadesParaAsignar(null);
+          setActividadParaAsignar(null);
+          setAssignSuccessCounter((c) => c + 1);
         }}
         idFicha={ficha?.id ?? 0}
         actividad={actividadParaAsignar}
+        actividades={actividadesParaAsignar}
       />
       <ModalCrearActividad
         open={modalCrearActividadOpen}
