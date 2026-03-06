@@ -28,6 +28,7 @@ import { ModalUpdateContract } from './ModalUpdateContract';
 import { ModalUpdateBankData } from './ModalUpdateBankData';
 import { ModalUpdateSeguridadSocial } from './ModalUpdateSeguridadSocial';
 import { ModalUpdateFotoPerfil } from './ModalUpdateFotoPerfil';
+import { toAbsoluteUrl } from '@/utils/Assets';
 
 const ContratoPage = () => {
   const { currentLayout } = useLayout();
@@ -52,17 +53,23 @@ const ContratoPage = () => {
 
   const [isObservacionPreocupacionalOpen, setIsObservacionPreocupacionalOpen] = useState(false);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  // Estado para sincronizar programas seleccionados entre AssignedPrograms y KnowledgeAreas
+  const [selectedProgramIds, setSelectedProgramIds] = useState<number[]>([]);
 
-  const fetchContrato = useCallback(async () => {
+  const fetchContrato = useCallback(async (showLoading = true) => {
     if (!id) return;
-    setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       const response = await axios.get(`contrato_by_id/${id}`);
       setContrato(response.data);
     } catch (error) {
       setError('Error al cargar el contrato');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, [id]);
 
@@ -99,19 +106,47 @@ const ContratoPage = () => {
     fetchContrato();
   }, [fetchContrato]);
 
+  // Sincronizar programas seleccionados cuando se carga el contrato (solo si realmente cambió)
+  const previousProgramIdsRef = useRef<string>('');
+  useEffect(() => {
+    if (contrato?.programas && Array.isArray(contrato.programas)) {
+      const programIds = contrato.programas
+        .map((program: any) => {
+          if (typeof program === 'object' && program !== null && 'id' in program) {
+            return program.id as number;
+          }
+          return typeof program === 'number' ? program : null;
+        })
+        .filter((id): id is number => id !== null);
+      
+      const programIdsString = programIds.sort().join(',');
+      // Solo actualizar si realmente cambió para evitar recargas innecesarias
+      if (programIdsString !== previousProgramIdsRef.current) {
+        previousProgramIdsRef.current = programIdsString;
+        setSelectedProgramIds(programIds);
+      }
+    } else {
+      if (selectedProgramIds.length > 0) {
+        setSelectedProgramIds([]);
+        previousProgramIdsRef.current = '';
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contrato?.programas]);
+
   const image = (
     <button
       type="button"
       onClick={() => setIsModalUpdateFotoPerfilOpen(true)}
-      className="flex items-center justify-center rounded-full border-2 border-success-clarity bg-light h-[100px] w-[100px] hover:opacity-80 transition-opacity cursor-pointer"
+      className="flex items-center justify-center rounded-full border-3 border-success bg-light h-[100px] w-[100px] hover:opacity-80 transition-opacity cursor-pointer overflow-hidden"
       title="Haz clic para cambiar la foto de perfil"
     >
       <img
-        src={contrato.persona?.rutaFotoUrl || '/media/images/default/user.svg'}
+        src={contrato.persona?.rutaFotoUrl || toAbsoluteUrl('/media/images/default/user.svg')}
         className="w-full h-full object-cover rounded-full"
         alt="Foto de perfil"
         onError={(e) => {
-          (e.target as HTMLImageElement).src = '/media/images/default/user.svg';
+          (e.target as HTMLImageElement).src = toAbsoluteUrl('/media/images/default/user.svg');
         }}
       />
     </button>
@@ -284,9 +319,26 @@ const ContratoPage = () => {
                     </div>
                   </div>
 
-                  <AssignedPrograms contrato={contrato} onSave={fetchContrato} />
+                  <AssignedPrograms 
+                    contrato={contrato} 
+                    onSave={() => {
+                      // Recargar el contrato en background sin mostrar loading (mejor UX)
+                      fetchContrato(false);
+                    }}
+                    onProgramsChange={(programIds) => {
+                      // Actualizar estado inmediatamente para que KnowledgeAreas reaccione al instante
+                      setSelectedProgramIds(programIds);
+                    }}
+                  />
 
-                  <KnowledgeAreas contrato={contrato} onSave={fetchContrato} />
+                  <KnowledgeAreas 
+                    contrato={contrato} 
+                    onSave={() => {
+                      // Recargar el contrato en background sin mostrar loading (mejor UX)
+                      fetchContrato(false);
+                    }}
+                    selectedProgramIds={selectedProgramIds}
+                  />
 
                   <div className="card">
                     <div className="card-header" id="contract_options">

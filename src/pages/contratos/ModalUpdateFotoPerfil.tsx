@@ -25,22 +25,16 @@ const ModalUpdateFotoPerfil = ({ open, onClose, contrato, onSave }: ModalUpdateF
   const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
+    if (open) {
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
     if (!open && !showToast) {
       setToastMessage('');
     }
   }, [open, showToast]);
-
-  useEffect(() => {
-    if (open && contrato?.persona) {
-      // Mostrar la foto actual si existe
-      if (contrato.persona.rutaFotoUrl) {
-        setPreviewSrc(contrato.persona.rutaFotoUrl);
-      } else {
-        setPreviewSrc(defaultImage);
-      }
-      setSelectedFile(null);
-    }
-  }, [open, contrato]);
 
   useEffect(() => {
     if (selectedFile instanceof File) {
