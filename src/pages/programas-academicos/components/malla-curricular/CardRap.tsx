@@ -15,6 +15,7 @@ interface CardRapProps {
   onAsignacionSuccess?: () => void;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   materiasLength?: number;
+  cargarRaps?: () => void;
 }
 
 export const CardRap = ({
@@ -25,7 +26,8 @@ export const CardRap = ({
   idFicha,
   onAsignacionSuccess,
   onEditCompetencia,
-  materiasLength
+  materiasLength,
+  cargarRaps
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
@@ -270,6 +272,10 @@ export const CardRap = ({
       {/* Contenido principal */}
       <div className="flex-1">
         {/* Título del RAP */}
+        {materia?.fechaFinalRap && 
+        <span className={`my-2 px-2 text-center text-xs font-semibold text-gray-500`}>
+          Fecha Final: {materia?.fechaFinalRap || ''}
+        </span>}
         <div className="flex justify-between items-center">
           <h3 className="font-medium text-gray-900 dark:text-white px-2">
             {materia.nombre || materia.nombreMateria}
@@ -479,7 +485,7 @@ export const CardRap = ({
 
         {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
           onClick={() => handleFinalizarRap()}
-          className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+          className="p-2 rounded-md text-green-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
           title="Finalizar RAP"
         >
           <Check size={18} />
@@ -487,7 +493,7 @@ export const CardRap = ({
 
         {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarInterrumpir && <button
           onClick={() => handleInterrumpirRap()}
-          className="p-2 rounded-md text-gray-500 dark:text-indigo-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-indigo-600 transition"
+          className="p-2 rounded-md text-red-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
           title="Interrumpir RAP"
         >
           <Pause size={18} />
@@ -577,6 +583,7 @@ export const CardRap = ({
           onClose={() => setIsCalendarioOpen(false)}
           materia={materia}
           idFicha={idFicha ?? 0}
+          cargarRaps={cargarRaps}
           onAddSchedule={() => {
             setModalHorarios({
               open: true,

@@ -7,9 +7,12 @@ import {
   Plus,
   Clock,
   User,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
+import { enqueueSnackbar } from 'notistack';
+import Swal from 'sweetalert2';
 
 interface CalendarioProps {
   isOpen: boolean;
@@ -17,6 +20,7 @@ interface CalendarioProps {
   materia: any;
   idFicha: number;
   onAddSchedule: () => void;
+  cargarRaps?: () => void;
 }
 
 const mapeoDias: { [key: string]: number } = {
@@ -51,7 +55,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
   onClose,
   materia,
   idFicha,
-  onAddSchedule
+  onAddSchedule,
+  cargarRaps
 }) => {
   // Mover el return null después de todos los hooks
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -231,6 +236,36 @@ export const Calendario: React.FC<CalendarioProps> = ({
     }
   };
 
+  const handleEliminarHorario = async(idHorario: number) => {
+    try {
+      const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+      const isDarkMode = theme === 'dark';
+      const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+      const color = isDarkMode ? 'white' : '#4B5675';
+      const result = await Swal.fire({
+        title: '¿Eliminar horario?',
+        text: '¿Estás seguro de que deseas eliminar este horario?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+          confirmButton: 'btn btn-sm btn-danger',
+          cancelButton: 'btn btn-sm btn-light'
+        },
+        background,
+        color
+      });
+      if (!result.isConfirmed) return;
+      const res = await axios.delete(`horarios/materia/${idHorario}`);
+      setHorariosFicha(prev => prev.filter(h => h.id !== idHorario));
+      enqueueSnackbar(res.data.message || "Horario eliminado correctamente", { variant: "success" });
+      cargarRaps?.();
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || "Error al eliminar horario", { variant: "error" });
+    }
+  }
+
   // Mostrar skeleton mientras carga
   if (!isOpen) return null;
 
@@ -358,7 +393,15 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
                         return (
                           <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-                            <div className="truncate">{format12h(hIni)} - {format12h(hFin)}</div>
+                            <div className="flex items-center justify-between truncate">{format12h(hIni)} - {format12h(hFin)}
+                              <button
+                                onClick={() => handleEliminarHorario(ev.id)}
+                                className="rounded-md text-red-500 hover:text-red-600 transition"
+                                title="Eliminar"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                             <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-52 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
                               {instructor && (
                                 <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500">
@@ -405,7 +448,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
         <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
           {materia.idMateriaPadre != null &&
-            <button onClick={onAddSchedule} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
+            <button onClick={ materia?.horasTotales > 0 ? onAddSchedule : ()=> enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
               <Plus size={14} />Programar Horario
             </button>
           }

@@ -167,6 +167,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     nombre: rap.nombre,
                     estado: rap.estado,
                     idMateria: rap.idMateria,
+                    fechaFinalRap: rap.fechaFinalRap,
                     idGradoMateria: rap.idGradoMateria,
                     idMateriaPadre: rap.idMateriaPadre,
                     codigo: rap.codigo,
@@ -185,6 +186,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                         idTrimestre={nivelId}
                         idFicha={idFicha}
                         setModalHorarios={setModalHorarios}
+                        cargarRaps={cargarRaps}
                         onAsignacionSuccess={() => {
                           cargarRaps();
                           if (onUpdate) onUpdate();
