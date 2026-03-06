@@ -567,10 +567,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
-            <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 font-medium">
+            <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 dark:text-gray-300 font-medium">
               <div className="flex items-center gap-4 mb-2">
                 <img
-                  className="h-16 w-16 rounded-full border border-gray-200"
+                  className="h-16 w-16 rounded-full border border-gray-200 dark:border-gray-600"
                   src={getStudentPhoto(selectedStudent)}
                   alt={getFullName(selectedStudent)}
                   onError={(e) => {
@@ -578,10 +578,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                   }}
                 />
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900 leading-tight">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
                     {getFullName(selectedStudent)}
                   </h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {getStudentEmail(selectedStudent)}
                   </p>
                 </div>
@@ -589,39 +589,39 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase">Identificación</label>
-                  <p className="mt-1">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Identificación</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {getStudentIdentificacion(selectedStudent)}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase">Teléfono</label>
-                  <p className="mt-1">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {getStudentCelular(selectedStudent)}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase">Estado</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</label>
                   <div className="mt-1">
                     {getStatusBadge(selectedStudent.estado)}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase">Nota Parcial</label>
-                  <p className="mt-1">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nota Parcial</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {selectedStudent.notaParcial !== null ? selectedStudent.notaParcial : 'No calificado'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Observaciones</label>
-                <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded min-h-[60px]">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Observaciones</label>
+                <div className="mt-1 p-3 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 rounded min-h-[60px] text-gray-900 dark:text-white">
                   {selectedStudent.observacion || 'Sin observaciones'}
                 </div>
               </div>
 
-              <div className="flex justify-end mt-4 pt-4 border-t border-gray-200">
+              <div className="flex justify-end mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={closeModal}
                   className="btn btn-sm btn-secondary"
@@ -640,25 +640,25 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           <ModalContent className="max-w-[500px] top-[15%] p-4">
             <ModalHeader>
               <ModalTitle className="flex items-center gap-2">
-                <KeenIcon icon="users" className="text-green-600" />
+                <KeenIcon icon="users" className="text-green-600 dark:text-green-400" />
                 Datos del Familiar / Acudiente
               </ModalTitle>
               <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={closeAcudienteModal}>
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
-            <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 font-medium">
+            <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 dark:text-gray-300 font-medium">
               {selectedAcudiente ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="flex items-center justify-center w-14 h-14 bg-gray-100 rounded-full border border-gray-200 text-gray-500 text-2xl font-semibold">
+                    <div className="flex items-center justify-center w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-300 text-2xl font-semibold">
                       {selectedAcudiente.nombre1?.charAt(0) || 'A'}
                     </div>
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900 leading-tight">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
                         {[selectedAcudiente.nombre1, selectedAcudiente.nombre2, selectedAcudiente.apellido1, selectedAcudiente.apellido2].filter(Boolean).join(' ')}
                       </h4>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {selectedAcudiente.email || 'Sin correo electrónico'}
                       </p>
                     </div>
@@ -667,33 +667,33 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase">Identificación</label>
-                      <p className="mt-1">
+                      <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.identificacion || 'No registrada'}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase">Teléfono Celular</label>
-                      <p className="mt-1">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono Celular</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.celular || 'No registrado'}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase">Teléfono Fijo</label>
-                      <p className="mt-1">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono Fijo</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.telefonoFijo || 'No registrado'}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase">Género</label>
-                      <p className="mt-1">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Género</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.sexo === '1' ? 'Masculino' : selectedAcudiente.sexo === '2' ? 'Femenino' : selectedAcudiente.sexo || 'No registrado'}
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-                  <KeenIcon icon="information-2" className="text-4xl mb-3 opacity-50 text-gray-400" />
+                <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                  <KeenIcon icon="information-2" className="text-4xl mb-3 opacity-50 text-gray-400 dark:text-gray-500" />
                   <p>Este estudiante no tiene un acudiente o familiar registrado.</p>
                 </div>
               )}
