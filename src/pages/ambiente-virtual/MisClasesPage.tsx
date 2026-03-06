@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useState } from 'react';
 import { Container } from '@/components/container';
 import {
   Toolbar,
@@ -9,19 +9,24 @@ import {
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 import MisClases from './MisClases';
+import ReporteAsistencias from './ReporteAsistencias';
 
 const MisClasesPage: React.FC = () => {
   const { currentLayout } = useLayout();
-  const [filtro, setFiltro] = React.useState<'todas' | 'completadas'>('todas');
+  const [filtro, setFiltro] = useState<'todas' | 'completadas'>('todas');
+  const [mostrarReporte, setMostrarReporte] = useState(false);
 
   const handleVerReporte = () => {
-    // TODO: Implementar navegación o modal para el reporte de asistencias
-    console.log('Ver reporte de asistencias');
+    setMostrarReporte(true);
+  };
+
+  const handleVolverAClases = () => {
+    setMostrarReporte(false);
   };
 
   return (
     <Fragment>
-      {currentLayout?.name === 'demo1-layout' && (
+      {currentLayout?.name === 'demo1-layout' && !mostrarReporte && (
         <Container>
           <Toolbar>
             <ToolbarHeading>
@@ -50,9 +55,13 @@ const MisClasesPage: React.FC = () => {
         </Container>
       )}
 
-      <Container>
-        <MisClases filtro={filtro} />
-      </Container>
+      {mostrarReporte ? (
+        <ReporteAsistencias onVolver={handleVolverAClases} />
+      ) : (
+        <Container>
+          <MisClases filtro={filtro} />
+        </Container>
+      )}
     </Fragment>
   );
 };
