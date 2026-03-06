@@ -8,6 +8,7 @@ import Toast from '../../programas-academicos/components/Toast';
 interface AssignedProgramsProps {
   contrato: ContratoInterface;
   onSave?: () => void;
+  onProgramsChange?: (programIds: number[]) => void;
 }
 
 interface Nivel {
@@ -49,7 +50,7 @@ const programsScrollStyles = `
   }
 `;
 
-const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
+const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgramsProps) => {
   const [programas, setProgramas] = useState<Programa[]>([]);
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -60,9 +61,19 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Cargar programas al montar el componente
+  const hasInitializedRef = useRef(false);
+  const previousProgramIdsRef = useRef<string>('');
+
+  // Cargar programas solo una vez al montar
   useEffect(() => {
-    fetchProgramas();
+    if (!hasInitializedRef.current) {
+      fetchProgramas();
+      hasInitializedRef.current = true;
+    }
+  }, []);
+
+  // Sincronizar programas seleccionados cuando cambie el contrato (solo si realmente cambió)
+  useEffect(() => {
     if (contrato?.programas && Array.isArray(contrato.programas)) {
       const programIds = contrato.programas
         .map((program: any) => {
@@ -72,21 +83,28 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
           return typeof program === 'number' ? program : null;
         })
         .filter((id): id is number => id !== null);
-      setSelectedPrograms(programIds);
+      
+      const programIdsString = programIds.sort().join(',');
+      // Solo actualizar si realmente cambió para evitar recargas innecesarias
+      if (programIdsString !== previousProgramIdsRef.current) {
+        previousProgramIdsRef.current = programIdsString;
+        setSelectedPrograms(programIds);
+      }
+    } else if (selectedPrograms.length > 0) {
+      // Si el contrato no tiene programas pero tenemos seleccionados, limpiar
+      previousProgramIdsRef.current = '';
+      setSelectedPrograms([]);
     }
-  }, [contrato]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contrato?.programas]);
 
   const fetchProgramas = async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await axios.get<ProgramaAPI[]>('programas_contratacion');
-      console.log('Programas recibidos:', response.data);
       
       if (response.data && Array.isArray(response.data)) {
         if (response.data.length === 0 && !hasShownWarning.current) {
-          console.warn(
-            'No hay programas disponibles para esta empresa. Verifique que existan programas con idCompany correspondiente.'
-          );
           enqueueSnackbar('No hay programas disponibles para esta empresa', { variant: 'warning' });
           hasShownWarning.current = true;
         }
@@ -102,16 +120,14 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
             duracion: null,
             fichas: p.fichas || 0,
           }))
-          .filter((programa: Programa) => programa.fichas? programa.fichas > 0 : null); // Solo mostrar programas con fichas
+          .filter((programa: Programa) => programa.fichas && programa.fichas > 0); // Solo mostrar programas con fichas
         
         setProgramas(programasMapeados);
       } else {
-        console.warn('La respuesta de programas no es un array:', response.data);
         setProgramas([]);
       }
     } catch (error: any) {
       console.error('Error al cargar programas:', error);
-      console.error('Detalles del error:', error.response?.data || error.message);
       enqueueSnackbar('Error al cargar programas', { variant: 'error' });
       setProgramas([]);
     } finally {
@@ -120,11 +136,57 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
   };
 
   const handleToggleProgram = async (id: number): Promise<void> => {
+    const previousSelectedPrograms = [...selectedPrograms];
     const newSelectedPrograms = selectedPrograms.includes(id)
       ? selectedPrograms.filter((programId) => programId !== id)
       : [...selectedPrograms, id];
 
+    // Actualizar estado local inmediatamente para mejor UX
     setSelectedPrograms(newSelectedPrograms);
+    
+    // Notificar cambio inmediatamente para que KnowledgeAreas pueda reaccionar al instante
+    if (onProgramsChange) {
+      onProgramsChange(newSelectedPrograms);
+    }
+
+    // Guardar cambios en el backend
+    if (contrato?.id) {
+      try {
+        setSaving(true);
+        await axios.post(`update_contrato/${contrato.id}`, {
+          programas: newSelectedPrograms,
+        });
+        
+        setToastMessage('Programas actualizados');
+        setShowToast(true);
+        
+        // No recargar el contrato - ya notificamos el cambio con onProgramsChange
+        // El contrato se sincronizará automáticamente cuando sea necesario
+        // Evitar recarga innecesaria que causa loops
+      } catch (error) {
+        console.error('Error al guardar programas:', error);
+        enqueueSnackbar('Error al guardar programas', { variant: 'error' });
+        // Revertir cambio en caso de error
+        setSelectedPrograms(previousSelectedPrograms);
+      } finally {
+        setSaving(false);
+      }
+    }
+  };
+
+  const handleSelectAll = async (): Promise<void> => {
+    const previousSelectedPrograms = [...selectedPrograms];
+    const newSelectedPrograms = selectedPrograms.length === programas.length
+      ? []
+      : programas.map((program) => program.id);
+
+    // Actualizar estado local inmediatamente para mejor UX
+    setSelectedPrograms(newSelectedPrograms);
+    
+    // Notificar cambio inmediatamente para que KnowledgeAreas pueda reaccionar al instante
+    if (onProgramsChange) {
+      onProgramsChange(newSelectedPrograms);
+    }
 
     // Guardar cambios en el backend
     if (contrato?.id) {
@@ -135,25 +197,18 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
         });
         setToastMessage('Programas actualizados');
         setShowToast(true);
-        if (onSave) {
-          onSave();
-        }
+        
+        // No recargar el contrato - ya notificamos el cambio con onProgramsChange
+        // El contrato se sincronizará automáticamente cuando sea necesario
+        // Evitar recarga innecesaria que causa loops
       } catch (error) {
         console.error('Error al guardar programas:', error);
         enqueueSnackbar('Error al guardar programas', { variant: 'error' });
         // Revertir cambio en caso de error
-        setSelectedPrograms(selectedPrograms);
+        setSelectedPrograms(previousSelectedPrograms);
       } finally {
         setSaving(false);
       }
-    }
-  };
-
-  const handleSelectAll = (): void => {
-    if (selectedPrograms.length === programas.length) {
-      setSelectedPrograms([]);
-    } else {
-      setSelectedPrograms(programas.map((program) => program.id));
     }
   };
 
@@ -241,29 +296,14 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                   {filteredProgramas.map((programa) => {
                     const isSelected = selectedPrograms.includes(programa.id);
                     return (
-                      <label
+                      <div
                         key={programa.id}
-                        className={`flex items-start gap-3 px-3 py-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`flex items-start gap-3 px-3 py-3 rounded-lg border-2 transition-all ${
                           isSelected
                             ? 'bg-transparent dark:bg-transparent border-primary'
                             : 'bg-transparent dark:bg-transparent border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleProgram(programa.id)}
-                          className="w-4 h-4 mt-0.5 rounded focus:ring-primary appearance-none"
-                          style={{
-                            backgroundColor: 'transparent',
-                            border: isSelected ? '2px solid var(--tw-primary)' : '2px solid rgb(209, 213, 219)',
-                            borderColor: isSelected ? 'var(--tw-primary)' : 'rgb(209, 213, 219)',
-                            backgroundImage: isSelected ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'9\' viewBox=\'0 0 12 9\' fill=\'none\'%3E%3Cpath d=\'M10.3667 0.541643L4.80007 6.10831L1.56674 2.87498C1.41061 2.71977 1.1994 2.63265 0.979241 2.63265C0.759086 2.63265 0.547876 2.71977 0.391741 2.87498C0.236532 3.03111 0.149414 3.24232 0.149414 3.46248C0.149414 3.68263 0.236532 3.89384 0.391741 4.04998L4.21674 7.87498C4.37288 8.03019 4.58409 8.1173 4.80424 8.1173C5.0244 8.1173 5.23561 8.03019 5.39174 7.87498L11.5417 1.72498C11.6198 1.64751 11.6818 1.55534 11.7241 1.45379C11.7665 1.35224 11.7882 1.24332 11.7882 1.13331C11.7882 1.0233 11.7665 0.914379 11.7241 0.81283C11.6818 0.711281 11.6198 0.619113 11.5417 0.541643C11.3856 0.386434 11.1744 0.299316 10.9542 0.299316C10.7341 0.299316 10.5229 0.386434 10.3667 0.541643Z\' fill=\'%23006AE6\'/%3E%3C/svg%3E")' : 'none',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'center',
-                            backgroundSize: 'contain'
-                          }}
-                        />
                         <div className="flex-1">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -297,7 +337,14 @@ const AssignedPrograms = ({ contrato, onSave }: AssignedProgramsProps) => {
                             </div>
                           </div>
                         </div>
-                      </label>
+                        <label className="switch switch-sm flex-shrink-0 mt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleProgram(programa.id)}
+                          />
+                        </label>
+                      </div>
                     );
                   })}
                 </div>
