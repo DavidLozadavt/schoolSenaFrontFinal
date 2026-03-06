@@ -148,7 +148,6 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       }));
 
       setFieldValue('horarios', horariosActualizados);
-      enqueueSnackbar(`Día ${values.horarios.find(h => h.idDia === diaBD)?.nombreDia} seleccionado automáticamente`, { variant: 'info' });
     }
   }, [values.fechaInicio, values.horarios.length, loadingDias]);
 
@@ -259,7 +258,6 @@ const toggleDia = (index: number) => {
     });
 
     setFieldValue('horarios', horariosActualizados);
-    enqueueSnackbar('Horas aplicadas a los días seleccionados', { variant: 'success' });
   };
 
   // Guardar horarios
@@ -306,10 +304,22 @@ const toggleDia = (index: number) => {
   // Calcular proyección de fecha fin y estadísticas
   useEffect(() => {
     calcularProyeccion();
-  }, [values.fechaInicio, values.horarios, totalHoras, horasActuales, horasFaltantes]);
+  }, [
+    values.fechaInicio, 
+    // IMPORTANTE: No incluir values.fechaFin aquí para evitar ciclos
+    JSON.stringify(values.horarios.map(h => ({
+      idDia: h.idDia,
+      activo: h.activo,
+      horaInicio: h.horaInicio,
+      horaFin: h.horaFin
+    }))),
+    totalHoras, 
+    horasActuales, 
+    horasFaltantes,
+    porcentajeEjecucion
+  ]);
 
   const calcularProyeccion = () => {
-    // 1. Estadísticas básicas
     const diasActivos = values.horarios.filter(h => h.activo).length;
 
     const horasSemana = values.horarios
@@ -322,7 +332,7 @@ const toggleDia = (index: number) => {
       }, 0);
 
     // Proyección de Fecha Fin
-    let fechaFinEstimada = values.fechaFin || '';
+    let fechaFinEstimada = '';
     let horasProgramadas = 0;
     let sesionesPasadas = 0;
     let totalSesiones = 0;
@@ -349,38 +359,19 @@ const toggleDia = (index: number) => {
         return acc;
       }, {});
 
-      // Calcular total de sesiones desde fechaInicio hasta fechaFin
-      if (values.fechaFin) {
-        const fechaFinObj = new Date(values.fechaFin + 'T00:00:00');
-        const fechaActual = new Date(fechaIteracion);
-        let contadorSesiones = 0;
-
-        while (fechaActual <= fechaFinObj) {
-          const diaSemana = fechaActual.getDay();
-          if (mapaHorarios[diaSemana] !== undefined) {
-            contadorSesiones++;
-          }
-          fechaActual.setDate(fechaActual.getDate() + 1);
-        }
-        totalSesiones = contadorSesiones;
-      }
-
-      // Límite de iteraciones para evitar bucles infinitos (ej. 2 años)
+      // Límite de iteraciones para evitar bucles infinitos
       let iteraciones = 0;
       const MAX_ITERACIONES = 365 * 2;
 
       const fechaFinCalculada = new Date(fechaIteracion);
+      const fechasSesiones: Date[] = [];
 
       while (horasAcumuladas < horasPendientes && iteraciones < MAX_ITERACIONES) {
         const diaSemana = fechaFinCalculada.getDay();
 
         if (mapaHorarios[diaSemana] !== undefined) {
           horasAcumuladas += mapaHorarios[diaSemana];
-
-          // Contar sesiones pasadas
-          if (fechaFinCalculada < hoy) {
-            sesionesPasadas++;
-          }
+          fechasSesiones.push(new Date(fechaFinCalculada));
         }
 
         if (horasAcumuladas < horasPendientes) {
@@ -392,12 +383,17 @@ const toggleDia = (index: number) => {
       horasProgramadas = horasAcumuladas;
       fechaFinEstimada = fechaFinCalculada.toISOString().split('T')[0];
 
-      // Calcular sesiones restantes (total - dadas)
-      sesionesRestantes = Math.max(0, totalSesiones - sesionesPasadas);
+      // Calcular sesiones basadas en las fechas reales
+      totalSesiones = fechasSesiones.length;
+      sesionesPasadas = fechasSesiones.filter(fecha => fecha < hoy).length;
+      sesionesRestantes = totalSesiones - sesionesPasadas;
 
-      // Actualizar fecha fin en formik solo si cambió
-      if (values.fechaFin !== fechaFinEstimada) {
-        setFieldValue('fechaFin', fechaFinEstimada);
+      // Actualizar fecha fin en formik solo si es diferente
+      if (fechaFinEstimada && values.fechaFin !== fechaFinEstimada) {
+        // Usar setTimeout para evitar actualizar durante el render
+        setTimeout(() => {
+          setFieldValue('fechaFin', fechaFinEstimada);
+        }, 0);
       }
     }
 
@@ -413,7 +409,7 @@ const toggleDia = (index: number) => {
   };
 
   return (
-    <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 bg-black/5 backdrop-blur-sm animate-fade-in'>
+    <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 animate-fade-in'>
       <ModalContent className="w-full max-w-6xl p-4 max-h-[95vh]">
         <ModalHeader>
           <ModalTitle>Configurar Horarios de la Materia - Jornada: {jornada}</ModalTitle>
