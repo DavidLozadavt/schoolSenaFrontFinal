@@ -949,7 +949,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
             </div>
           </div>
           <div className="flex-shrink-0 pt-1">
-            <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>
+            <i className="ki-outline ki-right text-base text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"></i>
           </div>
         </div>
       </div>
@@ -1019,7 +1019,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
             
           </div>
           <div className="flex-shrink-0 pt-1">
-            <i className="ki-outline ki-right text-base text-gray-400 group-hover:text-blue-600 transition-colors"></i>
+            <i className="ki-outline ki-right text-base text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"></i>
           </div>
         </div>
       </div>
@@ -1030,7 +1030,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Cargando clases...</p>
         </div>
       </div>
@@ -1059,7 +1059,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="select w-auto rounded-full px-3 py-1.5 pr-7 text-xs font-medium"
+            className="select w-auto rounded-full px-3 py-1.5 pr-7 text-xs font-medium bg-white dark:bg-coal-400 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
           >
             <option>Todos los estados</option>
             <option>En Curso</option>

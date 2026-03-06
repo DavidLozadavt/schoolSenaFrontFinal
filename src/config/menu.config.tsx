@@ -54,53 +54,41 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
       {
         title: 'Ambiente Virtual',
-        requiredPermissions: ['GESTION_USUARIO'],
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
         children: [
           {
             title: 'Historial Raps',
             path: '/ambiente-virtual/historial-raps',
-            requiredPermissions: ['GESTION_USUARIO']
+            requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
           },
           {
             title: 'Detalle Clase',
             path: '/ambiente-virtual/clase/:id',
-            requiredPermissions: ['GESTION_USUARIO_HIDDEN']
+            requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR_HIDDEN']
           }
         ]
       }
     ]
   },
   {
-    title: 'Aula Virtual Instructor',
-    icon:'teacher',
-    requiredPermissions:['AULA_VIRTUAL_INSTRUCTOR'],
-    children:[
-      {
-        title:'Historial Raps',
-        path: '/ambiente-virtual/historial-raps',
-        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      },
-    ]
-  },
-  {
-    title: 'Aula Virtual Aprendiz',
+    title: 'Aula Virtual',
     icon:'teacher',
     requiredPermissions:['AULA_VIRTUAL_APRENDIZ'],
     children:[
       {
         title:'Mis clases',
-        path: '/gestion-academica/configuracion/redes',
+        path: '/ambiente-virtual/mis-clases',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       },
       {
-        title:'Mis Notas',
-        path: '/gestion-academica/configuracion/redes',
+        title:'Actividades',
+        path: '/ambiente-virtual/actividades',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       },
     ]
   },
   {
-    title: 'Administrativo',
+    title: 'Administrador',
     icon:'teacher',
     children:[
       {
