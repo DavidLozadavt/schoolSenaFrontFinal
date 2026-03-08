@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { KeenIcon } from '@/components';
 import type { Actividad } from './ModalCrearActividad';
 
-const ACTIVIDADES_POR_PAGINA = 5;
+const ACTIVIDADES_POR_PAGINA = 20;
 const MAX_PALABRAS = 6;
 
 const truncarAPalabras = (texto: string | undefined, maxPalabras: number = MAX_PALABRAS): string => {
@@ -386,7 +386,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
         </table>
       </div>
       )}
-      {actividadesFiltradas.length > ACTIVIDADES_POR_PAGINA && (
+      {actividadesFiltradas.length > 0 && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Mostrando {(paginaActual - 1) * ACTIVIDADES_POR_PAGINA + 1}-
