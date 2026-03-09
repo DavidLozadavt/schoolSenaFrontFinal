@@ -107,7 +107,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   <span className="text-sm font-bold text-gray-300">
                     Total: {raps.length} -
                     Pendientes:{raps.filter((rap: any) => rap.estado === 'PENDIENTE').length} -
-                    Realizados:{raps.filter((rap: any) => rap.estado === 'REALIZADO').length} -
+                    Finalizados:{raps.filter((rap: any) => rap.estado === 'FINALIZADO').length} -
                     {nombreCompetencia}
                   </span>
                 </div>
@@ -172,9 +172,9 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     idMateriaPadre: rap.idMateriaPadre,
                     codigo: rap.codigo,
                     horasTotales: rap.horas,
-                    horasActuales: 0,
-                    horasFaltantes: rap.horas,
-                    porcentajeAvance: 0,
+                    horasActuales: rap.horasActuales || 0,
+                    horasFaltantes: rap.horasFaltantes || 0,
+                    porcentajeAvance: rap.porcentajeAvance || 0,
                     descripcion: rap.descripcion,
                     horarios: rap.horarios || []
                   };

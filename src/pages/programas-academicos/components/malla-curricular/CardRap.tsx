@@ -215,9 +215,13 @@ export const CardRap = ({
 
     if (result.isConfirmed) {
       try {
-        enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
+        await axios.put('materias/interrumpir-rap', {
+          idGradoMateria: materia.idGradoMateria
+        })
+        if (onAsignacionSuccess) onAsignacionSuccess();
+        enqueueSnackbar('RAP interrumpido correctamente', { variant: 'success' });
       } catch (error: any) {
-        enqueueSnackbar(error.response?.data?.message || 'Error al finalizar el RAP', { variant: 'error' });
+        enqueueSnackbar(error.response?.data?.message || 'Error al interrumpir el RAP', { variant: 'error' });
       }
     }
   }
@@ -284,13 +288,13 @@ export const CardRap = ({
             </p>
           </h3>
           <div className='flex flex-col items-center'>
-            {/* <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
-              ${materia.estado === 'REALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+            <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
+              ${materia.estado === 'FINALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
               {materia.estado || 'Sin estado'}
-            </span> */}
+            </span>
             <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
             <p className="text-lg text-center text-blue-500 font-semibold">
-              {materia.porcentajeAvance || 0}%
+              {materia.porcentajeAvance > 100 ? 100 : materia.porcentajeAvance || 0}%
             </p>
           </div>
         </div>
@@ -378,7 +382,7 @@ export const CardRap = ({
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Total de horas</p>
                 <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                  {materia.horasTotales || 0}
+                  {materia.horasTotales ||  materia.horas|| 0}
                 </p>
               </div>
 
