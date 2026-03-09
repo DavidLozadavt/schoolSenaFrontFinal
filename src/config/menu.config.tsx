@@ -96,6 +96,16 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/rmi',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
+      {
+        title:'GC',
+        path: '/rmi',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
+      {
+        title:'CF',
+        path: '/rmi',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
     ]
   },
   {

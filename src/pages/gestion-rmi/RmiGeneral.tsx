@@ -16,8 +16,6 @@ interface Centro {
   nombre: string;
 }
 
-
-
 const RmiGeneral: React.FC = () => {
   const authContext = useContext(AuthContext);
   if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
@@ -33,7 +31,11 @@ const RmiGeneral: React.FC = () => {
   const [loadingInstructors, setLoadingInstructors] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [periodo, setPeriodo] = useState('');
+  const [periodo, setPeriodo] = useState(() => {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${month}`;
+  });
   const [estado, setEstado] = useState<number>(1);
 
   useEffect(() => {
@@ -68,10 +70,15 @@ const RmiGeneral: React.FC = () => {
     }
     setLoadingInstructors(true);
     axios
-      .get('instructores', { params: { idCentroFormacion } })
+      .get('instructores', {
+        params: {
+          idCentroFormacion,
+          periodo: periodo || undefined
+        }
+      })
       .then((r) => setInstructors(r.data))
       .finally(() => setLoadingInstructors(false));
-  }, [idCentroFormacion]);
+  }, [idCentroFormacion, periodo]);
 
   const filtered = instructors.filter((i) => {
     const fullName =
@@ -227,7 +234,11 @@ const RmiGeneral: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-3">
               {filtered.map((instructor) => (
-                <InstructorCard key={instructor.idActivation} instructor={instructor} />
+                <InstructorCard
+                  key={instructor.idActivation}
+                  instructor={instructor}
+                  periodo={periodo || undefined} // ← agrega esto
+                />
               ))}
             </div>
           )}
@@ -238,6 +249,3 @@ const RmiGeneral: React.FC = () => {
 };
 
 export default RmiGeneral;
-
-
-
