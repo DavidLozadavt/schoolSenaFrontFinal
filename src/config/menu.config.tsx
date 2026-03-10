@@ -85,6 +85,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/ambiente-virtual/actividades',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       },
+      {
+        title:'Grupos',
+        path: '/ambiente-virtual/grupos',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      },
     ]
   },
   {
