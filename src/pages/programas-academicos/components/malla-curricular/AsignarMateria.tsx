@@ -50,7 +50,12 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const cargarMaterias = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`materias-programa/${idPrograma}`);
+      const response = await axios.get(`materias-programa`, {
+        params: {
+          idPrograma: idPrograma,
+          idFicha: idFicha
+        }
+      });
       setMateriasDisponibles(response.data || []);
     } catch (error) {
       setMateriasDisponibles([]);
@@ -212,17 +217,18 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                     return (
                       <div
                         key={materia.id}
-                        onClick={() => toggleMateria(materia)}
+                        onClick={() => !materia.isCompleta && toggleMateria(materia)}
                         className={`group flex flex-col p-3 border rounded-xl cursor-pointer transition-all duration-200 ${seleccionada
                           ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
-                          : 'bg-white dark:bg-coal-400 border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
-                          }`}
+                          : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
+                          } ${materia.isCompleta ? 'border-green-500 dark:border-green-500' : ''}`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
+                            
+                            { !materia.isCompleta && <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
                               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
-                            </div>
+                            </div>}
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -230,7 +236,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                                   {materia.codigo || 'S/C'}
                                 </span>
                                 <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
-                                  {materia.nombreMateria || 'Sin nombre'}
+                                  {materia.nombreMateria || 'Sin nombre'} <span className="text-xs text-green-500 opacity-70">{materia.isCompleta ? ' - Finalizado' : ''}</span>
                                 </p>
                               </div>
                               <p className="text-2xs text-gray-500 font-bold uppercase truncate">

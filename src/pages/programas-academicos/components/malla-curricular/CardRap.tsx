@@ -272,7 +272,7 @@ export const CardRap = ({
 
 
   return (
-    <div className="rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 bg-white dark:bg-coal-400 hover:border-primary/50 transition-all duration-300">
+    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 hover:border-primary/50 transition-all duration-300 ${materia.estado === 'FINALIZADO' ? 'bg-black/10 dark:bg-white/10' : 'bg-white dark:bg-coal-400'}`}>
       {/* Contenido principal */}
       <div className="flex-1">
         {/* Título del RAP */}
@@ -311,7 +311,7 @@ export const CardRap = ({
             : (horariosData?.sinAsignar?.length > 0);
 
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg pt-2 text-center bg-gray-50 dark:bg-coal-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg pt-2 text-center">
               <div className="flex flex-col items-center justify-center gap-2 text-center relative col-span-1 md:col-span-1 min-h-[60px]">
                 {!hasAsignados && !hasSinAsignar ? (
                   <div className="flex-1 text-center py-2">
@@ -468,6 +468,7 @@ export const CardRap = ({
       </div>
 
       {/* Acciones */}
+      { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? <div></div> : 
       <div className="flex flex-col items-center justify-between py-2 gap-1">
         {onVerRaps && (
           <button
@@ -480,7 +481,7 @@ export const CardRap = ({
         )}
 
         <button
-          onClick={() => onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id)}
+          onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id)}}
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
           title="Editar"
         >
@@ -504,7 +505,9 @@ export const CardRap = ({
         </button>}
 
         <button
-          onClick={() => setIsCalendarioOpen(true)}
+          onClick={ materia.idMateriaPadre == null? () => setIsCalendarioOpen(true) // si es competencia abrimos el calendario normalmente
+            : materia.idMateriaPadre != null && parseFloat(materia.horasTotales) > 0 ? ()=> setIsCalendarioOpen(true) // si es rap pero tiene horas configuradas abrimos el calendario normalmente
+            : ()=> enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} // si es rap pero no tiene horas, mostrar alerta
           className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
           title="Horarios"
         >
@@ -518,7 +521,7 @@ export const CardRap = ({
         >
           <Trash2 size={18} />
         </button>
-      </div>
+      </div>}
 
       {/* Modal de Lista de Instructores */}
       {showInstructorsModal && (
@@ -557,13 +560,13 @@ export const CardRap = ({
                       </p>
                     </div>
 
-                    <button
+                    {materia.estado != 'FINALIZADO' && <button
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button>
+                    </button>}
                   </div>
                 ))}
               </div>
