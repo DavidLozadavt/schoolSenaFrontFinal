@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { KeenIcon } from '@/components';
 import type { Actividad } from './ModalCrearActividad';
 
-const ACTIVIDADES_POR_PAGINA = 5;
+const ACTIVIDADES_POR_PAGINA = 20;
 const MAX_PALABRAS = 6;
 
 const truncarAPalabras = (texto: string | undefined, maxPalabras: number = MAX_PALABRAS): string => {
@@ -40,6 +40,10 @@ interface ListaActividadesProps {
   onEliminar?: (actividad: Actividad) => void;
   /** Solo se muestra el botón eliminar si esta función retorna true. Si no se pasa, se usa onEliminar cuando existe. */
   puedeEliminar?: (actividad: Actividad) => boolean;
+  /** Ver aprendices asignados y calificar (solo en modo asignadas) */
+  onVerAprendices?: (actividad: Actividad) => void;
+  /** ID de ficha para el modal de aprendices */
+  idFicha?: number;
   modo: 'agregar' | 'asignadas';
   emptyMessage?: string;
   /** Incrementar para limpiar la selección (ej. tras asignación masiva exitosa) */
@@ -60,6 +64,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onEditar,
   onEliminar,
   puedeEliminar,
+  onVerAprendices,
+  idFicha,
   modo,
   emptyMessage,
   resetSelectionKey
@@ -233,8 +239,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
       ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px]">
+      <div className="">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
               {headers.map((h) => (
@@ -340,6 +346,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         </button>
                       )}
                       <div className="flex items-center gap-1.5">
+                        {modo === 'asignadas' && idFicha && onVerAprendices && (
+                          <button
+                            onClick={() => onVerAprendices(act)}
+                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 relative"
+                            title="Ver aprendices asignados"
+                          >
+                            <KeenIcon icon="users" className="text-sm" />
+                          </button>
+                        )}
                         {onVer && (
                           <button
                             onClick={() => onVer(act)}
@@ -386,7 +401,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
         </table>
       </div>
       )}
-      {actividadesFiltradas.length > ACTIVIDADES_POR_PAGINA && (
+      {actividadesFiltradas.length > 0 && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Mostrando {(paginaActual - 1) * ACTIVIDADES_POR_PAGINA + 1}-

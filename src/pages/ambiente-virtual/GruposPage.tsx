@@ -7,9 +7,9 @@ import {
   ToolbarPageTitle
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
-import ListaActividadesAprendiz from './actividades/ListaActividadesAprendiz';
+import ListaGruposAprendiz from './actividades/ListaGruposAprendiz';
 
-const ActividadesPage: React.FC = () => {
+const GruposPage: React.FC = () => {
   const { currentLayout } = useLayout();
 
   return (
@@ -19,17 +19,17 @@ const ActividadesPage: React.FC = () => {
           <Toolbar>
             <ToolbarHeading>
               <ToolbarPageTitle />
-              <ToolbarDescription>Visualiza y gestiona tus actividades asignadas</ToolbarDescription>
+              <ToolbarDescription>Lista de grupos y únete a ellos</ToolbarDescription>
             </ToolbarHeading>
           </Toolbar>
         </Container>
       )}
 
       <Container>
-        <ListaActividadesAprendiz />
+        <ListaGruposAprendiz />
       </Container>
     </Fragment>
   );
 };
 
-export default ActividadesPage;
+export default GruposPage;
