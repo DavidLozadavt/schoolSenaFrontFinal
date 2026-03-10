@@ -6,6 +6,7 @@ import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
 import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ListaActividades, type Actividad } from './actividades';
 import { VerGruposView } from './grupos';
+import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
 // Componente de Calendario
 const CalendarComponent: React.FC<{
@@ -515,7 +516,7 @@ interface FechaClase {
 interface Ficha {
   id: number;
   codigo: string;
-    idSede?: number;
+  idSede?: number;
   jornada?: {
     id: number;
     nombreJornada: string;
@@ -559,7 +560,7 @@ interface Estudiante {
   estado?: string;
 }
 
-type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos';
+type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos' | 'calificaciones';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -1449,14 +1450,17 @@ const ClaseDetallePage: React.FC = () => {
                   <span>Ver grupos</span>
                 </button>
                 <button
-                  onClick={() => {
-                    setJuiciosEvaluativos(true);
-                    setIdFicha(clase?.ficha_id);
-                    setIdPrograma(String(ficha.asignacion?.programa?.id));
-                    setIdSede(ficha?.idSede)
-                    setIdGrado(clase?.idGrado ?? 1);
-                  }
-                  }
+                  onClick={() => setActiveMenu('calificaciones')}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'calificaciones'
+                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                    }`}
+                >
+                  <KeenIcon icon="chart-line" className={`text-base ${activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span>Calificaciones</span>
+                </button>
+                <button
+                  onClick={() => setActiveMenu('juicios-evaluativos')}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
@@ -1589,6 +1593,20 @@ const ClaseDetallePage: React.FC = () => {
                     Los juicios evaluativos aparecerán aquí cuando estén disponibles
                   </p>
                 </div>
+              )}
+
+              {/* Calificaciones Section */}
+              {activeMenu === 'calificaciones' && ficha?.id && (
+                <CalificacionesFichaView
+                  idFicha={ficha.id}
+                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  idInstructor={clase?.instructor?.persona?.id}
+                  instructorAsignado={
+                    clase?.instructor?.persona
+                      ? `${clase.instructor.persona.nombre1} ${clase.instructor.persona.apellido1}`.toUpperCase()
+                      : 'NO ASIGNADO'
+                  }
+                />
               )}
             </div>
           </div>
