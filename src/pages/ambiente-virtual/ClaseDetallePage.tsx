@@ -4,7 +4,7 @@ import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
-import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ListaActividades, type Actividad } from './actividades';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ListaActividades, type Actividad } from './actividades';
 import { VerGruposView } from './grupos';
 
 // Componente de Calendario
@@ -602,6 +602,8 @@ const ClaseDetallePage: React.FC = () => {
   const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
   const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
+  const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
+  const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
 
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
@@ -1541,6 +1543,11 @@ const ClaseDetallePage: React.FC = () => {
                   actividades={actividadesAsignadas}
                   loading={loadingActividades}
                   modo="asignadas"
+                  idFicha={ficha?.id}
+                  onVerAprendices={(act) => {
+                    setActividadParaVerAprendices(act);
+                    setModalAprendicesOpen(true);
+                  }}
                   onCrearCuestionario={() => {
                     setCuestionarioParaEditar(null);
                     setModalCrearCuestionarioOpen(true);
@@ -1649,6 +1656,16 @@ const ClaseDetallePage: React.FC = () => {
         }}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
         cuestionarioEditar={cuestionarioParaEditar}
+      />
+      <ModalAprendices
+        open={modalAprendicesOpen}
+        onClose={() => {
+          setModalAprendicesOpen(false);
+          setActividadParaVerAprendices(null);
+        }}
+        actividad={actividadParaVerAprendices}
+        idFicha={ficha?.id ?? 0}
+        tituloActividad={actividadParaVerAprendices?.tituloActividad}
       />
     </Container>
   );

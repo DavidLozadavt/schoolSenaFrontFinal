@@ -40,6 +40,10 @@ interface ListaActividadesProps {
   onEliminar?: (actividad: Actividad) => void;
   /** Solo se muestra el botón eliminar si esta función retorna true. Si no se pasa, se usa onEliminar cuando existe. */
   puedeEliminar?: (actividad: Actividad) => boolean;
+  /** Ver aprendices asignados y calificar (solo en modo asignadas) */
+  onVerAprendices?: (actividad: Actividad) => void;
+  /** ID de ficha para el modal de aprendices */
+  idFicha?: number;
   modo: 'agregar' | 'asignadas';
   emptyMessage?: string;
   /** Incrementar para limpiar la selección (ej. tras asignación masiva exitosa) */
@@ -60,6 +64,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onEditar,
   onEliminar,
   puedeEliminar,
+  onVerAprendices,
+  idFicha,
   modo,
   emptyMessage,
   resetSelectionKey
@@ -233,8 +239,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
       ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px]">
+      <div className="">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
               {headers.map((h) => (
@@ -340,6 +346,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         </button>
                       )}
                       <div className="flex items-center gap-1.5">
+                        {modo === 'asignadas' && idFicha && onVerAprendices && (
+                          <button
+                            onClick={() => onVerAprendices(act)}
+                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 relative"
+                            title="Ver aprendices asignados"
+                          >
+                            <KeenIcon icon="users" className="text-sm" />
+                          </button>
+                        )}
                         {onVer && (
                           <button
                             onClick={() => onVer(act)}
