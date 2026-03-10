@@ -4,6 +4,7 @@ import { AlertCircle, BookOpen, X, FileText, Plus } from 'lucide-react';
 import { CardRap } from './CardRap';
 import { HorariosMateria } from './HorariosMateria';
 import { FormCompetencia } from './FormCompetencia';
+import { enqueueSnackbar } from 'notistack';
 
 interface ListaRapsProps {
   isOpen: boolean;
@@ -66,12 +67,19 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         }
       });
 
-      if (Array.isArray(response.data?.data)) {
-        setRaps(response.data.data);
-      } else if (Array.isArray(response.data)) {
-        setRaps(response.data);
-      } else {
-        setRaps([]);
+      const fetchedRaps = Array.isArray(response.data?.data) 
+        ? response.data.data 
+        : Array.isArray(response.data) 
+          ? response.data 
+          : [];
+
+      setRaps(fetchedRaps);
+
+      if (fetchedRaps.length === 0) {
+        enqueueSnackbar('Cargar juicios evaluativos para mostrar RAPs asignados a la ficha', { variant: 'warning' });
+      }
+
+      if (!Array.isArray(response.data?.data) && !Array.isArray(response.data)) {
         setError('No se encontraron RAPs para esta competencia');
       }
     } catch (err: any) {
@@ -81,11 +89,11 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
       setLoading(false);
     }
   };
-
+  
   useEffect(() => {
     cargarRaps();
   }, [isOpen, idMateriaPadre]);
-
+  
   if (!isOpen) return null;
 
   return (
@@ -153,7 +161,8 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                 No hay RAPs disponibles
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Esta competencia aún no tiene resultados de aprendizaje asignados
+                Esta competencia aún no tiene resultados de aprendizaje asignados,
+                por favor cargar juicios evaluativos.
               </p>
             </div>
           ) : (

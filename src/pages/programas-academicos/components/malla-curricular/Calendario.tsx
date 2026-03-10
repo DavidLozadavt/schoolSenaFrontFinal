@@ -448,7 +448,18 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
         <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
           {materia.idMateriaPadre != null &&
-            <button onClick={ materia?.horasTotales > 0 ? onAddSchedule : ()=> enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
+            <button onClick={() => {
+              if (materia?.horasTotales > 0) {
+                if (materia?.estado === 'FINALIZADO') {
+                  enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+                } else {
+                  onAddSchedule();
+                }
+              } else {
+                enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
+              }
+            }}
+            className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
               <Plus size={14} />Programar Horario
             </button>
           }
