@@ -169,7 +169,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
             <div className="space-y-4">
               {/* Lista de RAPs usando CardRap */}
               <div className="space-y-3">
-                {raps.map((rap, index) => {
+                {raps.sort((b: any, a: any) => a.estado.localeCompare(b.estado)).map((rap, index) => {
                   // Transformar el RAP al formato que espera CardRap
                   const materiaTransformada = {
                     id: rap.id,

@@ -236,7 +236,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                                   {materia.codigo || 'S/C'}
                                 </span>
                                 <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
-                                  {materia.nombreMateria || 'Sin nombre'} <span className="text-xs text-green-500 opacity-70">{materia.isCompleta ? ' - Finalizado' : ''}</span>
+                                  {materia.nombreMateria || 'Sin nombre'} 
+                                  {materia.isCompleta && <span className="text-xs text-green-500 opacity-70"> - Finalizado</span>}
                                 </p>
                               </div>
                               <p className="text-2xs text-gray-500 font-bold uppercase truncate">
