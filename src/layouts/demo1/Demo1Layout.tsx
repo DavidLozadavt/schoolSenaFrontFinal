@@ -18,14 +18,19 @@ const Demo1Layout = () => {
 
   useEffect(() => {
     const verificarRapsPendientes = async () => {
-
       try {
         if (!persona || !persona.contrato) return;
+        
+        // Validar que contrato sea un array válido
+        const contratos = Array.isArray(persona.contrato) ? persona.contrato : [];
+        if (contratos.length === 0) return;
+        
         const yaSeMostro = sessionStorage.getItem('sofia_plus_alert_shown');
         if (yaSeMostro) return;
+        
         const response = await axios.get(`raps/evaluar/contrato`, {
           params: {
-            contratos: persona.contrato
+            contratos: contratos
           }
         });
         const rapsPendientes = response.data || [];
@@ -55,7 +60,6 @@ const Demo1Layout = () => {
           });
         }
       } catch (error) {
-        //console.error("Error al verificar RAPs",error);
       }
     };
 
