@@ -178,14 +178,24 @@ const ModalMisActividades: React.FC<ModalMisActividadesProps> = ({
                                                 </div>
                                             </td>
                                             <td className="py-4 px-4 text-center">
-                                                <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50 dark:bg-coal-300 border border-gray-100 dark:border-coal-100 shadow-sm">
-                                                    <span className="text-xs font-bold text-gray-900 dark:text-white">
-                                                        {item.nota != null ? item.nota : '-'}
+                                                <div className={`inline-flex items-center justify-center h-8 px-2 min-w-[32px] rounded-lg border shadow-sm ${
+                                                    item.nota == null ? 'bg-gray-50 dark:bg-coal-300 border-gray-100 dark:border-coal-100' :
+                                                    item.nota <= 3.5 ? 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' :
+                                                    item.nota < 4.0 ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800' :
+                                                    'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
+                                                }`}>
+                                                    <span className={`text-[10px] font-bold uppercase whitespace-nowrap ${
+                                                        item.nota == null ? 'text-gray-900 dark:text-white' :
+                                                        item.nota <= 3.5 ? 'text-red-700 dark:text-red-400' :
+                                                        item.nota < 4.0 ? 'text-yellow-700 dark:text-yellow-400' :
+                                                        'text-green-700 dark:text-green-400'
+                                                    }`}>
+                                                        {item.nota != null ? item.nota : 'SIN EVALUAR'}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="py-4 px-4 text-center text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase">
-                                                {item.entregablesRealizados}
+                                                {item.actividad?.entregables || '-'}
                                             </td>
                                             <td className="py-4 px-4">
                                                 <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase truncate block max-w-[120px]">

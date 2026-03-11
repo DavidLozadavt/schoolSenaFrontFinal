@@ -32,6 +32,7 @@ interface StudentData {
     idFicha: number;
     estado: string;
     notaParcial?: number | null;
+    porcentaje_avance?: number | null;
     matricula: Matricula;
     materia: Materia;
     ficha?: any;
@@ -201,9 +202,9 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
             'FICHA': student.ficha?.codigo || 'N/A',
             'COMPETENCIA': student.materia?.nombreMateria || 'N/A',
             'RAP': student.materia?.descripcion || 'SIN DESCRIPCIÓN',
-            'PORCENTAJE': '-',
-            'NOTA PARCIAL': student.notaParcial !== null ? student.notaParcial : '-',
-            'ESTADO RAP': student.estado || 'POR EVALUAR',
+            'PORCENTAJE': student.porcentaje_avance !== undefined && student.porcentaje_avance !== null ? `${student.porcentaje_avance}%` : '0%',
+            'NOTA PARCIAL': student.notaParcial !== null && student.notaParcial !== undefined ? student.notaParcial : '0.0',
+            'ESTADO RAP': student.estado || 'SIN EVALUAR',
             'EVALUADOR': (instructorAsignado || '')
         }));
 
@@ -312,11 +313,27 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                                     </div>
                                 </td>
                                 {/* Instructor mapping to Evaluador column below */}
-                                <td className="py-5 px-4 text-center text-xs font-medium text-gray-700 dark:text-gray-300">-</td>
                                 <td className="py-5 px-4 text-center">
-                                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50 dark:bg-coal-300 border border-gray-100 dark:border-coal-100 shadow-sm">
-                                        <span className="text-xs font-bold text-gray-900 dark:text-white">
-                                            {student.notaParcial !== null ? student.notaParcial : '-'}
+                                    <div className="inline-flex items-center justify-center min-w-[50px] h-9 px-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 shadow-sm">
+                                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                                            {student.porcentaje_avance !== undefined && student.porcentaje_avance !== null ? `${student.porcentaje_avance}%` : '0%'}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="py-5 px-4 text-center">
+                                    <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg border shadow-sm ${
+                                        student.notaParcial === null || student.notaParcial === undefined ? 'bg-gray-50 dark:bg-coal-300 border-gray-100 dark:border-coal-100' :
+                                        student.notaParcial <= 3.5 ? 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' :
+                                        student.notaParcial < 4.0 ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800' :
+                                        'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
+                                    }`}>
+                                        <span className={`text-xs font-bold ${
+                                            student.notaParcial === null || student.notaParcial === undefined ? 'text-gray-900 dark:text-white' :
+                                            student.notaParcial <= 3.5 ? 'text-red-700 dark:text-red-400' :
+                                            student.notaParcial < 4.0 ? 'text-yellow-700 dark:text-yellow-400' :
+                                            'text-green-700 dark:text-green-400'
+                                        }`}>
+                                            {student.notaParcial !== null && student.notaParcial !== undefined ? student.notaParcial : '0.0'}
                                         </span>
                                     </div>
                                 </td>
@@ -325,7 +342,7 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                                         ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800'
                                         : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'
                                         }`}>
-                                        {student.estado || 'POR EVALUAR'}
+                                        {student.estado || 'SIN EVALUAR'}
                                     </span>
                                 </td>
                                 <td className="py-5 px-4 text-center">
