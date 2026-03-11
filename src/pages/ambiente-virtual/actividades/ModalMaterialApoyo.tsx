@@ -9,6 +9,7 @@ interface MaterialApoyo {
   titulo: string;
   descripcion?: string;
   urlDocumento?: string;
+  urlDocumentoUrl?: string;
   urlAdicional?: string;
 }
 
@@ -18,13 +19,33 @@ interface ModalMaterialApoyoProps {
   actividad: Actividad | null;
 }
 
-const getDocumentUrl = (path: string | undefined): string | null => {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
-  return `${base.replace(/\/$/, '')}/${storagePath}`;
+const getDocumentUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+      const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+      return base + path;
+    } catch {
+      const pathMatch = url.match(/\/storage\/.*$/);
+      if (pathMatch) {
+        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+        return base + pathMatch[0];
+      }
+      return url;
+    }
+  }
+  if (url.startsWith('/storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + url;
+  }
+  if (url.startsWith('storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + '/' + url;
+  }
+  const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+  return base + '/storage/' + url;
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -250,7 +271,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                       </tr>
                     ) : (
                       paginatedMateriales.map((mat) => {
-                        const docUrl = getDocumentUrl(mat.urlDocumento);
+                        const docUrl = getDocumentUrl(mat.urlDocumentoUrl || mat.urlDocumento);
                         return (
                           <tr key={mat.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/50 align-top">
                             <td className="py-3 px-3 text-sm text-gray-900 dark:text-white align-top">{mat.titulo}</td>
@@ -263,9 +284,15 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                               <div className="flex items-center gap-1">
                                 {docUrl && (
                                   <a
-                                    href={docUrl}
+                                    href={docUrl ?? '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      if (docUrl) {
+                                        window.open(docUrl, '_blank', 'noopener,noreferrer');
+                                      }
+                                    }}
                                     className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-300"
                                     title="Ver documento"
                                   >
@@ -274,7 +301,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                                 )}
                                 {mat.urlAdicional && (
                                   <a
-                                    href={mat.urlAdicional}
+                                    href={mat.urlAdicional ?? '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-300"

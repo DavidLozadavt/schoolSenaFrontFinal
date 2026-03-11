@@ -7,7 +7,7 @@ import {
   ToolbarPageTitle
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
-import ListaActividadesAprendiz from './actividades/ListaActividadesAprendiz';
+import ActividadesAprendiz from './actividades/ActividadesAprendiz';
 
 const ActividadesPage: React.FC = () => {
   const { currentLayout } = useLayout();
@@ -26,7 +26,7 @@ const ActividadesPage: React.FC = () => {
       )}
 
       <Container>
-        <ListaActividadesAprendiz />
+        <ActividadesAprendiz />
       </Container>
     </Fragment>
   );

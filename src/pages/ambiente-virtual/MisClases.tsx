@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
@@ -40,39 +40,74 @@ interface MisClasesProps {
   filtro?: 'todas' | 'completadas';
 }
 
+// Funciones helper para obtener icono y texto de estado
+const obtenerIconoEstado = (estado: Sesion['estado']) => {
+  switch (estado) {
+    case 'COMPLETADA':
+      return <KeenIcon icon="check" className="text-sm text-gray-600 dark:text-gray-400" />;
+    case 'EN_CURSO':
+      return <KeenIcon icon="circle" className="text-sm text-green-600 dark:text-green-400" />;
+    case 'PROXIMO':
+      return <KeenIcon icon="arrow-right" className="text-sm text-orange-600 dark:text-orange-400" />;
+    case 'PENDIENTE':
+      return <KeenIcon icon="lock" className="text-sm text-gray-500 dark:text-gray-400" />;
+    default:
+      return null;
+  }
+};
+
+const obtenerTextoEstado = (estado: Sesion['estado']): string => {
+  switch (estado) {
+    case 'COMPLETADA':
+      return 'Completada';
+    case 'EN_CURSO':
+      return 'En Curso';
+    case 'PROXIMO':
+      return 'Próximo';
+    case 'PENDIENTE':
+      return 'Pendiente';
+    default:
+      return 'Pendiente';
+  }
+};
+
 const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [error, setError] = useState<string | null>(null);
 
-  // Actualizar tiempo cada segundo para recalcular estados en tiempo real
+  // Actualizar tiempo cada minuto para recalcular estados en tiempo real
+  // (optimizado: no es necesario actualizar cada segundo)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 60000); // Actualizar cada minuto en lugar de cada segundo
 
     return () => clearInterval(interval);
   }, []);
 
   // Obtener clases del estudiante
-  useEffect(() => {
-    const fetchClases = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get('fichas/estudiante/clases');
-        const materiasData = response.data?.data || [];
-        setMaterias(materiasData);
-      } catch (error: any) {
-        console.error('Error al obtener clases del estudiante:', error);
-        setMaterias([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchClases();
+  const fetchClases = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.get('fichas/estudiante/clases');
+      const materiasData = response.data?.data || [];
+      setMaterias(materiasData);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.error || 'No se pudieron cargar las clases. Por favor, intenta nuevamente.';
+      setError(errorMessage);
+      setMaterias([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchClases();
+  }, [fetchClases]);
 
   // Función para formatear fecha (formato: "mar, 8 de abr")
   const formatearFecha = (fechaStr: string): string => {
@@ -303,22 +338,6 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     }
   };
 
-  // Función para obtener el texto del estado
-  const obtenerTextoEstado = (estado: Sesion['estado']): string => {
-    switch (estado) {
-      case 'COMPLETADA':
-        return 'Completada';
-      case 'EN_CURSO':
-        return 'En Curso';
-      case 'PROXIMO':
-        return 'Próximo';
-      case 'PENDIENTE':
-        return 'Pendiente';
-      default:
-        return 'Pendiente';
-    }
-  };
-
   // Función para navegar al detalle de la clase
   const handleVerDetalle = (idHorarioMateria: number) => {
     navigate(`/ambiente-virtual/clase/${idHorarioMateria}`);
@@ -330,6 +349,22 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando clases...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <KeenIcon icon="cross-circle" className="text-4xl text-red-400 dark:text-red-500 mx-auto mb-3" />
+          <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">
+            Error al cargar las clases
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -401,42 +436,6 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                   {materia.sesiones.map((sesion, index) => {
                     const estadoFinal = sesion.estado;
                     
-                    // Obtener icono según estado (iconos específicos para cada estado)
-                    const obtenerIcono = () => {
-                      switch (estadoFinal) {
-                        case 'COMPLETADA':
-                          // Icono de check (ya dado)
-                          return <KeenIcon icon="check" className="text-sm text-gray-600 dark:text-gray-400" />;
-                        case 'EN_CURSO':
-                          // Icono circular para en curso
-                          return <KeenIcon icon="circle" className="text-sm text-green-600 dark:text-green-400" />;
-                        case 'PROXIMO':
-                          // Icono de flecha para próxima
-                          return <KeenIcon icon="arrow-right" className="text-sm text-orange-600 dark:text-orange-400" />;
-                        case 'PENDIENTE':
-                          // Icono de candado para pendiente
-                          return <KeenIcon icon="lock" className="text-sm text-gray-500 dark:text-gray-400" />;
-                        default:
-                          return null;
-                      }
-                    };
-                    
-                    // Obtener texto del estado
-                    const obtenerTextoEstado = () => {
-                      switch (estadoFinal) {
-                        case 'COMPLETADA':
-                          return 'Completada';
-                        case 'EN_CURSO':
-                          return 'En Curso';
-                        case 'PROXIMO':
-                          return 'Próximo';
-                        case 'PENDIENTE':
-                          return 'Pendiente';
-                        default:
-                          return '';
-                      }
-                    };
-                    
                     return (
                       <div
                         key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
@@ -450,10 +449,10 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                           {/* Icono y estado */}
                           <div className="flex items-center gap-1 w-full">
                             <div className="flex-shrink-0">
-                              {obtenerIcono()}
+                              {obtenerIconoEstado(estadoFinal)}
                             </div>
                             <div className="text-xs font-medium flex-1">
-                              {obtenerTextoEstado()}
+                              {obtenerTextoEstado(estadoFinal)}
                             </div>
                           </div>
                           

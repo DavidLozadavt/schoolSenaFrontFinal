@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import {
   Toolbar,
   ToolbarActions,
@@ -10,6 +11,66 @@ import {
   ToolbarPageTitle
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
+
+const getDocumentUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  
+  // Si ya es una URL completa (http:// o https://)
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+      
+      // Si el pathname es /excusas/..., convertir a /storage/excusas/...
+      if (path.startsWith('/excusas/')) {
+        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+        return base + '/storage' + path;
+      }
+      
+      // Si el pathname ya empieza con /storage/, solo corregir el puerto si es necesario
+      if (path.startsWith('/storage/')) {
+        if (urlObj.hostname === 'localhost' && !urlObj.port) {
+          const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+          return base + path;
+        }
+        return url;
+      }
+      
+      // Si la URL no tiene puerto pero debería tenerlo (localhost sin puerto)
+      if (urlObj.hostname === 'localhost' && !urlObj.port) {
+        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+        return base + path;
+      }
+      
+      // Si ya tiene puerto o es otro dominio, devolverla tal cual
+      return url;
+    } catch {
+      return url;
+    }
+  }
+  
+  // Si es una ruta relativa, construir la URL completa
+  if (url.startsWith('/storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + url;
+  }
+  if (url.startsWith('storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + '/' + url;
+  }
+  // Si empieza con /excusas/ o excusas/, convertir a /storage/excusas/
+  if (url.startsWith('/excusas/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + '/storage' + url;
+  }
+  if (url.startsWith('excusas/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + '/storage/' + url;
+  }
+  // Por defecto, asumir que es una ruta relativa y agregar /storage/
+  const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+  return base + '/storage/' + url;
+};
 
 interface AreaData {
   idArea: number;
@@ -20,12 +81,28 @@ interface AreaData {
   porcentaje: number;
 }
 
+interface JustificacionData {
+  id: number;
+  estado: string;
+  observacion: string | null;
+  excusa: {
+    id: number;
+    tipoExcusa: string;
+    observacion: string | null;
+    fechaInicialJustificacion: string | null;
+    fechaFinalJustificacion: string | null;
+    urlDocumento: string | null;
+  };
+}
+
 interface RegistroDetallado {
   fecha: string;
   idArea: number;
   nombreArea: string;
   asistio: boolean;
   estado: string;
+  idAsistencia?: number;
+  justificacion?: JustificacionData;
 }
 
 interface ResumenData {
@@ -51,12 +128,9 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
     totalRegistros: 0
   });
   const [areaSeleccionada, setAreaSeleccionada] = useState<number | null>(null);
+  const [justificacionSeleccionada, setJustificacionSeleccionada] = useState<JustificacionData | null>(null);
 
-  useEffect(() => {
-    fetchAsistencias();
-  }, []);
-
-  const fetchAsistencias = async () => {
+  const fetchAsistencias = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get('asistencias-por-area');
@@ -71,11 +145,23 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
         totalRegistros: 0
       });
     } catch (error) {
-      console.error('Error al obtener asistencias:', error);
+      // Error silencioso: no interrumpir la experiencia del usuario
+      setAreas([]);
+      setRegistros([]);
+      setResumen({
+        asistenciaGeneral: 0,
+        totalAsistencias: 0,
+        totalInasistencias: 0,
+        totalRegistros: 0
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAsistencias();
+  }, [fetchAsistencias]);
 
   const formatearFecha = (fechaStr: string): string => {
     if (!fechaStr) return '';
@@ -111,6 +197,7 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
     }
 
     const totalAsistencias = registrosFiltrados.filter((registro) => registro.asistio).length;
+    // Las justificadas SÍ cuentan como inasistencias
     const totalInasistencias = registrosFiltrados.filter((registro) => !registro.asistio).length;
     const totalRegistros = registrosFiltrados.length;
 
@@ -148,8 +235,6 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
               </div>
               <ToolbarDescription>Registro detallado de asistencias e inasistencias por área</ToolbarDescription>
             </ToolbarHeading>
-            <ToolbarActions>
-            </ToolbarActions>
           </Toolbar>
         </Container>
       )}
@@ -270,23 +355,38 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
                                 {registro.nombreArea}
                               </td>
                               <td className="px-2.5 py-2 whitespace-nowrap">
-                                <span className={`inline-flex items-center gap-1 text-[12px] font-medium ${
-                                  registro.asistio
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-red-600 dark:text-red-400'
-                                }`}>
-                                  {registro.asistio ? (
-                                    <>
-                                      <KeenIcon icon="check" className="text-[10px]" />
-                                      Presente
-                                    </>
-                                  ) : (
-                                    <>
-                                      <KeenIcon icon="cross" className="text-[10px]" />
-                                      Ausente
-                                    </>
-                                  )}
-                                </span>
+                                {registro.estado === 'Inasistencia Justificada' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (registro.justificacion) {
+                                        setJustificacionSeleccionada(registro.justificacion);
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[12px] font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 hover:underline cursor-pointer"
+                                  >
+                                    <KeenIcon icon="check" className="text-[10px]" />
+                                    Inasistencia Justificada
+                                  </button>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1 text-[12px] font-medium ${
+                                    registro.asistio
+                                      ? 'text-blue-600 dark:text-blue-400'
+                                      : 'text-red-600 dark:text-red-400'
+                                  }`}>
+                                    {registro.asistio ? (
+                                      <>
+                                        <KeenIcon icon="check" className="text-[10px]" />
+                                        Presente
+                                      </>
+                                    ) : (
+                                      <>
+                                        <KeenIcon icon="cross" className="text-[10px]" />
+                                        Ausente
+                                      </>
+                                    )}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -300,6 +400,89 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
           )}
         </div>
       </Container>
+
+      {/* Modal de detalles de justificación */}
+      {justificacionSeleccionada && (
+        <Modal open={true} onClose={() => setJustificacionSeleccionada(null)}>
+          <ModalContent className="max-w-[500px] top-[15%] p-4">
+            <ModalHeader>
+              <ModalTitle>Detalle de Justificación</ModalTitle>
+              <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={() => setJustificacionSeleccionada(null)}>
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="py-5 space-y-4">
+              {justificacionSeleccionada.excusa?.tipoExcusa && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Tipo de Excusa</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.tipoExcusa}</p>
+                </div>
+              )}
+
+              {justificacionSeleccionada.excusa?.observacion && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Observación</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.observacion}</p>
+                </div>
+              )}
+
+              {justificacionSeleccionada.excusa?.urlDocumento && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Documento de Soporte</p>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const originalUrl = justificacionSeleccionada.excusa.urlDocumento;
+                      // Si la URL ya es completa y empieza con /excusas/, convertir a /storage/excusas/
+                      let docUrl: string | null = originalUrl;
+                      if (originalUrl && originalUrl.startsWith('http://')) {
+                        try {
+                          const urlObj = new URL(originalUrl);
+                          if (urlObj.pathname.startsWith('/excusas/')) {
+                            const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+                            docUrl = base + '/storage' + urlObj.pathname;
+                          } else if (urlObj.pathname.startsWith('/storage/')) {
+                            // Si ya tiene /storage/, solo corregir el puerto si es necesario
+                            if (urlObj.hostname === 'localhost' && !urlObj.port) {
+                              const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+                              docUrl = base + urlObj.pathname;
+                            } else {
+                              docUrl = originalUrl;
+                            }
+                          } else {
+                            docUrl = originalUrl;
+                          }
+                        } catch {
+                          docUrl = originalUrl;
+                        }
+                      } else if (originalUrl && !originalUrl.startsWith('http')) {
+                        // Si es una ruta relativa, usar getDocumentUrl
+                        docUrl = getDocumentUrl(originalUrl);
+                      }
+                      return docUrl ? (
+                        <a
+                          href={docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (docUrl) {
+                              window.open(docUrl, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium cursor-pointer"
+                        >
+                          <KeenIcon icon="file-pdf" className="w-4 h-4 text-red-500 dark:text-red-400" />
+                          Ver PDF
+                        </a>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
     </>
   );
 };

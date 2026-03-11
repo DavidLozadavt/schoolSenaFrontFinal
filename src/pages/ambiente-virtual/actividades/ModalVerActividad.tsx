@@ -15,6 +15,7 @@ interface Pregunta {
 
 interface ActividadConPreguntas extends Actividad {
   preguntas?: Pregunta[];
+  documentoActividadUrl?: string | null;
 }
 
 interface ModalVerActividadProps {
@@ -23,13 +24,33 @@ interface ModalVerActividadProps {
   actividad: Actividad | null;
 }
 
-const getDocumentUrl = (path: string | undefined): string | null => {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
-  return `${base.replace(/\/$/, '')}/${storagePath}`;
+const getDocumentUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+      const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+      return base + path;
+    } catch {
+      const pathMatch = url.match(/\/storage\/.*$/);
+      if (pathMatch) {
+        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+        return base + pathMatch[0];
+      }
+      return url;
+    }
+  }
+  if (url.startsWith('/storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + url;
+  }
+  if (url.startsWith('storage/')) {
+    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+    return base + '/' + url;
+  }
+  const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+  return base + '/storage/' + url;
 };
 
 const nombreCompleto = (p: Actividad['persona']) => {
@@ -53,8 +74,9 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
   }, [open, actividad]);
 
   const act = actividadCompleta || actividad;
-  const docUrl = getDocumentUrl(act?.pathDocumentoActividad);
-  const isPdf = act?.pathDocumentoActividad?.toLowerCase().endsWith('.pdf');
+  const documentoUrl = (act as any)?.documentoActividadUrl || act?.pathDocumentoActividad;
+  const docUrl = getDocumentUrl(documentoUrl);
+  const isPdf = documentoUrl?.toLowerCase().endsWith('.pdf');
 
   if (!act) return null;
 
@@ -122,7 +144,7 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
                   {preg.urlDocumento && (
                     <div className="mb-2">
                       <img
-                        src={getDocumentUrl(preg.urlDocumento) || '#'}
+                        src={getDocumentUrl(preg.urlDocumento) ?? '#'}
                         alt="Imagen pregunta"
                         className="max-w-[200px] max-h-[150px] object-contain rounded border border-gray-200 dark:border-gray-600"
                       />
@@ -158,16 +180,22 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
               <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-coal-400">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Documento de la actividad</span>
                 <a
-                  href={docUrl}
+                  href={docUrl ?? '#'}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (docUrl) {
+                      window.open(docUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
                   <KeenIcon icon="download" className="text-sm" />
                   Abrir en nueva pestaña
                 </a>
               </div>
-              {isPdf ? (
+              {isPdf && docUrl ? (
                 <iframe
                   src={docUrl}
                   title="Documento de la actividad"
@@ -179,15 +207,23 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                     Vista previa no disponible para este tipo de archivo
                   </p>
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-                  >
-                    <KeenIcon icon="download" className="text-sm" />
-                    Descargar documento
-                  </a>
+                  {docUrl && (
+                    <a
+                      href={docUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (docUrl) {
+                          window.open(docUrl, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      <KeenIcon icon="download" className="text-sm" />
+                      Descargar documento
+                    </a>
+                  )}
                 </div>
               )}
             </div>
