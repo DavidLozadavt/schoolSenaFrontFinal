@@ -1,6 +1,6 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
 import selectStyles from './selectStyles';
 import InstructorCard from './InstructorCard';
@@ -24,13 +24,16 @@ const RmiGeneral: React.FC = () => {
 
   const [idRegional, setIdRegional] = useState<number>(0);
   const [regionales, setRegionales] = useState<Regional[]>([]);
+  const [loadingRegionales, setLoadingRegionales] = useState(false);
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
   const [centroFormacion, setCentroFormacion] = useState<Centro[]>([]);
+  const [loadingCentros, setLoadingCentros] = useState(false);
 
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [periodo, setPeriodo] = useState(() => {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -38,60 +41,190 @@ const RmiGeneral: React.FC = () => {
   });
   const [estado, setEstado] = useState<number>(1);
 
+  // Refs para cancelar peticiones
+  const regionalAbortController = useRef<AbortController | null>(null);
+  const centrosAbortController = useRef<AbortController | null>(null);
+  const instructoresAbortController = useRef<AbortController | null>(null);
+
+  // Debounce para la búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Cargar regionales solo si es ADMINISTRADOR VT
   useEffect(() => {
     if (authContext?.roles?.includes('ADMINISTRADOR VT')) {
-      axios.get('regional').then((r) => setRegionales(r.data));
-      return;
+      setLoadingRegionales(true);
+      // Cancelar petición anterior si existe
+      if (regionalAbortController.current) {
+        regionalAbortController.current.abort();
+      }
+      
+      regionalAbortController.current = new AbortController();
+      
+      axios
+        .get('regional', { signal: regionalAbortController.current.signal })
+        .then((r) => {
+          setRegionales(r.data);
+          setLoadingRegionales(false);
+        })
+        .catch((error) => {
+          if (error.name !== 'CanceledError') {
+            console.error('Error al cargar regionales:', error);
+            setLoadingRegionales(false);
+          }
+        });
+      
+      return () => {
+        if (regionalAbortController.current) {
+          regionalAbortController.current.abort();
+        }
+      };
+    } else if (authContext?.roles?.includes('ADMIN REGIONAL')) {
+      setIdRegional(authContext?.empresa.id || 0);
+    } else if (authContext?.roles?.includes('ADMIN CENTRO')) {
+      setIdRegional(authContext?.empresa.id || 0);
+      setIdCentroFormacion(authContext?.user?.idCentroFormacion || 0);
     }
-    if (authContext?.roles?.includes('ADMIN REGIONAL')) {
-      setIdRegional(authContext?.empresa.id);
-      return;
-    }
-    if (authContext?.roles?.includes('ADMIN CENTRO')) {
-      setIdRegional(authContext?.empresa.id);
-      setIdCentroFormacion(authContext?.user?.idCentroFormacion);
-      return;
-    }
-  }, [authContext]);
+  }, [authContext?.roles, authContext?.empresa?.id, authContext?.user?.idCentroFormacion]);
 
+  // Cargar centros de formación cuando cambia la regional
   useEffect(() => {
-    if (idRegional !== 0) {
-      axios.get(`centrosFormacion/regional/${idRegional}`).then((r) => {
-        setCentroFormacion(r.data.data);
-        if (!authContext?.roles?.includes('ADMIN CENTRO')) setIdCentroFormacion(0);
-      });
+    if (idRegional === 0) {
+      setCentroFormacion([]);
+      setIdCentroFormacion(0);
+      return;
     }
-  }, [idRegional]);
 
+    setLoadingCentros(true);
+    // Cancelar petición anterior si existe
+    if (centrosAbortController.current) {
+      centrosAbortController.current.abort();
+    }
+
+    centrosAbortController.current = new AbortController();
+
+    axios
+      .get(`centrosFormacion/regional/${idRegional}`, {
+        signal: centrosAbortController.current.signal
+      })
+      .then((r) => {
+        setCentroFormacion(r.data.data || []);
+        if (!authContext?.roles?.includes('ADMIN CENTRO')) {
+          setIdCentroFormacion(0);
+        }
+        setLoadingCentros(false);
+      })
+      .catch((error) => {
+        if (error.name !== 'CanceledError') {
+          console.error('Error al cargar centros de formación:', error);
+          setLoadingCentros(false);
+        }
+      });
+
+    return () => {
+      if (centrosAbortController.current) {
+        centrosAbortController.current.abort();
+      }
+    };
+  }, [idRegional, authContext?.roles]);
+
+  // Cargar instructores cuando cambia el centro de formación o periodo
   useEffect(() => {
     if (idCentroFormacion === 0) {
       setInstructors([]);
       return;
     }
+
     setLoadingInstructors(true);
+    // Cancelar petición anterior si existe
+    if (instructoresAbortController.current) {
+      instructoresAbortController.current.abort();
+    }
+
+    instructoresAbortController.current = new AbortController();
+
     axios
       .get('instructores', {
         params: {
           idCentroFormacion,
           periodo: periodo || undefined
-        }
+        },
+        signal: instructoresAbortController.current.signal
       })
-      .then((r) => setInstructors(r.data))
-      .finally(() => setLoadingInstructors(false));
+      .then((r) => {
+        setInstructors(r.data || []);
+        setLoadingInstructors(false);
+      })
+      .catch((error) => {
+        if (error.name !== 'CanceledError') {
+          console.error('Error al cargar instructores:', error);
+          setLoadingInstructors(false);
+        }
+      });
+
+    return () => {
+      if (instructoresAbortController.current) {
+        instructoresAbortController.current.abort();
+      }
+    };
   }, [idCentroFormacion, periodo]);
 
-  const filtered = instructors.filter((i) => {
-    const fullName =
-      `${i.persona.nombre1} ${i.persona.nombre2} ${i.persona.apellido1} ${i.persona.apellido2}`.toLowerCase();
-    return fullName.includes(search.toLowerCase());
-  });
+  // Memoizar el filtro de instructores
+  const filtered = useMemo(() => {
+    if (!debouncedSearch.trim()) {
+      return instructors;
+    }
+    
+    const searchLower = debouncedSearch.toLowerCase();
+    return instructors.filter((i) => {
+      const fullName = `${i.persona.nombre1} ${i.persona.nombre2} ${i.persona.apellido1} ${i.persona.apellido2}`.toLowerCase();
+      return fullName.includes(searchLower);
+    });
+  }, [instructors, debouncedSearch]);
 
-  const optionsRegional = regionales.map((v) => ({ value: v.id, label: v.razonSocial }));
-  const optionsCentro = centroFormacion.map((v) => ({ value: v.id, label: v.nombre }));
+  // Memoizar opciones de select para evitar recálculos innecesarios
+  const optionsRegional = useMemo(
+    () => regionales.map((v) => ({ value: v.id, label: v.razonSocial })),
+    [regionales]
+  );
 
-  const periodoLabel = periodo
-    ? new Date(periodo + '-02').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
-    : '';
+  const optionsCentro = useMemo(
+    () => centroFormacion.map((v) => ({ value: v.id, label: v.nombre })),
+    [centroFormacion]
+  );
+
+  const periodoLabel = useMemo(() => {
+    if (!periodo) return '';
+    return new Date(periodo + '-02').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  }, [periodo]);
+
+  // Callbacks para los handlers
+  const handleRegionalChange = useCallback((e: any) => {
+    const newRegionalId = Number(e?.value) || 0;
+    setIdRegional(newRegionalId);
+    setIdCentroFormacion(0);
+    setCentroFormacion([]);
+    setInstructors([]);
+  }, []);
+
+  const handleCentroChange = useCallback(
+    (e: any) => {
+      const value = Number(e?.value) || 0;
+      setIdCentroFormacion(value);
+      setCentroF(value);
+    },
+    [setCentroF]
+  );
+
+  const selectedCentroValue = useMemo(
+    () => optionsCentro.find((c) => c.value === idCentroFormacion) || null,
+    [optionsCentro, idCentroFormacion]
+  );
 
   return (
     <div className="min-h-screen p-6">
@@ -115,13 +248,12 @@ const RmiGeneral: React.FC = () => {
               <Select
                 unstyled
                 options={optionsRegional}
-                placeholder="Selecciona la regional"
-                onChange={(e) => {
-                  setIdRegional(Number(e?.value) || 0);
-                  setIdCentroFormacion(0);
-                  setCentroFormacion([]);
-                }}
+                placeholder={loadingRegionales ? 'Cargando...' : 'Selecciona la regional'}
+                isLoading={loadingRegionales}
+                isDisabled={loadingRegionales}
+                onChange={handleRegionalChange}
                 classNames={selectStyles}
+                noOptionsMessage={() => 'No hay regionales disponibles'}
               />
             </div>
           )}
@@ -132,15 +264,19 @@ const RmiGeneral: React.FC = () => {
             <Select
               unstyled
               options={optionsCentro}
-              placeholder="Selecciona el centro de formación"
-              isDisabled={idRegional === 0}
-              value={optionsCentro.find((c) => c.value === idCentroFormacion) || null}
-              onChange={(e) => {
-                const value = Number(e?.value);
-                setIdCentroFormacion(value);
-                setCentroF(value);
-              }}
+              placeholder={
+                loadingCentros
+                  ? 'Cargando...'
+                  : idRegional === 0
+                    ? 'Selecciona primero una regional'
+                    : 'Selecciona el centro de formación'
+              }
+              isLoading={loadingCentros}
+              isDisabled={idRegional === 0 || loadingCentros}
+              value={selectedCentroValue}
+              onChange={handleCentroChange}
               classNames={selectStyles}
+              noOptionsMessage={() => 'No hay centros disponibles'}
             />
           </div>
         </div>

@@ -118,6 +118,8 @@ import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPa
 import Redes from '@/pages/gestion-red/Redes';
 import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgramas';
 import RmiGeneral from '@/pages/gestion-rmi/RmiGeneral';
+import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
+import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -857,6 +859,22 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
                 <RmiGeneral/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gc"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <GCGeneral/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cf"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <CFGeneral/>
               </ProtectedRoute>
             }
           />

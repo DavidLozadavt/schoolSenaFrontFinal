@@ -103,12 +103,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
       },
       {
         title:'GC',
-        path: '/rmi',
+        path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
       {
         title:'CF',
-        path: '/rmi',
+        path: '/cf',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
     ]
