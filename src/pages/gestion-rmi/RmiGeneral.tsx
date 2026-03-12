@@ -39,7 +39,7 @@ const RmiGeneral: React.FC = () => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     return `${now.getFullYear()}-${month}`;
   });
-  const [estado, setEstado] = useState<number>(1);
+  const [estado, setEstado] = useState<string | null>(null);
 
   // Refs para cancelar peticiones
   const regionalAbortController = useRef<AbortController | null>(null);
@@ -152,7 +152,8 @@ const RmiGeneral: React.FC = () => {
       .get('instructores', {
         params: {
           idCentroFormacion,
-          periodo: periodo || undefined
+          periodo: periodo || undefined,
+          estado: estado || undefined
         },
         signal: instructoresAbortController.current.signal
       })
@@ -172,7 +173,7 @@ const RmiGeneral: React.FC = () => {
         instructoresAbortController.current.abort();
       }
     };
-  }, [idCentroFormacion, periodo]);
+  }, [idCentroFormacion, periodo, estado]);
 
   // Memoizar el filtro de instructores
   const filtered = useMemo(() => {
@@ -335,12 +336,12 @@ const RmiGeneral: React.FC = () => {
               unstyled
               classNames={selectStyles}
               placeholder="Todos"
-              onChange={(e) => setEstado(Number(e?.value) || 1)}
+              onChange={(e) => setEstado(e?.value || null)}
               options={[
-                { value: 1, label: 'Todos' },
-                { value: 2, label: 'Pendientes' },
-                { value: 3, label: 'Aceptados' },
-                { value: 4, label: 'Rechazados' }
+                { value: null, label: 'Todos' },
+                { value: 'PENDIENTE', label: 'Pendientes' },
+                { value: 'ACEPTADO', label: 'Aceptados' },
+                { value: 'RECHAZADO', label: 'Rechazados' }
               ]}
             />
           </div>
