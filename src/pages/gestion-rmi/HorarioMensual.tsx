@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import logoSena from '/media/images/sena/logo-sena.png';
 import { Instructor, HorarioMateria } from './interfaceInstructor';
 
@@ -173,8 +174,74 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
   const filas = useMemo(() => agruparFilas(horarios, year, month), [horarios, year, month]);
   const totalHorasMes = useMemo(() => filas.reduce((acc, f) => acc + f.horasMes, 0), [filas]);
 
+  const handleExportExcel = useCallback(() => {
+    const dataToExport: any[] = [];
+
+    // Información del instructor
+    dataToExport.push({ 'HORARIO MENSUAL DEL INSTRUCTOR': '' });
+    dataToExport.push({ 'PERÍODO': periodoLabel });
+    dataToExport.push({ 'NOMBRE': fullName, 'CÉDULA': persona.identificacion });
+    dataToExport.push({ 'CORREO ELECTRÓNICO': persona.email, 'NÚMERO DE CONTACTO': persona.celular });
+    dataToExport.push({});
+
+    // Encabezados
+    const headers = ['HORA INICIAL', 'HORA FINAL', 'DURACIÓN (HORAS)', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO', 'HORAS MES'];
+    dataToExport.push(Object.fromEntries(headers.map((h) => [h, h])));
+
+    // Datos de las filas
+    filas.forEach((fila) => {
+      const diasSemana = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
+      const diasData: { [key: string]: string } = {};
+      
+      [1, 2, 3, 4, 5, 6, 7].forEach((idDia) => {
+        const diaNombre = diasSemana[idDia - 1];
+        if (fila.diasActivos.includes(idDia)) {
+          const diasMes = fila.activosPorDia.get(idDia);
+          diasData[diaNombre] = diasMes ? Array.from(diasMes).sort((a, b) => a - b).join(', ') : '';
+        } else {
+          diasData[diaNombre] = '';
+        }
+      });
+
+      dataToExport.push({
+        'HORA INICIAL': formatHora12(fila.horaInicial),
+        'HORA FINAL': formatHora12(fila.horaFinal),
+        'DURACIÓN (HORAS)': fila.duracionHoras,
+        'LUNES': diasData['LUNES'] || '',
+        'MARTES': diasData['MARTES'] || '',
+        'MIÉRCOLES': diasData['MIÉRCOLES'] || '',
+        'JUEVES': diasData['JUEVES'] || '',
+        'VIERNES': diasData['VIERNES'] || '',
+        'SÁBADO': diasData['SÁBADO'] || '',
+        'DOMINGO': diasData['DOMINGO'] || '',
+        'HORAS MES': Math.round(fila.horasMes)
+      });
+    });
+
+    // Fila total
+    dataToExport.push({});
+    dataToExport.push({
+      'TOTAL HORAS FORMACIÓN MES': '',
+      'HORAS MES': Math.round(totalHorasMes)
+    });
+
+    // Crear workbook
+    const ws = XLSX.utils.json_to_sheet(dataToExport, { skipHeader: true });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Horario Mensual');
+
+    // Ajustar ancho de columnas
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+
+    // Descargar
+    const fecha = new Date().toISOString().split('T')[0];
+    const nombreArchivo = `Horario_Mensual_${fullName.replace(/\s+/g, '_')}_${fecha}.xlsx`;
+    XLSX.writeFile(wb, nombreArchivo);
+  }, [filas, totalHorasMes, periodoLabel, fullName, persona]);
+
+
   return (
-    <div className="fixed inset-0 z-[50] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-coal-500 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden border border-gray-200 dark:border-coal-300">
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-coal-300 bg-white dark:bg-coal-500 shrink-0">
@@ -198,7 +265,7 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
         </div>
 
         {/* ── Body ── */}
-        <div className="overflow-y-auto flex-1 p-5 bg-gray-50 dark:bg-coal-600">
+        <div className="overflow-y-auto flex-1 p-5 bg-gray-50 dark:bg-coal-600 scroll-hide">
           {/* Encabezado estilo RMI */}
           <div className="mb-5 rounded-xl border border-gray-200 dark:border-coal-300 overflow-hidden shadow-sm">
             <div className="bg-primary text-white text-center py-2">
@@ -367,11 +434,11 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
 
         {/* ── Footer ── */}
         <div className="px-6 py-3 border-t border-gray-100 dark:border-coal-300 bg-white dark:bg-coal-500 flex justify-end gap-2 shrink-0">
-          <button className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
+          >
             <i className="ki-outline ki-file-down text-base" /> Exportar Excel
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 text-xs bg-blue-50 hover:bg-blue-100 font-semibold text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all">
-            <i className="ki-outline ki-printer text-base" /> Imprimir
           </button>
           <button
             onClick={onClose}
@@ -381,6 +448,17 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
           </button>
         </div>
       </div>
+      <style>
+        {`
+          .scroll-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scroll-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
     </div>
   );
 };
