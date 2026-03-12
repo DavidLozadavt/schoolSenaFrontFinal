@@ -6,10 +6,13 @@ import HorarioMensual from './HorarioMensual';
 import RmiModal from './RmiModal';
 import ModalRechazarRmi from './ModalRechazarRmi';
 
-const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = ({
-  instructor,
-  periodo
-}) => {
+interface InstructorCardProps {
+  instructor: Instructor;
+  periodo?: string;
+  onEstadoChange?: (idActivation: number, nuevoEstado: string, motivoRechazo?: string) => void;
+}
+
+const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, onEstadoChange }) => {
   const { persona } = instructor;
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
@@ -174,7 +177,13 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
                           periodo: periodo
                         });
                         enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
-                        setInstructorState({ ...instructorState, estado: 'ACEPTADO', motivoRechazo: undefined });
+                        const actualizado: Instructor = {
+                          ...instructorState,
+                          estado: 'ACEPTADO',
+                          motivoRechazo: undefined
+                        };
+                        setInstructorState(actualizado);
+                        onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
                       } catch (error: any) {
                         const errorMessage = error.response?.data?.message || 'Error al aceptar el RMI.';
                         enqueueSnackbar(errorMessage, { variant: 'error' });
@@ -221,7 +230,9 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
         instructor={instructorState}
         periodo={periodo}
         onSave={(motivoRechazo?: string) => {
-          setInstructorState({ ...instructorState, estado: 'RECHAZADO', motivoRechazo });
+          const actualizado: Instructor = { ...instructorState, estado: 'RECHAZADO', motivoRechazo };
+          setInstructorState(actualizado);
+          onEstadoChange?.(instructor.idActivation, 'RECHAZADO', motivoRechazo);
         }}
       />
     </>
