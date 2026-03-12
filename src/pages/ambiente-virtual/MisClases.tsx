@@ -65,9 +65,10 @@ const obtenerTextoEstado = (estado: Sesion['estado']): string => {
     case 'PROXIMO':
       return 'Próximo';
     case 'PENDIENTE':
-      return 'Pendiente';
+      // Pendiente pero aún no es la próxima sesión visible → se muestra como "En espera"
+      return 'En espera';
     default:
-      return 'Pendiente';
+      return 'En espera';
   }
 };
 
@@ -332,9 +333,10 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
       case 'PROXIMO':
         return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
       case 'PENDIENTE':
-        return 'bg-gray-100 dark:bg-coal-300 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
+      // Pendientes/en espera: fondo blanco, solo borde gris
+      return 'bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
       default:
-        return 'bg-gray-100 dark:bg-coal-300 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
+      return 'bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
     }
   };
 

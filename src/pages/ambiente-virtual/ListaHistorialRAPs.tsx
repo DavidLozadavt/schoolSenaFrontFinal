@@ -46,7 +46,13 @@ interface Clase {
   idHorarioMateria: number;
   idGradoMateria: number;
   idMateria: number; 
+  sesiones_restantes?: number;
 }
+
+// Helper común: convierte idDia de BD (1=Lunes ... 7=Domingo) a número JS (0=Domingo ... 6=Sábado)
+const convertirIdDiaANumeroJS = (idDia: number): number => {
+  return idDia === 7 ? 0 : idDia;
+};
 
 const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, idInstructor }) => {
   const navigate = useNavigate();
@@ -108,13 +114,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   const getStatus = (clase: Clase): 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO' => {
     // Usar currentTime en lugar de new Date() para actualización en tiempo real
     const ahora = currentTime;
+    const sesionesRestantes = typeof clase.sesiones_restantes === 'number' ? clase.sesiones_restantes : null;
     
     const parseDate = (dateStr: string) => {
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
       return new Date(year, month - 1, day);
     };
 
-    // PRIMERO: Verificar si ya pasó la fecha final del curso completo (siempre completada)
+    // PRIMERO: Verificar si ya pasó la fecha final del curso completo.
+    // Solo se considera COMPLETADO si no quedan sesiones reales pendientes.
     if (clase.fechaInicial && clase.fechaFinal) {
       const hoy = new Date(ahora);
       hoy.setHours(0, 0, 0, 0);
@@ -122,7 +130,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       fechaFin.setHours(0, 0, 0, 0);
       
       if (fechaFin.getTime() < hoy.getTime()) {
-        return 'COMPLETADO';
+        return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
       }
     }
 
@@ -151,9 +159,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         fechaFin.setHours(0, 0, 0, 0);
 
         // Verificar si hoy es un día de clase
-        const convertirIdDiaANumeroJS = (idDia: number): number => {
-          return idDia === 7 ? 0 : idDia;
-        };
         const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
         
         if (ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime()) {
@@ -178,7 +183,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
         // No esperar a que exista sesión en BD, se creará en la próxima sincronización
         if (ahora.getTime() > horaFinal.getTime()) {
-          return 'COMPLETADO';
+          return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
         }
         }
       }
@@ -205,9 +210,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
     // Si estamos dentro del rango de fechas, verificar si es un día de clase y el horario
     if (clase.fechaInicial && fechaFin && clase.horaInicial && clase.horaFinal && clase.idDia) {
-      const convertirIdDiaANumeroJS = (idDia: number): number => {
-        return idDia === 7 ? 0 : idDia;
-      };
       const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
       
       // Verificar si hoy es un día de clase (día de la semana coincide Y está en el rango de fechas)
@@ -236,7 +238,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
         // No esperar a que exista sesión en BD, se creará en la próxima sincronización
         if (ahora.getTime() > horaFinal.getTime()) {
-          return 'COMPLETADO';
+          return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
         }
       }
     }
@@ -451,22 +453,84 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   };
 
   /**
-   * Calcula la próxima fecha de clase pendiente basada en el día de la semana
-   * Retorna string formateado usando Intl.DateTimeFormat (sin datos hardcodeados)
-   * Ejemplo: "jueves, 26 de febrero"
+   * Calcula TODAS las fechas pendientes de una clase (a partir de hoy)
+   * teniendo en cuenta:
+   * - Rango de fechas (fechaInicial, fechaFinal)
+   * - Día de la semana (idDia)
+   * - Sesiones completadas (sesiones_completadas)
+   * - Límite de sesiones_restantes (para no generar más de las que realmente faltan)
+   */
+  const getTodasFechasPendientes = (clase: Clase): Date[] => {
+    if (!clase.fechaInicial || !clase.idDia) return [];
+
+    const parseDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const fechaInicio = parseDate(clase.fechaInicial);
+    const fechaFin = clase.fechaFinal ? parseDate(clase.fechaFinal) : null;
+
+    const hoy = new Date(currentTime);
+    hoy.setHours(0, 0, 0, 0);
+
+    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+
+    // Punto de partida: el máximo entre hoy y fechaInicio
+    let cursor = new Date(Math.max(fechaInicio.getTime(), hoy.getTime()));
+    cursor.setHours(0, 0, 0, 0);
+
+    // Ajustar cursor al próximo día de clase
+    while (cursor.getDay() !== diaNumero) {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const completadasSet = new Set<string>();
+    if (clase.sesiones_completadas && clase.sesiones_completadas.length > 0) {
+      clase.sesiones_completadas.forEach((sesion) => {
+        const key = sesion.fechaSesion.split('T')[0];
+        completadasSet.add(key);
+      });
+    }
+
+    const maxPendientes =
+      typeof clase.sesiones_restantes === 'number' && clase.sesiones_restantes > 0
+        ? clase.sesiones_restantes
+        : Number.MAX_SAFE_INTEGER;
+
+    const pendientes: Date[] = [];
+
+    while (true) {
+      if (fechaFin && cursor.getTime() > fechaFin.getTime()) break;
+
+      const key = cursor.toISOString().split('T')[0];
+      if (!completadasSet.has(key)) {
+        pendientes.push(new Date(cursor));
+        if (pendientes.length >= maxPendientes) break;
+      }
+
+      // Avanzar una semana
+      cursor.setDate(cursor.getDate() + 7);
+    }
+
+    return pendientes;
+  };
+
+  /**
+   * Devuelve SOLO la próxima fecha pendiente formateada para mostrar en la tarjeta
+   * (se usa en ClaseCard). Internamente reutiliza getTodasFechasPendientes.
    */
   const getProximaClasePendiente = (clase: Clase): string | null => {
-    const fechaBusqueda = calcularProximaFechaClase(clase);
-    if (!fechaBusqueda) return null;
+    const pendientes = getTodasFechasPendientes(clase);
+    if (!pendientes.length) return null;
 
-    // Usar Intl.DateTimeFormat para formatear fecha (API nativa, sin datos hardcodeados)
     const formatter = new Intl.DateTimeFormat('es-ES', {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     });
 
-    return formatter.format(fechaBusqueda);
+    return formatter.format(pendientes[0]);
   };
 
   /**
@@ -619,8 +683,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     // Obtener todas las sesiones completadas de TODAS las clases (no solo las completadas)
     const todasLasSesiones: Array<{ clase: Clase; sesion: SesionCompletada }> = [];
     
-    // Iterar sobre TODAS las clases filtradas, no solo las completadas
-    filteredClases.forEach((clase) => {
+    // Importante: iterar sobre TODAS las clases originales, no sobre filteredClases,
+    // para no perder sesiones completadas de clases que aún tienen pendientes.
+    clases.forEach((clase) => {
       // Validar que la clase tenga sesiones completadas y que sean válidas
       if (clase.sesiones_completadas && Array.isArray(clase.sesiones_completadas) && clase.sesiones_completadas.length > 0) {
         clase.sesiones_completadas.forEach((sesion) => {
@@ -667,7 +732,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         items: grupos[fecha] || [],
       })),
     };
-  }, [filteredClases]); // Cambiar dependencia a filteredClases para incluir todas las clases
+  }, [clases]);
 
   /**
    * Obtiene la próxima fecha de clase como string para agrupar
@@ -678,65 +743,47 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     return getProximaClasePendiente(clase);
   };
 
-  // Agrupar pendientes por próxima fecha de clase
+  // Agrupar pendientes por CADA fecha de clase pendiente
   const groupedPendientes = useMemo(() => {
-    const groups: { [key: string]: Clase[] } = {};
+    type Grupo = { label: string; fecha: Date; clases: Clase[] };
+
+    const gruposMapa = new Map<string, Grupo>();
+
     clasesPendientes.forEach((clase) => {
-      const dateKey = getProximaFechaParaAgrupar(clase);
-      if (!dateKey) {
-        // Si no se puede calcular la próxima fecha, usar fechaInicial como fallback
-        if (clase.fechaInicial) {
-          const jornadaType = getJornadaType(clase.jornada_tipo || '');
-          const fallbackKey = formatDateForGroup(clase.fechaInicial, jornadaType);
-          if (!groups[fallbackKey]) {
-            groups[fallbackKey] = [];
-          }
-          groups[fallbackKey].push(clase);
+      const jornadasType = getJornadaType(clase.jornada_tipo || '');
+      const fechasPendientes = getTodasFechasPendientes(clase);
+
+      fechasPendientes.forEach((fecha) => {
+        const iso = fecha.toISOString().split('T')[0];
+        const label = formatDateForGroup(iso, jornadasType);
+        const key = `${iso}|${label}`;
+
+        if (!gruposMapa.has(key)) {
+          gruposMapa.set(key, { label, fecha: fecha, clases: [] });
         }
-        return;
-      }
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(clase);
+        gruposMapa.get(key)!.clases.push(clase);
+      });
     });
-    
-    // Ordenar cada grupo por hora inicial
-    Object.keys(groups).forEach((dateKey) => {
-      groups[dateKey].sort((a, b) => {
+
+    // Convertir a array y ordenar por fecha
+    const gruposOrdenados = Array.from(gruposMapa.values()).sort(
+      (a, b) => a.fecha.getTime() - b.fecha.getTime()
+    );
+
+    // Reconstruir objeto { label: Clase[] } preservando orden
+    const sortedGroups: { [key: string]: Clase[] } = {};
+    gruposOrdenados.forEach((grupo) => {
+      // Ordenar clases dentro del grupo por hora inicial
+      grupo.clases.sort((a, b) => {
         const horaA = a.horaInicial || '00:00:00';
         const horaB = b.horaInicial || '00:00:00';
         return horaA.localeCompare(horaB);
       });
+      sortedGroups[grupo.label] = grupo.clases;
     });
-    
-    // Ordenar los grupos por fecha (más cercana primero)
-    // Usar la fecha calculada directamente para ordenar
-    const gruposConFecha: Array<{ key: string; fecha: Date; clases: Clase[] }> = [];
-    
-    Object.keys(groups).forEach(key => {
-      // Obtener la primera clase del grupo para calcular su fecha
-      const primeraClase = groups[key][0];
-      const fecha = calcularProximaFechaClase(primeraClase);
-      if (fecha) {
-        gruposConFecha.push({ key, fecha, clases: groups[key] });
-      } else {
-        // Si no se puede calcular, agregar al final
-        gruposConFecha.push({ key, fecha: new Date(9999, 11, 31), clases: groups[key] });
-      }
-    });
-    
-    // Ordenar por fecha
-    gruposConFecha.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-    
-    // Reconstruir el objeto ordenado
-    const sortedGroups: { [key: string]: Clase[] } = {};
-    gruposConFecha.forEach(({ key, clases }) => {
-      sortedGroups[key] = clases;
-    });
-    
+
     return sortedGroups;
-  }, [clasesPendientes]);
+  }, [clasesPendientes, currentTime]);
 
   // Función para verificar si hay una clase en curso el mismo día y si esta clase es la siguiente
   const esProximaClase = (clase: Clase): boolean => {
@@ -1051,6 +1098,11 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     );
   }
 
+  const showAll = selectedStatus === 'Todos los estados';
+  const showEnCurso = showAll || selectedStatus === 'En Curso';
+  const showPendiente = showAll || selectedStatus === 'Pendiente';
+  const showCompletado = showAll || selectedStatus === 'Completado';
+
   return (
     <div className="space-y-6">
       {/* Filtro de Estados */}
@@ -1070,7 +1122,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       </div>
 
       {/* Clases En Curso */}
-      {clasesEnCurso.length > 0 && (
+      {showEnCurso && clasesEnCurso.length > 0 && (
         <div className="space-y-3">
           {clasesEnCurso.map((clase) => (
             <ClaseCard key={clase.idHorarioMateria} clase={clase} />
@@ -1079,7 +1131,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       )}
 
       {/* Clases Pendientes - Agrupadas por fecha */}
-      {Object.entries(groupedPendientes).map(([dateKey, clases]) => (
+      {showPendiente && Object.entries(groupedPendientes).map(([dateKey, clases]) => (
         <div key={dateKey} className="space-y-3">
           <div className="flex items-center gap-3 py-2">
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
@@ -1098,8 +1150,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       ))}
 
       {/* Clases Completadas - Una tarjeta por cada sesión */}
-      {/* Mostrar sesiones completadas si hay alguna, independientemente del estado de la clase */}
-      {sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
+      {/* Mostrar sesiones completadas según el filtro seleccionado */}
+      {showCompletado && sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 py-2">
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
