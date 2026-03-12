@@ -93,7 +93,11 @@ function agruparFilas(horarios: HorarioMateria[], year: number, month: number): 
     const diasMes = getDiasActivos(h, year, month);
 
     if (!fila.diasActivos.includes(h.idDia)) fila.diasActivos.push(h.idDia);
-    fila.activosPorDia.set(h.idDia, diasMes);
+    const diasExistentes = fila.activosPorDia.get(h.idDia) || new Set<number>();
+    // Fusionar los días nuevos con los existentes
+    diasMes.forEach(d => diasExistentes.add(d));
+    // Guardar el set actualizado
+    fila.activosPorDia.set(h.idDia, diasExistentes);
     fila.horasMes += diasMes.size * h.duracionSesion; // ← usa duracionSesion
   }
 

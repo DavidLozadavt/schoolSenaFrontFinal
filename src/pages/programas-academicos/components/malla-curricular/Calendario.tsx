@@ -314,7 +314,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-      <ModalContent className="w-full max-w-4xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+      <ModalContent className="w-full max-w-5xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
 
         <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
           <div className="flex items-center gap-3">
@@ -398,7 +398,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
                         return (
                           <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-                            <div className="flex items-center justify-between truncate">
+                            <div className="flex items-center justify-between">
                               {format12h(hIni)} - {format12h(hFin)}
                               {!modoRmi && (
                                 <button
