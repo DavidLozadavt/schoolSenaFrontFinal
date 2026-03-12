@@ -6,6 +6,10 @@ export interface HorarioMateria {
   estado: string;
   idDia: number;
   duracionHoras: number;
+  fechaInicial: string; // "2025-12-01"
+  fechaFinal: string;   // "2025-12-31"
+  duracionSesion: number;
+  cantidadSesiones: number;
 }
 
 export interface Instructor {

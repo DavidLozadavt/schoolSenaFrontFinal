@@ -2,7 +2,8 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Instructor } from './interfaceInstructor';
 import { Calendario } from '../programas-academicos/components/malla-curricular/Calendario';
-import logoSena from '../../../public/media/images/sena/logo-sena.png'
+import logoSena from '/media/images/sena/logo-sena.png';
+import HorarioMensual from './HorarioMensual';
 
 const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = ({
   instructor,
@@ -39,6 +40,9 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
   const [calendarioOpen, setCalendarioOpen] = useState(false);
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<any>(null);
   const [fichaSeleccionada, setFichaSeleccionada] = useState<number>(0);
+
+  // Calendario instructor:
+  const [horarioMensualOpen, setHorarioMensualOpen] = useState(false);
 
   const handleVerHorario = async (r: any, idFicha: number) => {
     try {
@@ -141,6 +145,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
             {/* Acciones */}
             <div className="mt-3 w-2/3 flex gap-2 m-1">
               <button
+                onClick={() => setHorarioMensualOpen(true)}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
                 title="Ver Horario"
               >
@@ -181,7 +186,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
           <div className="border-t border-gray-100 dark:border-coal-300 bg-gray-50 dark:bg-coal-600 px-5 py-4">
             {/* Header RMI */}
             <div className="mb-4 rounded-lg border border-gray-200 dark:border-coal-300 overflow-hidden">
-              <div className="bg-cyan-500 text-white text-center py-2">
+              <div className="bg-primary text-white text-center py-2">
                 <p className="text-xs font-bold uppercase tracking-widest">
                   Reporte Mensual del Instructor - RMI
                 </p>
@@ -189,11 +194,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
               <div className="grid grid-cols-[auto_1fr] divide-x divide-gray-200 dark:divide-coal-300 bg-white dark:bg-coal-500">
                 {/* Logo SENA */}
                 <div className="flex items-center justify-center px-4 py-3">
-                  <img
-                    src={logoSena}
-                    alt="SENA"
-                    className="h-16 w-auto object-contain"
-                  />
+                  <img src={logoSena} alt="SENA" className="h-16 w-auto object-contain" />
                 </div>
 
                 {/* Datos instructor */}
@@ -244,7 +245,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-coal-300">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-cyan-400 text-white">
+                    <tr className="bg-primary text-white">
                       <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">No.</th>
                       <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">
                         No. FICHA
@@ -293,7 +294,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
                           {rIdx === 0 && (
                             <td
                               rowSpan={ficha.resultados.length}
-                              className="px-3 py-2 font-semibold text-cyan-700 dark:text-cyan-400 align-top border-r border-gray-200 dark:border-coal-300"
+                              className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 align-top border-r border-gray-200 dark:border-coal-300"
                             >
                               {ficha.programaFormacion}
                             </td>
@@ -308,7 +309,7 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
                               <span className="text-gray-400 italic">Sin RAP</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 font-semibold text-primary-600 dark:text-primary-400 whitespace-nowrap">
+                          <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                             {r.duracionHoras}h
                           </td>
                           <td className="px-3 py-2 text-center">
@@ -369,6 +370,13 @@ const InstructorCard: React.FC<{ instructor: Instructor; periodo?: string }> = (
           onAddSchedule={() => {}}
         />
       )}
+      {/* Horario Mensual */}
+      <HorarioMensual
+        isOpen={horarioMensualOpen}
+        onClose={() => setHorarioMensualOpen(false)}
+        instructor={instructor}
+        periodo={periodo}
+      />
     </>
   );
 };
