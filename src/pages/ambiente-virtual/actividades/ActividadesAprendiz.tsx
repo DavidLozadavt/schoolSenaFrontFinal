@@ -886,7 +886,9 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && (
+                                        {(actividad.puedeResponder ||
+                                          actividad.estadoVisual === 'POR_EVALUAR' ||
+                                          actividad.estadoVisual === 'PENDIENTE') && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}
@@ -909,7 +911,9 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && (
+                                        {(actividad.puedeResponder ||
+                                          actividad.estadoVisual === 'POR_EVALUAR' ||
+                                          actividad.estadoVisual === 'PENDIENTE') && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}

@@ -21,6 +21,8 @@ interface CalendarioProps {
   idFicha: number;
   onAddSchedule: () => void;
   cargarRaps?: () => void;
+  // Cuando viene desde el módulo de RMI el calendario es solo de lectura
+  modoRmi?: boolean;
 }
 
 const mapeoDias: { [key: string]: number } = {
@@ -56,7 +58,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
   materia,
   idFicha,
   onAddSchedule,
-  cargarRaps
+  cargarRaps,
+  modoRmi = false
 }) => {
   // Mover el return null después de todos los hooks
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -237,6 +240,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
   };
 
   const handleEliminarHorario = async(idHorario: number) => {
+    // En modo RMI no se permite eliminar horarios
+    if (modoRmi) return;
     try {
       const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
       const isDarkMode = theme === 'dark';
@@ -272,7 +277,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
   if (loading || !initialLoadComplete) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-        <ModalContent className="w-full max-w-5xl h-[95vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+        <ModalContent className="w-full max-w-4xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
           <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -309,7 +314,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-      <ModalContent className="w-full max-w-5xl h-[95vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+      <ModalContent className="w-full max-w-4xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
 
         <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
           <div className="flex items-center gap-3">
@@ -349,7 +354,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </button>
         </ModalHeader>
 
-        <ModalBody className="flex-grow bg-gray-50 dark:bg-coal-600 custom-scrollbar overflow-y-auto overflow-x-hidden p-6 pb-20">
+        <ModalBody className="flex-grow bg-gray-50 dark:bg-coal-600 scroll-hide overflow-y-auto overflow-x-hidden p-6 pb-16">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-bold capitalize dark:text-white flex items-center">
               <ChevronLeft size={18} className="cursor-pointer text-gray-400 hover:text-primary transition-colors" onClick={() => navigate(-1)} />
@@ -393,14 +398,17 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
                         return (
                           <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-                            <div className="flex items-center justify-between truncate">{format12h(hIni)} - {format12h(hFin)}
-                              <button
-                                onClick={() => handleEliminarHorario(ev.id)}
-                                className="rounded-md text-red-500 hover:text-red-600 transition"
-                                title="Eliminar"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                            <div className="flex items-center justify-between truncate">
+                              {format12h(hIni)} - {format12h(hFin)}
+                              {!modoRmi && (
+                                <button
+                                  onClick={() => handleEliminarHorario(ev.id)}
+                                  className="rounded-md text-red-500 hover:text-red-600 transition"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                             <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-52 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
                               {instructor && (
@@ -446,24 +454,28 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </div>
         </ModalBody>
 
-        <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
-          {materia.idMateriaPadre != null &&
-            <button onClick={() => {
-              if (materia?.horasTotales > 0) {
-                if (materia?.estado === 'FINALIZADO') {
-                  enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
-                } else {
-                  onAddSchedule();
-                }
-              } else {
-                enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
-              }
-            }}
-            className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
-              <Plus size={14} />Programar Horario
-            </button>
-          }
-        </div>
+        {!modoRmi && (
+          <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
+            {materia.idMateriaPadre != null && (
+              <button
+                onClick={() => {
+                  if (materia?.horasTotales > 0) {
+                    if (materia?.estado === 'FINALIZADO') {
+                      enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+                    } else {
+                      onAddSchedule();
+                    }
+                  } else {
+                    enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md"
+              >
+                <Plus size={14} />Programar Horario
+              </button>
+            )}
+          </div>
+        )}
       </ModalContent>
     </div>
   );

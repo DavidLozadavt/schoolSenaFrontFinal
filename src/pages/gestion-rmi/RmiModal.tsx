@@ -314,6 +314,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
           materia={materiaSeleccionada}
           idFicha={fichaSeleccionada}
           onAddSchedule={() => {}}
+          modoRmi={true}
         />
       )}
     </>
