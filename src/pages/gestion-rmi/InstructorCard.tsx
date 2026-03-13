@@ -14,7 +14,7 @@ interface InstructorCardProps {
 
 const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, onEstadoChange }) => {
   
-  const { persona, emailUsuario } = instructor;
+  const { persona } = instructor;
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
 
@@ -176,7 +176,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
                       try {
                         await axios.put(`instructores/${instructor.idActivation}/aceptar-rmi`, {
                           periodo: periodo,
-                          email: emailUsuario
+                          email: persona.email
                         });
                         enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
                         const actualizado: Instructor = {
@@ -230,7 +230,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
         isOpen={rechazarModalOpen}
         onClose={() => setRechazarModalOpen(false)}
         instructor={instructorState}
-        correoInstructor={emailUsuario}
+        correoInstructor={persona.email}
         periodo={periodo}
         onSave={(motivoRechazo?: string) => {
           const actualizado: Instructor = { ...instructorState, estado: 'RECHAZADO', motivoRechazo };
