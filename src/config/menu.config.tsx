@@ -93,7 +93,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Administrador',
+    title: 'Administrativo',
     icon:'teacher',
     children:[
       {
