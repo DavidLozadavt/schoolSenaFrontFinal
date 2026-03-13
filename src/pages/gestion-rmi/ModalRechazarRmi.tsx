@@ -15,6 +15,7 @@ interface ModalRechazarRmiProps {
       apellido2?: string;
     };
   };
+  correoInstructor:string;
   periodo?: string;
   onSave?: (motivoRechazo?: string) => void;
 }
@@ -23,6 +24,7 @@ const ModalRechazarRmi: React.FC<ModalRechazarRmiProps> = ({
   isOpen,
   onClose,
   instructor,
+  correoInstructor,
   periodo,
   onSave
 }) => {
@@ -55,7 +57,8 @@ const ModalRechazarRmi: React.FC<ModalRechazarRmiProps> = ({
     try {
       await axios.put(`instructores/${instructor.idActivation}/rechazar-rmi`, {
         motivo: motivo.trim(),
-        periodo: periodo
+        periodo: periodo,
+        email:correoInstructor
       });
       enqueueSnackbar('RMI rechazado con éxito.', { variant: 'success' });
       if (onSave) onSave(motivo.trim());
