@@ -29,7 +29,7 @@ const RmiGeneral: React.FC = () => {
   const [centroFormacion, setCentroFormacion] = useState<Centro[]>([]);
   const [loadingCentros, setLoadingCentros] = useState(false);
 
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [rawInstructors, setRawInstructors] = useState<Instructor[]>([]);
   const [loadingInstructors, setLoadingInstructors] = useState(false);
 
   const [search, setSearch] = useState('');
@@ -39,7 +39,8 @@ const RmiGeneral: React.FC = () => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     return `${now.getFullYear()}-${month}`;
   });
-  const [estado, setEstado] = useState<number>(1);
+  const [estado, setEstado] = useState<string | null>(null);
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
 
   // Refs para cancelar peticiones
   const regionalAbortController = useRef<AbortController | null>(null);
@@ -136,7 +137,7 @@ const RmiGeneral: React.FC = () => {
   // Cargar instructores cuando cambia el centro de formación o periodo
   useEffect(() => {
     if (idCentroFormacion === 0) {
-      setInstructors([]);
+      setRawInstructors([]);
       return;
     }
 
@@ -152,12 +153,13 @@ const RmiGeneral: React.FC = () => {
       .get('instructores', {
         params: {
           idCentroFormacion,
-          periodo: periodo || undefined
+          periodo: periodo || undefined,
+          estado: mostrarHistorial ? estado : 'PENDIENTE',
         },
         signal: instructoresAbortController.current.signal
       })
       .then((r) => {
-        setInstructors(r.data || []);
+        setRawInstructors(r.data || []);
         setLoadingInstructors(false);
       })
       .catch((error) => {
@@ -172,14 +174,32 @@ const RmiGeneral: React.FC = () => {
         instructoresAbortController.current.abort();
       }
     };
-  }, [idCentroFormacion, periodo]);
+  }, [idCentroFormacion, periodo, mostrarHistorial, estado]);
 
-  // Memoizar el filtro de instructores
+  // Instructores según modo (pendientes vs historial) y filtro de estado
+  const instructors = useMemo(() => {
+    let base = rawInstructors;
+
+    if (mostrarHistorial) {
+      // Solo RMI aceptados o rechazados
+      base = base.filter((i) => i.estado === 'ACEPTADO' || i.estado === 'RECHAZADO');
+      if (estado) {
+        base = base.filter((i) => i.estado === estado);
+      }
+    } else {
+      // Solo pendientes cuando NO se está viendo el historial
+      base = base.filter((i) => i.estado === 'PENDIENTE');
+    }
+
+    return base;
+  }, [rawInstructors, mostrarHistorial, estado]);
+
+  // Memoizar el filtro de instructores por nombre
   const filtered = useMemo(() => {
     if (!debouncedSearch.trim()) {
       return instructors;
     }
-    
+
     const searchLower = debouncedSearch.toLowerCase();
     return instructors.filter((i) => {
       const fullName = `${i.persona.nombre1} ${i.persona.nombre2} ${i.persona.apellido1} ${i.persona.apellido2}`.toLowerCase();
@@ -204,13 +224,16 @@ const RmiGeneral: React.FC = () => {
   }, [periodo]);
 
   // Callbacks para los handlers
-  const handleRegionalChange = useCallback((e: any) => {
-    const newRegionalId = Number(e?.value) || 0;
-    setIdRegional(newRegionalId);
-    setIdCentroFormacion(0);
-    setCentroFormacion([]);
-    setInstructors([]);
-  }, []);
+  const handleRegionalChange = useCallback(
+    (e: any) => {
+      const newRegionalId = Number(e?.value) || 0;
+      setIdRegional(newRegionalId);
+      setIdCentroFormacion(0);
+      setCentroFormacion([]);
+      setRawInstructors([]);
+    },
+    [setRawInstructors]
+  );
 
   const handleCentroChange = useCallback(
     (e: any) => {
@@ -229,17 +252,38 @@ const RmiGeneral: React.FC = () => {
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="flex justify-between items-center mb-6">
+      <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
           Reporte Mensual del Instructor
         </h1>
         <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de reportes mensuales</p>
       </div>
+      {/* Botón Historial RMI */}
+      <div className="ml-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setMostrarHistorial((prev) => !prev);
+                setEstado(null);
+                setSearch('');
+              }}
+              disabled={idCentroFormacion === 0}
+              className={`px-4 py-2 text-xs font-semibold rounded-md transition-colors ${
+                idCentroFormacion === 0
+                  ? 'bg-blue-300 text-white/70 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'
+              }`}
+            >
+              {mostrarHistorial ? 'Ocultar historial RMI' : 'Ver historial RMI'}
+            </button>
+          </div>
+      </div>
 
       {/* Filtros Regional / Centro */}
       {(authContext?.roles?.includes('ADMINISTRADOR VT') ||
         authContext?.roles?.includes('ADMIN REGIONAL')) && (
-        <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-4 mb-4 flex flex-wrap gap-4">
+        <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-4 mb-4 flex flex-wrap gap-4 items-end">
           {authContext?.roles?.includes('ADMINISTRADOR VT') && (
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
@@ -282,70 +326,71 @@ const RmiGeneral: React.FC = () => {
         </div>
       )}
 
-      {/* Barra de filtros */}
-      <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[220px]">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-              Buscar por nombre
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-                  />
-                </svg>
-              </span>
+      {/* Barra de filtros - solo cuando se ve el historial */}
+      {mostrarHistorial && (
+        <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-4 mb-6">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[220px]">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                Buscar por nombre
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  placeholder="Buscar instructor..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-coal-200
+                             rounded-md bg-white dark:bg-coal-400 text-gray-800 dark:text-white
+                             placeholder-gray-400 focus:outline-none focus:ring-2
+                             focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="min-w-[160px]">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                Periodo
+              </label>
               <input
-                type="text"
-                placeholder="Buscar instructor..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-coal-200
+                type="month"
+                value={periodo}
+                onChange={(e) => setPeriodo(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-coal-200
                            rounded-md bg-white dark:bg-coal-400 text-gray-800 dark:text-white
-                           placeholder-gray-400 focus:outline-none focus:ring-2
-                           focus:ring-primary-500 focus:border-transparent"
+                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="min-w-[140px]">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                Estado
+              </label>
+              <Select
+                unstyled
+                classNames={selectStyles}
+                placeholder="Todos"
+                onChange={(e) => setEstado(e?.value || null)}
+                options={[
+                  { value: null, label: 'Todos' },
+                  { value: 'ACEPTADO', label: 'Aceptados' },
+                  { value: 'RECHAZADO', label: 'Rechazados' }
+                ]}
               />
             </div>
           </div>
-
-          <div className="min-w-[160px]">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-              Periodo
-            </label>
-            <input
-              type="month"
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-coal-200
-                         rounded-md bg-white dark:bg-coal-400 text-gray-800 dark:text-white
-                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="min-w-[140px]">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-              Estado
-            </label>
-            <Select
-              unstyled
-              classNames={selectStyles}
-              placeholder="Todos"
-              onChange={(e) => setEstado(Number(e?.value) || 1)}
-              options={[
-                { value: 1, label: 'Todos' },
-                { value: 2, label: 'Pendientes' },
-                { value: 3, label: 'Aceptados' },
-                { value: 4, label: 'Rechazados' }
-              ]}
-            />
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Sección de resultados */}
       {idCentroFormacion !== 0 && (
@@ -373,7 +418,16 @@ const RmiGeneral: React.FC = () => {
                 <InstructorCard
                   key={instructor.idActivation}
                   instructor={instructor}
-                  periodo={periodo || undefined} // ← agrega esto
+                  periodo={periodo || undefined}
+                  onEstadoChange={(idActivation, nuevoEstado, motivoRechazo) => {
+                    setRawInstructors((prev) =>
+                      prev.map((inst) =>
+                        inst.idActivation === idActivation
+                          ? { ...inst, estado: nuevoEstado, motivoRechazo }
+                          : inst
+                      )
+                    );
+                  }}
                 />
               ))}
             </div>

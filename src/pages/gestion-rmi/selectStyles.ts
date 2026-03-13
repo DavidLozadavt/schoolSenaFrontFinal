@@ -4,7 +4,8 @@ const selectStyles = {
     border ${isFocused ? 'border-primary-500' : 'border-gray-300 dark:border-coal-200'}
     rounded-md min-h-[38px] px-2 cursor-pointer flex items-center shadow-sm
   `,
-  singleValue: () => 'text-gray-900 dark:!text-white font-medium',
+  // valor seleccionado en el input: negro, tamaño un poco más pequeño
+  singleValue: () => '!text-gray-900 dark:!text-white text-[13px] font-medium',
   placeholder: () => '!text-gray-400 dark:!text-gray-300',
   input: () => 'text-gray-900 dark:!text-white',
   valueContainer: () => 'flex items-center gap-1 flex-wrap py-1',
@@ -18,7 +19,7 @@ const selectStyles = {
     cursor-pointer px-3 py-2 text-sm
     ${
       isSelected
-        ? '!bg-primary-500 !text-white'
+        ? '!bg-white !text-blue-600'
         : isFocused
           ? '!bg-gray-100 dark:!bg-coal-600 !text-gray-900 dark:!text-white'
           : '!text-gray-900 dark:!text-white'
