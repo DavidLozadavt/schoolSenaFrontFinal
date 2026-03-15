@@ -11,8 +11,13 @@ import {
 } from './items';
 import { Link } from 'react-router-dom';
 
-const DropdownNotificationNoRead = ({ items }:any) => {
-  console.log(items)
+const DropdownNotificationNoRead = ({
+  items,
+  onMarcarLeida
+}: {
+  items: any[];
+  onMarcarLeida: (id: number) => void;
+}) => {
   const footerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState<number>(0);
   const [viewportHeight] = useViewport();
@@ -27,6 +32,10 @@ const DropdownNotificationNoRead = ({ items }:any) => {
   }, [viewportHeight]);
 
   const buildList = () => {
+    if (!items || items.length === 0) {
+      return <p className="text-sm text-gray-500 text-center py-6">No hay notificaciones</p>;
+    }
+
     return items.map((item: any, index: number) => {
       const {
         fecha,
@@ -34,41 +43,83 @@ const DropdownNotificationNoRead = ({ items }:any) => {
         mensaje,
         asunto,
         route,
-        personaRemitente: { nombre1, apellido1, apellido2, rutaFotoUrl },
-        empresa: { razonSocial },
-        tipoNotificacion: { tipoNotificacion },
+        usuario_remitente, // snake_case
+        empresa,
+        tipo_notificacion // snake_case
       } = item;
-  
+
+      const formatearFecha = (fechaIso: string) => {
+        const fecha = new Date(fechaIso);
+
+        const fechaFormateada = new Intl.DateTimeFormat('es-CO', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        }).format(fecha); // → 13/03/2026
+
+        const horaFormateada = new Intl.DateTimeFormat('es-CO', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }).format(fecha); // → 10:50 a. m.
+
+        return { fechaFormateada, horaFormateada };
+      };
+
+      const { fechaFormateada } = formatearFecha(fecha);
+
+      const persona = usuario_remitente?.persona;
+      const nombre1 = persona?.nombre1 ?? 'Sistema';
+      const apellido1 = persona?.apellido1 ?? '';
+      const apellido2 = persona?.apellido2 ?? '';
+      const rutaFotoUrl = persona?.rutaFotoUrl ?? '/default-avatar.png';
+      const razonSocial = empresa?.razonSocial ?? '';
+
       return (
         <div key={item.id}>
           <div className="flex grow gap-2.5 px-5">
             <div className="relative shrink-0 mt-0.5">
               <img
-                src={rutaFotoUrl || '/default-avatar.png'}
+                src={rutaFotoUrl}
                 className="rounded-full size-8"
                 alt={`${nombre1} ${apellido1} avatar`}
               />
               <span className="size-1.5 badge badge-circle absolute top-7 end-0.5 ring-1 ring-light transform -translate-y-1/2"></span>
             </div>
-  
+
             <div className="flex flex-col gap-1">
               <div className="text-2sm font-medium mb-px">
-                <Link to="#" className="hover:text-primary-active text-gray-900 font-semibold">
+                <Link
+                  to={route ?? '#'}
+                  className="hover:text-primary-active text-gray-900 font-semibold"
+                >
                   {nombre1} {apellido1} {apellido2}
                 </Link>
                 <span className="text-gray-700"> {asunto} </span>
               </div>
+              <p className="text-2sm text-gray-600 line-clamp-2">{mensaje}</p>
               <span className="flex items-center text-2xs font-medium text-gray-500">
-                {fecha} - {hora}
-                <span className="badge badge-circle bg-gray-500 size-1 mx-1.5"> </span>
-                {razonSocial}
+                {fechaFormateada} - {hora}
+                {razonSocial && (
+                  <>
+                    <span className="badge badge-circle bg-gray-500 size-1 mx-1.5"></span>
+                    {razonSocial}
+                  </>
+                )}
               </span>
+              {/* Solo muestra el botón si no está leída */}
+              {item.estado_id === 1 && (
+                <button
+                  onClick={() => onMarcarLeida(item.id)}
+                  className="text-2xs text-primary hover:text-primary-active font-medium shrink-0 ml-2"
+                >
+                  Marcar como leída
+                </button>
+              )}
             </div>
           </div>
-  
-          {index < items.length - 1 && (
-            <div className="border-b border-b-gray-200 my-2"></div>
-          )}
+
+          {index < items.length - 1 && <div className="border-b border-b-gray-200 my-2"></div>}
         </div>
       );
     });

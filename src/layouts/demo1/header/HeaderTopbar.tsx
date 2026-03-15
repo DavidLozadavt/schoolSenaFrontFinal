@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeenIcon } from '@/components/keenicons';
 import { Menu, MenuItem, MenuToggle } from '@/components';
 import { DropdownUser } from '@/partials/dropdowns/user';
@@ -7,6 +7,7 @@ import { DropdownApps } from '@/partials/dropdowns/apps';
 import { DropdownChat } from '@/partials/dropdowns/chat';
 import { ModalSearch } from '@/partials/modals/search/ModalSearch';
 import { useAuthContext } from '@/auth';
+import axios from 'axios';
 
 const HeaderTopbar = () => {
   const itemChatRef = useRef<any>(null);
@@ -23,6 +24,38 @@ const HeaderTopbar = () => {
   const handleClose = () => {
     setSearchModalOpen(false);
   };
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`notificacionSistema`);
+      setNotifications(response?.data?.data ?? []);
+    } catch {
+      setError('Error al cargar notificaciones');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  //Función centralizada — la usan tanto el badge como el dropdown
+  const marcarComoLeida = useCallback(async (id: number) => {
+    try {
+      await axios.patch(`notificacionSistema/${id}`, { estado_id: 2 });
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, estado_id: 2 } : n)));
+    } catch (error) {
+      console.error('Error al marcar como leída:', error);
+    }
+  }, []);
+
+  const unreadCount = notifications.filter((n) => n.estado_id === 1).length;
 
   // No renderizar dropdowns si no hay sesión activa
   if (!auth) return null;
@@ -113,14 +146,22 @@ const HeaderTopbar = () => {
         >
           <MenuToggle>
             <div className="relative btn btn-icon btn-icon-lg size-9 rounded-full hover:bg-primary-light hover:text-primary text-gray-500 menu-item-show:bg-primary-light menu-item-show:text-primary">
-              <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
-              <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs text-white bg-green-500 rounded-full px-1 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
               <KeenIcon icon="notification" />
             </div>
           </MenuToggle>
 
-
-          {DropdownNotifications({ menuTtemRef: itemNotificationsRef })}
+          {DropdownNotifications({
+            menuTtemRef: itemNotificationsRef,
+            notifications,
+            loading,
+            error,
+            marcarComoLeida
+          })}
         </MenuItem>
       </Menu>
 
