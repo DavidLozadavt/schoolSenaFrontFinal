@@ -439,12 +439,6 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
         {/* ── Footer ── */}
         <div className="px-6 py-3 border-t border-gray-100 dark:border-coal-300 bg-white dark:bg-coal-500 flex justify-end gap-2 shrink-0">
           <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
-          >
-            <i className="ki-outline ki-file-down text-base" /> Exportar Excel
-          </button>
-          <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
           >
