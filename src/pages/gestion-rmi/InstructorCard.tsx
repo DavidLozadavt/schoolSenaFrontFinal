@@ -129,13 +129,13 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
 
             <div className="mt-2 space-y-0.5">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Número de horas:{' '}
-                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">160 h</span>
+                Número de horas:
+                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{instructor.totalHoras || 160} h</span>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Horas ejecutadas:{' '}
                 <span className={`font-bold text-sm ${semaforoHoras}`}>
-                  {totalHoras.toFixed(1)}h
+                  {instructor.totalHorasFormato || 0}h
                 </span>
               </p>
               {instructorState.estado === 'RECHAZADO' && instructorState.motivoRechazo && (
