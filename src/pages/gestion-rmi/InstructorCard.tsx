@@ -171,6 +171,64 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
                   <i className="ki-outline ki-book-square text-base" />
                 )}
               </button>
+              {/* ← Revertir (ACEPTADO o RECHAZADO) */}
+              {/* Botón revertir a pendiente — solo cuando está ACEPTADO o RECHAZADO */}
+              {(instructorState.estado === 'ACEPTADO' ||
+                instructorState.estado === 'RECHAZADO') && (
+                <button
+                  onClick={async () => {
+                    setDisableActionRmi(true);
+                    const theme = JSON.parse(
+                      localStorage.getItem('settings-configs') || '{}'
+                    )?.themeMode;
+                    const isDarkMode = theme === 'dark';
+                    const result = await Swal.fire({
+                      title: '¿Revertir a pendiente?',
+                      text: 'El RMI volverá al estado PENDIENTE.',
+                      icon: 'warning',
+                      showCancelButton: true,
+                      confirmButtonText: 'Sí, revertir',
+                      cancelButtonText: 'Cancelar',
+                      customClass: {
+                        confirmButton: 'btn btn-sm btn-warning',
+                        cancelButton: 'btn btn-sm btn-light'
+                      },
+                      background: isDarkMode ? '#1B1C22' : '#F9F9F9',
+                      color: isDarkMode ? 'white' : '#4B5675'
+                    });
+
+                    if (result.isConfirmed) {
+                      try {
+                        await axios.put(`instructores/${instructor.idActivation}/revertir-rmi`, {
+                          periodo
+                        });
+                        enqueueSnackbar('RMI revertido a pendiente.', { variant: 'info' });
+                        const actualizado: Instructor = {
+                          ...instructorState,
+                          estado: 'PENDIENTE',
+                          motivoRechazo: undefined
+                        };
+                        setInstructorState(actualizado);
+                        onEstadoChange?.(instructor.idActivation, 'PENDIENTE');
+                      } catch (error: any) {
+                        const errorMessage =
+                          error.response?.data?.message || 'Error al revertir el RMI.';
+                        enqueueSnackbar(errorMessage, { variant: 'error' });
+                      }
+                    }
+                    setDisableActionRmi(false);
+                  }}
+                  disabled={disableActionRmi}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
+                  title="Revertir a pendiente"
+                >
+                  {!disableActionRmi ? (
+                    <i className="ki-outline ki-arrow-circle-left text-base" />
+                  ) : (
+                    <i className="ki-outline ki-loading text-base animate-spin" />
+                  )}
+                </button>
+              )}
               {instructorState.estado === 'PENDIENTE' && (
                 <>
                   <button
@@ -213,14 +271,14 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
                           onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
                           setDisableActionRmi(false);
                         } catch (error: any) {
-                          setDisableActionRmi(false)
+                          setDisableActionRmi(false);
                           const errorMessage =
                             error.response?.data?.message || 'Error al aceptar el RMI.';
                           enqueueSnackbar(errorMessage, { variant: 'error' });
                         }
-                      } else{
-                        setDisableActionRmi(false)
-                        return 
+                      } else {
+                        setDisableActionRmi(false);
+                        return;
                       }
                     }}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
