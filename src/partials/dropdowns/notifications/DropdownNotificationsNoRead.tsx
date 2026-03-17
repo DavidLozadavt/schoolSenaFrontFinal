@@ -76,8 +76,18 @@ const DropdownNotificationNoRead = ({
       const razonSocial = empresa?.razonSocial ?? '';
 
       return (
-        <div key={item.id}>
-          <div className="flex grow gap-2.5 px-5">
+        <div key={item.id} className='p-2'>
+          <div className="flex grow gap-2.5 px-5 relative">
+            {/* Botón marcar leída — esquina superior derecha */}
+            {item.estado_id === 1 && (
+              <button
+                onClick={() => onMarcarLeida(item.id)}
+                className="absolute top-0 right-0 flex items-center justify-center w-6 h-6 rounded-full hover:bg-green-50 text-blue-300 hover:text-green-500 transition-all animate-pulse"
+                title="Marcar como leída"
+              >
+                <i className="ki-outline ki-check-circle text-base" />
+              </button>
+            )}
             <div className="relative shrink-0 mt-0.5">
               <img
                 src={rutaFotoUrl}
@@ -98,24 +108,17 @@ const DropdownNotificationNoRead = ({
                 <span className="text-gray-700"> {asunto} </span>
               </div>
               <p className="text-2sm text-gray-600 line-clamp-2">{mensaje}</p>
-              <span className="flex items-center text-2xs font-medium text-gray-500">
-                {fechaFormateada} - {hora}
-                {razonSocial && (
-                  <>
-                    <span className="badge badge-circle bg-gray-500 size-1 mx-1.5"></span>
-                    {razonSocial}
-                  </>
-                )}
+              <span className="flex items-center justify-between text-2xs font-medium text-gray-500">
+                <span className="flex items-center">
+                  {fechaFormateada} - {hora}
+                  {razonSocial && (
+                    <>
+                      <span className="badge badge-circle bg-gray-500 size-1 mx-1.5"></span>
+                      {razonSocial}
+                    </>
+                  )}
+                </span>
               </span>
-              {/* Solo muestra el botón si no está leída */}
-              {item.estado_id === 1 && (
-                <button
-                  onClick={() => onMarcarLeida(item.id)}
-                  className="text-2xs text-primary hover:text-primary-active font-medium shrink-0 ml-2"
-                >
-                  Marcar como leída
-                </button>
-              )}
             </div>
           </div>
 

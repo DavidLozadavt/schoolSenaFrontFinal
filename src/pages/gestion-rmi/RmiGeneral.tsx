@@ -64,9 +64,9 @@ const RmiGeneral: React.FC = () => {
       if (regionalAbortController.current) {
         regionalAbortController.current.abort();
       }
-      
+
       regionalAbortController.current = new AbortController();
-      
+
       axios
         .get('regional', { signal: regionalAbortController.current.signal })
         .then((r) => {
@@ -79,7 +79,7 @@ const RmiGeneral: React.FC = () => {
             setLoadingRegionales(false);
           }
         });
-      
+
       return () => {
         if (regionalAbortController.current) {
           regionalAbortController.current.abort();
@@ -150,11 +150,12 @@ const RmiGeneral: React.FC = () => {
     instructoresAbortController.current = new AbortController();
 
     axios
-      .get('instructores', {
+      .get(mostrarHistorial ? 'instructores/historial' : 'instructores', {
         params: {
           idCentroFormacion,
           periodo: periodo || undefined,
-          estado: mostrarHistorial ? estado : 'PENDIENTE',
+          // historial puede filtrar por estado, pendientes no necesitan
+          ...(mostrarHistorial && estado ? { estado } : {})
         },
         signal: instructoresAbortController.current.signal
       })
@@ -178,21 +179,20 @@ const RmiGeneral: React.FC = () => {
 
   // Instructores según modo (pendientes vs historial) y filtro de estado
   const instructors = useMemo(() => {
-    let base = rawInstructors;
+  let base = rawInstructors;
 
-    if (mostrarHistorial) {
-      // Solo RMI aceptados o rechazados
-      base = base.filter((i) => i.estado === 'ACEPTADO' || i.estado === 'RECHAZADO');
-      if (estado) {
-        base = base.filter((i) => i.estado === estado);
-      }
-    } else {
-      // Solo pendientes cuando NO se está viendo el historial
-      base = base.filter((i) => i.estado === 'PENDIENTE');
-    }
+  if (!mostrarHistorial) {
+    // Solo pendientes en modo normal
+    base = base.filter((i) => i.estado === 'PENDIENTE');
+  }
+  // En historial muestra todos sin filtrar por estado base
+  // el filtro adicional del Select ya lo maneja abajo
+  if (mostrarHistorial && estado) {
+    base = base.filter((i) => i.estado === estado);
+  }
 
-    return base;
-  }, [rawInstructors, mostrarHistorial, estado]);
+  return base;
+}, [rawInstructors, mostrarHistorial, estado]);
 
   // Memoizar el filtro de instructores por nombre
   const filtered = useMemo(() => {
@@ -202,7 +202,8 @@ const RmiGeneral: React.FC = () => {
 
     const searchLower = debouncedSearch.toLowerCase();
     return instructors.filter((i) => {
-      const fullName = `${i.persona.nombre1} ${i.persona.nombre2} ${i.persona.apellido1} ${i.persona.apellido2}`.toLowerCase();
+      const fullName =
+        `${i.persona.nombre1} ${i.persona.nombre2} ${i.persona.apellido1} ${i.persona.apellido2}`.toLowerCase();
       return fullName.includes(searchLower);
     });
   }, [instructors, debouncedSearch]);
@@ -220,7 +221,10 @@ const RmiGeneral: React.FC = () => {
 
   const periodoLabel = useMemo(() => {
     if (!periodo) return '';
-    return new Date(periodo + '-02').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    return new Date(periodo + '-02').toLocaleDateString('es-CO', {
+      month: 'long',
+      year: 'numeric'
+    });
   }, [periodo]);
 
   // Callbacks para los handlers
@@ -253,31 +257,31 @@ const RmiGeneral: React.FC = () => {
     <div className="min-h-screen p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-          Reporte Mensual del Instructor
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de reportes mensuales</p>
-      </div>
-      {/* Botón Historial RMI */}
-      <div className="ml-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setMostrarHistorial((prev) => !prev);
-                setEstado(null);
-                setSearch('');
-              }}
-              disabled={idCentroFormacion === 0}
-              className={`px-4 py-2 text-xs font-semibold rounded-md transition-colors ${
-                idCentroFormacion === 0
-                  ? 'bg-blue-300 text-white/70 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'
-              }`}
-            >
-              {mostrarHistorial ? 'Ocultar historial RMI' : 'Ver historial RMI'}
-            </button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Reporte Mensual del Instructor
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de reportes mensuales</p>
+        </div>
+        {/* Botón Historial RMI */}
+        <div className="ml-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setMostrarHistorial((prev) => !prev);
+              setEstado(null);
+              setSearch('');
+            }}
+            disabled={idCentroFormacion === 0}
+            className={`px-4 py-2 text-xs font-semibold rounded-md transition-colors ${
+              idCentroFormacion === 0
+                ? 'bg-blue-300 text-white/70 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'
+            }`}
+          >
+            {mostrarHistorial ? 'Ocultar historial RMI' : 'Ver historial RMI'}
+          </button>
+        </div>
       </div>
 
       {/* Filtros Regional / Centro */}
@@ -383,6 +387,7 @@ const RmiGeneral: React.FC = () => {
                 onChange={(e) => setEstado(e?.value || null)}
                 options={[
                   { value: null, label: 'Todos' },
+                  { value: 'PENDIENTE', label: 'Pendientes' },
                   { value: 'ACEPTADO', label: 'Aceptados' },
                   { value: 'RECHAZADO', label: 'Rechazados' }
                 ]}
