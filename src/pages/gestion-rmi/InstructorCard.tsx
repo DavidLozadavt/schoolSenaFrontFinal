@@ -5,6 +5,7 @@ import { Instructor } from './interfaceInstructor';
 import HorarioMensual from './HorarioMensual';
 import RmiModal from './RmiModal';
 import ModalRechazarRmi from './ModalRechazarRmi';
+import Swal from 'sweetalert2';
 
 interface InstructorCardProps {
   instructor: Instructor;
@@ -13,7 +14,6 @@ interface InstructorCardProps {
 }
 
 const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, onEstadoChange }) => {
-  
   const { persona } = instructor;
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
@@ -37,6 +37,8 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
   const [loadingRmi, setLoadingRmi] = useState(false);
   const [rechazarModalOpen, setRechazarModalOpen] = useState(false);
   const [instructorState, setInstructorState] = useState<Instructor>(instructor);
+
+  const [disableActionRmi, setDisableActionRmi] = useState<boolean>(false);
 
   const getEstadoBadge = () => {
     const estado = instructorState.estado || 'PENDIENTE';
@@ -173,42 +175,81 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
                 <>
                   <button
                     onClick={async () => {
-                      try {
-                        await axios.put(`instructores/${instructor.idActivation}/aceptar-rmi`, {
-                          periodo: periodo,
-                          email: persona.email
-                        });
-                        enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
-                        const actualizado: Instructor = {
-                          ...instructorState,
-                          estado: 'ACEPTADO',
-                          motivoRechazo: undefined
-                        };
-                        setInstructorState(actualizado);
-                        onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
-                      } catch (error: any) {
-                        const errorMessage = error.response?.data?.message || 'Error al aceptar el RMI.';
-                        enqueueSnackbar(errorMessage, { variant: 'error' });
+                      setDisableActionRmi(true);
+                      const theme = JSON.parse(
+                        localStorage.getItem('settings-configs') || '{}'
+                      )?.themeMode;
+                      const isDarkMode = theme === 'dark';
+                      const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+                      const color = isDarkMode ? 'white' : '#4B5675';
+                      const result = await Swal.fire({
+                        title: '¿Quieres aceptar este RMI?',
+                        text: '¿Estás seguro de que deseas aceptar este RMI?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, Aceptar',
+                        cancelButtonText: 'Cancelar',
+                        customClass: {
+                          confirmButton: 'btn btn-sm btn-success',
+                          cancelButton: 'btn btn-sm btn-light'
+                        },
+                        background,
+                        color
+                      });
+
+                      if (result.isConfirmed) {
+                        try {
+                          await axios.put(`instructores/${instructor.idActivation}/aceptar-rmi`, {
+                            periodo: periodo,
+                            email: persona.email
+                          });
+                          enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
+                          const actualizado: Instructor = {
+                            ...instructorState,
+                            estado: 'ACEPTADO',
+                            motivoRechazo: undefined
+                          };
+                          setInstructorState(actualizado);
+                          onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
+                          setDisableActionRmi(false);
+                        } catch (error: any) {
+                          setDisableActionRmi(false)
+                          const errorMessage =
+                            error.response?.data?.message || 'Error al aceptar el RMI.';
+                          enqueueSnackbar(errorMessage, { variant: 'error' });
+                        }
+                      } else{
+                        setDisableActionRmi(false)
+                        return 
                       }
                     }}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
                     title="Aceptar RMI"
+                    disabled={disableActionRmi}
                   >
-                    <i className="ki-outline ki-check-circle text-base" />
+                    {!disableActionRmi ? (
+                      <i className="ki-outline ki-check-circle text-base" />
+                    ) : (
+                      <i className="ki-outline ki-loading text-base animate-spin" />
+                    )}
                   </button>
                   <button
                     onClick={() => setRechazarModalOpen(true)}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
                     title="Rechazar RMI"
+                    disabled={disableActionRmi}
                   >
-                    <i className="ki-outline ki-cross-circle text-base" />
+                    {!disableActionRmi ? (
+                      <i className="ki-outline ki-cross-circle text-base" />
+                    ) : (
+                      <i className="ki-outline ki-loading text-base animate-spin" />
+                    )}
                   </button>
                 </>
               )}
             </div>
           </div>
         </div>
-
       </div>
       {/* Horario Mensual */}
       <HorarioMensual
@@ -233,7 +274,11 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
         correoInstructor={persona.email}
         periodo={periodo}
         onSave={(motivoRechazo?: string) => {
-          const actualizado: Instructor = { ...instructorState, estado: 'RECHAZADO', motivoRechazo };
+          const actualizado: Instructor = {
+            ...instructorState,
+            estado: 'RECHAZADO',
+            motivoRechazo
+          };
           setInstructorState(actualizado);
           onEstadoChange?.(instructor.idActivation, 'RECHAZADO', motivoRechazo);
         }}
