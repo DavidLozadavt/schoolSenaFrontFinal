@@ -679,6 +679,9 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                           HORAS
                         </th>
                         <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
+                          ASOCIADO
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
                           HORARIO
                         </th>
                       </tr>
@@ -729,7 +732,12 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                               )}
                             </td>
                             <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                              {r.duracionHoras}h
+                              {r.horarios.reduce((acc: any, r: any) => acc + Number(r.duracionHoras || 0), 0)}h
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <div className="switch">
+                                <input type="checkbox" value={r.estadoAsociacion} checked={r.estadoAsociacion} title='Asociado en Sofía Plus'/>
+                              </div>
                             </td>
                             <td className="px-3 py-2 text-center">
                               <button
