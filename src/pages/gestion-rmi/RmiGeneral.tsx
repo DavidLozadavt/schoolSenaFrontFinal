@@ -153,6 +153,7 @@ const RmiGeneral: React.FC = () => {
       .get(mostrarHistorial ? 'instructores/historial' : 'instructores', {
         params: {
           idCentroFormacion,
+          sinPeriodo: true,
           periodo: periodo || undefined,
           // historial puede filtrar por estado, pendientes no necesitan
           ...(mostrarHistorial && estado ? { estado } : {})
@@ -179,20 +180,20 @@ const RmiGeneral: React.FC = () => {
 
   // Instructores según modo (pendientes vs historial) y filtro de estado
   const instructors = useMemo(() => {
-  let base = rawInstructors;
+    let base = rawInstructors;
 
-  if (!mostrarHistorial) {
-    // Solo pendientes en modo normal
-    base = base.filter((i) => i.estado === 'PENDIENTE');
-  }
-  // En historial muestra todos sin filtrar por estado base
-  // el filtro adicional del Select ya lo maneja abajo
-  if (mostrarHistorial && estado) {
-    base = base.filter((i) => i.estado === estado);
-  }
+    if (!mostrarHistorial) {
+      // Solo pendientes en modo normal
+      base = base.filter((i) => i.estado === 'PENDIENTE');
+    }
+    // En historial muestra todos sin filtrar por estado base
+    // el filtro adicional del Select ya lo maneja abajo
+    if (mostrarHistorial && estado) {
+      base = base.filter((i) => i.estado === estado);
+    }
 
-  return base;
-}, [rawInstructors, mostrarHistorial, estado]);
+    return base;
+  }, [rawInstructors, mostrarHistorial, estado]);
 
   // Memoizar el filtro de instructores por nombre
   const filtered = useMemo(() => {
