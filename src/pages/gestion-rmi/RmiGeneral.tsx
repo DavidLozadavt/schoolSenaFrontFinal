@@ -183,7 +183,7 @@ const RmiGeneral: React.FC = () => {
 
   if (!mostrarHistorial) {
     // Solo pendientes en modo normal
-    base = base.filter((i) => i.estado === 'PENDIENTE');
+    base = base.filter((i) => i.estado === 'PENDIENTE' || i.estado === 'RECHAZADO');
   }
   // En historial muestra todos sin filtrar por estado base
   // el filtro adicional del Select ya lo maneja abajo
