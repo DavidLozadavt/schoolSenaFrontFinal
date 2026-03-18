@@ -20,14 +20,14 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
 
   const totalHoras = instructor.horarios?.reduce((acc, h) => acc + h.duracionHoras, 0) ?? 0;
 
-  const semaforoHoras =
-    totalHoras < 145
+  const semaforoHoras = (horas: number): string =>
+    horas < 145
       ? 'text-red-600 dark:text-red-400'
-      : totalHoras < 160
+      : horas < 160
         ? 'text-yellow-600 dark:text-yellow-400'
-        : totalHoras === 160
+        : horas === 160
           ? 'text-green-600 dark:text-green-400'
-          : totalHoras <= 169
+          : horas <= 169
             ? 'text-yellow-600 dark:text-yellow-400'
             : 'text-red-600 dark:text-red-400';
 
@@ -133,8 +133,12 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
                 <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{instructor.totalHoras || 160} h</span>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
+                Horas programadas:
+                <span className={`font-bold text-sm ${semaforoHoras(totalHoras)}`}>{totalHoras || 0} h</span>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Horas ejecutadas:{' '}
-                <span className={`font-bold text-sm ${semaforoHoras}`}>
+                <span className={`font-bold text-sm ${semaforoHoras(Number(instructor.totalHorasFormato))}`}>
                   {instructor.totalHorasFormato || 0}h
                 </span>
               </p>
