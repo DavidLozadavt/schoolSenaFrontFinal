@@ -80,11 +80,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
     setRmiModalOpen(false);
   }, [periodo]);
 
-  const handleVerRmi = () => {
-    if (fichas.length > 0) {
-      setRmiModalOpen(true);
-      return;
-    }
+  const fetchFichas = () => {
     setLoadingRmi(true);
     axios
       .get('instructores/fichas', {
@@ -95,9 +91,17 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
       })
       .then((r) => {
         setFichas(r.data);
-        setRmiModalOpen(true);
       })
       .finally(() => setLoadingRmi(false));
+  };
+
+  const handleVerRmi = () => {
+    if (fichas.length > 0) {
+      setRmiModalOpen(true);
+      return;
+    }
+    fetchFichas();
+    setRmiModalOpen(true);
   };
 
   return (
@@ -327,6 +331,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
         instructor={instructorState}
         periodo={periodo}
         fichas={fichas}
+        onRefresh={fetchFichas}
       />
       {/* Modal Rechazar RMI */}
       <ModalRechazarRmi
