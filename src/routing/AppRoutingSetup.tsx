@@ -140,11 +140,11 @@ const DASHBOARD_CONFIG = [
     component: <DashboardCoordinador />
   },
   {
-    permission: 'GESTION_PROFESOR',
+    permission: 'AULA_VIRTUAL_INSTRUCTOR',
     component: <ProfesoresPage />
   },
   {
-    permission: 'GESTION_ESTUDIANTE',
+    permission: 'AULA_VIRTUAL_APRENDIZ',
     component: <EstudiantesPage />
   }
 ];
