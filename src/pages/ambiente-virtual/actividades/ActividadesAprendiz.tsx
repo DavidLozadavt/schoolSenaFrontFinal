@@ -691,6 +691,10 @@ const ActividadesAprendiz: React.FC = () => {
               const status = estadoBadgeMap[actividad.estadoVisual];
               const isExpanded = expanded === actividad.idCalificacionActividad;
               const score = actividad.calificacionNumerica ? Number(actividad.calificacionNumerica) : null;
+              const nombreInstructor = actividad.autor?.nombreCompleto || 'Instructor sin nombre';
+              const fotoInstructor = actividad.autor?.rutaFotoUrl
+                ? getDocumentUrl(actividad.autor.rutaFotoUrl)
+                : null;
 
               return (
                 <div
@@ -703,32 +707,57 @@ const ActividadesAprendiz: React.FC = () => {
                   <div className="px-4 py-3">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {actividad.tituloActividad}
-                          </h3>
-                          <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium', status.chip)}>
-                            {status.label}
-                          </span>
-                          <span className={clsx(
-                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            actividad.activa !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                          )}>
-                            {actividad.activa !== false ? 'Activa' : 'Inactiva'}
-                          </span>
-                          {actividad.esGrupal ? (
-                            <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                              Grupal
-                            </span>
+                        <div className="flex items-center gap-3 mb-1.5">
+                          {fotoInstructor ? (
+                            <img
+                              src={fotoInstructor}
+                              alt={nombreInstructor}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-primary/60"
+                            />
                           ) : (
-                            <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                              Individual
-                            </span>
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white">
+                              <div className="w-10 h-10 rounded-full border-2 border-dashed border-primary flex items-center justify-center text-primary">
+                                <KeenIcon icon="user" className="text-base" />
+                              </div>
+                            </div>
                           )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                              {nombreInstructor}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                              <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                {actividad.tituloActividad}
+                              </h3>
+                              <span
+                                className={clsx(
+                                  'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
+                                  status.chip
+                                )}
+                              >
+                                {status.label}
+                              </span>
+                              <span className={clsx(
+                                'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                actividad.activa !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                              )}>
+                                {actividad.activa !== false ? 'Activa' : 'Inactiva'}
+                              </span>
+                              {actividad.esGrupal ? (
+                                <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                  Grupal
+                                </span>
+                              ) : (
+                                <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                  Individual
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              {actividad.area?.nombre || 'Sin área'}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {actividad.area?.nombre || 'Sin área'}
-                        </p>
                       </div>
 
                       <div className="flex items-center gap-4 lg:gap-6">
@@ -961,7 +990,12 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && actividad.activa !== false && !actividad.fechaVencida && (
+                                        {(actividad.puedeResponder ||
+                                          actividad.estadoVisual === 'POR_EVALUAR' ||
+                                          actividad.estadoVisual === 'PENDIENTE' ||
+                                          actividad.estadoVisual === 'CALIFICADO') &&
+                                          actividad.activa !== false &&
+                                          !actividad.fechaVencida && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}
@@ -984,7 +1018,12 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && actividad.activa !== false && !actividad.fechaVencida && (
+                                        {(actividad.puedeResponder ||
+                                          actividad.estadoVisual === 'POR_EVALUAR' ||
+                                          actividad.estadoVisual === 'PENDIENTE' ||
+                                          actividad.estadoVisual === 'CALIFICADO') &&
+                                          actividad.activa !== false &&
+                                          !actividad.fechaVencida && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}

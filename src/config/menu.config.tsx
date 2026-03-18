@@ -93,12 +93,22 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Administrador',
+    title: 'Administrativo',
     icon:'teacher',
     children:[
       {
         title:'RMI',
         path: '/rmi',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
+      {
+        title:'GC',
+        path: '/gc',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
+      {
+        title:'CF',
+        path: '/cf',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
     ]

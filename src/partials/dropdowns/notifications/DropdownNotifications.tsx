@@ -8,13 +8,20 @@ import axios from 'axios';
 
 interface IDropdownNotificationProps {
   menuTtemRef: any;
+  notifications?: any[];
+  loading?: boolean;
+  error?: string;
+  marcarComoLeida?: (id: number) => void;
 }
 
-const DropdownNotifications = ({ menuTtemRef }: IDropdownNotificationProps) => {
-
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
+const DropdownNotifications = ({
+  menuTtemRef,
+  notifications=[],
+  loading= false,
+  error = '',
+  marcarComoLeida = () => {}
+}: IDropdownNotificationProps) => {
+  
 
   const handleClose = () => {
     if (menuTtemRef.current) {
@@ -22,23 +29,6 @@ const DropdownNotifications = ({ menuTtemRef }: IDropdownNotificationProps) => {
     }
   };
 
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`notificaciones`);
-      setNotifications(response.data);
-    } catch (error) {
-      setError('Error al cargar la tarjeta');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
- 
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
 
   const buildHeader = () => {
     return (
@@ -66,13 +56,13 @@ const DropdownNotifications = ({ menuTtemRef }: IDropdownNotificationProps) => {
           </div>
         </TabsList>
         <TabPanel value={1}>
-          <DropdownNotificationsAll items={notifications} />
+          <DropdownNotificationsAll items={notifications} onMarcarLeida={marcarComoLeida} />
         </TabPanel>
         <TabPanel value={2}>
-          <DropdownNotificationNoRead items={noReadNotifications} />
+          <DropdownNotificationNoRead items={noReadNotifications} onMarcarLeida={marcarComoLeida} />
         </TabPanel>
         <TabPanel value={3}>
-          <DropdownNotificationNoRead items={readNotifications} />
+          <DropdownNotificationNoRead items={readNotifications} onMarcarLeida={marcarComoLeida} />
         </TabPanel>
       </Tabs>
     );
@@ -81,7 +71,13 @@ const DropdownNotifications = ({ menuTtemRef }: IDropdownNotificationProps) => {
   return (
     <MenuSub rootClassName="w-full max-w-[460px]" className="light:border-gray-300">
       {buildHeader()}
-      {buildTabs()}
+      {loading ? (
+        <p className="text-sm text-gray-500 text-center py-6">Cargando...</p>
+      ) : error ? (
+        <p className="text-sm text-red-500 text-center py-6">{error}</p>
+      ) : (
+        buildTabs()
+      )}
     </MenuSub>
   );
 };
