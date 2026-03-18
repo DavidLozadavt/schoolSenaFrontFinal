@@ -24,8 +24,17 @@ const CeldaConTooltip: React.FC<{ textoCompleto: string; textoTruncado: string }
   );
 };
 
+interface ItemActividad {
+  actividad?: Actividad;
+  id?: number;
+  fechaInicial?: string | null;
+  fechaFinal?: string | null;
+  fechaVencida?: boolean;
+  fechaInactiva?: boolean;
+}
+
 interface ListaActividadesProps {
-  actividades: (Actividad & { actividad?: Actividad; id?: number })[];
+  actividades: (Actividad & ItemActividad)[];
   loading?: boolean;
   onCrear?: () => void;
   onCrearCuestionario?: () => void;
@@ -42,8 +51,12 @@ interface ListaActividadesProps {
   puedeEliminar?: (actividad: Actividad) => boolean;
   /** Ver aprendices asignados y calificar (solo en modo asignadas) */
   onVerAprendices?: (actividad: Actividad) => void;
+  /** Ampliar actividad (solo en modo asignadas) */
+  onAmpliar?: (actividad: Actividad) => void;
   /** ID de ficha para el modal de aprendices */
   idFicha?: number;
+  /** Si false, no se muestra el botón Crear cuestionario (ej. en Actividades asignadas) */
+  mostrarCrearCuestionario?: boolean;
   modo: 'agregar' | 'asignadas';
   emptyMessage?: string;
   /** Incrementar para limpiar la selección (ej. tras asignación masiva exitosa) */
@@ -65,7 +78,9 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onEliminar,
   puedeEliminar,
   onVerAprendices,
+  onAmpliar,
   idFicha,
+  mostrarCrearCuestionario = true,
   modo,
   emptyMessage,
   resetSelectionKey
@@ -213,7 +228,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                 Asignar {actividadesSeleccionadas.size} seleccionada(s)
               </button>
             )}
-            {onCrearCuestionario && (
+            {onCrearCuestionario && mostrarCrearCuestionario && (
             <button
               onClick={onCrearCuestionario}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
@@ -317,9 +332,39 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                     />
                   </td>
                   <td className="py-3 px-3">
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      {act.estado?.estado || 'ACTIVO'}
-                    </span>
+                    {(() => {
+                      const itemAct = item as ItemActividad;
+                      // Estado calculado solo por: fecha inicio, fecha límite y hora actual
+                      let esVencida = itemAct.fechaVencida === true;
+                      let esInactiva = itemAct.fechaInactiva === true;
+                      if (esVencida === false && itemAct.fechaFinal) {
+                        try {
+                          const f = new Date(itemAct.fechaFinal);
+                          esVencida = !isNaN(f.getTime()) && new Date() > f;
+                        } catch {
+                          esVencida = false;
+                        }
+                      }
+                      if (esInactiva === false && itemAct.fechaInicial) {
+                        try {
+                          const fi = new Date(itemAct.fechaInicial);
+                          esInactiva = !isNaN(fi.getTime()) && new Date() < fi;
+                        } catch {
+                          esInactiva = false;
+                        }
+                      }
+                      const estadoTexto = esVencida ? 'Vencida' : esInactiva ? 'Inactiva' : 'Activa';
+                      const estadoClases = esVencida
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        : esInactiva
+                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+                      return (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${estadoClases}`}>
+                          {estadoTexto}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 capitalize">
                     {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}
@@ -353,6 +398,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                             title="Ver aprendices asignados"
                           >
                             <KeenIcon icon="users" className="text-sm" />
+                          </button>
+                        )}
+                        {modo === 'asignadas' && idFicha && onAmpliar && (
+                          <button
+                            onClick={() => onAmpliar(act)}
+                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            title="Ampliar actividad"
+                          >
+                            <KeenIcon icon="calendar" className="text-sm" />
                           </button>
                         )}
                         {onVer && (

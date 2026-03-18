@@ -124,7 +124,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       const fIni = new Date(fechaInicial);
       const fFin = new Date(fechaFinal);
       if (fFin < fIni) {
-        setError('La fecha final debe ser mayor o igual a la fecha inicial');
+        setError('La fecha y hora límite debe ser mayor o igual a la fecha y hora inicial');
         return;
       }
     }
@@ -154,8 +154,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       const payload: any = {
         actividades: actividadesAAsignar.map((a) => a.id).filter((id): id is number => id != null)
       };
-      if (fechaInicial) payload.fechaInicial = fechaInicial + 'T00:00:00';
-      if (fechaFinal) payload.fechaFinal = fechaFinal + 'T23:59:59';
+      if (fechaInicial) payload.fechaInicial = fechaInicial.includes('T') ? fechaInicial : fechaInicial + 'T00:00:00';
+      if (fechaFinal) payload.fechaFinal = fechaFinal.includes('T') ? fechaFinal : fechaFinal + 'T23:59:59';
       if (aprendicesSeleccionados.length === aprendices.length && aprendices.length > 0) {
         payload.aprendices = 'todos';
       } else if (aprendicesSeleccionados.length > 0) {
@@ -335,14 +335,14 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
               )}
             </div>
 
-            {/* Fechas */}
+            {/* Fechas y hora límite */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha inicial
+                  Fecha y hora inicial
                 </label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={fechaInicial}
                   onChange={(e) => setFechaInicial(e.target.value)}
                   className="input w-full text-sm"
@@ -350,10 +350,10 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha final
+                  Fecha y hora límite
                 </label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={fechaFinal}
                   onChange={(e) => setFechaFinal(e.target.value)}
                   className="input w-full text-sm"

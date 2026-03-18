@@ -3,6 +3,7 @@ import axios from 'axios';
 import clsx from 'clsx';
 import { KeenIcon } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
+import ModalResponderCuestionario from './ModalResponderCuestionario';
 
 type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR';
 
@@ -49,6 +50,17 @@ interface ActividadAprendiz {
   estadoVisual: Exclude<EstadoActividad, 'TODOS'>;
   fechaVencida: boolean;
   puedeResponder: boolean;
+  estadoActividad?: string | null;
+  activa?: boolean;
+  esGrupal?: boolean;
+  idGrupo?: number | null;
+  preguntas?: Array<{
+    id: number;
+    descripcion: string;
+    tipoPregunta?: { tipoPregunta?: string };
+    urlDocumento?: string | null;
+    respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta: boolean }>;
+  }>;
 }
 
 const filtros: Array<{ id: EstadoActividad; label: string }> = [
@@ -59,16 +71,21 @@ const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'SIN_ENTREGAR', label: 'Sin Entregar' }
 ];
 
-const formatearFecha = (value?: string | null) => {
+const formatearFecha = (value?: string | null, incluirHora = false) => {
   if (!value) return '-';
 
   try {
     const fecha = new Date(value);
-    return new Intl.DateTimeFormat('es-CO', {
+    const opts: Intl.DateTimeFormatOptions = {
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
-    }).format(fecha);
+      year: 'numeric',
+    };
+    if (incluirHora && (value.includes('T') || value.includes(' '))) {
+      opts.hour = '2-digit';
+      opts.minute = '2-digit';
+    }
+    return new Intl.DateTimeFormat('es-CO', opts).format(fecha);
   } catch {
     return value;
   }
@@ -171,7 +188,13 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividad) return;
-    
+
+    const tieneArchivoActual = !!actividad?.archivoEntregaUrl;
+    if (!archivo && !tieneArchivoActual) {
+      setError('Debes adjuntar un archivo como evidencia para poder entregar la actividad.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -575,15 +598,31 @@ const ActividadesAprendiz: React.FC = () => {
   const [filtro, setFiltro] = useState<EstadoActividad>('TODOS');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actividadResponder, setActividadResponder] = useState<ActividadAprendiz | null>(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    perPage: 15,
+    total: 0,
+    lastPage: 1,
+  });
 
-  const fetchActividades = useCallback(async () => {
+  const fetchActividades = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('actividades-aprendiz');
+      const response = await axios.get('actividades-aprendiz', {
+        params: { page, per_page: 15 },
+      });
       const data = response.data?.data || response.data || [];
       setActividades(Array.isArray(data) ? data : []);
       setExpanded(null);
+      const meta = response.data?.meta || {};
+      setPagination((prev) => ({
+        ...prev,
+        currentPage: meta.current_page ?? page,
+        perPage: meta.per_page ?? 15,
+        total: response.data?.total ?? meta.total ?? 0,
+        lastPage: meta.last_page ?? 1,
+      }));
     } catch (err: any) {
       const errorMessage = err?.response?.data?.error || err?.message || 'No fue posible cargar tus actividades';
       setError(errorMessage);
@@ -594,8 +633,8 @@ const ActividadesAprendiz: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchActividades();
-  }, [fetchActividades]);
+    fetchActividades(pagination.currentPage);
+  }, [pagination.currentPage]);
 
   const actividadesFiltradas = useMemo(() => {
     if (filtro === 'TODOS') return actividades;
@@ -640,7 +679,7 @@ const ActividadesAprendiz: React.FC = () => {
           ))}
         </div>
 
-        {actividadesFiltradas.length === 0 ? (
+        {actividadesFiltradas.length === 0 && !loading ? (
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
             <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">No hay actividades para este filtro</p>
@@ -671,6 +710,21 @@ const ActividadesAprendiz: React.FC = () => {
                           <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium', status.chip)}>
                             {status.label}
                           </span>
+                          <span className={clsx(
+                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
+                            actividad.activa !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                          )}>
+                            {actividad.activa !== false ? 'Activa' : 'Inactiva'}
+                          </span>
+                          {actividad.esGrupal ? (
+                            <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                              Grupal
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                              Individual
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {actividad.area?.nombre || 'Sin área'}
@@ -686,10 +740,12 @@ const ActividadesAprendiz: React.FC = () => {
                             )}
                           >
                             <KeenIcon icon="calendar" className="text-xs" />
-                            {formatearFecha(actividad.fechaFinal)}
+                            {formatearFecha(actividad.fechaFinal, true)}
                           </div>
-                          {actividad.fechaVencida && actividad.estadoVisual === 'SIN_ENTREGAR' && (
-                            <p className="text-[10px] text-red-400 mt-0.5">Fecha vencida</p>
+                          {actividad.fechaVencida && (
+                            <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 font-medium">
+                              Tiempo de entrega finalizado
+                            </p>
                           )}
                         </div>
 
@@ -701,7 +757,7 @@ const ActividadesAprendiz: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {actividad.puedeResponder && (
+                          {actividad.puedeResponder && actividad.activa !== false && !actividad.fechaVencida && (
                             <button
                               type="button"
                               onClick={() => setActividadResponder(actividad)}
@@ -775,52 +831,71 @@ const ActividadesAprendiz: React.FC = () => {
                             </p>
                             <div className="space-y-2">
                               {actividad.materialesApoyo && actividad.materialesApoyo.length > 0 ? (
-                                actividad.materialesApoyo.map((material) => (
-                                  <div
-                                    key={material.id}
-                                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-coal-300"
-                                  >
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                        {material.titulo || 'Material de apoyo'}
-                                      </p>
-                                      {material.descripcion && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                          {material.descripcion}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {material.urlDocumentoUrl && (
+                                actividad.materialesApoyo.flatMap((material) => {
+                                  const items: React.ReactNode[] = [];
+                                  if (material.urlDocumento || material.urlDocumentoUrl) {
+                                    items.push(
+                                      <div
+                                        key={`${material.id}-pdf`}
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <KeenIcon icon="file-pdf" className="text-red-500 dark:text-red-400 shrink-0 w-4 h-4" />
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                              {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Documento'}
+                                            </p>
+                                            <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                              PDF
+                                            </span>
+                                          </div>
+                                        </div>
                                         <a
-                                          href={getDocumentUrl(material.urlDocumentoUrl) ?? '#'}
+                                          href={getDocumentUrl(material.urlDocumentoUrl || material.urlDocumento) ?? '#'}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           onClick={(e) => {
                                             e.preventDefault();
-                                            const url = getDocumentUrl(material.urlDocumentoUrl);
-                                            if (url) {
-                                              window.open(url, '_blank', 'noopener,noreferrer');
-                                            }
+                                            const url = getDocumentUrl(material.urlDocumentoUrl || material.urlDocumento);
+                                            if (url) window.open(url, '_blank', 'noopener,noreferrer');
                                           }}
-                                          className="text-gray-500 hover:text-primary"
+                                          className="btn btn-sm btn-primary shrink-0 text-xs"
                                         >
-                                          <KeenIcon icon="file-added" className="text-sm" />
+                                          Abrir PDF
                                         </a>
-                                      )}
-                                      {material.urlAdicional && (
+                                      </div>
+                                    );
+                                  }
+                                  if (material.urlAdicional) {
+                                    items.push(
+                                      <div
+                                        key={`${material.id}-link`}
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <KeenIcon icon="exit-up-right" className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4" />
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                              {material.titulo || 'Enlace'}
+                                            </p>
+                                            <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                              Enlace
+                                            </span>
+                                          </div>
+                                        </div>
                                         <a
-                                          href={material.urlAdicional ?? '#'}
+                                          href={material.urlAdicional.startsWith('http') ? material.urlAdicional : `https://${material.urlAdicional}`}
                                           target="_blank"
-                                          rel="noreferrer"
-                                          className="text-gray-500 hover:text-primary"
+                                          rel="noopener noreferrer"
+                                          className="btn btn-sm btn-primary shrink-0 text-xs"
                                         >
-                                          <KeenIcon icon="exit-up-right" className="text-sm" />
+                                          Abrir enlace
                                         </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))
+                                      </div>
+                                    );
+                                  }
+                                  return items;
+                                })
                               ) : (
                                 <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                                   No hay material de apoyo
@@ -886,7 +961,7 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && (
+                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && actividad.activa !== false && !actividad.fechaVencida && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}
@@ -909,7 +984,7 @@ const ActividadesAprendiz: React.FC = () => {
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
                                         </p>
-                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && (
+                                        {(actividad.puedeResponder || actividad.estadoVisual === 'POR_EVALUAR' || actividad.estadoVisual === 'PENDIENTE' || actividad.estadoVisual === 'CALIFICADO') && actividad.activa !== false && !actividad.fechaVencida && (
                                           <button
                                             type="button"
                                             onClick={() => setActividadResponder(actividad)}
@@ -940,14 +1015,52 @@ const ActividadesAprendiz: React.FC = () => {
             })}
           </div>
         )}
+
+        {pagination.total > pagination.perPage && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Mostrando {(pagination.currentPage - 1) * pagination.perPage + 1} -{' '}
+              {Math.min(pagination.currentPage * pagination.perPage, pagination.total)} de {pagination.total}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPagination((p) => ({ ...p, currentPage: Math.max(1, p.currentPage - 1) }))}
+                disabled={pagination.currentPage <= 1 || loading}
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <span className="text-xs text-gray-600 dark:text-gray-300 px-2">
+                Página {pagination.currentPage} de {pagination.lastPage}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPagination((p) => ({ ...p, currentPage: Math.min(p.lastPage, p.currentPage + 1) }))}
+                disabled={pagination.currentPage >= pagination.lastPage || loading}
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {actividadResponder && (
+      {actividadResponder && actividadResponder.tipoActividad === 'cuestionario' && (
+        <ModalResponderCuestionario
+          open={true}
+          actividad={actividadResponder}
+          onClose={() => setActividadResponder(null)}
+          onSaved={() => fetchActividades(pagination.currentPage)}
+        />
+      )}
+      {actividadResponder && actividadResponder.tipoActividad !== 'cuestionario' && (
         <ResponderActividadModal
           open={true}
           actividad={actividadResponder}
           onClose={() => setActividadResponder(null)}
-          onSaved={fetchActividades}
+          onSaved={() => fetchActividades(pagination.currentPage)}
         />
       )}
     </>

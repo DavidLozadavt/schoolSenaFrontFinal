@@ -165,7 +165,20 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                         <td className="py-2 px-3 text-gray-700 dark:text-gray-300">{a.identificacion || '-'}</td>
                         <td className="py-2 px-3">
                           {a.calificacionNumerica != null && a.calificacionNumerica !== '' ? (
-                            <span className="text-green-600 dark:text-green-400 font-medium">{a.calificacionNumerica}</span>
+                            (() => {
+                              const nota = parseFloat(String(a.calificacionNumerica));
+                              const esRojo = nota <= 3.5;
+                              const esAmarillo = nota > 3.5 && nota < 4.0;
+                              const esVerde = nota >= 4.0;
+                              const clase = esRojo
+                                ? 'text-red-600 dark:text-red-400 font-medium'
+                                : esAmarillo
+                                ? 'text-amber-600 dark:text-amber-400 font-medium'
+                                : esVerde
+                                ? 'text-green-600 dark:text-green-400 font-medium'
+                                : 'text-gray-600 dark:text-gray-400 font-medium';
+                              return <span className={clase}>{a.calificacionNumerica}</span>;
+                            })()
                           ) : (
                             <span className="text-red-600 dark:text-red-400">Sin calificar</span>
                           )}
@@ -214,6 +227,7 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
         }}
         aprendiz={aprendizSeleccionado}
         onCalificado={handleCalificado}
+        tipoActividad={actividad?.tipoActividad}
       />
     </>
   );

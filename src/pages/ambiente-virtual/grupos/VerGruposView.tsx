@@ -4,6 +4,30 @@ import { Modal } from '@/components/modal';
 import axios from 'axios';
 import ModalCrearGrupo, { type Grupo } from './ModalCrearGrupo';
 
+const AVATAR_DEFAULT = '/media/brand-logos/user.svg';
+
+const getDocumentUrl = (path: string | undefined): string | null => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+const getFotoUrl = (rutaFoto: string | undefined): string => {
+  if (!rutaFoto) return AVATAR_DEFAULT;
+  const url = getDocumentUrl(rutaFoto);
+  return url || AVATAR_DEFAULT;
+};
+
+interface Integrante {
+  idMatricula: number;
+  rutaFoto: string | null;
+  identificacion: string;
+  nombreCompleto: string;
+}
+
 interface VerGruposViewProps {
   idFicha: string;
   fechaFinalClases?: string;
@@ -16,6 +40,8 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
   const [grupoEditar, setGrupoEditar] = useState<Grupo | null>(null);
   const [grupoVer, setGrupoVer] = useState<Grupo | null>(null);
   const [modalVerOpen, setModalVerOpen] = useState(false);
+  const [integrantes, setIntegrantes] = useState<Integrante[]>([]);
+  const [loadingIntegrantes, setLoadingIntegrantes] = useState(false);
 
   const fetchGrupos = useCallback(async () => {
     if (!idFicha) return;
@@ -129,6 +155,16 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
                   onClick={() => {
                     setGrupoVer(grupo);
                     setModalVerOpen(true);
+                    setLoadingIntegrantes(true);
+                    setIntegrantes([]);
+                    if (grupo.id) {
+                      axios.get(`fichas/${idFicha}/grupos/${grupo.id}/integrantes`)
+                        .then((r) => setIntegrantes(r.data?.data ?? []))
+                        .catch(() => setIntegrantes([]))
+                        .finally(() => setLoadingIntegrantes(false));
+                    } else {
+                      setLoadingIntegrantes(false);
+                    }
                   }}
                   className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
                   title="Ver"
@@ -172,10 +208,49 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
             <div className="absolute inset-0 bg-black/50" onClick={() => { setModalVerOpen(false); setGrupoVer(null); }} />
             <div className="relative bg-white dark:bg-coal-300 rounded-xl shadow-xl max-w-md w-full p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{grupoVer.nombreGrupo}</h2>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm mb-4">
                 <p><span className="text-gray-500 dark:text-gray-400">Cantidad de participantes:</span> {grupoVer.cantidadParticipantes ?? grupoVer.cantidadEstudiantes}</p>
                 {grupoVer.descripcion && (
                   <p><span className="text-gray-500 dark:text-gray-400">Descripción:</span> {grupoVer.descripcion}</p>
+                )}
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Integrantes</p>
+                {loadingIntegrantes ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                  </div>
+                ) : integrantes.length === 0 ? (
+                  <p className="text-xs text-gray-500 py-2">No hay integrantes</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {integrantes.map((i) => (
+                      <div key={i.idMatricula} className="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-coal-500/30">
+                        <img src={getFotoUrl(i.rutaFoto ?? undefined)} alt={i.nombreCompleto} className="w-8 h-8 rounded-full object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{i.nombreCompleto}</p>
+                          {i.identificacion && <p className="text-xs text-gray-500">{i.identificacion}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!grupoVer?.id || !window.confirm(`¿Eliminar a ${i.nombreCompleto} del grupo?`)) return;
+                            try {
+                              await axios.delete(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes/${i.idMatricula}`);
+                              const r = await axios.get(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes`);
+                              setIntegrantes(r.data?.data ?? []);
+                            } catch (e: any) {
+                              alert(e.response?.data?.error || 'Error al eliminar integrante');
+                            }
+                          }}
+                          className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
+                          title="Eliminar del grupo"
+                        >
+                          <KeenIcon icon="trash" className="text-sm" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex gap-2 mt-6">

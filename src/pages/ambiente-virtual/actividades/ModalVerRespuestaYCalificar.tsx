@@ -18,13 +18,16 @@ interface ModalVerRespuestaYCalificarProps {
   onClose: () => void;
   aprendiz: AprendizCalificacion | null;
   onCalificado: () => void;
+  /** Si es 'con evidencia', solo se permite calificar si hay archivo o comentario del aprendiz */
+  tipoActividad?: string | null;
 }
 
 const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = ({
   open,
   onClose,
   aprendiz,
-  onCalificado
+  onCalificado,
+  tipoActividad
 }) => {
   const [calificacion, setCalificacion] = useState<string>('');
   const [comentario, setComentario] = useState('');
@@ -64,6 +67,9 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
 
   const docUrl = getDocumentUrl(aprendiz.archivo ?? undefined);
   const isPdf = (aprendiz.archivo || '').toLowerCase().endsWith('.pdf');
+  const requiereEvidencia = tipoActividad === 'con evidencia';
+  const tieneEvidencia = !!(String(aprendiz.archivo ?? '').trim() || String(aprendiz.ComentarioEstudiante ?? '').trim());
+  const puedeCalificar = !requiereEvidencia || tieneEvidencia;
 
   return (
     <Modal open={open} onClose={onClose} zIndex={120}>
@@ -111,6 +117,13 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
             </div>
           )}
 
+          {requiereEvidencia && !tieneEvidencia && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                Las actividades con evidencia requieren que el aprendiz adjunte un archivo o enlace antes de poder calificar.
+              </p>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Calificación numérica (1 a 5, a criterio del instructor)
@@ -148,7 +161,7 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
             <button
               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               onClick={handleAceptar}
-              disabled={guardando}
+              disabled={guardando || !puedeCalificar}
             >
               {guardando ? 'Guardando...' : '+ ACEPTAR'}
             </button>

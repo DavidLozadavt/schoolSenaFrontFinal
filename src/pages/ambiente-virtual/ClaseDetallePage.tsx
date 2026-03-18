@@ -4,7 +4,7 @@ import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
-import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ListaActividades, type Actividad } from './actividades';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ModalAmpliarActividad, ListaActividades, type Actividad } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
@@ -604,6 +604,8 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
   const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
+  const [modalAmpliarOpen, setModalAmpliarOpen] = useState(false);
+  const [actividadParaAmpliar, setActividadParaAmpliar] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
 
   /**
@@ -1573,6 +1575,11 @@ const ClaseDetallePage: React.FC = () => {
                       setModalCrearActividadOpen(true);
                     }
                   }}
+                  onAmpliar={(act) => {
+                    setActividadParaAmpliar(act);
+                    setModalAmpliarOpen(true);
+                  }}
+                  mostrarCrearCuestionario={false}
                 />
               )}
 
@@ -1684,6 +1691,16 @@ const ClaseDetallePage: React.FC = () => {
         actividad={actividadParaVerAprendices}
         idFicha={ficha?.id ?? 0}
         tituloActividad={actividadParaVerAprendices?.tituloActividad}
+      />
+      <ModalAmpliarActividad
+        open={modalAmpliarOpen}
+        onClose={() => {
+          setModalAmpliarOpen(false);
+          setActividadParaAmpliar(null);
+        }}
+        actividad={actividadParaAmpliar}
+        idFicha={ficha?.id ?? 0}
+        onSave={() => fetchActividades()}
       />
     </Container>
   );
