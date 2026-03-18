@@ -117,7 +117,7 @@ const ContratoPage = () => {
           }
           return typeof program === 'number' ? program : null;
         })
-        .filter((id): id is number => id !== null);
+        .filter((id:number | null): id is number => id !== null);
       
       const programIdsString = programIds.sort().join(',');
       // Solo actualizar si realmente cambió para evitar recargas innecesarias
