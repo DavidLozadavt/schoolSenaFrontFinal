@@ -46,7 +46,6 @@ interface Clase {
   idHorarioMateria: number;
   idGradoMateria: number;
   idMateria: number; 
-  sesiones_restantes?: number;
 }
 
 // Helper común: convierte idDia de BD (1=Lunes ... 7=Domingo) a número JS (0=Domingo ... 6=Sábado)
