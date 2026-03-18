@@ -8,18 +8,18 @@ import axios from 'axios';
 
 interface IDropdownNotificationProps {
   menuTtemRef: any;
-  notifications: any[];
-  loading: boolean;
-  error: string;
-  marcarComoLeida: (id: number) => void;
+  notifications?: any[];
+  loading?: boolean;
+  error?: string;
+  marcarComoLeida?: (id: number) => void;
 }
 
 const DropdownNotifications = ({
   menuTtemRef,
-  notifications,
-  loading,
-  error,
-  marcarComoLeida
+  notifications=[],
+  loading= false,
+  error = '',
+  marcarComoLeida = () => {}
 }: IDropdownNotificationProps) => {
   
 
