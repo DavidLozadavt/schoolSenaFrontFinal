@@ -162,9 +162,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         
         if (ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime()) {
           // Verificar si estamos dentro del rango de horas
-          const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-          const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+          let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+          let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
           
+          // Ajuste de 12h a 24h basado en jornada (el backend envía 12h sin indicador AM/PM)
+          const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
+          const esTardeONoche = lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+          if (esTardeONoche && hIni < 12) hIni += 12;
+          if (esTardeONoche && hFin < 12) hFin += 12;
+
           const horaInicio = new Date(ahora);
           horaInicio.setHours(hIni, mIni, 0, 0);
           const horaFinal = new Date(ahora);
@@ -174,16 +180,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
             horaFinal.setDate(horaFinal.getDate() + 1);
           }
 
-        // Si estamos dentro del horario de la clase
-        if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
-          return 'EN CURSO';
-        }
-        
-        // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
-        // No esperar a que exista sesión en BD, se creará en la próxima sincronización
-        if (ahora.getTime() > horaFinal.getTime()) {
-          return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
-        }
+          // Si estamos dentro del horario de la clase
+          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
+            return 'EN CURSO';
+          }
+          
+          // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
+          if (ahora.getTime() > horaFinal.getTime()) {
+            return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
+          }
         }
       }
     }
@@ -216,9 +221,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       
       if (esDiaDeClase) {
         // Verificar si estamos dentro del rango de horas
-        const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-        const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+        let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+        let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
         
+        // Ajuste de 12h a 24h basado en jornada
+        const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
+        const esTardeONoche = lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+        if (esTardeONoche && hIni < 12) hIni += 12;
+        if (esTardeONoche && hFin < 12) hFin += 12;
+
         const horaInicio = new Date(ahora);
         horaInicio.setHours(hIni, mIni, 0, 0);
         const horaFinal = new Date(ahora);
@@ -235,7 +246,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         }
         
         // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
-        // No esperar a que exista sesión en BD, se creará en la próxima sincronización
         if (ahora.getTime() > horaFinal.getTime()) {
           return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
         }
@@ -502,7 +512,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     while (true) {
       if (fechaFin && cursor.getTime() > fechaFin.getTime()) break;
 
-      const key = cursor.toISOString().split('T')[0];
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
       if (!completadasSet.has(key)) {
         pendientes.push(new Date(cursor));
         if (pendientes.length >= maxPendientes) break;

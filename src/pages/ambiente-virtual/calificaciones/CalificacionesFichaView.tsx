@@ -74,7 +74,8 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                 if (idInstructor) {
                     const response = await axios.get(`calificaciones_ficha_by_instructor/${idInstructor}`, {
                         params: {
-                            idMateria: typeof idMateria === 'string' && idMateria ? parseInt(idMateria) : 0,
+                            idFicha: idFicha,
+                            idMateria: 0, // Envíamos 0 para mostrar todos los RAPs de la ficha en la vista general
                             page: 1,
                             per_page: 500,
                             search: ''

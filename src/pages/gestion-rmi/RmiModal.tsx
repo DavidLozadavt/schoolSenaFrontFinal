@@ -7,6 +7,7 @@ import logoSena from '/media/images/sena/logo-sena.png';
 import { Instructor } from './interfaceInstructor';
 import { Calendario } from '../programas-academicos/components/malla-curricular/Calendario';
 import logoSenaExcel from '/media/images/sena/logo-sena-excel-rmi.png';
+import { enqueueSnackbar } from 'notistack';
 
 interface RmiModalProps {
   isOpen: boolean;
@@ -14,9 +15,10 @@ interface RmiModalProps {
   instructor: Instructor;
   periodo?: string;
   fichas: any[];
+  onRefresh?: () => void;
 }
 
-const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, periodo, fichas }) => {
+const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, periodo, fichas, onRefresh }) => {
   if (!isOpen) return null;
 
   const { persona } = instructor;
@@ -51,6 +53,21 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
       setCalendarioOpen(true);
     } catch (error) {
       console.error('Error cargando horarios:', error);
+    }
+  };
+
+  const [loadingAssociation, setLoadingAssociation] = React.useState<number | null>(null);
+
+  const handleEstadoAsociacion = async (idGradoMateria: number, estado: boolean) => {
+    setLoadingAssociation(idGradoMateria);
+    try {
+      const res = await axios.patch(`set-estado-asociacion/${idGradoMateria}`, { estado });
+      enqueueSnackbar(res.data.message || 'Estado de asociación actualizado correctamente', { variant: 'success' });
+      onRefresh?.();
+    } catch (error) {
+      enqueueSnackbar('Error al actualizar el estado de asociación', { variant: 'error' });
+    } finally {
+      setLoadingAssociation(null);
     }
   };
 
@@ -736,7 +753,13 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                             </td>
                             <td className="px-3 py-2 text-center">
                               <div className="switch">
-                                <input type="checkbox" value={r.estadoAsociacion} checked={r.estadoAsociacion} title='Asociado en Sofía Plus'/>
+                                <input 
+                                  type="checkbox"
+                                  checked={r.estadoAsociacion} 
+                                  title='Asociado en Sofía Plus'
+                                  onChange={(e)=> handleEstadoAsociacion(r.idGradoMateria , e.target.checked)}
+                                  disabled={loadingAssociation === r.idGradoMateria}
+                                />
                               </div>
                             </td>
                             <td className="px-3 py-2 text-center">
