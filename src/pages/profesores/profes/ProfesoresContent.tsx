@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
+import { useAuthContext } from "@/auth/useAuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,67 +78,17 @@ function getDescripcion(act: Actividad): string | undefined {
 
 // ─── Mini Charts ──────────────────────────────────────────────────────────────
 
-interface BarData { label: string; value: number; color: string }
-const BarChart: React.FC<{ data: BarData[]; height?: number }> = ({ data, height = 120 }) => {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  const bw = 100 / (data.length * 2 - 1);
-  return (
-    <div className="w-full" style={{ height }}>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-        {data.map((d, i) => {
-          const bh = (d.value / max) * 90;
-          return <rect key={i} x={i * bw * 2} y={100 - bh} width={bw} height={bh} rx="2" className={d.color} fill="currentColor" opacity={0.85} />;
-        })}
-      </svg>
-      <div className="flex justify-around mt-1">
-        {data.map((d, i) => (
-          <span key={i} className="text-[9px] text-gray-400 dark:text-gray-500 font-semibold text-center" style={{ width: `${100 / data.length}%` }}>
-            {d.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-interface DonutSlice { label: string; value: number; color: string }
-const DonutChart: React.FC<{ slices: DonutSlice[]; size?: number }> = ({ slices, size = 120 }) => {
-  const total = slices.reduce((a, s) => a + s.value, 0) || 1;
-  const r = 38; const cx = 50; const cy = 50;
-  const circ = 2 * Math.PI * r;
-  let off = 0;
-  const segs = slices.map((s) => { const dash = (s.value / total) * circ; const seg = { ...s, dash, gap: circ - dash, off }; off += dash; return seg; });
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth="12" className="text-gray-100 dark:text-gray-700" />
-      {segs.map((s, i) => (
-        <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth="12"
-          strokeDasharray={`${s.dash} ${s.gap}`} strokeDashoffset={circ / 4 - s.off} strokeLinecap="butt"
-          style={{ transition: "stroke-dasharray 0.5s ease" }} />
-      ))}
-      <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" className="fill-gray-700 dark:fill-gray-200" fontSize="13" fontWeight="800">{total}</text>
-      <text x="50" y="57" textAnchor="middle" dominantBaseline="middle" fontSize="5" className="fill-gray-400">total</text>
-    </svg>
-  );
-};
-
-const StatCard: React.FC<{ icon: string; label: string; value: string | number; bg: string; text: string; border: string; sub?: string }> =
-  ({ icon, label, value, bg, text, border, sub }) => (
-    <div className={`relative overflow-hidden rounded-lg shadow-md border-2 p-5 ${bg} ${border}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${text} opacity-70`}>{label}</p>
-          <p className={`text-4xl font-extrabold leading-none ${text}`}>{value}</p>
-          {sub && <p className={`text-xs mt-1 ${text} opacity-60`}>{sub}</p>}
-        </div>
-        <span className={`text-4xl opacity-20 select-none ${text}`}>{icon}</span>
-      </div>
-    </div>
-  );
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const ProfesoresContent: React.FC = () => {
+  const { user, persona } = useAuthContext();
+  const userName = persona
+    ? [persona.nombre1, persona.nombre2, persona.apellido1, persona.apellido2].filter(Boolean).join(' ')
+    : (user?.persona
+      ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
+      : 'Instructor');
+
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
@@ -151,9 +103,9 @@ const ProfesoresContent: React.FC = () => {
       .catch(() => setFichas([]));
   }, []);
 
-  // ── Actividades del instructor ──────────────────────────────────────────
+  // ── Actividades por evaluar ──────────────────────────────────────────
   useEffect(() => {
-    axios.get("actividades")
+    axios.get("actividades-por-evaluar")
       .then((r) => {
         const d = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
         setActividades(d);
@@ -161,127 +113,84 @@ const ProfesoresContent: React.FC = () => {
       .catch(() => setActividades([]));
   }, []);
 
+  // Filtramos para asegurar que solo se muestren las enviadas
+  const actividadesPorEvaluar = useMemo(() =>
+    actividades.filter(act => {
+      const label = getEstadoLabel(act.estado);
+      return label === 'ENVIADO';
+    }),
+    [actividades]
+  )
+
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  const totalFichas   = fichas.length;
-  const totalRAPs     = fichas.reduce((a, f) => a + f.resultados.length, 0);
+  const totalFichas = fichas.length;
+  const totalRAPs = fichas.reduce((a, f) => a + f.resultados.length, 0);
   const totalSesiones = fichas.reduce((a, f) => a + f.resultados.reduce((b, r) => b + r.cantidadSesiones, 0), 0);
-  const totalHoras    = fichas.reduce((a, f) => a + f.resultados.reduce((b, r) => b + r.duracionHoras, 0), 0);
+  const totalHoras = fichas.reduce((a, f) => a + f.resultados.reduce((b, r) => b + r.duracionHoras, 0), 0);
 
-  // ── Actividades por estado ────────────────────────────────────────────────
-  const actsPorEstado = useMemo(() => {
-    const map: Record<string, number> = {};
-    actividades.forEach((a) => {
-      const e = getEstadoLabel(a.estado);
-      map[e] = (map[e] || 0) + 1;
-    });
-    return map;
-  }, [actividades]);
 
-  const donutActs: DonutSlice[] = [
-    { label: "Activo",    value: actsPorEstado["ACTIVO"]    || 0, color: "#16a34a" },
-    { label: "Borrador",  value: actsPorEstado["BORRADOR"]  || 0, color: "#9ca3af" },
-    { label: "Publicado", value: actsPorEstado["PUBLICADO"] || 0, color: "#2563eb" },
-    { label: "Pendiente", value: actsPorEstado["PENDIENTE"] || 0, color: "#d97706" },
-    { label: "Inactivo",  value: actsPorEstado["INACTIVO"]  || 0, color: "#6b7280" },
-  ].filter((s) => s.value > 0);
-
-  // ── Gráficas ──────────────────────────────────────────────────────────────
-  const sesXdia = useMemo(() => {
-    const map: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-    fichas.forEach((f) => f.resultados.forEach((r) => { if (r.idDia >= 1 && r.idDia <= 6) map[r.idDia] += r.cantidadSesiones; }));
-    return map;
-  }, [fichas]);
-
-  const barDias: BarData[] = [1, 2, 3, 4, 5, 6].map((d) => ({
-    label: DIAS[d], value: sesXdia[d],
-    color: d === 6 ? "text-orange-400" : "text-blue-600 dark:text-blue-400",
-  }));
-
-  const donutRaps: DonutSlice[] = fichas.map((f, i) => ({
-    label: f.codigoFicha, value: f.resultados.length, color: DONUT_COLS[i % DONUT_COLS.length],
-  }));
 
   // ─── Badge de estado de actividad ─────────────────────────────────────────
   const BADGE: Record<string, string> = {
-    ACTIVO:    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    BORRADOR:  "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    ACTIVO: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+    ENVIADO: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+    BORRADOR: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
     PUBLICADO: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     PENDIENTE: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-    INACTIVO:  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+    INACTIVO: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 space-y-8 min-h-screen bg-gray-50 dark:bg-coal-500">
+    <div className="p-4 md:p-6 space-y-6 min-h-screen">
       <>
-        {/* ══ KPIs ══ */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard icon="📋" label="Fichas"      value={totalFichas}          sub="asignadas"    bg="bg-blue-100 dark:bg-blue-900/30"   text="text-blue-700 dark:text-blue-300"   border="border-blue-600 dark:border-blue-500" />
-          <StatCard icon="🎯" label="RAPs"        value={totalRAPs}            sub="resultados"   bg="bg-green-100 dark:bg-green-900/30"  text="text-green-700 dark:text-green-300"  border="border-green-600 dark:border-green-500" />
-          <StatCard icon="📅" label="Sesiones"    value={totalSesiones}        sub="del mes"      bg="bg-orange-100 dark:bg-orange-900/30" text="text-orange-700 dark:text-orange-300" border="border-orange-500 dark:border-orange-400" />
-          <StatCard icon="⏱️" label="Horas"       value={totalHoras.toFixed(1)} sub="de formación" bg="bg-amber-100 dark:bg-amber-900/30"  text="text-amber-700 dark:text-amber-300"  border="border-amber-500 dark:border-amber-400" />
-          <StatCard icon="📝" label="Actividades" value={actividades.length}   sub="creadas"      bg="bg-gray-100 dark:bg-gray-800"        text="text-gray-700 dark:text-gray-300"    border="border-gray-500 dark:border-gray-400" />
-        </div>
+        {/* ══ HEADER PERSONALIZADO ═════════════════════════════════════ */}
+        <header className="mb-2">
+          <h1 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight flex items-baseline gap-2">
+            Dashboard de <span className="text-blue-600 dark:text-blue-400">Instructor</span>
+          </h1>
+          <p className="text-sm text-gray-500 font-medium">
+            Bienvenido, <span className="text-gray-900 dark:text-gray-200 font-bold">{userName}</span>
+          </p>
+        </header>
 
-        {/* ══ GRÁFICAS ══ */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Sesiones por día */}
-          <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">📅 Sesiones por día</h3>
-            {totalSesiones === 0
-              ? <p className="text-center text-gray-400 text-xs py-10">Sin sesiones en este periodo</p>
-              : <BarChart data={barDias} height={140} />
-            }
-          </div>
-
-          {/* RAPs por ficha */}
-          <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5 flex flex-col items-center">
-            <h3 className="self-start text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">🎯 RAPs por ficha</h3>
-            {totalRAPs === 0
-              ? <p className="text-center text-gray-400 text-xs py-10">Sin RAPs registrados</p>
-              : (
-                <>
-                  <DonutChart slices={donutRaps} size={130} />
-                  <ul className="mt-3 space-y-1.5 w-full">
-                    {donutRaps.map((s, i) => (
-                      <li key={i} className="flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
-                          <span className="text-gray-600 dark:text-gray-300 font-semibold truncate max-w-[110px]">{s.label}</span>
-                        </span>
-                        <span className="font-extrabold text-gray-800 dark:text-white">{s.value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )
-            }
-          </div>
-
-          {/* Actividades por estado */}
-          <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5 flex flex-col items-center">
-            <h3 className="self-start text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">📝 Actividades por estado</h3>
-            {donutActs.length === 0
-              ? <p className="text-center text-gray-400 text-xs py-10">Sin actividades</p>
-              : (
-                <>
-                  <DonutChart slices={donutActs} size={130} />
-                  <ul className="mt-3 space-y-1.5 w-full">
-                    {donutActs.map((s, i) => (
-                      <li key={i} className="flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
-                          <span className="text-gray-600 dark:text-gray-300 font-semibold capitalize">{s.label}</span>
-                        </span>
-                        <span className="font-extrabold text-gray-800 dark:text-white">{s.value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )
-            }
+        {/* ══ KPI General consolidado ══ */}
+        <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border-2 border-blue-500 p-5 w-full mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 md:gap-8">
+            <div className="text-center md:text-left">
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-blue-500 dark:text-blue-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">📋</span> Fichas</p>
+              <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-300 leading-none">{totalFichas}</p>
+              <p className="text-xs mt-1 text-gray-500 opacity-80">asignadas</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+            <div className="text-center md:text-left">
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-green-500 dark:text-green-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">🎯</span> RAPs</p>
+              <p className="text-3xl font-extrabold text-green-600 dark:text-green-300 leading-none">{totalRAPs}</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+            <div className="text-center md:text-left">
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-orange-500 dark:text-orange-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">📅</span> Sesiones</p>
+              <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-300 leading-none">{totalSesiones}</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+            <div className="text-center md:text-left">
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-amber-500 dark:text-amber-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">⏱️</span> Horas</p>
+              <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-300 leading-none">{totalHoras.toFixed(1)}</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
+            <Link 
+              to={fichas.length > 0 && fichas[0].resultados.length > 0 ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/actividades"} 
+              state={{ activeMenu: 'actividades-asignadas' }}
+              className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:-translate-y-1 transition-all duration-300 p-2 rounded-xl group"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-purple-500 dark:text-purple-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm transition-transform group-hover:scale-110">📝</span> Por evaluar</p>
+              <p className="text-3xl font-extrabold text-purple-600 dark:text-purple-300 leading-none">{actividadesPorEvaluar.length}</p>
+              <p className="text-xs mt-1 text-gray-500 opacity-80 pl-8">pendientes</p>
+            </Link>
           </div>
         </div>
+
+
 
         {/* ══ FICHAS + RAPs ══ */}
         <section className="space-y-4">
@@ -300,7 +209,7 @@ const ProfesoresContent: React.FC = () => {
           {fichas.map((ficha, fi) => {
             const isOpen = expanded[ficha.idFicha];
             const horasF = ficha.resultados.reduce((a, r) => a + r.duracionHoras, 0);
-            const sesF   = ficha.resultados.reduce((a, r) => a + r.cantidadSesiones, 0);
+            const sesF = ficha.resultados.reduce((a, r) => a + r.cantidadSesiones, 0);
             return (
               <div key={ficha.idFicha} className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 overflow-hidden">
                 <button
@@ -365,28 +274,58 @@ const ProfesoresContent: React.FC = () => {
           })}
         </section>
 
-        {/* ══ ACTIVIDADES ══ */}
+        {/* ══ ACTIVIDADES POR EVALUAR ══ */}
         <section className="space-y-4">
           <h2 className="text-base font-extrabold text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
             <span className="w-1 h-5 rounded-full bg-amber-500 inline-block" />
-            Actividades asignadas
+            Actividades por evaluar
           </h2>
 
-          {actividades.length === 0 ? (
+          {actividadesPorEvaluar.length === 0 ? (
             <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-              <span className="text-4xl">📝</span>
-              <p className="mt-3 text-gray-500 dark:text-gray-400 font-semibold">Sin actividades registradas</p>
+              <span className="text-4xl">✅</span>
+              <p className="mt-3 text-gray-500 dark:text-gray-400 font-semibold">No hay actividades pendientes por calificar</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {actividades.map((act) => {
-                const titulo  = getTitulo(act);
-                const desc    = getDescripcion(act);
-                const estado  = getEstadoLabel(act.estado);
+              {actividadesPorEvaluar.map((act) => {
+                const titulo = getTitulo(act);
+                const desc = getDescripcion(act);
+                const estado = getEstadoLabel(act.estado);
+                
+                // Buscar el idHorarioMateria iterando sobre las fichas y comparando el nombre de la materia
+                let idHorarioMatch = "";
+                const nombreMat = act.materia?.nombreMateria?.toLowerCase() || "";
+                for (const ficha of fichas) {
+                  for (const rap of ficha.resultados) {
+                    if (
+                      rap.competencia?.toLowerCase() === nombreMat ||
+                      rap.resultadoAprendizaje?.toLowerCase() === nombreMat
+                    ) {
+                      idHorarioMatch = rap.idHorario.toString();
+                      break;
+                    }
+                  }
+                  if (idHorarioMatch) break;
+                }
+                
+                // Si no encontramos, enviamos al primero por defecto
+                if (!idHorarioMatch && fichas.length > 0 && fichas[0].resultados.length > 0) {
+                  idHorarioMatch = fichas[0].resultados[0].idHorario.toString();
+                }
+
+                // URL destino: si hay idHorario, lo llevamos a la clase. Si no, a las actividades generales
+                const targetUrl = idHorarioMatch ? `/ambiente-virtual/clase/${idHorarioMatch}` : "/ambiente-virtual/actividades";
+
                 return (
-                  <div key={act.id} className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-4 hover:shadow-lg transition-shadow flex flex-col gap-3">
+                  <Link 
+                    key={act.id} 
+                    to={targetUrl} 
+                    state={{ activeMenu: 'actividades-asignadas' }} // Para que abra automáticamente la pestaña
+                    className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-4 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col gap-3 group"
+                  >
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-bold text-gray-900 dark:text-white text-sm leading-snug flex-1 line-clamp-2">{titulo}</h4>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm leading-snug flex-1 line-clamp-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{titulo}</h4>
                       <span className={`shrink-0 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${BADGE[estado] || BADGE["BORRADOR"]}`}>
                         {estado}
                       </span>
@@ -418,7 +357,7 @@ const ProfesoresContent: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

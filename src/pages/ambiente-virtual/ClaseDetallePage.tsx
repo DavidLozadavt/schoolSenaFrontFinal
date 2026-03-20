@@ -293,7 +293,7 @@ const CalendarComponent: React.FC<{
 
     // Verificar si una fecha tiene sesión completada
     const tieneSesionCompletada = (fecha: Date): boolean => {
-      const fechaStr = fecha.toISOString().split('T')[0];
+      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
       return sesionesCompletadas.some(sesion => {
         if (!sesion.fechaSesion) return false;
         const sesionFecha = sesion.fechaSesion.split('T')[0];
@@ -303,7 +303,7 @@ const CalendarComponent: React.FC<{
 
     // Determinar el estado de una fecha específica
     const getEstadoFecha = (fecha: Date): 'completada' | 'pendiente' | 'en_curso' => {
-      const fechaStr = fecha.toISOString().split('T')[0];
+      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       const fechaComparar = new Date(fecha);
@@ -361,7 +361,7 @@ const CalendarComponent: React.FC<{
 
       if (esFechaClase) {
         // Obtener el idHorarioMateria de la fecha clickeada
-        const fechaStr = date.toISOString().split('T')[0];
+        const fechaStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         const idHorario = mapaFechasHorarios.get(fechaStr);
 
         // Si encontramos el idHorarioMateria, navegar al detalle
@@ -574,7 +574,7 @@ const ClaseDetallePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeMenu, setActiveMenu] = useState<MenuOption>('estudiantes');
+  const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -667,8 +667,19 @@ const ClaseDetallePage: React.FC = () => {
     }
 
     // Verificar si estamos dentro del rango de horas de la clase
-    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+
+    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
+    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
+    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+
+    if (esTardeOEnoche && hIni < 12) {
+      hIni += 12;
+    }
+    if (esTardeOEnoche && hFin < 12) {
+      hFin += 12;
+    }
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(hIni, mIni, 0, 0);
@@ -897,7 +908,7 @@ const ClaseDetallePage: React.FC = () => {
 
     while (fechaActual <= fechaFin) {
       if (fechaActual.getDay() === diaNumero) {
-        return fechaActual.toISOString().split('T')[0];
+        return `${fechaActual.getFullYear()}-${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${String(fechaActual.getDate()).padStart(2, '0')}`;
       }
       fechaActual.setDate(fechaActual.getDate() + 1);
     }
@@ -1026,8 +1037,20 @@ const ClaseDetallePage: React.FC = () => {
     if (!esDiaDeClase) return false;
 
     // 3. Hora actual dentro del rango horaInicial–horaFinal del backend (sin ajuste de jornada)
-    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+
+    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
+    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
+    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+
+    if (esTardeOEnoche && hIni < 12) {
+      hIni += 12;
+    }
+    if (esTardeOEnoche && hFin < 12) {
+      hFin += 12;
+    }
+
     const inicio = new Date(ahora); inicio.setHours(hIni, mIni, 0, 0);
     const fin = new Date(ahora); fin.setHours(hFin, mFin, 0, 0);
     if (fin.getTime() < inicio.getTime()) fin.setDate(fin.getDate() + 1); // cruza medianoche
