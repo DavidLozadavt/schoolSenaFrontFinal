@@ -197,7 +197,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       const response = await axios.get(
         `get_student_by_id_materia`,
         {
-          params: { data_encoded: dataEncoded }
+          params: { data_encoded: dataEncoded, ts: new Date().getTime() }
         }
       );
 
@@ -208,35 +208,40 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       if (Array.isArray(response.data)) {
         console.log('[StudentList] Primer estudiante:', response.data[0]);
         // Obtener la fecha de hoy en formato YYYY-MM-DD para comparar con fechaSesion
-        const hoyStr = new Date().toISOString().split('T')[0];
+        // Obtener la fecha de hoy en formato YYYY-MM-DD local
+        const hoy = new Date();
+        const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
         const mappedStudents = response.data.map((s: any) => {
           let asistioVal = false;
           if (s.asistencias && s.asistencias.length > 0) {
-            // Buscar la asistencia de la sesión EXACTA de HOY:
-            // - Misma fecha (hoy)
-            // - Mismo horario (idHorarioMateria) si está disponible
-            //   → distingue dos clases de la misma materia el mismo día
-            const asistenciaHoy = s.asistencias.find((ast: any) => {
+            // Buscar TODAS las asistencias de la sesión EXACTA de HOY:
+            const asistenciasHoy = s.asistencias.filter((ast: any) => {
               const sm = ast.sesion_materia ?? ast.sesionMateria ?? null;
               const fechaSesion = sm?.fechaSesion ?? sm?.fecha_sesion ?? ast.fecha_sesion ?? null;
               if (!fechaSesion) return false;
 
-              const fechaMatch = fechaSesion.split('T')[0] === hoyStr;
+              // Ensure we just safely grab the first 10 chars "YYYY-MM-DD"
+              const fechaMatch = String(fechaSesion).substring(0, 10) === hoyStr;
               if (!fechaMatch) return false;
 
               // Si tenemos el horario exacto, verificar que la sesión pertenezca a él
-              // (evita que la asistencia de la clase de las 8am aparezca en la de las 2pm)
-              if (materiaData.idHorarioMateria && sm?.idHorarioMateria !== undefined) {
-                return sm.idHorarioMateria === materiaData.idHorarioMateria;
+              const idHorarioMateriaBackend = sm?.idHorarioMateria ?? sm?.id_horario_materia;
+              if (materiaData.idHorarioMateria && idHorarioMateriaBackend !== undefined && idHorarioMateriaBackend !== null) {
+                return Number(idHorarioMateriaBackend) === Number(materiaData.idHorarioMateria);
               }
 
               return true; // sin idHorarioMateria, cualquier sesión de hoy sirve
             });
 
-            if (asistenciaHoy) {
-              // Hay registro de esta sesión de hoy → usar su valor
-              asistioVal = asistenciaHoy.asistio === 1 || asistenciaHoy.asistio === true;
+            if (asistenciasHoy && asistenciasHoy.length > 0) {
+              // Si hay registros de esta sesión, priorizar si ALGUNO dice que asistió
+              asistioVal = asistenciasHoy.some((ast: any) => 
+                ast.asistio === 1 || 
+                ast.asistio === '1' || 
+                ast.asistio === true || 
+                String(ast.asistio).toLowerCase() === 'true'
+              );
             } else {
               // Sin registro para esta sesión → estado inicial Falta
               asistioVal = false;
