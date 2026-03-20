@@ -417,7 +417,7 @@ const PerfilPage = () => {
       <div className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold text-lg">
-            {step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)'}
+            {needsPasswordUpdate ? (step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)') : 'Editar Información Personal'}
           </h2>
           <div className="flex gap-2">
             <button
@@ -432,7 +432,7 @@ const PerfilPage = () => {
               onClick={handleSubmitPropietarios}
               disabled={saving || step === 2}
             >
-              {saving ? 'Guardando...' : step === 1 ? 'Continuar al Paso 2' : 'Guardado'}
+              {saving ? 'Guardando...' : (needsPasswordUpdate ? (step === 1 ? 'Continuar al Paso 2' : 'Guardado') : 'Actualizar')}
             </button>
           </div>
         </div>
