@@ -6,7 +6,7 @@ import axios from 'axios';
 interface Pregunta {
   id: number;
   descripcion: string;
-  tipoPregunta?: { tipoPregunta: string };
+  tipoPregunta?: { tipoPregunta?: string };
   urlDocumento?: string | null;
   respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta: boolean }>;
 }
@@ -21,7 +21,7 @@ interface ActividadAprendiz {
   idCalificacionActividad: number;
   idActividad: number;
   tituloActividad?: string;
-  tipoActividad?: string;
+  tipoActividad?: string | null;
   preguntas?: Pregunta[];
 }
 
