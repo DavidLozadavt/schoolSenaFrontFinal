@@ -1322,13 +1322,13 @@ const ClaseDetallePage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setZoomFoto({
-                                src: instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png',
+                                src: instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png',
                                 alt: nombreCompletoInstructor
                               })}
                               className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
                             >
                               <img
-                                src={instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png'}
+                                src={instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png'}
                                 alt={nombreCompletoInstructor}
                                 className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
                               />
