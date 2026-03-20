@@ -16,6 +16,7 @@ interface MaterialApoyo {
 interface ModalMaterialApoyoProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: (message: string) => void;
   actividad: Actividad | null;
 }
 
@@ -50,7 +51,7 @@ const getDocumentUrl = (url?: string | null): string | null => {
 
 const ITEMS_PER_PAGE = 10;
 
-const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, actividad }) => {
+const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad }) => {
   const [materiales, setMateriales] = useState<MaterialApoyo[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -124,6 +125,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       await axios.post(`actividades/${actividad.id}/materiales-apoyo`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      onSuccess?.(link.trim() ? 'Link agregado correctamente' : 'Material de apoyo agregado correctamente');
       fetchMateriales();
       setCrearOpen(false);
       setTitulo('');

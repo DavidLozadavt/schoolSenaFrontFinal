@@ -98,7 +98,7 @@ const Breadcrumbs = () => {
   };
 
   return (
-    <div className="flex items-center gap-1 text-xs lg:text-sm font-normal mb-2.5 lg:mb-0">
+    <div className="flex items-center gap-1 text-xs lg:text-sm font-normal mb-2.5 lg:mb-0 pl-4 lg:pl-6">
       {renderItems()}
     </div>
   );

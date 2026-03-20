@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { KeenIcon } from '@/components';
+import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
-import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ListaActividades, type Actividad } from './actividades';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ModalAmpliarActividad, ListaActividades, type Actividad } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
@@ -604,7 +604,16 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
   const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
+  const [modalAmpliarOpen, setModalAmpliarOpen] = useState(false);
+  const [actividadParaAmpliar, setActividadParaAmpliar] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
 
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
@@ -1307,13 +1316,24 @@ const ClaseDetallePage: React.FC = () => {
                             strokeLinecap="round"
                           />
                         </svg>
-                        {/* Foto del instructor */}
+                        {/* Foto del instructor - hover: tooltip con nombre, click: zoom */}
                         <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                          <img
-                            src={instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png'}
-                            alt={nombreCompletoInstructor}
-                            className="w-full h-full rounded-full object-cover"
-                          />
+                          <DefaultTooltip title={nombreCompletoInstructor} placement="top">
+                            <button
+                              type="button"
+                              onClick={() => setZoomFoto({
+                                src: instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png',
+                                alt: nombreCompletoInstructor
+                              })}
+                              className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
+                            >
+                              <img
+                                src={instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png'}
+                                alt={nombreCompletoInstructor}
+                                className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                              />
+                            </button>
+                          </DefaultTooltip>
                         </div>
                       </div>
                     </div>
@@ -1561,6 +1581,7 @@ const ClaseDetallePage: React.FC = () => {
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
                   resetSelectionKey={assignSuccessCounter}
+                  idsActividadesAsignadas={idsActividadesAsignadas}
                 />
               )}
 
@@ -1596,6 +1617,11 @@ const ClaseDetallePage: React.FC = () => {
                       setModalCrearActividadOpen(true);
                     }
                   }}
+                  onAmpliar={(act) => {
+                    setActividadParaAmpliar(act);
+                    setModalAmpliarOpen(true);
+                  }}
+                  mostrarCrearCuestionario={false}
                 />
               )}
 
@@ -1650,6 +1676,7 @@ const ClaseDetallePage: React.FC = () => {
           setActividadParaAsignar(null);
           setAssignSuccessCounter((c) => c + 1);
         }}
+        onSuccess={showToast}
         idFicha={ficha?.id ?? 0}
         actividad={actividadParaAsignar}
         actividades={actividadesParaAsignar}
@@ -1665,6 +1692,7 @@ const ClaseDetallePage: React.FC = () => {
           setActividadParaEditar(null);
           fetchActividades();
         }}
+        onSuccess={showToast}
         actividadEditar={actividadParaEditar}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
       />
@@ -1674,6 +1702,7 @@ const ClaseDetallePage: React.FC = () => {
           setModalMaterialApoyoOpen(false);
           setActividadMaterialApoyo(null);
         }}
+        onSuccess={showToast}
         actividad={actividadMaterialApoyo}
       />
       <ModalVerActividad
@@ -1695,6 +1724,7 @@ const ClaseDetallePage: React.FC = () => {
           setCuestionarioParaEditar(null);
           fetchActividades();
         }}
+        onSuccess={showToast}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
         cuestionarioEditar={cuestionarioParaEditar}
       />
@@ -1704,9 +1734,35 @@ const ClaseDetallePage: React.FC = () => {
           setModalAprendicesOpen(false);
           setActividadParaVerAprendices(null);
         }}
+        onSuccess={showToast}
         actividad={actividadParaVerAprendices}
         idFicha={ficha?.id ?? 0}
         tituloActividad={actividadParaVerAprendices?.tituloActividad}
+      />
+      <ModalAmpliarActividad
+        open={modalAmpliarOpen}
+        onClose={() => {
+          setModalAmpliarOpen(false);
+          setActividadParaAmpliar(null);
+        }}
+        actividad={actividadParaAmpliar}
+        idFicha={ficha?.id ?? 0}
+        onSave={() => fetchActividades()}
+        onSuccess={showToast}
+      />
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
+      )}
+      <Toast
+        message={toastMessage}
+        isOpen={toastOpen}
+        onClose={() => setToastOpen(false)}
       />
     </Container>
   );

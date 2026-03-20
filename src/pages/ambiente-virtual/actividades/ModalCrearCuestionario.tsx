@@ -36,6 +36,7 @@ interface ModalCrearCuestionarioProps {
   open: boolean;
   onClose: () => void;
   onSave?: () => void;
+  onSuccess?: (message: string) => void;
   idMateria?: number;
   cuestionarioEditar?: CuestionarioEditar | null;
 }
@@ -56,7 +57,7 @@ const ImagenPreviewPregunta: React.FC<{ file: File }> = ({ file }) => {
   );
 };
 
-const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, onClose, onSave, idMateria: idMateriaProp, cuestionarioEditar }) => {
+const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, onClose, onSave, onSuccess, idMateria: idMateriaProp, cuestionarioEditar }) => {
   const [titulo, setTitulo] = useState('');
   const [clasificacion, setClasificacion] = useState<ClasificacionCuestionario | ''>('');
   const [descripcion, setDescripcion] = useState('');
@@ -155,8 +156,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       if (isEdit && cuestionarioEditar?.id) {
         fd.append('_method', 'PUT');
         await axios.post(`cuestionarios/${cuestionarioEditar.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        onSuccess?.('Cuestionario actualizado correctamente');
       } else {
         await axios.post('cuestionarios', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        onSuccess?.('Cuestionario creado correctamente');
       }
       onSave?.();
       onClose();

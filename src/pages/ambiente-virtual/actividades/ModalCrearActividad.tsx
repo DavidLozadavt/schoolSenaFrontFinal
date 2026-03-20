@@ -52,6 +52,7 @@ interface ModalCrearActividadProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
+  onSuccess?: (message: string) => void;
   actividadEditar?: Actividad | null;
   idMateria?: number;
 }
@@ -60,6 +61,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
   open,
   onClose,
   onSave,
+  onSuccess,
   actividadEditar,
   idMateria
 }) => {
@@ -186,6 +188,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
           pathDoc = uploadRes.data?.path ?? uploadRes.data?.url ?? null;
         }
         await axios.put(`actividades/${actividadEditar.id}`, { ...payload, pathDocumentoActividad: pathDoc });
+        onSuccess?.('Actividad actualizada correctamente');
       } else {
         const createRes = await axios.post('actividades', payload);
         const id = createRes.data?.id;
@@ -196,6 +199,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             headers: { 'Content-Type': 'multipart/form-data' }
           });
         }
+        onSuccess?.('Actividad creada correctamente');
       }
       onSave();
       onClose();
