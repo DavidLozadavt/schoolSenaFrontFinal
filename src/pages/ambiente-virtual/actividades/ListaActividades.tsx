@@ -43,11 +43,14 @@ const DropdownAcciones: React.FC<{
 
   useEffect(() => {
     if (!abierto) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (ref.current?.contains(target)) return;
+      if (target.closest?.('[data-id="dropdown-acciones-portal"]')) return;
+      setAbierto(false);
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [abierto]);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ const DropdownAcciones: React.FC<{
 
   const dropdownContent = abierto && dropdownPos && (
     <div
+      data-id="dropdown-acciones-portal"
       className="fixed z-[9999] min-w-[180px] max-w-[220px] py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-400 shadow-xl"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
@@ -91,10 +95,10 @@ const DropdownAcciones: React.FC<{
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
-        title="Acciones"
+        className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer whitespace-nowrap"
+        title="Ver acciones"
       >
-        <KeenIcon icon="dots-vertical" className="w-4 h-4" />
+        Ver acciones
       </button>
       {dropdownContent && createPortal(dropdownContent, document.body)}
     </div>
@@ -359,79 +363,86 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     ? ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones']
     : ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Fecha límite', 'Tipo', 'Acciones'];
 
+  const tituloSeccion = modo === 'agregar' ? 'Agregar actividades' : 'Actividades asignadas';
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row gap-3 mb-3">
-        <div className="flex-1 relative">
-          <KeenIcon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
-          <input
-            type="text"
-            placeholder="Buscar por título, autor, materia, entregables..."
-            value={busqueda}
-            onChange={handleBusquedaChange}
-            className="input w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-coal-400"
-          />
-        </div>
-        {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario || onAsignarActividades) && (
-          <div className="flex gap-1.5 shrink-0 flex-wrap">
-            {modo === 'agregar' && onAsignarActividades && (
-              <button
-                onClick={() => setModalAsignarOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium"
-              >
-                <KeenIcon icon="users" className="text-sm" />
-                Asignar actividades
-              </button>
-            )}
-            {onCrearCuestionario && mostrarCrearCuestionario && (
-              <button
-                onClick={onCrearCuestionario}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
-              >
-                <KeenIcon icon="document" className="text-sm" />
-                Crear cuestionario
-              </button>
-            )}
-            {onCrear && (
-              <button
-                onClick={onCrear}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
-              >
-                <KeenIcon icon="plus" className="text-sm" />
-                Crear Actividad
-              </button>
-            )}
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center uppercase tracking-tight">
+          {tituloSeccion}
+        </h2>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:max-w-md">
+            <KeenIcon icon="search" className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por título, autor, materia, entregables..."
+              value={busqueda}
+              onChange={handleBusquedaChange}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm shadow-sm transition-all"
+            />
           </div>
-        )}
+          {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario || onAsignarActividades) && (
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              {modo === 'agregar' && onAsignarActividades && (
+                <button
+                  onClick={() => setModalAsignarOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors uppercase shadow-sm"
+                >
+                  <KeenIcon icon="users" className="text-sm" />
+                  Asignar actividades
+                </button>
+              )}
+              {onCrearCuestionario && mostrarCrearCuestionario && (
+                <button
+                  onClick={onCrearCuestionario}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors uppercase shadow-sm"
+                >
+                  <KeenIcon icon="document" className="text-sm" />
+                  Crear cuestionario
+                </button>
+              )}
+              {onCrear && (
+                <button
+                  onClick={onCrear}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors uppercase shadow-sm"
+                >
+                  <KeenIcon icon="plus" className="text-sm" />
+                  Crear actividad
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       {(actividadesFiltradas?.length ?? 0) === 0 ? (
         <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
           No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
       ) : (
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
-        <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full table-fixed min-w-[1100px]" style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '3%' }} />
-            <col style={{ width: '4%' }} />
-            <col style={{ width: modo === 'asignadas' ? '20%' : '26%' }} />
-            <col style={{ width: modo === 'asignadas' ? '14%' : '18%' }} />
-            <col style={{ width: modo === 'asignadas' ? '14%' : '18%' }} />
-            <col style={{ width: '10%' }} />
-            {modo === 'asignadas' && <col style={{ width: '10%' }} />}
-            <col style={{ width: '10%' }} />
             <col style={{ width: '5%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: modo === 'asignadas' ? '17%' : '22%' }} />
+            <col style={{ width: modo === 'asignadas' ? '12%' : '15%' }} />
+            <col style={{ width: modo === 'asignadas' ? '12%' : '15%' }} />
+            <col style={{ width: '118px' }} />
+            {modo === 'asignadas' && <col style={{ width: '9%' }} />}
+            <col style={{ width: '130px' }} />
+            <col style={{ width: '150px' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-coal-500/30">
+            <tr className="border-b border-gray-200 dark:border-gray-700">
               {headers.map((h) => (
-                <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 align-middle">
+                <th key={h} className={`py-4 px-4 text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase ${h === 'Código' ? 'pr-6' : ''} ${h === 'Autor' ? 'pl-2 pr-6' : ''} ${['Estado', 'Tipo', 'Acciones'].includes(h) ? 'px-5 text-center' : 'text-left'}`}>
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {actividadesPaginadas.map((item, idx) => {
               const act = item.actividad || item;
               const indiceGlobal = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA + idx;
@@ -440,53 +451,67 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
               return (
                 <tr
                   key={act.id || act.tituloActividad}
-                  className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50/80 dark:hover:bg-coal-400/30 transition-colors min-h-[48px]"
+                  className="hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors"
                 >
-                  <td className="py-3 px-3 text-xs font-medium text-gray-600 dark:text-gray-400 align-middle">
+                  <td className="py-5 px-4 pr-6 text-xs font-semibold text-gray-700 dark:text-gray-300 align-middle" style={{ minWidth: 60 }}>
                     {codigo}
                   </td>
-                  <td className="py-3 px-3 align-middle">
-                    <button
-                      type="button"
-                      onClick={() => setZoomFoto({
-                        src: getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto),
-                        alt: nombreCompleto(act.persona)
-                      })}
-                      title={nombreCompleto(act.persona)}
-                      className="shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 block mx-auto"
-                    >
-                      <img
-                        src={getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto)}
-                        alt={nombreCompleto(act.persona)}
-                        className="w-8 h-8 rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                      />
-                    </button>
+                  <td className="py-5 pl-2 pr-6 align-middle" style={{ minWidth: 80 }}>
+                    <div className="flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setZoomFoto({
+                          src: getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto),
+                          alt: nombreCompleto(act.persona)
+                        })}
+                        title={nombreCompleto(act.persona)}
+                        className="relative shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 block"
+                      >
+                        <img
+                          src={getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto)}
+                          alt={nombreCompleto(act.persona)}
+                          className="w-11 h-11 rounded-full object-cover border-2 border-gray-100 dark:border-gray-700 shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+                        />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-coal-200 rounded-full" />
+                      </button>
+                    </div>
                   </td>
-                  <td className="py-3 px-3 align-middle overflow-hidden">
-                    <span className="block truncate text-sm font-medium text-gray-900 dark:text-white" title={act.tituloActividad || ''} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {act.tituloActividad || '-'}
-                    </span>
+                  <td className="py-5 px-4 align-middle overflow-hidden max-w-[220px]">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-gray-800 dark:text-gray-200 uppercase leading-relaxed truncate block" title={act.tituloActividad || ''}>
+                        {act.tituloActividad || '-'}
+                      </span>
+                      {onVer && (
+                        <button
+                          type="button"
+                          onClick={() => onVer(act)}
+                          className="self-start text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-tighter decoration-dotted underline underline-offset-2"
+                        >
+                          Ver más
+                        </button>
+                      )}
+                    </div>
                   </td>
-                  <td className="py-3 px-3 align-middle overflow-hidden">
-                    <span className="block truncate text-xs text-gray-600 dark:text-gray-400" title={act.entregables || '-'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td className="py-5 px-4 align-middle overflow-hidden max-w-[180px]">
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-medium leading-relaxed truncate block" title={act.entregables || '-'}>
                       {act.entregables || '-'}
                     </span>
                   </td>
-                  <td className="py-3 px-3 align-middle overflow-hidden">
-                    <span className="block truncate text-xs text-gray-600 dark:text-gray-400" title={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td className="py-5 px-4 align-middle overflow-hidden max-w-[180px]">
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 uppercase font-medium leading-relaxed truncate block" title={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}>
                       {`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}
                     </span>
                   </td>
-                  <td className="py-3 px-3 align-middle">
+                  <td className="py-5 px-5 align-middle text-center w-[118px]">
                     {modo === 'agregar' ? (
                       (() => {
                         const estaAsignada = act.id != null && (idsActividadesAsignadas?.has(act.id) ?? false);
                         const estadoTexto = estaAsignada ? 'Asignado' : 'No asignado';
                         const estadoClases = estaAsignada
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300';
+                          ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800'
+                          : 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-700/30 dark:text-gray-300 dark:border-gray-600';
                         return (
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${estadoClases}`}>
+                          <span className={`inline-flex px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap shrink-0 ${estadoClases}`}>
                             {estadoTexto}
                           </span>
                         );
@@ -514,12 +539,12 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         }
                         const estadoTexto = esVencida ? 'Vencida' : esInactiva ? 'Inactiva' : 'Activa';
                         const estadoClases = esVencida
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'
                           : esInactiva
-                            ? 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'
+                            : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800';
                         return (
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${estadoClases}`}>
+                          <span className={`inline-flex px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap shrink-0 ${estadoClases}`}>
                             {estadoTexto}
                           </span>
                         );
@@ -527,20 +552,20 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                     )}
                   </td>
                   {modo === 'asignadas' && (
-                    <td className="py-3 px-3 align-middle overflow-hidden">
+                    <td className="py-5 px-4 align-middle overflow-hidden text-center">
                       <div className="flex flex-col leading-tight min-w-0" title={formatearFecha((item as ItemActividad).fechaFinal, true)}>
                         <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate">{fecha}</span>
                         {hora && <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{hora}</span>}
                       </div>
                     </td>
                   )}
-                  <td className="py-3 px-3 align-middle">
-                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                  <td className="py-5 px-5 align-middle text-center w-[130px]">
+                    <span className="inline-flex px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 whitespace-nowrap shrink-0 justify-center" title={act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}>
                       {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}
                     </span>
                   </td>
-                  <td className="py-3 px-3 align-middle">
-                    <div className="flex items-center justify-end">
+                  <td className="py-5 px-5 align-middle text-center w-[150px]">
+                    <div className="flex items-center justify-center">
                       <DropdownAcciones
                         act={act}
                         item={item}
@@ -633,8 +658,8 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           </ModalContent>
         </Modal>
       )}
-      {(actividadesFiltradas?.length ?? 0) > 0 && (
-        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+      {(actividadesFiltradas?.length ?? 0) > 0 && totalPaginas > 1 && (
+        <div className="flex flex-col xl:flex-row items-center justify-center mt-4 px-4 py-3 bg-white dark:bg-coal-300 border border-gray-200 dark:border-coal-100 rounded-xl shadow-sm gap-4">
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Mostrando {(paginaActual - 1) * ACTIVIDADES_POR_PAGINA + 1}-
             {Math.min(paginaActual * ACTIVIDADES_POR_PAGINA, actividadesFiltradas?.length ?? 0)} de {actividadesFiltradas?.length ?? 0}
@@ -643,14 +668,14 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             <button
               onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
               disabled={paginaActual === 1}
-              className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${paginaActual === 1 ? 'bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-coal-300 dark:text-gray-500' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-coal-400 dark:border-coal-100 dark:text-white dark:hover:bg-coal-500 shadow-sm'}`}
             >
               Anterior
             </button>
             <button
               onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
               disabled={paginaActual === totalPaginas}
-              className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${paginaActual === totalPaginas ? 'bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-coal-300 dark:text-gray-500' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-coal-400 dark:border-coal-100 dark:text-white dark:hover:bg-coal-500 shadow-sm'}`}
             >
               Siguiente
             </button>

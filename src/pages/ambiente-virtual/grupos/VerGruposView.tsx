@@ -107,7 +107,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
             setGrupoEditar(null);
             setModalCrearOpen(true);
           }}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
         >
           <KeenIcon icon="plus" className="text-sm" />
           Crear grupo
@@ -127,68 +127,72 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
           </p>
           <button
             onClick={() => setModalCrearOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium mx-auto"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium mx-auto transition-colors shadow-sm"
           >
             <KeenIcon icon="plus" className="text-sm" />
             Crear grupo
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {grupos.map((grupo) => (
-            <div
-              key={grupo.id}
-              className="bg-gray-50 dark:bg-coal-300 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-700 transition-colors"
-            >
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white break-words mb-2">
-                {grupo.nombreGrupo}
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                Máx. {grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0} participante{(grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0) !== 1 ? 's' : ''}
-              </p>
-              {grupo.descripcion && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mb-3">
-                  {grupo.descripcion}
-                </p>
-              )}
-              <div className="flex items-center gap-1.5 pt-2 border-t border-gray-200 dark:border-gray-600">
-                <button
-                  onClick={() => {
-                    setGrupoVer(grupo);
-                    setModalVerOpen(true);
-                    setLoadingIntegrantes(true);
-                    setIntegrantes([]);
-                    if (grupo.id) {
-                      axios.get(`fichas/${idFicha}/grupos/${grupo.id}/integrantes`)
-                        .then((r) => setIntegrantes(r.data?.data ?? []))
-                        .catch(() => setIntegrantes([]))
-                        .finally(() => setLoadingIntegrantes(false));
-                    } else {
-                      setLoadingIntegrantes(false);
-                    }
-                  }}
-                  className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
-                  title="Ver"
-                >
-                  <KeenIcon icon="eye" className="text-sm" />
-                </button>
-                <button
-                  onClick={() => handleEditar(grupo)}
-                  className="p-1.5 rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300"
-                  title="Actualizar"
-                >
-                  <KeenIcon icon="pencil" className="text-sm" />
-                </button>
-                <button
-                  onClick={() => handleEliminar(grupo)}
-                  className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
-                  title="Eliminar"
-                >
-                  <KeenIcon icon="trash" className="text-sm" />
-                </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {grupos.map((grupo, idx) => {
+            const barColors = ['bg-blue-500', 'bg-green-500', 'bg-orange-500', 'bg-purple-500'];
+            const barColor = barColors[idx % barColors.length];
+            return (
+              <div
+                key={grupo.id}
+                className="group relative flex overflow-hidden bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.01]"
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 shrink-0 ${barColor}`} />
+                <div className="flex-1 min-w-0 pl-4 pr-4 py-4">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white break-words mb-1">
+                    {grupo.nombreGrupo}
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    Máx. {grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0} participante{(grupo.cantidadParticipantes ?? grupo.cantidadEstudiantes ?? 0) !== 1 ? 's' : ''}
+                  </p>
+                  {grupo.descripcion && (
+                    <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mb-4">
+                      {grupo.descripcion}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <button
+                      onClick={() => {
+                        setGrupoVer(grupo);
+                        setModalVerOpen(true);
+                        setLoadingIntegrantes(true);
+                        setIntegrantes([]);
+                        if (grupo.id) {
+                          axios.get(`fichas/${idFicha}/grupos/${grupo.id}/integrantes`)
+                            .then((r) => setIntegrantes(r.data?.data ?? []))
+                            .catch(() => setIntegrantes([]))
+                            .finally(() => setLoadingIntegrantes(false));
+                        } else {
+                          setLoadingIntegrantes(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-coal-500 hover:bg-gray-200 dark:hover:bg-coal-600 text-gray-700 dark:text-gray-300 transition-colors"
+                    >
+                      Ver integrantes
+                    </button>
+                    <button
+                      onClick={() => handleEditar(grupo)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleEliminar(grupo)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 transition-colors"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -207,63 +211,83 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
         <Modal open={modalVerOpen} onClose={() => { setModalVerOpen(false); setGrupoVer(null); }}>
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50" onClick={() => { setModalVerOpen(false); setGrupoVer(null); }} />
-            <div className="relative bg-white dark:bg-coal-300 rounded-xl shadow-xl max-w-md w-full p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{grupoVer.nombreGrupo}</h2>
-              <div className="space-y-2 text-sm mb-4">
-                <p><span className="text-gray-500 dark:text-gray-400">Cantidad de participantes:</span> {grupoVer.cantidadParticipantes ?? grupoVer.cantidadEstudiantes}</p>
-                {grupoVer.descripcion && (
-                  <p><span className="text-gray-500 dark:text-gray-400">Descripción:</span> {grupoVer.descripcion}</p>
-                )}
-              </div>
-              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Integrantes</p>
-                {loadingIntegrantes ? (
-                  <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+            <div className="relative bg-white dark:bg-coal-400 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                    <KeenIcon icon="users" className="text-blue-600 dark:text-blue-400 text-lg" />
                   </div>
-                ) : integrantes.length === 0 ? (
-                  <p className="text-xs text-gray-500 py-2">No hay integrantes</p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {integrantes.map((i) => (
-                      <div key={i.idMatricula} className="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-coal-500/30">
-                        <button
-                          type="button"
-                          onClick={() => setZoomFoto({ src: getFotoUrl(i.rutaFoto ?? undefined), alt: i.nombreCompleto })}
-                          className="shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                        >
-                          <img src={getFotoUrl(i.rutaFoto ?? undefined)} alt={i.nombreCompleto} className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity" />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{i.nombreCompleto}</p>
-                          {i.identificacion && <p className="text-xs text-gray-500">{i.identificacion}</p>}
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">{grupoVer.nombreGrupo}</h2>
+                </div>
+                <button
+                  onClick={() => { setModalVerOpen(false); setGrupoVer(null); }}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-500 text-gray-500 dark:text-gray-400 transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <KeenIcon icon="cross" className="text-lg" />
+                </button>
+              </div>
+              <div className="px-6 py-4 space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                    {integrantes.length} participante{integrantes.length !== 1 ? 's' : ''}
+                  </span>
+                  {grupoVer.descripcion && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{grupoVer.descripcion}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Integrantes</p>
+                  {loadingIntegrantes ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+                    </div>
+                  ) : integrantes.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No hay integrantes</p>
+                  ) : (
+                    <div className="space-y-3 max-h-56 overflow-y-auto">
+                      {integrantes.map((i) => (
+                        <div key={i.idMatricula} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-coal-500/30 hover:bg-gray-100 dark:hover:bg-coal-500/50 transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => setZoomFoto({ src: getFotoUrl(i.rutaFoto ?? undefined), alt: i.nombreCompleto })}
+                            className="relative shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                          >
+                            <img src={getFotoUrl(i.rutaFoto ?? undefined)} alt={i.nombreCompleto} className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity" />
+                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-coal-400 rounded-full" />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{i.nombreCompleto}</p>
+                            {i.identificacion && <p className="text-xs text-gray-500 dark:text-gray-400">{i.identificacion}</p>}
+                            <p className="text-[10px] text-green-600 dark:text-green-400 font-medium mt-0.5">● activo</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!grupoVer?.id || !window.confirm(`¿Eliminar a ${i.nombreCompleto} del grupo?`)) return;
+                              try {
+                                await axios.delete(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes/${i.idMatricula}`);
+                                const r = await axios.get(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes`);
+                                setIntegrantes(r.data?.data ?? []);
+                              } catch (e: any) {
+                                alert(e.response?.data?.error || 'Error al eliminar integrante');
+                              }
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                            title="Eliminar del grupo"
+                          >
+                            Eliminar
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!grupoVer?.id || !window.confirm(`¿Eliminar a ${i.nombreCompleto} del grupo?`)) return;
-                            try {
-                              await axios.delete(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes/${i.idMatricula}`);
-                              const r = await axios.get(`fichas/${idFicha}/grupos/${grupoVer.id}/integrantes`);
-                              setIntegrantes(r.data?.data ?? []);
-                            } catch (e: any) {
-                              alert(e.response?.data?.error || 'Error al eliminar integrante');
-                            }
-                          }}
-                          className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400"
-                          title="Eliminar del grupo"
-                        >
-                          <KeenIcon icon="trash" className="text-sm" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex gap-2 mt-6">
+              <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-coal-500/20">
                 <button
                   onClick={() => setModalVerOpen(false)}
-                  className="flex-1 px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-coal-500 hover:bg-gray-300 dark:hover:bg-coal-600 text-gray-700 dark:text-gray-300 transition-colors"
                 >
                   Cerrar
                 </button>
@@ -272,7 +296,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
                     setModalVerOpen(false);
                     handleEditar(grupoVer);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                 >
                   <KeenIcon icon="pencil" className="text-sm" />
                   Actualizar
@@ -282,7 +306,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
                     setModalVerOpen(false);
                     handleEliminar(grupoVer);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
                 >
                   <KeenIcon icon="trash" className="text-sm" />
                   Eliminar
