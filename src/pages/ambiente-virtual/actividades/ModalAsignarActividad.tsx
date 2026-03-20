@@ -22,6 +22,7 @@ interface ModalAsignarActividadProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
+  onSuccess?: (message: string) => void;
   idFicha: number;
   actividad: Actividad | null;
   /** Varias actividades para asignar en bloque */
@@ -32,6 +33,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   open,
   onClose,
   onSave,
+  onSuccess,
   idFicha,
   actividad,
   actividades: actividadesProp
@@ -174,6 +176,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         );
         return;
       }
+      onSuccess?.('Actividad asignada correctamente');
       onSave();
       onClose();
     } catch (err: any) {

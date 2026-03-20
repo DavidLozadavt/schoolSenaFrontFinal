@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
-import { KeenIcon } from '@/components';
+import { KeenIcon, ImageZoomModal, Toast } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 
@@ -160,14 +160,25 @@ const estadoBadgeMap: Record<
   }
 };
 
+/** Color de nota según resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya está calificada. */
+const getScoreColorClass = (score: number | null, estadoVisual: string): string => {
+  if (score === null) {
+    return 'text-gray-500 dark:text-gray-400';
+  }
+  if (score <= 3.5) return 'text-red-600 dark:text-red-400 font-medium';
+  if (score > 3.5 && score < 4.0) return 'text-amber-600 dark:text-amber-400 font-medium';
+  return 'text-green-600 dark:text-green-400 font-medium';
+};
+
 interface ResponderModalProps {
   actividad: ActividadAprendiz | null;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  onSuccess?: (message: string) => void;
 }
 
-const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, open, onClose, onSaved }) => {
+const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, open, onClose, onSaved, onSuccess }) => {
   const [comentario, setComentario] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -207,6 +218,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
+      onSuccess?.('Actividad respondida correctamente');
       onSaved();
       onClose();
     } catch (err: any) {
@@ -215,7 +227,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     } finally {
       setSaving(false);
     }
-  }, [actividad, comentario, archivo, onSaved, onClose]);
+  }, [actividad, comentario, archivo, onSaved, onSuccess, onClose]);
 
   // Constantes de validación
   const VALID_FILE_TYPES = ['.pdf', '.doc', '.docx', '.zip', '.rar'];
@@ -598,6 +610,13 @@ const ActividadesAprendiz: React.FC = () => {
   const [filtro, setFiltro] = useState<EstadoActividad>('TODOS');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actividadResponder, setActividadResponder] = useState<ActividadAprendiz | null>(null);
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
   const [pagination, setPagination] = useState({
     currentPage: 1,
     perPage: 15,
@@ -709,11 +728,17 @@ const ActividadesAprendiz: React.FC = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-3 mb-1.5">
                           {fotoInstructor ? (
-                            <img
-                              src={fotoInstructor}
-                              alt={nombreInstructor}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-primary/60"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => setZoomFoto({ src: fotoInstructor, alt: nombreInstructor })}
+                              className="shrink-0 rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1"
+                            >
+                              <img
+                                src={fotoInstructor}
+                                alt={nombreInstructor}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-primary/60 cursor-pointer hover:opacity-90 transition-opacity"
+                              />
+                            </button>
                           ) : (
                             <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white">
                               <div className="w-10 h-10 rounded-full border-2 border-dashed border-primary flex items-center justify-center text-primary">
@@ -779,7 +804,10 @@ const ActividadesAprendiz: React.FC = () => {
                         </div>
 
                         <div className="min-w-[40px] text-right">
-                          <div className={clsx('text-lg leading-none font-semibold', status.score)}>
+                          <div className={clsx(
+                            'text-lg leading-none font-semibold',
+                            getScoreColorClass(score, actividad.estadoVisual)
+                          )}>
                             {score !== null ? score.toFixed(1) : '-'}
                           </div>
                           <div className="text-[9px] text-gray-400">/5.0</div>
@@ -1092,6 +1120,7 @@ const ActividadesAprendiz: React.FC = () => {
           actividad={actividadResponder}
           onClose={() => setActividadResponder(null)}
           onSaved={() => fetchActividades(pagination.currentPage)}
+          onSuccess={showToast}
         />
       )}
       {actividadResponder && actividadResponder.tipoActividad !== 'cuestionario' && (
@@ -1100,8 +1129,23 @@ const ActividadesAprendiz: React.FC = () => {
           actividad={actividadResponder}
           onClose={() => setActividadResponder(null)}
           onSaved={() => fetchActividades(pagination.currentPage)}
+          onSuccess={showToast}
         />
       )}
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
+      )}
+      <Toast
+        message={toastMessage}
+        isOpen={toastOpen}
+        onClose={() => setToastOpen(false)}
+      />
     </>
   );
 };

@@ -10,6 +10,7 @@ interface ModalAmpliarActividadProps {
   actividad: Actividad | null;
   idFicha: number;
   onSave: () => void;
+  onSuccess?: (message: string) => void;
 }
 
 const ModalAmpliarActividad: React.FC<ModalAmpliarActividadProps> = ({
@@ -17,7 +18,8 @@ const ModalAmpliarActividad: React.FC<ModalAmpliarActividadProps> = ({
   onClose,
   actividad,
   idFicha,
-  onSave
+  onSave,
+  onSuccess
 }) => {
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [descripcionExtension, setDescripcionExtension] = useState('');
@@ -51,6 +53,7 @@ const ModalAmpliarActividad: React.FC<ModalAmpliarActividadProps> = ({
         fechaFinal: nuevaFecha,
         descripcionExtension: descripcionExtension.trim() || undefined
       });
+      onSuccess?.('Actividad ampliada correctamente');
       onSave();
       onClose();
     } catch (err: any) {

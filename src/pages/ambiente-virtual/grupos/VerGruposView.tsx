@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { KeenIcon } from '@/components';
+import { KeenIcon, ImageZoomModal } from '@/components';
 import { Modal } from '@/components/modal';
 import axios from 'axios';
 import ModalCrearGrupo, { type Grupo } from './ModalCrearGrupo';
@@ -42,6 +42,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
   const [modalVerOpen, setModalVerOpen] = useState(false);
   const [integrantes, setIntegrantes] = useState<Integrante[]>([]);
   const [loadingIntegrantes, setLoadingIntegrantes] = useState(false);
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
 
   const fetchGrupos = useCallback(async () => {
     if (!idFicha) return;
@@ -226,7 +227,13 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {integrantes.map((i) => (
                       <div key={i.idMatricula} className="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-coal-500/30">
-                        <img src={getFotoUrl(i.rutaFoto ?? undefined)} alt={i.nombreCompleto} className="w-8 h-8 rounded-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setZoomFoto({ src: getFotoUrl(i.rutaFoto ?? undefined), alt: i.nombreCompleto })}
+                          className="shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        >
+                          <img src={getFotoUrl(i.rutaFoto ?? undefined)} alt={i.nombreCompleto} className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity" />
+                        </button>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{i.nombreCompleto}</p>
                           {i.identificacion && <p className="text-xs text-gray-500">{i.identificacion}</p>}
@@ -284,6 +291,15 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
             </div>
           </div>
         </Modal>
+      )}
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
       )}
     </div>
   );

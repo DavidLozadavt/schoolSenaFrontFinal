@@ -18,6 +18,7 @@ interface ModalVerRespuestaYCalificarProps {
   onClose: () => void;
   aprendiz: AprendizCalificacion | null;
   onCalificado: () => void;
+  onSuccess?: (message: string) => void;
   /** Si es 'con evidencia', solo se permite calificar si hay archivo o comentario del aprendiz */
   tipoActividad?: string | null;
 }
@@ -27,6 +28,7 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
   onClose,
   aprendiz,
   onCalificado,
+  onSuccess,
   tipoActividad
 }) => {
   const [calificacion, setCalificacion] = useState<string>('');
@@ -54,6 +56,7 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
         calificacionNumerica: nota,
         ComentarioDocente: comentario.trim() || null
       });
+      onSuccess?.('Calificación registrada correctamente');
       onCalificado();
       onClose();
     } catch (e: any) {

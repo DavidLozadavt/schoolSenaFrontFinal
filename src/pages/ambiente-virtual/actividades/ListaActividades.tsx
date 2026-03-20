@@ -1,6 +1,105 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { KeenIcon } from '@/components';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { KeenIcon, ImageZoomModal } from '@/components';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
+import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
+
+const DROPDOWN_WIDTH = 180;
+const DROPDOWN_ITEM_HEIGHT = 40;
+const DROPDOWN_PADDING = 16;
+
+/** Dropdown compacto para acciones de actividad - usa Portal, posición dinámica arriba/abajo */
+const DropdownAcciones: React.FC<{
+  act: Actividad;
+  item: Actividad & { id?: number };
+  modo: 'agregar' | 'asignadas';
+  idFicha?: number;
+  onVer?: (a: Actividad) => void;
+  onAsignarActividad?: (a: Actividad) => void;
+  onVerAprendices?: (a: Actividad) => void;
+  onAmpliar?: (a: Actividad) => void;
+  onQuitar?: (id: number) => void;
+  onMaterialApoyo?: (a: Actividad) => void;
+  onEditar?: (a: Actividad) => void;
+  onEliminar?: (a: Actividad) => void;
+  puedeEliminar?: (a: Actividad) => boolean;
+}> = (props) => {
+  const { act, item, modo, idFicha } = props;
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+
+  const items: { icon: string; label: string; onClick: () => void }[] = [];
+  if (props.onVer) items.push({ icon: 'eye', label: 'Ver actividad', onClick: () => props.onVer!(act) });
+  if (modo === 'agregar' && props.onAsignarActividad) items.push({ icon: 'users', label: 'Asignar actividad', onClick: () => props.onAsignarActividad!(act) });
+  if (modo === 'asignadas' && idFicha && props.onVerAprendices) items.push({ icon: 'document', label: 'Ver entregas', onClick: () => props.onVerAprendices!(act) });
+  if (modo === 'asignadas' && idFicha && props.onVerAprendices) items.push({ icon: 'check-squared', label: 'Calificar', onClick: () => props.onVerAprendices!(act) });
+  if (modo === 'asignadas' && idFicha && props.onAmpliar) items.push({ icon: 'calendar', label: 'Ampliar actividad', onClick: () => props.onAmpliar!(act) });
+  if (modo === 'asignadas' && props.onQuitar && item.id != null) items.push({ icon: 'cross', label: 'Quitar', onClick: () => props.onQuitar!(item.id!) });
+  if (props.onMaterialApoyo) items.push({ icon: 'folder', label: 'Material de apoyo', onClick: () => props.onMaterialApoyo!(act) });
+  if (props.onEditar) items.push({ icon: 'pencil', label: 'Editar actividad', onClick: () => props.onEditar!(act) });
+  if (props.onEliminar && (!props.puedeEliminar || props.puedeEliminar(act))) items.push({ icon: 'trash', label: 'Eliminar', onClick: () => props.onEliminar!(act) });
+
+  useEffect(() => {
+    if (!abierto) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [abierto]);
+
+  useEffect(() => {
+    if (abierto && ref.current && items.length > 0) {
+      const rect = ref.current.getBoundingClientRect();
+      const viewportH = window.innerHeight;
+      const spaceBelow = viewportH - rect.bottom;
+      const estimatedHeight = items.length * DROPDOWN_ITEM_HEIGHT + DROPDOWN_PADDING;
+      const openUp = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+      const left = Math.max(8, Math.min(rect.right - DROPDOWN_WIDTH, window.innerWidth - DROPDOWN_WIDTH - 8));
+      const top = openUp ? rect.top - estimatedHeight - 6 : rect.bottom + 6;
+      setDropdownPos({ top, left });
+    } else {
+      setDropdownPos(null);
+    }
+  }, [abierto, items.length]);
+
+  if (items.length === 0) return null;
+
+  const dropdownContent = abierto && dropdownPos && (
+    <div
+      className="fixed z-[9999] min-w-[180px] max-w-[220px] py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-400 shadow-xl"
+      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+    >
+      {items.map((it, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => { it.onClick(); setAbierto(false); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-500 transition-colors"
+        >
+          <KeenIcon icon={it.icon as any} className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+          <span>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+        title="Acciones"
+      >
+        <KeenIcon icon="dots-vertical" className="w-4 h-4" />
+      </button>
+      {dropdownContent && createPortal(dropdownContent, document.body)}
+    </div>
+  );
+};
 
 const ACTIVIDADES_POR_PAGINA = 20;
 const MAX_PALABRAS = 6;
@@ -10,6 +109,50 @@ const truncarAPalabras = (texto: string | undefined, maxPalabras: number = MAX_P
   const palabras = String(texto).trim().split(/\s+/);
   if (palabras.length <= maxPalabras) return texto;
   return palabras.slice(0, maxPalabras).join(' ') + '…';
+};
+
+const getFotoUrl = (path: string | undefined): string => {
+  if (!path) return '/media/avatars/blank.png';
+  if (path.startsWith('http')) return path;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+const truncarCaracteres = (texto: string | undefined, max: number = 35): string => {
+  if (!texto || !String(texto).trim()) return '-';
+  const s = String(texto).trim();
+  return s.length <= max ? s : s.slice(0, max) + '…';
+};
+
+const formatearFecha = (value?: string | null, incluirHora = false): string => {
+  if (!value) return '-';
+  try {
+    const fecha = new Date(value);
+    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+    if (incluirHora && (value.includes('T') || value.includes(' '))) {
+      opts.hour = '2-digit';
+      opts.minute = '2-digit';
+    }
+    return new Intl.DateTimeFormat('es-CO', opts).format(fecha);
+  } catch {
+    return value;
+  }
+};
+
+/** Formato compacto: fecha arriba, hora abajo (ej: "26 Mar 2026" / "11:59 PM") */
+const formatearFechaCompacta = (value?: string | null): { fecha: string; hora: string } => {
+  if (!value) return { fecha: '-', hora: '' };
+  try {
+    const d = new Date(value);
+    const fecha = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+    const tieneHora = value.includes('T') || value.includes(' ');
+    const hora = tieneHora ? new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).format(d) : '';
+    return { fecha, hora };
+  } catch {
+    return { fecha: value, hora: '' };
+  }
 };
 
 const CeldaConTooltip: React.FC<{ textoCompleto: string; textoTruncado: string }> = ({ textoCompleto, textoTruncado }) => {
@@ -61,6 +204,8 @@ interface ListaActividadesProps {
   emptyMessage?: string;
   /** Incrementar para limpiar la selección (ej. tras asignación masiva exitosa) */
   resetSelectionKey?: number;
+  /** IDs de actividades ya asignadas a la ficha (solo modo agregar, para mostrar Asignado/No asignado) */
+  idsActividadesAsignadas?: Set<number>;
 }
 
 const ListaActividades: React.FC<ListaActividadesProps> = ({
@@ -83,17 +228,21 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   mostrarCrearCuestionario = true,
   modo,
   emptyMessage,
-  resetSelectionKey
+  resetSelectionKey,
+  idsActividadesAsignadas
 }) => {
-  const [actividadesSeleccionadas, setActividadesSeleccionadas] = useState<Set<number>>(new Set());
   const nombreCompleto = (p: Actividad['persona']) => {
     if (!p) return 'Sin asignar';
     return `${p.nombre1 || ''} ${p.nombre2 || ''} ${p.apellido1 || ''} ${p.apellido2 || ''}`.trim() || 'Sin asignar';
   };
   const [busqueda, setBusqueda] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
+  const [modalAsignarOpen, setModalAsignarOpen] = useState(false);
+  const [seleccionModal, setSeleccionModal] = useState<Set<number>>(new Set());
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
 
   const actividadesFiltradas = useMemo(() => {
+    if (!actividades || !Array.isArray(actividades)) return [];
     if (!busqueda.trim()) return actividades;
     const q = busqueda.toLowerCase().trim();
     return actividades.filter((item) => {
@@ -116,10 +265,11 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   }, [actividades, busqueda]);
 
   const actividadesPaginadas = useMemo(() => {
+    const list = actividadesFiltradas ?? [];
     const inicio = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA;
-    return actividadesFiltradas.slice(inicio, inicio + ACTIVIDADES_POR_PAGINA);
+    return list.slice(inicio, inicio + ACTIVIDADES_POR_PAGINA);
   }, [actividadesFiltradas, paginaActual]);
-  const totalPaginas = Math.ceil(actividadesFiltradas.length / ACTIVIDADES_POR_PAGINA);
+  const totalPaginas = Math.ceil((actividadesFiltradas?.length ?? 0) / ACTIVIDADES_POR_PAGINA);
 
   const handleBusquedaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBusqueda(e.target.value);
@@ -133,10 +283,38 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   }, [paginaActual, totalPaginas]);
 
   useEffect(() => {
-    if (resetSelectionKey != null && resetSelectionKey > 0) {
-      setActividadesSeleccionadas(new Set());
+    if (!modalAsignarOpen) setSeleccionModal(new Set());
+  }, [modalAsignarOpen]);
+
+  const toggleActividadModal = (id: number) => {
+    setSeleccionModal((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleTodasModal = () => {
+    const list = actividadesFiltradas ?? [];
+    if (seleccionModal.size === list.length) {
+      setSeleccionModal(new Set());
+    } else {
+      setSeleccionModal(new Set(list.map((item) => (item.actividad || item).id).filter((id): id is number => id != null)));
     }
-  }, [resetSelectionKey]);
+  };
+  const handleAsignarDesdeModal = () => {
+    const list = actividadesFiltradas ?? [];
+    const seleccionadas = list.filter((item) => {
+      const act = item.actividad || item;
+      return act.id != null && seleccionModal.has(act.id);
+    });
+    const acts = seleccionadas.map((item) => item.actividad || item) as Actividad[];
+    if (acts.length > 0) {
+      onAsignarActividades?.(acts);
+      setModalAsignarOpen(false);
+      setSeleccionModal(new Set());
+    }
+  };
 
   const defaultEmpty =
     modo === 'agregar'
@@ -151,7 +329,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     );
   }
 
-  if (!actividades || actividades.length === 0) {
+  if (!actividades || !Array.isArray(actividades) || actividades.length === 0) {
     return (
       <div className="text-center py-12">
         <KeenIcon
@@ -177,32 +355,9 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     );
   }
 
-  const mostrarSeleccion = modo === 'agregar' && onAsignarActividades;
-  const toggleActividad = (id: number) => {
-    setActividadesSeleccionadas((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const toggleTodasActividades = () => {
-    if (actividadesSeleccionadas.size === actividadesPaginadas.length) {
-      setActividadesSeleccionadas(new Set());
-    } else {
-      setActividadesSeleccionadas(new Set(actividadesPaginadas.map((item) => (item.actividad || item).id).filter((id): id is number => id != null)));
-    }
-  };
-  const handleAsignarSeleccionadas = () => {
-    const seleccionadas = actividadesFiltradas.filter((item) => {
-      const act = item.actividad || item;
-      return act.id != null && actividadesSeleccionadas.has(act.id);
-    });
-    const acts = seleccionadas.map((item) => item.actividad || item) as Actividad[];
-    if (acts.length > 0) onAsignarActividades?.(acts);
-  };
-
-  const headers = mostrarSeleccion ? ['', 'Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones'] : ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones'];
+  const headers = modo === 'agregar'
+    ? ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones']
+    : ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Fecha límite', 'Tipo', 'Acciones'];
 
   return (
     <div className="space-y-3">
@@ -218,29 +373,29 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           />
         </div>
         {(modo === 'agregar' || modo === 'asignadas') && (onCrear || onCrearCuestionario || onAsignarActividades) && (
-          <div className="flex gap-2 shrink-0 flex-wrap">
-            {modo === 'agregar' && onAsignarActividades && actividadesSeleccionadas.size > 0 && (
+          <div className="flex gap-1.5 shrink-0 flex-wrap">
+            {modo === 'agregar' && onAsignarActividades && (
               <button
-                onClick={handleAsignarSeleccionadas}
-                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium"
+                onClick={() => setModalAsignarOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium"
               >
                 <KeenIcon icon="users" className="text-sm" />
-                Asignar {actividadesSeleccionadas.size} seleccionada(s)
+                Asignar actividades
               </button>
             )}
             {onCrearCuestionario && mostrarCrearCuestionario && (
-            <button
-              onClick={onCrearCuestionario}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
-            >
-              <KeenIcon icon="document" className="text-sm" />
-              Crear cuestionario
-            </button>
-          )}
+              <button
+                onClick={onCrearCuestionario}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
+              >
+                <KeenIcon icon="document" className="text-sm" />
+                Crear cuestionario
+              </button>
+            )}
             {onCrear && (
               <button
                 onClick={onCrear}
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium dark:bg-blue-600 dark:hover:bg-blue-700"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium"
               >
                 <KeenIcon icon="plus" className="text-sm" />
                 Crear Actividad
@@ -249,27 +404,29 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           </div>
         )}
       </div>
-      {actividadesFiltradas.length === 0 ? (
+      {(actividadesFiltradas?.length ?? 0) === 0 ? (
         <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
           No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
       ) : (
-      <div className="">
-        <table className="w-full">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+        <table className="w-full table-fixed" style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '3%' }} />
+            <col style={{ width: '4%' }} />
+            <col style={{ width: modo === 'asignadas' ? '20%' : '26%' }} />
+            <col style={{ width: modo === 'asignadas' ? '14%' : '18%' }} />
+            <col style={{ width: modo === 'asignadas' ? '14%' : '18%' }} />
+            <col style={{ width: '10%' }} />
+            {modo === 'asignadas' && <col style={{ width: '10%' }} />}
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '5%' }} />
+          </colgroup>
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
+            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-coal-500/30">
               {headers.map((h) => (
-                <th key={h === '' ? 'sel' : h} className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                  {h === '' && mostrarSeleccion ? (
-                    <input
-                      type="checkbox"
-                      checked={actividadesPaginadas.length > 0 && actividadesPaginadas.every((item) => (item.actividad || item).id != null && actividadesSeleccionadas.has((item.actividad || item).id!))}
-                      onChange={toggleTodasActividades}
-                      className="rounded border-gray-300"
-                    />
-                  ) : (
-                    h
-                  )}
+                <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 align-middle">
+                  {h}
                 </th>
               ))}
             </tr>
@@ -279,173 +436,126 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
               const act = item.actividad || item;
               const indiceGlobal = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA + idx;
               const codigo = indiceGlobal + 1;
+              const { fecha, hora } = formatearFechaCompacta((item as ItemActividad).fechaFinal);
               return (
                 <tr
                   key={act.id || act.tituloActividad}
-                  className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors"
+                  className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50/80 dark:hover:bg-coal-400/30 transition-colors min-h-[48px]"
                 >
-                  {mostrarSeleccion && (
-                    <td className="py-3 px-3">
-                      <input
-                        type="checkbox"
-                        checked={act.id != null && actividadesSeleccionadas.has(act.id)}
-                        onChange={() => act.id != null && toggleActividad(act.id)}
-                        className="rounded border-gray-300"
-                      />
-                    </td>
-                  )}
-                  <td className="py-3 px-3 text-xs font-medium text-gray-900 dark:text-white">
+                  <td className="py-3 px-3 text-xs font-medium text-gray-600 dark:text-gray-400 align-middle">
                     {codigo}
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-col items-center gap-2">
+                  <td className="py-3 px-3 align-middle">
+                    <button
+                      type="button"
+                      onClick={() => setZoomFoto({
+                        src: getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto),
+                        alt: nombreCompleto(act.persona)
+                      })}
+                      title={nombreCompleto(act.persona)}
+                      className="shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 block mx-auto"
+                    >
                       <img
-                        src={act.persona?.rutaFotoUrl || act.persona?.rutaFoto || '/media/avatars/blank.png'}
+                        src={getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto)}
                         alt={nombreCompleto(act.persona)}
-                        className="w-10 h-10 rounded-full object-cover"
+                        className="w-8 h-8 rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
                       />
-                      <span className="text-xs text-gray-700 dark:text-gray-300 text-center max-w-[80px] truncate block">
-                        {nombreCompleto(act.persona)}
-                      </span>
-                    </div>
+                    </button>
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="max-w-[180px]">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        <CeldaConTooltip
-                          textoCompleto={act.tituloActividad || ''}
-                          textoTruncado={truncarAPalabras(act.tituloActividad)}
-                        />
-                      </p>
-                    </div>
+                  <td className="py-3 px-3 align-middle overflow-hidden">
+                    <span className="block truncate text-sm font-medium text-gray-900 dark:text-white" title={act.tituloActividad || ''} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {act.tituloActividad || '-'}
+                    </span>
                   </td>
-                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 max-w-[140px]">
-                    <CeldaConTooltip
-                      textoCompleto={act.entregables || '-'}
-                      textoTruncado={truncarAPalabras(act.entregables)}
-                    />
+                  <td className="py-3 px-3 align-middle overflow-hidden">
+                    <span className="block truncate text-xs text-gray-600 dark:text-gray-400" title={act.entregables || '-'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {act.entregables || '-'}
+                    </span>
                   </td>
-                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 max-w-[160px]">
-                    <CeldaConTooltip
-                      textoCompleto={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}
-                      textoTruncado={truncarAPalabras(`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-')}
-                    />
+                  <td className="py-3 px-3 align-middle overflow-hidden">
+                    <span className="block truncate text-xs text-gray-600 dark:text-gray-400" title={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}
+                    </span>
                   </td>
-                  <td className="py-3 px-3">
-                    {(() => {
-                      const itemAct = item as ItemActividad;
-                      // Estado calculado solo por: fecha inicio, fecha límite y hora actual
-                      let esVencida = itemAct.fechaVencida === true;
-                      let esInactiva = itemAct.fechaInactiva === true;
-                      if (esVencida === false && itemAct.fechaFinal) {
-                        try {
-                          const f = new Date(itemAct.fechaFinal);
-                          esVencida = !isNaN(f.getTime()) && new Date() > f;
-                        } catch {
-                          esVencida = false;
+                  <td className="py-3 px-3 align-middle">
+                    {modo === 'agregar' ? (
+                      (() => {
+                        const estaAsignada = act.id != null && (idsActividadesAsignadas?.has(act.id) ?? false);
+                        const estadoTexto = estaAsignada ? 'Asignado' : 'No asignado';
+                        const estadoClases = estaAsignada
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300';
+                        return (
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${estadoClases}`}>
+                            {estadoTexto}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      (() => {
+                        const itemAct = item as ItemActividad;
+                        let esVencida = itemAct.fechaVencida === true;
+                        let esInactiva = itemAct.fechaInactiva === true;
+                        if (esVencida === false && itemAct.fechaFinal) {
+                          try {
+                            const f = new Date(itemAct.fechaFinal);
+                            esVencida = !isNaN(f.getTime()) && new Date() > f;
+                          } catch {
+                            esVencida = false;
+                          }
                         }
-                      }
-                      if (esInactiva === false && itemAct.fechaInicial) {
-                        try {
-                          const fi = new Date(itemAct.fechaInicial);
-                          esInactiva = !isNaN(fi.getTime()) && new Date() < fi;
-                        } catch {
-                          esInactiva = false;
+                        if (esInactiva === false && itemAct.fechaInicial) {
+                          try {
+                            const fi = new Date(itemAct.fechaInicial);
+                            esInactiva = !isNaN(fi.getTime()) && new Date() < fi;
+                          } catch {
+                            esInactiva = false;
+                          }
                         }
-                      }
-                      const estadoTexto = esVencida ? 'Vencida' : esInactiva ? 'Inactiva' : 'Activa';
-                      const estadoClases = esVencida
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        : esInactiva
-                          ? 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-                      return (
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${estadoClases}`}>
-                          {estadoTexto}
-                        </span>
-                      );
-                    })()}
+                        const estadoTexto = esVencida ? 'Vencida' : esInactiva ? 'Inactiva' : 'Activa';
+                        const estadoClases = esVencida
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          : esInactiva
+                            ? 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
+                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+                        return (
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${estadoClases}`}>
+                            {estadoTexto}
+                          </span>
+                        );
+                      })()
+                    )}
                   </td>
-                  <td className="py-3 px-3 text-xs text-gray-700 dark:text-gray-300 capitalize">
-                    {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-col items-start gap-2">
-                      {modo === 'agregar' && onAsignarActividad && (
-                        <button
-                          onClick={() => onAsignarActividad(act)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded"
-                        >
-                          <KeenIcon icon="users" className="text-xs" />
-                          Asignar actividad
-                        </button>
-                      )}
-                      {modo === 'asignadas' && onQuitar && (item as { id?: number }).id != null && (
-                        <button
-                          onClick={() => onQuitar((item as { id: number }).id)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded"
-                          title="Quitar de asignadas"
-                        >
-                          <KeenIcon icon="cross" className="text-xs" />
-                          Quitar
-                        </button>
-                      )}
-                      <div className="flex items-center gap-1.5">
-                        {modo === 'asignadas' && idFicha && onVerAprendices && (
-                          <button
-                            onClick={() => onVerAprendices(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 relative"
-                            title="Ver aprendices asignados"
-                          >
-                            <KeenIcon icon="users" className="text-sm" />
-                          </button>
-                        )}
-                        {modo === 'asignadas' && idFicha && onAmpliar && (
-                          <button
-                            onClick={() => onAmpliar(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Ampliar actividad"
-                          >
-                            <KeenIcon icon="calendar" className="text-sm" />
-                          </button>
-                        )}
-                        {onVer && (
-                          <button
-                            onClick={() => onVer(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Ver"
-                          >
-                            <KeenIcon icon="eye" className="text-sm" />
-                          </button>
-                        )}
-                        {onMaterialApoyo && (
-                          <button
-                            onClick={() => onMaterialApoyo(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Material de apoyo"
-                          >
-                            <KeenIcon icon="folder" className="text-sm" />
-                          </button>
-                        )}
-                        {onEditar && (
-                          <button
-                            onClick={() => onEditar(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Editar"
-                          >
-                            <KeenIcon icon="pencil" className="text-sm" />
-                          </button>
-                        )}
-                        {onEliminar && (!puedeEliminar || puedeEliminar(act)) && (
-                          <button
-                            onClick={() => onEliminar(act)}
-                            className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600"
-                            title="Eliminar (solo si no está asignada)"
-                          >
-                            <KeenIcon icon="trash" className="text-sm" />
-                          </button>
-                        )}
+                  {modo === 'asignadas' && (
+                    <td className="py-3 px-3 align-middle overflow-hidden">
+                      <div className="flex flex-col leading-tight min-w-0" title={formatearFecha((item as ItemActividad).fechaFinal, true)}>
+                        <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate">{fecha}</span>
+                        {hora && <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{hora}</span>}
                       </div>
+                    </td>
+                  )}
+                  <td className="py-3 px-3 align-middle">
+                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                      {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 align-middle">
+                    <div className="flex items-center justify-end">
+                      <DropdownAcciones
+                        act={act}
+                        item={item}
+                        modo={modo}
+                        idFicha={idFicha}
+                        onVer={onVer}
+                        onAsignarActividad={onAsignarActividad}
+                        onVerAprendices={onVerAprendices}
+                        onAmpliar={onAmpliar}
+                        onQuitar={onQuitar}
+                        onMaterialApoyo={onMaterialApoyo}
+                        onEditar={onEditar}
+                        onEliminar={onEliminar}
+                        puedeEliminar={puedeEliminar}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -455,11 +565,79 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
         </table>
       </div>
       )}
-      {actividadesFiltradas.length > 0 && (
+      {modo === 'agregar' && onAsignarActividades && modalAsignarOpen && (
+        <Modal open={modalAsignarOpen} onClose={() => setModalAsignarOpen(false)} zIndex={120}>
+          <ModalContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <ModalHeader>
+              <ModalTitle>Asignar actividades</ModalTitle>
+              <button className="btn btn-sm btn-icon btn-light btn-clear" onClick={() => setModalAsignarOpen(false)}>
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="flex-1 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={toggleTodasModal}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                >
+                  {seleccionModal.size === (actividadesFiltradas?.length ?? 0) ? 'Desmarcar todas' : 'Seleccionar todas'}
+                </button>
+                <span className="text-xs text-gray-500">
+                  {seleccionModal.size} seleccionada(s)
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {(actividadesFiltradas ?? []).map((item) => {
+                  const act = item.actividad || item;
+                  if (act.id == null) return null;
+                  const checked = seleccionModal.has(act.id);
+                  return (
+                    <li key={act.id}>
+                      <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-coal-500/30 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleActividadModal(act.id!)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {act.tituloActividad || 'Sin título'}
+                        </span>
+                        <span className="text-xs text-gray-500 shrink-0">
+                          {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : act.tipoActividad || '-'}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setModalAsignarOpen(false)}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAsignarDesdeModal}
+                  disabled={seleccionModal.size === 0}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Asignar {seleccionModal.size} actividad(es)
+                </button>
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+      {(actividadesFiltradas?.length ?? 0) > 0 && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Mostrando {(paginaActual - 1) * ACTIVIDADES_POR_PAGINA + 1}-
-            {Math.min(paginaActual * ACTIVIDADES_POR_PAGINA, actividadesFiltradas.length)} de {actividadesFiltradas.length}
+            {Math.min(paginaActual * ACTIVIDADES_POR_PAGINA, actividadesFiltradas?.length ?? 0)} de {actividadesFiltradas?.length ?? 0}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -478,6 +656,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             </button>
           </div>
         </div>
+      )}
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
       )}
     </div>
   );
