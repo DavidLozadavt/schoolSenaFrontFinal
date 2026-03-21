@@ -208,8 +208,9 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
   // Recalcular estados de sesiones en tiempo real y marcar solo una como "PROXIMO"
   const materiasConEstadosActualizados = useMemo(() => {
     return materias.map(materia => {
+      const sesionesRaw = Array.isArray(materia.sesiones) ? materia.sesiones : [];
       // Ordenar sesiones por fecha y hora
-      const sesionesOrdenadas = [...materia.sesiones].sort((a, b) => {
+      const sesionesOrdenadas = [...sesionesRaw].sort((a, b) => {
         const fechaA = new Date(a.fecha + 'T' + a.horaInicial).getTime();
         const fechaB = new Date(b.fecha + 'T' + b.horaInicial).getTime();
         return fechaA - fechaB;
@@ -382,6 +383,27 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Contacta con tu instructor para más información
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // "Todas" oculta materias ya 100% completadas; si todas lo están, el filtro deja lista vacía → pantalla en blanco
+  if (materiasFiltradas.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="text-center">
+          <KeenIcon icon="check-circle" className="text-4xl text-green-500 dark:text-green-400 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+            {filtro === 'completadas'
+              ? 'No hay clases completadas en este periodo'
+              : 'Todas tus clases de este periodo están completadas'}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {filtro === 'completadas'
+              ? 'Cuando termines sesiones, aparecerán aquí agrupadas por mes.'
+              : 'Usa el filtro «Solo completadas» para ver el historial o el reporte de asistencias.'}
           </p>
         </div>
       </div>

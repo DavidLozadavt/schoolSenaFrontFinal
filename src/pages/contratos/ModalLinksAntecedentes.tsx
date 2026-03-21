@@ -40,8 +40,9 @@ const ModalLinksAntecedentes = ({ open, onClose }: ModalProps) => {
         </ModalHeader>
 
         <ModalBody className="grid gap-4 px-0 py-5">
-          {links.map((link, index) => (
+          {links.map((link) => (
             <a
+              key={link.url}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"

@@ -27,13 +27,3 @@ root.render(
     </ProvidersWrapper>
 
 );
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/firebase-messaging-sw.js')
-    .then((registration) => {
-    })
-    .catch((err) => {
-      console.error('Service Worker registration failed:', err);
-    });
-}
