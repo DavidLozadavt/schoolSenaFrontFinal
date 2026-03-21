@@ -126,8 +126,7 @@ const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgra
       } else {
         setProgramas([]);
       }
-    } catch (error: any) {
-      console.error('Error al cargar programas:', error);
+    } catch {
       enqueueSnackbar('Error al cargar programas', { variant: 'error' });
       setProgramas([]);
     } finally {
@@ -156,6 +155,9 @@ const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgra
         await axios.post(`update_contrato/${contrato.id}`, {
           programas: newSelectedPrograms,
         });
+
+        // Mantiene sincronizado el contrato en el padre para que otros bloques no queden stale.
+        if (onSave) onSave();
         
         setToastMessage('Programas actualizados');
         setShowToast(true);
@@ -164,7 +166,6 @@ const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgra
         // El contrato se sincronizará automáticamente cuando sea necesario
         // Evitar recarga innecesaria que causa loops
       } catch (error) {
-        console.error('Error al guardar programas:', error);
         enqueueSnackbar('Error al guardar programas', { variant: 'error' });
         // Revertir cambio en caso de error
         setSelectedPrograms(previousSelectedPrograms);
@@ -195,6 +196,9 @@ const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgra
         await axios.post(`update_contrato/${contrato.id}`, {
           programas: newSelectedPrograms,
         });
+
+        if (onSave) onSave();
+
         setToastMessage('Programas actualizados');
         setShowToast(true);
         
@@ -202,7 +206,6 @@ const AssignedPrograms = ({ contrato, onSave, onProgramsChange }: AssignedProgra
         // El contrato se sincronizará automáticamente cuando sea necesario
         // Evitar recarga innecesaria que causa loops
       } catch (error) {
-        console.error('Error al guardar programas:', error);
         enqueueSnackbar('Error al guardar programas', { variant: 'error' });
         // Revertir cambio en caso de error
         setSelectedPrograms(previousSelectedPrograms);

@@ -66,6 +66,12 @@ export const validationFieldPerson = (name: string, value: string): string | nul
       }
       break;
 
+    case 'perfilProfesional':
+      if (value && value.length > 4000) {
+        return 'El perfil profesional no puede superar 4000 caracteres';
+      }
+      break;
+
   
       default:
         return null;

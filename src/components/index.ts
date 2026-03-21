@@ -10,4 +10,4 @@ export * from './drawer';
 export * from './tooltip';
 export * from './file-viewer';
 export * from './image-zoom';
-export * from './toast';
+export { Toast } from '../pages/programas-academicos/components/Toast';

@@ -89,6 +89,12 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
     setNewDocumentType('');
   };
 
+  const handleAfterDocumentUpdated = () => {
+    setToastMessage('Documento actualizado con éxito.');
+    setShowToast(true);
+    handleAfterSave();
+  };
+
   const handleNewDocumentSave = async () => {
     if (!newFile || !newDocumentType) {
       enqueueSnackbar('Debe seleccionar un archivo y un tipo de documento.', { variant: 'error' });
@@ -277,7 +283,7 @@ const ContractFiles = ({ title, contrato, onSave }: IRecentUploadsProps) => {
           setIsModalOpen(false);
         }}
         documento={selectedDocument}
-        onSave={handleAfterSave}
+        onSave={handleAfterDocumentUpdated}
       />
 
       {/* Modal para cargar nuevo documento */}

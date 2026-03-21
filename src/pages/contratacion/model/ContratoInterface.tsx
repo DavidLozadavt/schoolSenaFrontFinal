@@ -7,6 +7,10 @@ export interface ContratoInterface {
   perfilProfesional: string;
   otrosi: string;
   periodoPago?: string;
+  /** Enum backend: NORMAL | SALARIO INTEGRAL | COMISIONES */
+  formaPago?: string;
+  supervisorContrato?: string;
+  cargoSupervisor?: string;
   idpersona?: number;
   idtipoContrato: string;
   fechaSistema: string;

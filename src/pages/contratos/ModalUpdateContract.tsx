@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
 import Toast from '../programas-academicos/components/Toast';
-import { ContratoInterface } from './model/ContratoInterface';
+import { ContratoInterface, resolveFormaPago } from './model/ContratoInterface';
 
 interface ModalUpdateContractProps {
   open: boolean;
@@ -33,11 +33,20 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
     otrosi: '',
     horasmes: '',
     periodoPago: '',
+    formaPago: '',
+    supervisorContrato: '',
+    cargoSupervisor: '',
     valorTotalContrato: ''
   });
 
   const [tiposContrato, setTiposContrato] = useState<any[]>([]);
   const [actividadesRiesgo, setActividadesRiesgo] = useState<any[]>([]);
+  /** Valores del enum backend (TypePaymentMethodContract); respaldo si falla el GET */
+  const [formasPagoContrato, setFormasPagoContrato] = useState<string[]>([
+    'NORMAL',
+    'COMISIONES',
+    'SALARIO INTEGRAL'
+  ]);
 
   useEffect(() => {
     if (!open && !showToast) {
@@ -70,7 +79,13 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         salario: contrato.salario?.valor?.toString() || '',
         otrosi: contrato.otrosi || '',
         horasmes: contrato.horasmes?.toString() || '',
-        periodoPago: contrato.periodoPago || '',
+        periodoPago:
+          contrato.periodoPago !== undefined && contrato.periodoPago !== null
+            ? String(contrato.periodoPago)
+            : '',
+        formaPago: resolveFormaPago(contrato),
+        supervisorContrato: (contrato as any).supervisorContrato || '',
+        cargoSupervisor: (contrato as any).cargoSupervisor || '',
         valorTotalContrato: contrato.valorTotalContrato?.toString() || ''
       });
     }
@@ -94,18 +109,36 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
     }
   }, []);
 
+  const fetchFormasPagoContrato = useCallback(async () => {
+    try {
+      const response = await axios.get('contrato-formas-pago');
+      const data = response.data;
+      const arr: unknown[] = Array.isArray(data)
+        ? data
+        : data && typeof data === 'object'
+          ? Object.values(data as Record<string, unknown>)
+          : [];
+      if (arr.length > 0) {
+        setFormasPagoContrato(arr.map((x) => String(x)));
+      }
+    } catch (err) {
+      console.error('Error al cargar formas de pago:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       setLoading(true);
       Promise.all([
         fetchTiposContrato(),
-        fetchActividadesRiesgo()
+        fetchActividadesRiesgo(),
+        fetchFormasPagoContrato()
       ]).finally(() => {
         setLoading(false);
         setError('');
       });
     }
-  }, [open, fetchTiposContrato, fetchActividadesRiesgo]);
+  }, [open, fetchTiposContrato, fetchActividadesRiesgo, fetchFormasPagoContrato]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -126,9 +159,23 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         observacion: formData.observacion,
         perfilProfesional: formData.perfilProfesional,
         fechaContratacion: formData.fechaContratacion,
-        idtipoContrato: formData.idtipoContrato ? Number(formData.idtipoContrato) : contrato.idtipoContrato,
-        salario_id: contrato.salario?.id
+        idtipoContrato: formData.idtipoContrato ? Number(formData.idtipoContrato) : contrato.idtipoContrato
       };
+
+      const sid = contrato.salario?.id;
+      if (sid !== undefined && sid !== null && sid !== '') {
+        dataToSend.salario_id = sid;
+      }
+
+      if (formData.periodoPago !== '' && formData.periodoPago != null) {
+        dataToSend.periodoPago = Number(formData.periodoPago);
+      }
+
+      if (formData.formaPago !== '' && formData.formaPago != null) {
+        dataToSend.formaPago = formData.formaPago;
+      }
+      if (formData.supervisorContrato) dataToSend.supervisorContrato = formData.supervisorContrato;
+      if (formData.cargoSupervisor) dataToSend.cargoSupervisor = formData.cargoSupervisor;
 
       if (formData.fechaFinalContrato) {
         dataToSend.fechaFinalContrato = formData.fechaFinalContrato;
@@ -149,10 +196,6 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
 
       if (formData.horasmes) {
         dataToSend.horasmes = Number(formData.horasmes);
-      }
-
-      if (formData.periodoPago) {
-        dataToSend.periodoPago = formData.periodoPago;
       }
 
       if (formData.valorTotalContrato) {
@@ -176,10 +219,18 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
 
   const isTipoContratoIndefinido = formData.idtipoContrato === '6';
 
+  const opcionesFormaPago = useMemo(() => {
+    const cur = formData.formaPago?.trim();
+    if (cur && !formasPagoContrato.includes(cur)) {
+      return [cur, ...formasPagoContrato];
+    }
+    return formasPagoContrato;
+  }, [formData.formaPago, formasPagoContrato]);
+
   return (
     <>
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[600px] top-[5%] p-4 max-h-[85vh] overflow-y-auto no-scrollbar">
+      <ModalContent className="max-w-[min(100vw-1rem,920px)] top-[3%] p-4 sm:p-6 max-h-[90vh] overflow-y-auto no-scrollbar">
         <ModalHeader>
           <ModalTitle>Editar Datos del Contrato</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
@@ -275,11 +326,48 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
                   className="select w-full"
                 >
                   <option value="">Seleccione</option>
-                  <option value="MENSUAL">MENSUAL</option>
-                  <option value="QUINCENAL">QUINCENAL</option>
-                  <option value="SEMANAL">SEMANAL</option>
-                  <option value="DIARIO">DIARIO</option>
+                  <option value="10">SEMANAL</option>
+                  <option value="15">QUINCENAL</option>
+                  <option value="30">MENSUAL</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Forma de pago</label>
+                <select
+                  value={formData.formaPago}
+                  onChange={(e) => handleInputChange('formaPago', e.target.value)}
+                  className="select w-full"
+                >
+                  <option value="">Seleccione</option>
+                  {opcionesFormaPago.map((forma) => (
+                    <option key={forma} value={forma}>
+                      {forma}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Supervisor del Contrato</label>
+                <input
+                  type="text"
+                  value={formData.supervisorContrato}
+                  onChange={(e) => handleInputChange('supervisorContrato', e.target.value)}
+                  className="input w-full"
+                  placeholder="Nombre supervisor"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Cargo Supervisor</label>
+                <input
+                  type="text"
+                  value={formData.cargoSupervisor}
+                  onChange={(e) => handleInputChange('cargoSupervisor', e.target.value)}
+                  className="input w-full"
+                  placeholder="Cargo del supervisor"
+                />
               </div>
 
               <div>
@@ -311,45 +399,54 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
                 </select>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Objeto del Contrato</label>
-                <textarea
-                  value={formData.objetoContrato}
-                  onChange={(e) => handleInputChange('objetoContrato', e.target.value)}
-                  className="input w-full"
-                  rows={3}
-                />
-              </div>
+              <div className="md:col-span-2 mt-1 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Objeto del Contrato
+                    </label>
+                    <textarea
+                      value={formData.objetoContrato}
+                      onChange={(e) => handleInputChange('objetoContrato', e.target.value)}
+                      className="input w-full min-h-[72px] max-h-[140px] py-1.5 px-2.5 text-xs leading-snug resize-y rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 focus:ring-2 focus:ring-primary/30"
+                      rows={3}
+                    />
+                  </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Observaciones</label>
-                <textarea
-                  value={formData.observacion}
-                  onChange={(e) => handleInputChange('observacion', e.target.value)}
-                  className="input w-full"
-                  rows={3}
-                />
-              </div>
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Observaciones
+                    </label>
+                    <textarea
+                      value={formData.observacion}
+                      onChange={(e) => handleInputChange('observacion', e.target.value)}
+                      className="input w-full min-h-[72px] max-h-[140px] py-1.5 px-2.5 text-xs leading-snug resize-y rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 focus:ring-2 focus:ring-primary/30"
+                      rows={3}
+                    />
+                  </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Perfil Profesional</label>
-                <textarea
-                  value={formData.perfilProfesional}
-                  onChange={(e) => handleInputChange('perfilProfesional', e.target.value)}
-                  className="input w-full"
-                  rows={3}
-                />
-              </div>
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Perfil Profesional
+                    </label>
+                    <textarea
+                      value={formData.perfilProfesional}
+                      onChange={(e) => handleInputChange('perfilProfesional', e.target.value)}
+                      className="input w-full min-h-[72px] max-h-[140px] py-1.5 px-2.5 text-xs leading-snug resize-y rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 focus:ring-2 focus:ring-primary/30"
+                      rows={3}
+                    />
+                  </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Otrosí</label>
-                <input
-                  type="text"
-                  value={formData.otrosi}
-                  onChange={(e) => handleInputChange('otrosi', e.target.value)}
-                  className="input w-full"
-                  placeholder="Ej: N, S"
-                />
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Otrosí</label>
+                    <textarea
+                      value={formData.otrosi}
+                      onChange={(e) => handleInputChange('otrosi', e.target.value)}
+                      className="input w-full min-h-[56px] max-h-[120px] py-1.5 px-2.5 text-xs leading-snug resize-y rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 focus:ring-2 focus:ring-primary/30"
+                      rows={2}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
