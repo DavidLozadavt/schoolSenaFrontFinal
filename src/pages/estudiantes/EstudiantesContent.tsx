@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { useAuthContext } from '@/auth/useAuthContext';
 
 interface AreaAsistencia {
   idArea: number;
@@ -204,8 +205,14 @@ const DonutChart: React.FC<{ slices: DonutSlice[]; size?: number; center?: strin
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-
 const EstudiantesContent: React.FC = () => {
+  const { user, persona } = useAuthContext();
+  const userName = persona 
+    ? [persona.nombre1, persona.nombre2, persona.apellido1, persona.apellido2].filter(Boolean).join(' ')
+    : (user?.persona 
+        ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
+        : 'Aprendiz');
+  
   const [asistencia, setAsistencia] = useState<DashboardAsistencia | null>(null);
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
   const [loadingA, setLoadingA] = useState(true);
@@ -276,347 +283,196 @@ const EstudiantesContent: React.FC = () => {
     { label: 'Ausentes',     value: totalAusentes,     hexColor: '#dc2626' },
   ].filter((s) => s.value > 0);
 
-  // Actividades a mostrar en alerta (pendientes + vencidas, máx 5)
+  // Actividades a mostrar en alerta (solo pendientes, máx 5)
   const actAlerta = useMemo(() =>
     [...actividades]
-      .filter((a) => a.estadoVisual === 'PENDIENTE' || (a.estadoVisual === 'SIN_ENTREGAR' && a.fechaVencida))
+      .filter((a) => a.estadoVisual === 'PENDIENTE')
       .slice(0, 5),
     [actividades]
   );
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 space-y-8 min-h-screen bg-gray-50 dark:bg-coal-500">
+    <div className="p-4 md:p-6 space-y-6 min-h-screen">
       <>
+          {/* ══ HEADER PERSONALIZADO ═════════════════════════════════════ */}
+          <header className="mb-2">
+            <h1 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight flex items-baseline gap-2">
+              Dashboard de <span className="text-blue-600 dark:text-blue-400">Aprendiz</span>
+            </h1>
+            <p className="text-sm text-gray-500 font-medium">
+              Bienvenido, <span className="text-gray-900 dark:text-gray-200 font-bold">{userName}</span>
+            </p>
+          </header>
+
           {/* ══ SECCIÓN ASISTENCIA ═══════════════════════════════════════ */}
-          <section className="space-y-4">
-            <h2 className="text-base font-extrabold text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="w-1 h-5 rounded-full bg-blue-600 inline-block" />
+           <section className="space-y-3">
+            <h2 className="text-sm font-bold dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
+              <span className="w-1 h-4 rounded-full bg-blue-600 inline-block" />
               Asistencia
             </h2>
 
-            {/* KPIs asistencia */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <KpiCard icon="✅" label="Presentes" value={totalPresentes} sub="asistidas"
-                bg="bg-blue-100 dark:bg-blue-900/30" text="text-blue-700 dark:text-blue-300"
-                border="border-blue-600 dark:border-blue-500" />
-              <KpiCard icon="🛡" label="Justificadas" value={totalJustificadas} sub="excusadas"
-                bg="bg-emerald-100 dark:bg-emerald-900/30" text="text-emerald-700 dark:text-emerald-300"
-                border="border-emerald-600 dark:border-emerald-500" />
-              <KpiCard icon="❌" label="Ausencias" value={totalAusentes} sub="sin excusa"
-                bg="bg-red-100 dark:bg-red-900/20" text="text-red-700 dark:text-red-300"
-                border="border-red-500 dark:border-red-400" />
-              <KpiCard icon="📋" label="Total" value={totalRegistros} sub="registradas"
-                bg="bg-gray-100 dark:bg-gray-800" text="text-gray-700 dark:text-gray-300"
-                border="border-gray-500 dark:border-gray-400" />
-              <KpiCard icon="📊" label="% Asistencia" value={`${pctGeneral}%`}
-                sub={pctGeneral >= 80 ? '¡Excelente!' : pctGeneral >= 60 ? 'Puede mejorar' : '⚠ Riesgo'}
-                bg={pctGeneral >= 80 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-orange-100 dark:bg-orange-900/30'}
-                text={pctGeneral >= 80 ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}
-                border={pctGeneral >= 80 ? 'border-green-600 dark:border-green-500' : 'border-orange-500 dark:border-orange-400'} />
-            </div>
+            {/* Contenedor Grid Asistencia */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+              
+              {/* KPI Asistencia */}
+              <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex flex-col justify-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0">
+                    <p className="text-[10px] font-bold uppercase text-gray-400">Total</p>
+                    <p className="text-2xl font-black text-gray-800 dark:text-white leading-none mt-1">{totalRegistros}</p>
+                    <p className="text-[9px] mt-1 text-gray-400">sesiones</p>
+                  </div>
+                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-blue-600 dark:text-blue-400">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Presentes</p>
+                    <p className="text-2xl font-black leading-none mt-1">{totalPresentes}</p>
+                    <p className="text-[9px] mt-1 opacity-70">✅ registrados</p>
+                  </div>
+                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-emerald-600 dark:text-emerald-400">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Justificadas</p>
+                    <p className="text-2xl font-black leading-none mt-1">{totalJustificadas}</p>
+                    <p className="text-[9px] mt-1 opacity-70">🛡 avaladas</p>
+                  </div>
+                  <div className="text-center text-red-600 dark:text-red-400">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Ausencias</p>
+                    <p className="text-2xl font-black leading-none mt-1">{totalAusentes}</p>
+                    <p className="text-[9px] mt-1 opacity-70">❌ faltas</p>
+                  </div>
+                </div>
+              </div>
 
-            {/* Gráficas asistencia */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              {/* Donut asistencia general + gauge */}
-              <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5 flex flex-col items-center gap-4">
-                <h3 className="self-start text-sm font-semibold text-gray-900 dark:text-white uppercase">
-                  🎯 Tasa general de asistencia
-                </h3>
-
-                {/* Gauge circular */}
-                <div className="relative flex items-center justify-center">
-                  <svg width="150" height="150" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" strokeWidth="12"
-                      className="text-gray-100 dark:text-gray-700" />
-                    <circle cx="50" cy="50" r="38" fill="none"
+              {/* Gráfica Asistencia */}
+              <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
+                <div className="shrink-0 relative">
+                  <svg width="100" height="100" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-50 dark:text-gray-800" />
+                    <circle cx="50" cy="50" r="40" fill="none"
                       stroke={pctGeneral >= 80 ? '#16a34a' : pctGeneral >= 60 ? '#d97706' : '#dc2626'}
-                      strokeWidth="12"
-                      strokeDasharray={`${(pctGeneral / 100) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
-                      strokeDashoffset={2 * Math.PI * 38 / 4}
+                      strokeWidth="8"
+                      strokeDasharray={`${(pctGeneral / 100) * 2 * Math.PI * 40} ${2 * Math.PI * 40}`}
+                      strokeDashoffset={2 * Math.PI * 40 / 4}
                       strokeLinecap="round"
                       style={{ transition: 'stroke-dasharray 0.8s ease' }} />
-                    <text x="50" y="45" textAnchor="middle" dominantBaseline="middle"
-                      fill={pctGeneral >= 80 ? '#16a34a' : pctGeneral >= 60 ? '#d97706' : '#dc2626'}
-                      fontSize="16" fontWeight="800">{pctGeneral}%</text>
-                    <text x="50" y="57" textAnchor="middle" dominantBaseline="middle"
-                      fontSize="5" className="fill-gray-400">asistencia</text>
+                    <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="currentColor" className="text-gray-900 dark:text-white font-black" fontSize="18">{pctGeneral}%</text>
+                    <text x="50" y="62" textAnchor="middle" dominantBaseline="middle" fontSize="6" className="fill-gray-400 font-bold uppercase tracking-tighter">Tasa</text>
                   </svg>
                 </div>
-
-                {totalRegistros === 0
-                  ? <p className="text-xs text-gray-400">Sin sesiones registradas aún</p>
-                  : (
-                    <ul className="w-full space-y-1.5">
-                      {donutAsistencia.map((s, i) => (
-                        <li key={i} className="flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.hexColor }} />
-                            <span className="text-gray-600 dark:text-gray-300 font-semibold">{s.label}</span>
-                          </span>
-                          <span className="font-extrabold text-gray-800 dark:text-white">{s.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )
-                }
-              </div>
-
-              {/* Asistencia por área */}
-              <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
-                  📚 Asistencia por área
-                </h3>
-                {areas.length === 0
-                  ? <p className="text-center text-gray-400 text-xs py-10">Sin datos por área aún</p>
-                  : (
-                    <div className="space-y-3">
-                      {areas.map((area) => (
-                        <div key={area.idArea}>
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-gray-600 dark:text-gray-300 font-medium truncate max-w-[180px]">
-                              {area.nombreArea}
-                            </span>
-                            <span className={`font-extrabold ml-2 ${area.porcentaje >= 80 ? 'text-green-600 dark:text-green-400' : area.porcentaje >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {area.porcentaje}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full transition-all duration-700 ${area.porcentaje >= 80 ? 'bg-green-500' : area.porcentaje >= 60 ? 'bg-amber-400' : 'bg-red-500'}`}
-                              style={{ width: `${area.porcentaje}%` }}
-                            />
-                          </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {area.asistencias} presentes · {area.inasistencias} ausencias · {area.justificadas} justificadas
-                          </p>
-                        </div>
-                      ))}
+                <div className="flex-1 space-y-1">
+                  {donutAsistencia.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <span className="flex items-center gap-1.5 text-gray-500 font-semibold italic">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.hexColor }} />
+                        {s.label}
+                      </span>
+                      <span className="font-bold text-gray-700 dark:text-gray-300">{s.value}</span>
                     </div>
-                  )
-                }
-              </div>
-            </div>
-
-            {/* Nuevo: Detalle de clases recientes */}
-            <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 overflow-hidden">
-               <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-coal-500/50">
-                  <h3 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase flex items-center gap-2">
-                    📅 Historial de Asistencia Reciente
-                  </h3>
-                  <span className="text-[10px] text-gray-400 bg-white dark:bg-coal-400 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-600 shadow-sm">
-                    Últimas {detalles.length} sesiones
-                  </span>
-               </div>
-               {detalles.length === 0 ? (
-                 <div className="p-10 text-center text-gray-400 text-xs italic">
-                    No hay registros detallados disponibles.
-                 </div>
-               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="text-[10px] uppercase text-gray-400 dark:text-gray-500 bg-gray-50/50 dark:bg-coal-500/30">
-                      <tr>
-                        <th className="px-4 py-2 font-bold">Fecha</th>
-                        <th className="px-4 py-2 font-bold">Clase / Materia</th>
-                        <th className="px-4 py-2 font-bold">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {detalles.slice(0, 10).map((reg) => (
-                        <tr key={reg.id} className="hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors">
-                          <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 font-medium font-mono">
-                            {fmtFecha(reg.fecha)}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-800 dark:text-white font-bold">
-                            {reg.nombreMateria}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter ${
-                              reg.asistio 
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' 
-                                : reg.estaJustificada 
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' 
-                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                            }`}>
-                              {reg.estado}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {detalles.length > 10 && (
-                    <div className="p-2 text-center border-t border-gray-100 dark:border-gray-700 bg-gray-50/20">
-                      <p className="text-[10px] text-gray-400 italic">Mostrando solo las 10 sesiones más recientes</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
-               )}
+              </div>
             </div>
           </section>
 
           {/* ══ SECCIÓN ACTIVIDADES ══════════════════════════════════════ */}
-          <section className="space-y-4">
-            <h2 className="text-base font-extrabold text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="w-1 h-5 rounded-full bg-amber-500 inline-block" />
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
+              <span className="w-1 h-4 rounded-full bg-amber-500 inline-block" />
               Actividades
             </h2>
 
-            {/* KPIs actividades */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard icon="⏳" label="Pendientes" value={pendientes} sub="por responder"
-                bg="bg-gray-100 dark:bg-gray-800" text="text-gray-700 dark:text-gray-300"
-                border="border-gray-500 dark:border-gray-400" />
-              <KpiCard icon="🚨" label="Vencidas" value={vencidas} sub="sin entregar"
-                bg="bg-red-100 dark:bg-red-900/20" text="text-red-700 dark:text-red-300"
-                border="border-red-500 dark:border-red-400" />
-              <KpiCard icon="📤" label="Presentadas" value={presentadas} sub="por calificar"
-                bg="bg-amber-100 dark:bg-amber-900/30" text="text-amber-700 dark:text-amber-300"
-                border="border-amber-500 dark:border-amber-400" />
-              <KpiCard icon="🏅" label="Calificadas" value={calificadas} sub="con nota"
-                bg="bg-green-100 dark:bg-green-900/30" text="text-green-700 dark:text-green-300"
-                border="border-green-600 dark:border-green-500" />
-            </div>
-
-            {/* Gráficas actividades */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-              {/* Donut estados */}
-              <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5 flex flex-col items-center">
-                <h3 className="self-start text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
-                  📝 Estado de actividades
-                </h3>
-                {actividades.length === 0
-                  ? <p className="text-center text-gray-400 text-xs py-8">Sin actividades registradas</p>
-                  : (
-                    <>
-                      <DonutChart slices={donutActs} center={actividades.length} />
-                      <ul className="mt-3 space-y-1.5 w-full">
-                        {donutActs.map((s, i) => (
-                          <li key={i} className="flex items-center justify-between text-xs">
-                            <span className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.hexColor }} />
-                              <span className="text-gray-600 dark:text-gray-300 font-semibold">{s.label}</span>
-                            </span>
-                            <span className="font-extrabold text-gray-800 dark:text-white">{s.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )
-                }
-              </div>
-
-              {/* Pendientes y vencidas */}
-              <div className="md:col-span-2 bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-5">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
-                  ⚠️ Pendientes y vencidas
-                </h3>
-                {actAlerta.length === 0
-                  ? (
-                    <div className="text-center py-10">
-                      <span className="text-4xl">🎉</span>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm font-semibold mt-2">¡Todo al día!</p>
-                      <p className="text-gray-400 text-xs mt-1">No tienes actividades pendientes ni vencidas</p>
-                    </div>
-                  )
-                  : (
-                    <div className="space-y-2.5">
-                      {actAlerta.map((act) => {
-                        const cfg = ESTADO_CFG[act.estadoVisual] ?? ESTADO_CFG['PENDIENTE'];
-                        const isVen = act.estadoVisual === 'SIN_ENTREGAR' && act.fechaVencida;
-                        return (
-                          <div key={act.idCalificacionActividad}
-                            className={`flex items-center gap-3 p-3 rounded-lg border ${
-                              isVen
-                                ? 'border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/10'
-                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-coal-300'
-                            }`}>
-                            <div className={`w-1 self-stretch rounded-full shrink-0 ${isVen ? 'bg-red-500' : 'bg-gray-400'}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
-                                {act.tituloActividad}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {act.area?.nombre || act.materia?.nombreMateria || 'Sin área'}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              {act.fechaFinal && (
-                                <p className={`text-xs font-semibold ${isVen ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                                  {isVen ? '🚨 ' : '📅 '}{fmtFecha(act.fechaFinal)}
-                                </p>
-                              )}
-                              <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${cfg.chip}`}>
-                                {cfg.label}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                }
-              </div>
-            </div>
-
-            {/* Tabla completa */}
-            {actividades.length > 0 && (
-              <div className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase">
-                    📋 Todas las actividades
-                  </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {/* KPI Actividades */}
+              <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex flex-col justify-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
+                    <p className="text-[10px] font-bold uppercase text-gray-400">Pendientes</p>
+                    <p className="text-2xl font-black text-gray-800 dark:text-white leading-none mt-1">{pendientes}</p>
+                    <p className="text-[9px] mt-1 text-gray-400">⏳ por hacer</p>
+                  </a>
+                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Vencidas</p>
+                    <p className="text-2xl font-black leading-none mt-1">{vencidas}</p>
+                    <p className="text-[9px] mt-1 opacity-70">🚨 sin entrega</p>
+                  </a>
+                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-amber-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Entregadas</p>
+                    <p className="text-2xl font-black leading-none mt-1">{presentadas}</p>
+                    <p className="text-[9px] mt-1 opacity-70">📤 por evaluar</p>
+                  </a>
+                  <a href="/ambiente-virtual/actividades" className="text-center text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
+                    <p className="text-[10px] font-bold uppercase opacity-70">Calificadas</p>
+                    <p className="text-2xl font-black leading-none mt-1">{calificadas}</p>
+                    <p className="text-[9px] mt-1 opacity-70">🏅 revisadas</p>
+                  </a>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs min-w-[600px]">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-coal-300">
-                        {['Actividad', 'Área', 'Cierre', 'Estado', 'Nota'].map((h) => (
-                          <th key={h} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {actividades.map((act) => {
-                        const cfg = ESTADO_CFG[act.estadoVisual] ?? ESTADO_CFG['PENDIENTE'];
-                        const nota = act.calificacionNumerica ? parseFloat(act.calificacionNumerica).toFixed(1) : null;
-                        const isVen = act.estadoVisual === 'SIN_ENTREGAR' && act.fechaVencida;
-                        return (
-                          <tr key={act.idCalificacionActividad}
-                            className="hover:bg-gray-50/60 dark:hover:bg-coal-300/30 transition-colors">
-                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white max-w-[200px]">
-                              <span className="line-clamp-2">{act.tituloActividad}</span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-300 max-w-[140px]">
-                              <span className="line-clamp-1">{act.area?.nombre || act.materia?.nombreMateria || '—'}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`font-semibold ${isVen ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                {fmtFecha(act.fechaFinal)}
-                                {isVen && <span className="ml-1 text-[9px] font-bold uppercase text-red-500">vencida</span>}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${cfg.chip}`}>
-                                {cfg.label}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {nota
-                                ? <span className={`font-extrabold text-sm ${parseFloat(nota) >= 3 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{nota}</span>
-                                : <span className="text-gray-400">—</span>
-                              }
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              </div>
+
+              {/* Gráfica Actividades (Gauge circular igual a asistencia) */}
+              <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
+                 <div className="shrink-0 relative">
+                   {/* Usamos el porcentaje de calificadas como métrica de éxito similar al gauge de asistencia */}
+                   {(() => {
+                     const totalActs = actividades.length || 1;
+                     const pctCalificadas = Math.round((calificadas / totalActs) * 100);
+                     return (
+                      <svg width="100" height="100" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-50 dark:text-gray-800" />
+                        <circle cx="50" cy="50" r="40" fill="none"
+                          stroke="#16a34a"
+                          strokeWidth="8"
+                          strokeDasharray={`${(pctCalificadas / 100) * 2 * Math.PI * 40} ${2 * Math.PI * 40}`}
+                          strokeDashoffset={2 * Math.PI * 40 / 4}
+                          strokeLinecap="round"
+                          style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="currentColor" className="text-gray-900 dark:text-white font-black" fontSize="18">{pctCalificadas}%</text>
+                        <text x="50" y="62" textAnchor="middle" dominantBaseline="middle" fontSize="6" className="fill-gray-400 font-bold uppercase tracking-tighter">Éxito</text>
+                      </svg>
+                     );
+                   })()}
+                 </div>
+                 <div className="flex-1 space-y-1">
+                   {donutActs.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <span className="flex items-center gap-1.5 text-gray-500 font-semibold italic">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.hexColor }} />
+                        {s.label}
+                      </span>
+                      <span className="font-bold text-gray-700 dark:text-gray-300">{s.value}</span>
+                    </div>
+                  ))}
+                 </div>
+              </div>
+            </div>
+
+            {/* Pendientes - Lista refinada */}
+            {actAlerta.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">⚠️ Próximas a vencer</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {actAlerta.map((act) => {
+                    const cfg = ESTADO_CFG[act.estadoVisual] ?? ESTADO_CFG['PENDIENTE'];
+                    return (
+                      <a 
+                        key={act.idCalificacionActividad}
+                        href="ambiente-virtual/actividades"
+                        className="group flex flex-col p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-coal-400 hover:border-amber-400 dark:hover:border-amber-500 transition-all hover:shadow-sm"
+                      >
+                        <div className="flex justify-between items-start mb-1.5">
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${cfg.chip}`}>
+                            {cfg.label}
+                          </span>
+                          {act.fechaFinal && (
+                            <span className="text-[9px] font-bold text-gray-400 group-hover:text-amber-600 transition-colors">
+                              📅 {fmtFecha(act.fechaFinal)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-1 mb-0.5">{act.tituloActividad}</p>
+                        <p className="text-[10px] text-gray-400 italic font-medium truncate">
+                          {act.area?.nombre || act.materia?.nombreMateria || 'General'}
+                        </p>
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}

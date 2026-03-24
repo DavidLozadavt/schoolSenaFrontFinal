@@ -252,7 +252,6 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
       // Esto es crítico: cuando seleccionas un programa, las áreas de ese programa que ya están en el contrato deben mostrarse como seleccionadas
       setSelectedAreas(filteredSelectedAreas);
     } catch (error) {
-      console.error('Error al cargar áreas de conocimiento:', error);
       enqueueSnackbar('Error al cargar áreas de conocimiento', { variant: 'error' });
       setAreas([]);
       setSelectedAreas([]);
@@ -286,7 +285,6 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
           onSave();
         }
       } catch (error) {
-        console.error('Error al guardar áreas de conocimiento:', error);
         enqueueSnackbar('Error al guardar áreas de conocimiento', { variant: 'error' });
         // Revertir cambio en caso de error
         setSelectedAreas(previousSelectedAreas);
@@ -320,7 +318,6 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
           onSave();
         }
       } catch (error) {
-        console.error('Error al guardar áreas de conocimiento:', error);
         enqueueSnackbar('Error al guardar áreas de conocimiento', { variant: 'error' });
         // Revertir cambio en caso de error
         setSelectedAreas(previousSelectedAreas);
@@ -455,7 +452,6 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
         }
       }
     } catch (error: any) {
-      console.error('Error al crear área de conocimiento:', error);
       
       // Manejar error de duplicado (409 Conflict)
       if (error.response?.status === 409) {

@@ -32,24 +32,36 @@ const initialValues = {
 };
 
 const CreateUpdateRole = ({ open, onClose, data, onSave }: ModalProps) => {
-  console.log(data);
   const [loading, setLoading] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
   const tieneSalario = !!data?.salario;
 
-  const formatCOP = (value: number) =>
-    new Intl.NumberFormat('es-CO', {
+  const formatCOP = (value?: unknown) => {
+    const numeric =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value.replace(/[^\d.-]/g, ''))
+          : NaN;
+
+    if (!Number.isFinite(numeric)) return '';
+
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
       minimumFractionDigits: 0
-    }).format(value);
+    }).format(numeric);
+  };
 
   const formik = useFormik({
     initialValues: data
       ? {
           roleName: data.name || '',
-          valor: tieneSalario ? formatCOP(data.salario.valor) : ''
+          valor:
+            tieneSalario && data?.salario?.valor !== undefined && data?.salario?.valor !== null
+              ? formatCOP(data.salario.valor)
+              : ''
         }
       : initialValues,
     validationSchema: Yup.object().shape({

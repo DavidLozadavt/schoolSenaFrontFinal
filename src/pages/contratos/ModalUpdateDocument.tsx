@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
-import { ContratoInterface } from './model/ContratoInterface';
-import { DocumentoContrato } from './model/DocumentosContratoInterface';
+import { useSnackbar } from 'notistack';
 
 interface ModalProps {
   open: boolean;
@@ -14,6 +13,8 @@ interface ModalProps {
 
 const ModalUpdateDocument = ({ open, onClose, documento, onSave }: ModalProps) => {
   const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
   const [errors, setErrors] = useState<{ observacion?: string; file?: string }>({});
 
@@ -38,6 +39,7 @@ const ModalUpdateDocument = ({ open, onClose, documento, onSave }: ModalProps) =
     if (!validateFields()) return;
 
     try {
+      setSaving(true);
       const data = new FormData();
       if (documento?.id) {
         data.append('idDocumento', documento.id + '');
@@ -54,8 +56,16 @@ const ModalUpdateDocument = ({ open, onClose, documento, onSave }: ModalProps) =
         onSave();
       }
       onClose();
-    } catch (error) {
-      console.error('Error al archivar:', error);
+    } catch (error: unknown) {
+      console.error('Error al actualizar documento:', error);
+      const err = error as { response?: { data?: { message?: string; error?: string } } };
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'No se pudo actualizar el documento. Intenta de nuevo.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -94,8 +104,8 @@ const ModalUpdateDocument = ({ open, onClose, documento, onSave }: ModalProps) =
             <button className="btn btn-sm btn-secondary" onClick={onClose}>
               Cancelar
             </button>
-            <button className="btn btn-sm btn-primary" onClick={handleSave}>
-              Guardar
+            <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </ModalBody>

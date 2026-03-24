@@ -10,7 +10,7 @@ import { useLayout } from '@/providers';
 import axios from 'axios';
 import Select from 'react-select'
 
-import React, { Fragment, useContext, useEffect, useState } from 'react';
+import React, { Fragment, useContext, useEffect, useRef, useState } from 'react';
 import { PersonaInterface } from './model/PersonaInterface';
 import { ContratoInterface } from './model/ContratoInterface';
 import { validateFieldPersona } from './utils/validationPersona';
@@ -240,6 +240,7 @@ const ContratacionPage = () => {
   const [fileErrors, setFileErrors] = useState<Record<string, boolean>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [bancos, setBancos] = useState<any[]>([]);
+  const [formasPagoContrato, setFormasPagoContrato] = useState<any[]>([]);
   const [gruposNomina, setGruposNomina] = useState<any[]>([]);
   const [modalLinkAntecedentes, setModalLinkAntecedentes] = useState(false);
   const [modalInfoDocuemntos, setModalInfoDocumentos] = useState(false);
@@ -283,6 +284,9 @@ const ContratacionPage = () => {
     perfilProfesional: '',
     otrosi: '',
     periodoPago: '',
+    formaPago: '',
+    supervisorContrato: '',
+    cargoSupervisor: '',
     idtipoContrato: '',
     fechaSistema: '',
     observacion: '',
@@ -384,7 +388,15 @@ const ContratacionPage = () => {
     const { name } = e.target;
     let { value } = e.target;
     // No convertir a mayúsculas campos numéricos o idCentroFormacion
-    if (name !== 'idCentroFormacion' && !name.startsWith('id') && name !== 'horasmes' && name !== 'sueldo' && name !== 'valorTotalContrato') {
+    if (
+      name !== 'idCentroFormacion' &&
+      !name.startsWith('id') &&
+      name !== 'horasmes' &&
+      name !== 'sueldo' &&
+      name !== 'valorTotalContrato' &&
+      name !== 'formaPago' &&
+      name !== 'periodoPago'
+    ) {
       value = value.toUpperCase();
     }
 
@@ -531,9 +543,24 @@ const ContratacionPage = () => {
       newErrors.periodoPago = 'El período de pago es requerido';
     }
 
+    const errFormaPago = validateContratoField('formaPago', formDataContrato.formaPago ?? '');
+    if (errFormaPago) newErrors.formaPago = errFormaPago;
+
+    const errSup = validateContratoField('supervisorContrato', formDataContrato.supervisorContrato ?? '');
+    if (errSup) newErrors.supervisorContrato = errSup;
+
+    const errCargoSup = validateContratoField('cargoSupervisor', formDataContrato.cargoSupervisor ?? '');
+    if (errCargoSup) newErrors.cargoSupervisor = errCargoSup;
+
     if (!formDataContrato.objetoContrato) {
       newErrors.objetoContrato = 'El objeto de contrato es requerido';
     }
+
+    const errPerfil = validateContratoField(
+      'perfilProfesional',
+      formDataContrato.perfilProfesional ?? ''
+    );
+    if (errPerfil) newErrors.perfilProfesional = errPerfil;
 
     if (!formDataContrato.idTipoCotizante) {
       newErrors.idTipoCotizante = 'El tipo de cotizante es requerido';
@@ -573,29 +600,78 @@ const ContratacionPage = () => {
       });
       return;
     }
+
+    // Validaciones de los datos de la persona y ubicación antes de tocar la BD.
+    // Esto evita errores SQL visibles (por ejemplo, `fechaNac` null).
+    const personaErrors = validatePerson();
+    if (Object.keys(personaErrors).length > 0) {
+      setErrors(personaErrors as unknown as FormErrors);
+      setCurrentStep(1);
+      enqueueSnackbar('Revisa los datos de la persona (la fecha de nacimiento es obligatoria).', {
+        variant: 'error'
+      });
+      setLoading(false);
+      return;
+    }
+
+    const ubicacionErrors = validateUbicacion();
+    if (Object.keys(ubicacionErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...(ubicacionErrors as unknown as FormErrors) }));
+      setCurrentStep(1);
+      enqueueSnackbar('Revisa los datos de ubicación del contrato.', {
+        variant: 'error'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Validar nuevamente en Step 4 por si el usuario cambió datos sin volver a Step 3.
+    const validationErrorsContrato = validateContrato();
+    if (Object.keys(validationErrorsContrato).length > 0) {
+      setErrorsContrato(validationErrorsContrato);
+      setCurrentStep(3);
+      enqueueSnackbar('Revisa los campos obligatorios del contrato antes de guardar.', {
+        variant: 'error'
+      });
+      return;
+    }
+
+    // Evita que se repitan áreas por id y falle por constraints únicas en el pivot.
+    const areasConocimientoUnicas = Array.from(new Set(selectedAreasConocimiento))
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+
     setLoading(true);
     const data = new FormData();
 
-    data.append('fechaNac', formDataPersona.fechaNac + '');
-    data.append('idtipoIdentificacion', formDataPersona?.idtipoIdentificacion + '');
-    data.append('identificacion', formDataPersona.identificacion + '');
-    data.append('nombre1', formDataPersona.nombre1?.toUpperCase() + '');
+    // Evita enviar el texto "undefined"/"null" cuando falta un campo (rompe FKs en el servidor).
+    const fv = (v: unknown): string => {
+      if (v === undefined || v === null) return '';
+      const s = String(v);
+      if (s === 'undefined' || s === 'null') return '';
+      return s;
+    };
+
+    data.append('fechaNac', fv(formDataPersona.fechaNac));
+    data.append('idtipoIdentificacion', fv(formDataPersona?.idtipoIdentificacion));
+    data.append('identificacion', fv(formDataPersona.identificacion));
+    data.append('nombre1', (formDataPersona.nombre1 ?? '').toUpperCase());
     if (formDataPersona.nombre2) {
       data.append('nombre2', formDataPersona.nombre2.toUpperCase() + '');
     }
-    data.append('apellido1', formDataPersona.apellido1?.toUpperCase() + '');
+    data.append('apellido1', (formDataPersona.apellido1 ?? '').toUpperCase());
     if (formDataPersona.apellido2) {
       data.append('apellido2', formDataPersona.apellido2.toUpperCase() + '');
     }
-    data.append('idciudadNac', formDataPersona.idciudadNac + '');
-    data.append('sexo', formDataPersona.sexo + '');
-    data.append('rh', formDataPersona.rh + '');
+    data.append('idciudadNac', fv(formDataPersona.idciudadNac));
+    data.append('sexo', fv(formDataPersona.sexo));
+    data.append('rh', fv(formDataPersona.rh));
 
-    data.append('celular', formDataUbicacion.celular + '');
-    data.append('email', formDataUbicacion.email + '');
-    data.append('direccion', formDataUbicacion.direccion?.toUpperCase() + '');
-    data.append('idciudadUbicacion', formDataUbicacion.idciudadUbicacion + '');
-    data.append('telefonoFijo', formDataUbicacion.telefonoFijo + '');
+    data.append('celular', fv(formDataUbicacion.celular));
+    data.append('email', fv(formDataUbicacion.email));
+    data.append('direccion', (formDataUbicacion.direccion ?? '').toUpperCase());
+    data.append('idciudadUbicacion', fv(formDataUbicacion.idciudadUbicacion));
+    data.append('telefonoFijo', fv(formDataUbicacion.telefonoFijo));
 
     if (selectedFilePersona) {
       data.append('rutaFotoFile', selectedFilePersona);
@@ -604,6 +680,19 @@ const ContratacionPage = () => {
     axios
       .post('contrato-persona', data)
       .then((response) => {
+        // El backend devuelve la persona; `id` es el de persona/usuario (ej. 858), no el del contrato.
+        const payload = response.data;
+        const idPersonaGuardada =
+          payload?.id ?? (typeof payload?.data === 'object' ? payload?.data?.id : undefined);
+        if (idPersonaGuardada == null || idPersonaGuardada === '') {
+          setLoading(false);
+          enqueueSnackbar(
+            'No se obtuvo el identificador de la persona al guardar. Reintenta o contacta soporte.',
+            { variant: 'error' }
+          );
+          return;
+        }
+
         const contratoData = {
           ...formDataContrato,
           fechaContratacion:
@@ -611,11 +700,16 @@ const ContratacionPage = () => {
           fechaFinalContrato:
             formDataContrato.fechaFinalContrato['jsdate'] || formDataContrato.fechaFinalContrato,
           idtipoContrato: formDataContrato.idtipoContrato,
-          idPersona: response.data.id,
+          idPersona: idPersonaGuardada,
           valorTotalContrato: formDataContrato.valorTotalContrato,
           periodoPago: formDataContrato.periodoPago,
+          formaPago: formDataContrato.formaPago,
+          supervisorContrato: String(formDataContrato.supervisorContrato || '').trim(),
+          cargoSupervisor: String(formDataContrato.cargoSupervisor || '').trim(),
           objetoContrato: formDataContrato.objetoContrato,
           observacion: formDataContrato.observacion,
+          perfilProfesional: formDataContrato.perfilProfesional,
+          otrosi: formDataContrato.otrosi,
           rol: formDataContrato.rol,
           salario_id: formDataContrato.salario_id,
           idPension: formDataContrato.idPension,
@@ -636,7 +730,7 @@ const ContratacionPage = () => {
           horasmes: formDataContrato.horasmes ? Number(formDataContrato.horasmes) : undefined,
           idNivelEducativo: formDataContrato.idNivelEducativo,
           idCentroFormacion: formDataContrato.idCentroFormacion,
-          areasConocimiento: selectedAreasConocimiento
+          areasConocimiento: areasConocimientoUnicas
         };
 
         axios
@@ -660,9 +754,8 @@ const ContratacionPage = () => {
                   .then(() => {
                     successCount++;
                   })
-                  .catch((error) => {
+                  .catch(() => {
                     errorOccurred = true;
-                    console.error(`Error al guardar el documento ${tipoId}:`, error);
                   });
               }
               return null;
@@ -670,42 +763,41 @@ const ContratacionPage = () => {
 
             Promise.all(documentRequests)
               .then(() => {
-                if (errorOccurred) {
-                  enqueueSnackbar('Hubo un error al guardar algunos documentos.', {
-                    variant: 'error'
-                  });
-                  setLoading(false);
-                } else {
-                  setToastMessage('Contrato guardado con éxito.');
-                  setShowToast(true);
-                }
+                // El contrato ya quedó creado en BD (si llegamos aquí).
+                // No mostramos errores de documentos al usuario para no "asustarlo"
+                // si falló alguna subida (puede intentarlo luego).
+                setToastMessage('Contrato guardado con éxito.');
+                setShowToast(true);
                 setLoading(false);
                 resetFormAndGoToStep1();
               })
               .catch(() => {
                 setLoading(false);
-                enqueueSnackbar('Hubo un error inesperado al guardar los documentos.', {
-                  variant: 'error'
-                });
+                // Igual: no bloqueamos ni mostramos error técnico de documentos.
+                setToastMessage('Contrato guardado con éxito.');
+                setShowToast(true);
+                resetFormAndGoToStep1();
               });
           })
           .catch((error) => {
             setLoading(false);
-            // Mensaje amigable para el usuario cuando falla la creación del contrato
+            setCurrentStep(1);
             enqueueSnackbar('No se pudo crear el contrato. Por favor, intente nuevamente.', {
               variant: 'error'
             });
-            // Detalle técnico solo en consola para diagnóstico
-            console.error('Error al guardar el contrato:', error);
           });
       })
       .catch((error) => {
         setLoading(false);
-        const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Error al guardar la persona.';
+        setCurrentStep(1);
+        const body = error?.response?.data;
+        const errorMessage =
+          (typeof body?.message === 'string' && body.message) ||
+          (typeof body?.error === 'string' && body.error) ||
+          'Error al guardar la persona.';
         enqueueSnackbar(errorMessage, {
           variant: 'error'
         });
-        console.error('Error al guardar la persona:', error);
       });
   };
 
@@ -739,6 +831,9 @@ const ContratacionPage = () => {
       perfilProfesional: '',
       otrosi: '',
       periodoPago: '',
+      formaPago: '',
+      supervisorContrato: '',
+      cargoSupervisor: '',
       idtipoContrato: '',
       fechaSistema: '',
       observacion: '',
@@ -780,13 +875,9 @@ const ContratacionPage = () => {
   useEffect(()=>{
     const loadCentros = async () =>{
       try {
-        console.log('Cargando centros de formación')
         const res = await axios.get(`centrosFormacion`)
-        console.log('Respuesta centros:', res.data)
         setCentroFormacion(res.data || [])
-      } catch (error: any) {
-        console.error('Error al cargar centros de formación:', error)
-        console.error('Error response:', error?.response?.data)
+      } catch {
         setCentroFormacion([])
       }
     }
@@ -948,10 +1039,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('departamentos');
       setDepartamentos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -959,10 +1048,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('contrato-tipos-identificacion');
       setTipoIdentificacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -970,11 +1057,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('contrato-tipos-contrato');
       setTipoContratos(response.data || []);
-    } catch (error: any) {
-      console.error('Error al cargar tipos de contrato:', error);
+    } catch {
       setTipoContratos([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -982,10 +1066,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('contrato-roles');
       setRoles(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -993,10 +1075,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/arl');
       setEntidadesArl(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1004,10 +1084,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/eps');
       setEntidadeEPS(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1015,10 +1093,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/pensiones');
       setEntidadesPension(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1026,10 +1102,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/caja_compensacion');
       setEntidadesCajaCompensacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1038,21 +1112,31 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('bancos');
       setBancos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
+
+  const fetchFormasPagoContrato = async () => {
+    try {
+      const response = await axios.get('contrato-formas-pago');
+      setFormasPagoContrato(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setFormasPagoContrato([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchFormasPagoContrato();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchGruposNomina = async () => {
     try {
       const response = await axios.get('grupos_nomina');
       setGruposNomina(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1064,10 +1148,8 @@ const ContratacionPage = () => {
         ? response.data.map((doc: any) => ({ ...doc, obligatorio: true }))
         : [];
       setDocumentosContratos(documentos);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1083,8 +1165,7 @@ const ContratacionPage = () => {
       } else {
         setCiudades([]);
       }
-    } catch (error) {
-      console.error('Error al cargar ciudades:', error);
+    } catch {
       setCiudades([]);
     }
   };
@@ -1093,10 +1174,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get(`ciudades/departamento/${idDepartamento}`);
       setCiudadesUbicacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1104,8 +1183,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get(`all_areas`);
       setAreas(response.data);
-    } catch (error) {
-      console.error('Error fetching areas:', error);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1115,8 +1194,8 @@ const ContratacionPage = () => {
       if (response.data?.data?.niveles_educativos) {
         setNivelesEducativos(response.data.data.niveles_educativos);
       }
-    } catch (error) {
-      console.log(error);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1126,8 +1205,7 @@ const ContratacionPage = () => {
       if (response.data) {
         setAreasConocimiento(Array.isArray(response.data) ? response.data : []);
       }
-    } catch (error) {
-      console.error('Error al cargar áreas de conocimiento:', error);
+    } catch {
       setAreasConocimiento([]);
     }
   };
@@ -1136,28 +1214,22 @@ const ContratacionPage = () => {
   const [tarifas, setTarifas] = useState<any[]>([]);
 
   const fetchTarifas = async () => {
-    setLoading(true);
     try {
       const response = await axios.get('tarifas_arls');
       setTarifas(response.data);
-    } catch (error) {
-      console.error('Error fetching tarifas:', error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
   const [riesgos, setRiesgos] = useState<any[]>([]);
 
   const fetchRiesgos = async () => {
-    setLoading(true);
     try {
       const response = await axios.get('actividades_riesgo_profesional');
       setRiesgos(response.data);
-    } catch (error) {
-      console.error('Error fetching tarifas:', error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1181,13 +1253,45 @@ const ContratacionPage = () => {
     }));
   };
 
+  const fetchContratoAbortRef = useRef<AbortController | null>(null);
+  const fetchContratoRequestIdRef = useRef(0);
+
+  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBlurIdentificacionRef = useRef<string>('');
+
+  const handleIdentificacionBlur = () => {
+    const identificacion = formDataPersona.identificacion;
+    if (!identificacion) return;
+
+    if (identificacion === lastBlurIdentificacionRef.current) return;
+
+    if (blurDebounceRef.current) {
+      clearTimeout(blurDebounceRef.current);
+    }
+
+    blurDebounceRef.current = setTimeout(() => {
+      lastBlurIdentificacionRef.current = identificacion;
+      fetchContrato(identificacion);
+    }, 400);
+  };
+
   const fetchContrato = async (identificacion: any) => {
     if (!identificacion) return;
+
+    fetchContratoAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchContratoAbortRef.current = controller;
+    const requestId = ++fetchContratoRequestIdRef.current;
 
     setLoading(true);
 
     try {
-      const response = await axios.get(`contrato-persona/${identificacion}`);
+      const response = await axios.get(`contrato-persona/${identificacion}`, {
+        signal: controller.signal
+      });
+
+      if (requestId !== fetchContratoRequestIdRef.current) return;
+
       const data = response.data;
 
       if (data && Object.keys(data).length > 0) {
@@ -1222,6 +1326,7 @@ const ContratacionPage = () => {
 
         if (idDepartamentoNac) {
           await fetchCiudades(idDepartamentoNac);
+          if (requestId !== fetchContratoRequestIdRef.current) return;
           setFormDataPersona((prev) => ({
             ...prev,
             idciudadNac: idCiudadNac
@@ -1230,6 +1335,7 @@ const ContratacionPage = () => {
 
         if (idDepartamentoU) {
           await fetchCiudades(idDepartamentoU);
+          if (requestId !== fetchContratoRequestIdRef.current) return;
           setFormDataUbicacion((prev) => ({
             ...prev,
             idciudadUbicacion: idCiudadU
@@ -1241,6 +1347,9 @@ const ContratacionPage = () => {
         });
       }
     } catch (error: any) {
+    
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+
       const mensajeError =
         error?.response?.data?.error ||
         error?.response?.data?.message ||
@@ -1250,26 +1359,58 @@ const ContratacionPage = () => {
         variant: 'error'
       });
     } finally {
-      setLoading(false);
+      if (requestId === fetchContratoRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchTipoIdentificacion();
-    fetchDepartamentos();
-    fetchTipoContratos();
-    fetchRoles();
-    fetchEntidadesArl();
-    fetchEntidadesEPS();
-    fetchEntidadesPension();
-    fetchEntidadesCajaCompensacion();
-    fetchBancos();
-    fetchAreas();
-    fetchGruposNomina();
-    fetchTarifas();
-    fetchRiesgos();
-    fetchNivelesEducativos();
-    fetchAreasConocimiento();
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        
+        const essential = [
+          fetchTipoIdentificacion(),
+          fetchDepartamentos(),
+          fetchTipoContratos(),
+          fetchRoles(),
+          fetchAreas(),
+          fetchGruposNomina(),
+          fetchNivelesEducativos()
+        ];
+
+        const background = [
+          fetchEntidadesArl(),
+          fetchEntidadesEPS(),
+          fetchEntidadesPension(),
+          fetchEntidadesCajaCompensacion(),
+          fetchBancos(),
+          fetchTarifas(),
+          fetchRiesgos(),
+          fetchAreasConocimiento()
+        ];
+
+        await Promise.allSettled(essential);
+
+        if (!cancelled) setLoading(false);
+
+        // Carga progresiva: no afecta el spinner global.
+        void Promise.allSettled(background);
+      } finally {
+        // (en caso de error) si aún seguimos bloqueados, liberamos.
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+      fetchContratoAbortRef.current?.abort();
+    };
   }, []);
 
   return (
@@ -1493,7 +1634,7 @@ const ContratacionPage = () => {
                             placeholder="Ingrese el número de documento"
                             value={formDataPersona.identificacion}
                             onChange={handleChangeFormPerson}
-                            onBlur={() => fetchContrato(formDataPersona.identificacion)}
+                            onBlur={handleIdentificacionBlur}
                             className={`input text-sm h-9 w-full ${errors.identificacion ? 'border-red-500' : ''}`}
                           />
                           {errors.identificacion && (
@@ -1922,12 +2063,32 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium mb-2">Forma de pago *</label>
+                      <select
+                        name="formaPago"
+                        value={formDataContrato.formaPago}
+                        onChange={handleChangeFormContrato}
+                        className="select w-full"
+                      >
+                        <option value="">Seleccione una opción</option>
+                        {formasPagoContrato.map((forma: string) => (
+                          <option key={forma} value={forma}>
+                            {forma}
+                          </option>
+                        ))}
+                      </select>
+                      {errorsContrato.formaPago && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.formaPago}</p>
+                      )}
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium mb-2">Grupo de nómina *</label>
                       <select
                         name="idGrupoNomina"
                         value={formDataContrato.idGrupoNomina}
                         onChange={handleChangeFormContrato}
-                        className="select w-4/4 mr-2"
+                        className="select w-full"
                       >
                         <option value="">Seleccione una Opción</option>
                         {gruposNomina.map((item) => (
@@ -1939,6 +2100,44 @@ const ContratacionPage = () => {
                       {errorsContrato.idGrupoNomina && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
                       )}
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                        Supervisor del contrato
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Nombre completo *</label>
+                          <input
+                            type="text"
+                            name="supervisorContrato"
+                            placeholder="Nombre del supervisor"
+                            value={formDataContrato.supervisorContrato}
+                            onChange={handleChangeFormContrato}
+                            className="input w-full"
+                            autoComplete="off"
+                          />
+                          {errorsContrato.supervisorContrato && (
+                            <p className="text-red-500 text-sm mt-1">{errorsContrato.supervisorContrato}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Cargo *</label>
+                          <input
+                            type="text"
+                            name="cargoSupervisor"
+                            placeholder="Cargo del supervisor"
+                            value={formDataContrato.cargoSupervisor}
+                            onChange={handleChangeFormContrato}
+                            className="input w-full"
+                            autoComplete="off"
+                          />
+                          {errorsContrato.cargoSupervisor && (
+                            <p className="text-red-500 text-sm mt-1">{errorsContrato.cargoSupervisor}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div>
@@ -1958,8 +2157,8 @@ const ContratacionPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
-                    <div className="lg:col-span-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2 mt-4">
+                    <div className="lg:col-span-2">
                       <label className="block text-sm font-medium mb-2">Objeto contrato *</label>
                       <textarea
                         rows={5}
@@ -1975,6 +2174,51 @@ const ContratacionPage = () => {
                       </p>
                       {errorsContrato.objetoContrato && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.objetoContrato}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Observaciones</label>
+                      <textarea
+                        rows={5}
+                        name="observacion"
+                        placeholder="Observaciones del contrato (opcional)"
+                        value={formDataContrato.observacion}
+                        onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.observacion && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.observacion}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Perfil profesional *</label>
+                      <textarea
+                        rows={5}
+                        name="perfilProfesional"
+                        placeholder="Describa el perfil profesional requerido"
+                        value={formDataContrato.perfilProfesional}
+                        onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.perfilProfesional && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.perfilProfesional}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Otrosí</label>
+                      <textarea
+                        rows={3}
+                        name="otrosi"
+                        placeholder="Ej: S, N o aclaración breve (opcional)"
+                        value={formDataContrato.otrosi}
+                        onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.otrosi && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.otrosi}</p>
                       )}
                     </div>
                   </div>

@@ -19,6 +19,7 @@ import { BancoModal } from '../contratacion/BancoModal';
 import { RiesgosProfesionalesModal } from '../contratacion/RiesgosProfesionalesModal';
 import { RolModal } from '../contratacion/RolModal';
 import { TipoContratoModal } from '../contratacion/ModalTipoContrato';
+import { normalizeContratoForUi } from './model/ContratoInterface';
 
 interface FormErrors {
   [key: string]: string;
@@ -300,7 +301,14 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     setLoading(true);
     try {
       const response = await axios.get(`contrato_by_id/${id}`);
-      setContrato(response.data);
+      const raw = response.data;
+      const body =
+        raw && typeof raw === 'object'
+          ? (raw as Record<string, unknown>).data ??
+            (raw as Record<string, unknown>).contrato ??
+            raw
+          : raw;
+      setContrato(normalizeContratoForUi(body) as ContratoInterface);
     } catch (error) {
       setError('Error al cargar el contrato');
     } finally {

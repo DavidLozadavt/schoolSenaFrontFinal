@@ -1,7 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Container } from '@/components/container';
-import { useLayout } from '@/providers';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserProfileHero } from '@/partials/heros';
 import axios from 'axios';
 import {
@@ -21,7 +20,6 @@ import { ModalInterrumpirContract } from './ModalInterrumpirContract';
 import Spinner from '@/components/loaders/Spinner';
 import { ModalObservacionPreocupacional } from './ModalObservacionPreocupacional';
 import { KeenIcon } from '@/components';
-import { ModalUpdateEntidad } from './ModalUpdateEntidad';
 import { UpdateContractPage } from './UpdateContractPage';
 import { ModalUpdatePerson } from './ModalUpdatePerson';
 import { ModalUpdateContract } from './ModalUpdateContract';
@@ -30,65 +28,92 @@ import { ModalUpdateSeguridadSocial } from './ModalUpdateSeguridadSocial';
 import { ModalUpdateFotoPerfil } from './ModalUpdateFotoPerfil';
 import { toAbsoluteUrl } from '@/utils/Assets';
 
+const DEFAULT_CONTRACT_PHOTO = toAbsoluteUrl('/media/images/default/user.svg');
+
 const ContratoPage = () => {
-  const { currentLayout } = useLayout();
+  const navigate = useNavigate();
   const location = useLocation();
-  const id = location.state;
-  const [contrato, setContrato] = useState<any>([]);
+  const [searchParams] = useSearchParams();
+  // Id: lista envía `state` al navegar; `?id=` sirve para recargar o abrir el enlace directo
+  const rawState = location.state as unknown;
+  const nestedId = (rawState as { id?: unknown })?.id;
+  const idFromState: string | number | null =
+    typeof rawState === 'number' || typeof rawState === 'string'
+      ? rawState
+      : typeof nestedId === 'number' || typeof nestedId === 'string'
+        ? nestedId
+        : null;
+  const idFromQuery = searchParams.get('id');
+  const id: string | number | null =
+    idFromState !== null && idFromState !== undefined && idFromState !== ''
+      ? idFromState
+      : idFromQuery !== null && idFromQuery.trim() !== ''
+        ? /^\d+$/.test(idFromQuery.trim())
+          ? Number(idFromQuery.trim())
+          : idFromQuery.trim()
+        : null;
+
+  const [contrato, setContrato] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [isModalInterrumpirOpen, setIsModalInterrumpirOpen] = useState(false);
   const [isModalExtensionOpen, setIsModalExtensionOpen] = useState(false);
-  const [isModalUpdateEntidadOpen, setIsModalUpdateEntidadOpen] = useState(false);
   const [isModalUpdateContract, setIsModalUpdateContract] = useState(false);
   const [isModalUpdatePersonOpen, setIsModalUpdatePersonOpen] = useState(false);
   const [isModalUpdateContractDataOpen, setIsModalUpdateContractDataOpen] = useState(false);
   const [isModalUpdateBankDataOpen, setIsModalUpdateBankDataOpen] = useState(false);
   const [isModalUpdateSeguridadSocialOpen, setIsModalUpdateSeguridadSocialOpen] = useState(false);
   const [isModalUpdateFotoPerfilOpen, setIsModalUpdateFotoPerfilOpen] = useState(false);
-  const [entidadSeleccionada, setEntidadSeleccionada] = useState({
-    tipo: null,
-    nombre: ''
-  });
-
   const [isObservacionPreocupacionalOpen, setIsObservacionPreocupacionalOpen] = useState(false);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   // Estado para sincronizar programas seleccionados entre AssignedPrograms y KnowledgeAreas
   const [selectedProgramIds, setSelectedProgramIds] = useState<number[]>([]);
 
-  const fetchContrato = useCallback(async (showLoading = true) => {
-    if (!id) return;
-    if (showLoading) {
-      setLoading(true);
-    }
-    try {
-      const response = await axios.get(`contrato_by_id/${id}`);
-      setContrato(response.data);
-    } catch (error) {
-      setError('Error al cargar el contrato');
-    } finally {
-      if (showLoading) {
-        setLoading(false);
+  const fetchContrato = useCallback(
+    async (showLoading = true, signal?: AbortSignal) => {
+      if (id === null || id === undefined || id === '') {
+        setContrato(null);
+        setError('No se encontró el identificador del contrato.');
+        if (showLoading) setLoading(false);
+        return;
       }
-    }
-  }, [id]);
+      if (showLoading) {
+        setLoading(true);
+        setError('');
+      }
+      try {
+        const response = await axios.get(`contrato_by_id/${id}`, { signal });
+        const raw = response.data;
+        const body =
+          raw && typeof raw === 'object'
+            ? (raw as Record<string, unknown>).data ??
+              (raw as Record<string, unknown>).contrato ??
+              raw
+            : raw;
+        setContrato(body);
+        setError('');
+      } catch (error: unknown) {
+        const err = error as { name?: string; code?: string };
+        if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return;
+        setContrato(null);
+        setError('Error al cargar el contrato');
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [id]
+  );
 
   const handleAfterSave = () => {
-    fetchContrato();
+    fetchContrato(false);
     setIsModalInterrumpirOpen(false);
     setIsModalExtensionOpen(false);
-    setIsModalUpdateEntidadOpen(false);
     setIsModalUpdateContract(false);
     setIsModalUpdatePersonOpen(false);
     setIsModalUpdateContractDataOpen(false);
     setIsModalUpdateBankDataOpen(false);
     setIsModalUpdateSeguridadSocialOpen(false);
     setIsModalUpdateFotoPerfilOpen(false);
-  };
-
-  const handleOpenModalEntidad = (tipo: any, nombre: any) => {
-    setEntidadSeleccionada({ tipo, nombre });
-    setIsModalUpdateEntidadOpen(true);
   };
 
   useEffect(() => {
@@ -102,8 +127,18 @@ const ContratoPage = () => {
     }
   }, [contrato?.fechaFinalContrato]);
 
+  const previousContratoIdRef = useRef<string | number | null | undefined>(undefined);
+
   useEffect(() => {
-    fetchContrato();
+    const ac = new AbortController();
+    if (previousContratoIdRef.current !== id) {
+      if (id !== null && id !== undefined && id !== '') {
+        setContrato(null);
+      }
+      previousContratoIdRef.current = id;
+    }
+    fetchContrato(true, ac.signal);
+    return () => ac.abort();
   }, [fetchContrato]);
 
   // Sincronizar programas seleccionados cuando se carga el contrato (solo si realmente cambió)
@@ -134,47 +169,79 @@ const ContratoPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contrato?.programas]);
 
-  const image = (
-    <button
-      type="button"
-      onClick={() => setIsModalUpdateFotoPerfilOpen(true)}
-      className="flex items-center justify-center rounded-full border-3 border-success bg-light h-[100px] w-[100px] hover:opacity-80 transition-opacity cursor-pointer overflow-hidden"
-      title="Haz clic para cambiar la foto de perfil"
-    >
-      <img
-        src={contrato.persona?.rutaFotoUrl || toAbsoluteUrl('/media/images/default/user.svg')}
-        className="w-full h-full object-cover rounded-full"
-        alt="Foto de perfil"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = toAbsoluteUrl('/media/images/default/user.svg');
-        }}
+  const profileImage =
+    loading && !contrato ? (
+      <div
+        className="h-[100px] w-[100px] rounded-full border-3 border-success bg-gray-200 dark:bg-coal-600 animate-pulse shrink-0"
+        aria-hidden
       />
-    </button>
-  );
+    ) : (
+      <button
+        type="button"
+        onClick={() => setIsModalUpdateFotoPerfilOpen(true)}
+        className="flex items-center justify-center rounded-full border-3 border-success bg-light h-[100px] w-[100px] hover:opacity-80 transition-opacity cursor-pointer overflow-hidden"
+        title="Haz clic para cambiar la foto de perfil"
+      >
+        <img
+          src={contrato?.persona?.rutaFotoUrl || DEFAULT_CONTRACT_PHOTO}
+          className="w-full h-full object-cover rounded-full"
+          alt="Foto de perfil"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_CONTRACT_PHOTO;
+          }}
+        />
+      </button>
+    );
 
   return (
     <Fragment>
       <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
-      {currentLayout?.name === 'demo1-layout' && (
-        <Container>
-          <UserProfileHero
-            name={`${contrato?.persona?.nombre1 || ''} ${contrato?.persona?.nombre2 || ''} ${contrato?.persona?.apellido1 || ''} ${contrato?.persona?.apellido2 || ''}`.trim()}
-            image={image}
-            info={[
-              { label: contrato?.empresa?.razonSocial, icon: 'abstract-41' },
-              { email: contrato?.persona?.email, icon: 'sms' }
-            ]}
-          />
-          {loading && <Spinner />}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-7.5 items-start">
-            <div className="col-span-1">
-              <div className="flex flex-col gap-5 lg:gap-7.5">
-                <CompanyBadge title="Empresa" contrato={contrato} onSave={fetchContrato} />
+      <Container>
+          <div className="flex items-center mb-3">
+            <button
+              type="button"
+              onClick={() => navigate('/gestion-contratos/contratos')}
+              className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-coal-300 rounded-lg px-2 py-1.5 -ml-2"
+              title="Volver a contratos"
+            >
+              <KeenIcon icon="arrow-left" className="text-sm" />
+              <span className="text-sm font-medium">Contratos</span>
+            </button>
+          </div>
+
+          {error ? (
+            <div className="alert alert-danger mb-5" role="alert">
+              {error}
+            </div>
+          ) : (
+            <>
+              <UserProfileHero
+                name={
+                  loading && !contrato
+                    ? ''
+                    : `${contrato?.persona?.nombre1 || ''} ${contrato?.persona?.nombre2 || ''} ${contrato?.persona?.apellido1 || ''} ${contrato?.persona?.apellido2 || ''}`.trim()
+                }
+                image={profileImage}
+                info={[
+                  { label: contrato?.empresa?.razonSocial, icon: 'abstract-41' },
+                  { email: contrato?.persona?.email, icon: 'sms' }
+                ]}
+              />
+              {loading && <Spinner />}
+              {contrato && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-7.5 items-start">
+            <div className="min-w-0 w-full">
+              <div className="flex flex-col gap-5 lg:gap-7.5 w-full">
+                <CompanyBadge
+                  title="Empresa"
+                  contrato={contrato}
+                  onSave={() => fetchContrato(false)}
+                />
 
                 <ContractFiles
                   title="Documentos del Contrato"
                   contrato={contrato}
-                  onSave={fetchContrato}
+                  onSave={() => fetchContrato(false)}
                 />
 
                 <div className="card">
@@ -267,14 +334,14 @@ const ContratoPage = () => {
                   </div>
                 </div>
 
-                <AcademicLevel contrato={contrato} onSave={fetchContrato} />
+                <AcademicLevel contrato={contrato} onSave={() => fetchContrato(false)} />
 
                 <TrazabilityContract title="Trazabilidad del Contrato" contrato={contrato} />
               </div>
             </div>
 
-            <div className="col-span-2">
-              <div className="flex flex-col gap-5 lg:gap-7.5">
+            <div className="min-w-0 w-full">
+              <div className="flex flex-col gap-5 lg:gap-7.5 w-full">
                 <AboutPerson contrato={contrato} onEdit={() => setIsModalUpdatePersonOpen(true)} />
                 <AboutContract contrato={contrato} onEdit={() => setIsModalUpdateContractDataOpen(true)} />
 
@@ -339,45 +406,50 @@ const ContratoPage = () => {
                     }}
                     selectedProgramIds={selectedProgramIds}
                   />
+              </div>
+            </div>
 
-                  <div className="card">
-                    <div className="card-header" id="contract_options">
-                      <h3 className="card-title">Opciones del Contrato</h3>
+            <div className="min-w-0 w-full md:col-span-2">
+              <div className="card">
+                <div className="card-header" id="contract_options">
+                  <h3 className="card-title">Opciones del Contrato</h3>
+                </div>
+                <div className="card-body lg:py-7.5 lg:gap-7.5 gap-5">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="text-sm text-gray-800 dark:text-gray-300 md:max-w-3xl">
+                      Puedes extender un contrato hasta 15 días antes de la fecha de
+                      finalización. Si prefieres terminar el contrato, puedes hacerlo en
+                      cualquier momento antes de la fecha final.
                     </div>
-                    <div className="card-body lg:py-7.5 lg:gap-7.5 gap-5">
-                      <div className="flex flex-col gap-5">
-                        <div className="text-sm text-gray-800 dark:text-gray-300">
-                          Puedes extender un contrato hasta 15 días antes de la fecha de
-                          finalización. Si prefieres terminar el contrato, puedes hacerlo en
-                          cualquier momento antes de la fecha final.
-                        </div>
-                      </div>
 
-                      <div className="flex justify-end gap-2.5 mt-4">
-                        <button
-                          onClick={() => {
-                            setIsModalExtensionOpen(true);
-                          }}
-                          className="btn btn-light"
-                          disabled={!isButtonEnabled}
-                        >
-                          Extender Contrato
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsModalInterrumpirOpen(true);
-                          }}
-                          className="btn btn-danger"
-                          disabled={contrato?.estado?.estado === 'INTERRUMPIDO'}
-                        >
-                          Termino Contrato
-                        </button>
-                      </div>
+                    <div className="flex flex-wrap justify-end gap-2.5 shrink-0">
+                      <button
+                        onClick={() => {
+                          setIsModalExtensionOpen(true);
+                        }}
+                        className="btn btn-light"
+                        disabled={!isButtonEnabled}
+                      >
+                        Extender Contrato
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsModalInterrumpirOpen(true);
+                        }}
+                        className="btn btn-danger"
+                        disabled={contrato?.estado?.estado === 'INTERRUMPIDO'}
+                      >
+                        Termino Contrato
+                      </button>
                     </div>
                   </div>
+                </div>
               </div>
             </div>
           </div>
+              )}
+            </>
+          )}
 
           <ModalInterrumpirContract
             open={isModalInterrumpirOpen}
@@ -393,15 +465,6 @@ const ContratoPage = () => {
             onClose={() => {
               setIsModalUpdateContract(false);
             }}
-            onSave={handleAfterSave}
-          />
-
-          <ModalUpdateEntidad
-            open={isModalUpdateEntidadOpen}
-            onClose={() => setIsModalUpdateEntidadOpen(false)}
-            tipo={entidadSeleccionada.tipo}
-            contrato={contrato}
-            nombre={entidadSeleccionada.nombre}
             onSave={handleAfterSave}
           />
 
@@ -455,7 +518,6 @@ const ContratoPage = () => {
             onSave={handleAfterSave}
           />
         </Container>
-      )}
     </Fragment>
   );
 };

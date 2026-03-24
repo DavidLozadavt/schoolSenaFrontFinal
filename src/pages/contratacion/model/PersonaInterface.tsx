@@ -35,4 +35,6 @@ export interface PersonaInterface {
   celularExtra?: string;
   emailExtra?: string;
   tipoTitular?: string;
+  /** Texto del perfil profesional (contrato activo), editable desde la página de perfil */
+  perfilProfesional?: string;
 }

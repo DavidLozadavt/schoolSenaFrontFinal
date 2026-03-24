@@ -3,7 +3,7 @@ import { Container } from '@/components/container';
 import { toAbsoluteUrl } from '@/utils';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { TipoDocumentoInterface } from '../contratacion/model/TipoDocumentoInterface';
@@ -39,6 +39,10 @@ const PerfilPage = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>({});
+  /** Si hay contrato laboral activo, se muestra y guarda "Perfil profesional" en ese contrato */
+  const [tieneContratoActivoPerfil, setTieneContratoActivoPerfil] = useState(false);
+  const perfilProfesionalInicialRef = useRef('');
+
   const [formDataPersona, setFormDataPersona] = useState<PersonaInterface>({
     nombre1: '',
     apellido1: '',
@@ -54,7 +58,8 @@ const PerfilPage = () => {
     email: '',
     direccion: '',
     celular: '',
-    telefonoFijo: ''
+    telefonoFijo: '',
+    perfilProfesional: ''
   });
 
   const checkProfileAccess = async () => {
@@ -97,9 +102,42 @@ const PerfilPage = () => {
     }
   }, [auth]);
 
+  const cargarPerfilProfesionalDesdeContrato = useCallback(async () => {
+    try {
+      const { data } = await axios.get('contrato_by_user');
+      const list = Array.isArray(data) ? data : [];
+      const activos = list.filter((c: { idEstado?: number }) => Number(c?.idEstado) === 1);
+      const active =
+        activos.length > 0
+          ? activos.reduce((a: { fechaContratacion?: string }, b: { fechaContratacion?: string }) =>
+              new Date(b.fechaContratacion || 0) > new Date(a.fechaContratacion || 0) ? b : a
+            )
+          : null;
+
+      if (active?.id) {
+        setTieneContratoActivoPerfil(true);
+        const raw = active.perfilProfesional as string | undefined;
+        const display =
+          !raw || String(raw).trim() === '' || String(raw).trim().toUpperCase() === 'N/A'
+            ? ''
+            : String(raw).trim();
+        perfilProfesionalInicialRef.current = display;
+        setFormDataPersona((prev) => ({ ...prev, perfilProfesional: display }));
+      } else {
+        setTieneContratoActivoPerfil(false);
+        perfilProfesionalInicialRef.current = '';
+        setFormDataPersona((prev) => ({ ...prev, perfilProfesional: '' }));
+      }
+    } catch {
+      setTieneContratoActivoPerfil(false);
+      perfilProfesionalInicialRef.current = '';
+      setFormDataPersona((prev) => ({ ...prev, perfilProfesional: '' }));
+    }
+  }, []);
+
   useEffect(() => {
     if (persona) {
-      const isApprentice = authContext.roles?.some(role => ['ESTUDIANTEUP'].includes(role));
+      const isApprentice = authContext.roles?.some((role) => ['ESTUDIANTEUP'].includes(role));
       const isEmailIdentity = persona.email === persona.identificacion;
 
       setFormDataPersona({
@@ -115,12 +153,14 @@ const PerfilPage = () => {
         idCiudadUbicacion: persona.idCiudadUbicacion || '',
         departamento: persona.ciudad_ubicacion?.departamento?.id || '',
         apellido2: persona.apellido2 || '',
-        email: (isApprentice && isEmailIdentity) ? '' : (persona.email || ''),
+        email: isApprentice && isEmailIdentity ? '' : persona.email || '',
         direccion: persona.direccion || '',
         celular: persona.celular || '',
-        telefonoFijo: persona.telefonoFijo || ''
+        telefonoFijo: persona.telefonoFijo || '',
+        perfilProfesional: ''
       });
       setSelectedFilePersona(persona.foto || null);
+      void cargarPerfilProfesionalDesdeContrato();
     } else {
       setFormDataPersona({
         nombre1: '',
@@ -137,12 +177,15 @@ const PerfilPage = () => {
         email: '',
         direccion: '',
         celular: '',
-        telefonoFijo: ''
+        telefonoFijo: '',
+        perfilProfesional: ''
       });
       setSelectedFilePersona(null);
+      setTieneContratoActivoPerfil(false);
+      perfilProfesionalInicialRef.current = '';
     }
     setErrors({});
-  }, [persona]);
+  }, [persona, cargarPerfilProfesionalDesdeContrato, authContext.roles]);
 
 
   useEffect(() => {
@@ -241,6 +284,7 @@ const PerfilPage = () => {
     setErrors({});
     const data = new FormData();
     Object.entries(formDataPersona).forEach(([key, value]) => {
+      if (key === 'perfilProfesional' && !tieneContratoActivoPerfil) return;
       if (value !== undefined && value !== null) data.append(key, String(value));
     });
     if (selectedFilePersona instanceof File) data.append('rutaFotoFile', selectedFilePersona);
@@ -250,6 +294,9 @@ const PerfilPage = () => {
 
       await axios.post(`update_person`, data);
       await getUserAuthenticated();
+      if (tieneContratoActivoPerfil) {
+        await cargarPerfilProfesionalDesdeContrato();
+      }
 
       if (needsPasswordUpdate) {
 
@@ -288,7 +335,8 @@ const PerfilPage = () => {
         email: persona.email || '',
         direccion: persona.direccion || '',
         celular: persona.celular || '',
-        telefonoFijo: persona.telefonoFijo || ''
+        telefonoFijo: persona.telefonoFijo || '',
+        perfilProfesional: perfilProfesionalInicialRef.current
       });
       setSelectedFilePersona(persona.foto || null);
     }
@@ -417,7 +465,7 @@ const PerfilPage = () => {
       <div className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold text-lg">
-            {step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)'}
+            {needsPasswordUpdate ? (step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)') : 'Editar Información Personal'}
           </h2>
           <div className="flex gap-2">
             <button
@@ -432,7 +480,7 @@ const PerfilPage = () => {
               onClick={handleSubmitPropietarios}
               disabled={saving || step === 2}
             >
-              {saving ? 'Guardando...' : step === 1 ? 'Continuar al Paso 2' : 'Guardado'}
+              {saving ? 'Guardando...' : (needsPasswordUpdate ? (step === 1 ? 'Continuar al Paso 2' : 'Guardado') : 'Actualizar')}
             </button>
           </div>
         </div>
@@ -625,6 +673,29 @@ const PerfilPage = () => {
               {errors.fechaNac && <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>}
             </div>
           </div>
+
+          {tieneContratoActivoPerfil && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                Perfil profesional
+                <span className="text-gray-500 font-normal text-xs ml-2">
+                  (información de tu contrato laboral vigente)
+                </span>
+              </label>
+              <textarea
+                name="perfilProfesional"
+                rows={4}
+                placeholder="Describe tu formación, experiencia y competencias relacionadas con tu cargo o contrato..."
+                value={formDataPersona.perfilProfesional ?? ''}
+                onChange={handleChangeFormPerson}
+                className={`input w-full min-h-[100px] py-2 ${errors.perfilProfesional ? 'border-red-500' : ''}`}
+                disabled={step === 2}
+              />
+              {errors.perfilProfesional && (
+                <p className="text-red-500 text-sm mt-1">{errors.perfilProfesional}</p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { KeenIcon } from '@/components';
+import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
-import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ListaActividades, type Actividad } from './actividades';
+import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ModalAmpliarActividad, ListaActividades, type Actividad } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
@@ -293,7 +293,7 @@ const CalendarComponent: React.FC<{
 
     // Verificar si una fecha tiene sesión completada
     const tieneSesionCompletada = (fecha: Date): boolean => {
-      const fechaStr = fecha.toISOString().split('T')[0];
+      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
       return sesionesCompletadas.some(sesion => {
         if (!sesion.fechaSesion) return false;
         const sesionFecha = sesion.fechaSesion.split('T')[0];
@@ -303,7 +303,7 @@ const CalendarComponent: React.FC<{
 
     // Determinar el estado de una fecha específica
     const getEstadoFecha = (fecha: Date): 'completada' | 'pendiente' | 'en_curso' => {
-      const fechaStr = fecha.toISOString().split('T')[0];
+      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       const fechaComparar = new Date(fecha);
@@ -361,7 +361,7 @@ const CalendarComponent: React.FC<{
 
       if (esFechaClase) {
         // Obtener el idHorarioMateria de la fecha clickeada
-        const fechaStr = date.toISOString().split('T')[0];
+        const fechaStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         const idHorario = mapaFechasHorarios.get(fechaStr);
 
         // Si encontramos el idHorarioMateria, navegar al detalle
@@ -574,7 +574,7 @@ const ClaseDetallePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeMenu, setActiveMenu] = useState<MenuOption>('estudiantes');
+  const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -604,7 +604,16 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
   const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
+  const [modalAmpliarOpen, setModalAmpliarOpen] = useState(false);
+  const [actividadParaAmpliar, setActividadParaAmpliar] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
 
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
@@ -667,8 +676,19 @@ const ClaseDetallePage: React.FC = () => {
     }
 
     // Verificar si estamos dentro del rango de horas de la clase
-    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+
+    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
+    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
+    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+
+    if (esTardeOEnoche && hIni < 12) {
+      hIni += 12;
+    }
+    if (esTardeOEnoche && hFin < 12) {
+      hFin += 12;
+    }
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(hIni, mIni, 0, 0);
@@ -897,7 +917,7 @@ const ClaseDetallePage: React.FC = () => {
 
     while (fechaActual <= fechaFin) {
       if (fechaActual.getDay() === diaNumero) {
-        return fechaActual.toISOString().split('T')[0];
+        return `${fechaActual.getFullYear()}-${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${String(fechaActual.getDate()).padStart(2, '0')}`;
       }
       fechaActual.setDate(fechaActual.getDate() + 1);
     }
@@ -1026,8 +1046,20 @@ const ClaseDetallePage: React.FC = () => {
     if (!esDiaDeClase) return false;
 
     // 3. Hora actual dentro del rango horaInicial–horaFinal del backend (sin ajuste de jornada)
-    const [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    const [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+
+    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
+    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
+    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+
+    if (esTardeOEnoche && hIni < 12) {
+      hIni += 12;
+    }
+    if (esTardeOEnoche && hFin < 12) {
+      hFin += 12;
+    }
+
     const inicio = new Date(ahora); inicio.setHours(hIni, mIni, 0, 0);
     const fin = new Date(ahora); fin.setHours(hFin, mFin, 0, 0);
     if (fin.getTime() < inicio.getTime()) fin.setDate(fin.getDate() + 1); // cruza medianoche
@@ -1284,13 +1316,24 @@ const ClaseDetallePage: React.FC = () => {
                             strokeLinecap="round"
                           />
                         </svg>
-                        {/* Foto del instructor */}
+                        {/* Foto del instructor - hover: tooltip con nombre, click: zoom */}
                         <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                          <img
-                            src={instructorClase.persona.rutaFotoUrl || '/media/avatars/blank.png'}
-                            alt={nombreCompletoInstructor}
-                            className="w-full h-full rounded-full object-cover"
-                          />
+                          <DefaultTooltip title={nombreCompletoInstructor} placement="top">
+                            <button
+                              type="button"
+                              onClick={() => setZoomFoto({
+                                src: instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png',
+                                alt: nombreCompletoInstructor
+                              })}
+                              className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
+                            >
+                              <img
+                                src={instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png'}
+                                alt={nombreCompletoInstructor}
+                                className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                              />
+                            </button>
+                          </DefaultTooltip>
                         </div>
                       </div>
                     </div>
@@ -1538,6 +1581,7 @@ const ClaseDetallePage: React.FC = () => {
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
                   resetSelectionKey={assignSuccessCounter}
+                  idsActividadesAsignadas={idsActividadesAsignadas}
                 />
               )}
 
@@ -1573,6 +1617,11 @@ const ClaseDetallePage: React.FC = () => {
                       setModalCrearActividadOpen(true);
                     }
                   }}
+                  onAmpliar={(act) => {
+                    setActividadParaAmpliar(act);
+                    setModalAmpliarOpen(true);
+                  }}
+                  mostrarCrearCuestionario={false}
                 />
               )}
 
@@ -1627,6 +1676,7 @@ const ClaseDetallePage: React.FC = () => {
           setActividadParaAsignar(null);
           setAssignSuccessCounter((c) => c + 1);
         }}
+        onSuccess={showToast}
         idFicha={ficha?.id ?? 0}
         actividad={actividadParaAsignar}
         actividades={actividadesParaAsignar}
@@ -1642,6 +1692,7 @@ const ClaseDetallePage: React.FC = () => {
           setActividadParaEditar(null);
           fetchActividades();
         }}
+        onSuccess={showToast}
         actividadEditar={actividadParaEditar}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
       />
@@ -1651,6 +1702,7 @@ const ClaseDetallePage: React.FC = () => {
           setModalMaterialApoyoOpen(false);
           setActividadMaterialApoyo(null);
         }}
+        onSuccess={showToast}
         actividad={actividadMaterialApoyo}
       />
       <ModalVerActividad
@@ -1672,6 +1724,7 @@ const ClaseDetallePage: React.FC = () => {
           setCuestionarioParaEditar(null);
           fetchActividades();
         }}
+        onSuccess={showToast}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
         cuestionarioEditar={cuestionarioParaEditar}
       />
@@ -1681,9 +1734,35 @@ const ClaseDetallePage: React.FC = () => {
           setModalAprendicesOpen(false);
           setActividadParaVerAprendices(null);
         }}
+        onSuccess={showToast}
         actividad={actividadParaVerAprendices}
         idFicha={ficha?.id ?? 0}
         tituloActividad={actividadParaVerAprendices?.tituloActividad}
+      />
+      <ModalAmpliarActividad
+        open={modalAmpliarOpen}
+        onClose={() => {
+          setModalAmpliarOpen(false);
+          setActividadParaAmpliar(null);
+        }}
+        actividad={actividadParaAmpliar}
+        idFicha={ficha?.id ?? 0}
+        onSave={() => fetchActividades()}
+        onSuccess={showToast}
+      />
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
+      )}
+      <Toast
+        message={toastMessage}
+        isOpen={toastOpen}
+        onClose={() => setToastOpen(false)}
       />
     </Container>
   );

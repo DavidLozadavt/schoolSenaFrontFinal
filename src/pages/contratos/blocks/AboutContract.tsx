@@ -1,10 +1,37 @@
-import { ContratoInterface } from '../model/ContratoInterface';
+import { ContratoInterface, resolveFormaPago } from '../model/ContratoInterface';
 import { KeenIcon } from '@/components';
 
 interface AboutContractProps {
   contrato: ContratoInterface;
   onEdit?: () => void;
 }
+
+/** Misma lógica que el select del modal (10/15/30). */
+const labelPeriodoPago = (pp: string | number | null | undefined): string => {
+  if (pp === null || pp === undefined || pp === '') return 'N/A';
+  const n = Number(pp);
+  if (n === 10) return 'SEMANAL';
+  if (n === 15) return 'QUINCENAL';
+  if (n === 30) return 'MENSUAL';
+  return String(pp);
+};
+
+/** Misma etiqueta que las opciones del modal de actividad de riesgo. */
+const labelActividadRiesgo = (contrato: ContratoInterface): string => {
+  const act = contrato?.actividadRiesgo as
+    | { nombre?: string; descripcion?: string; codigo?: string; clase?: string }
+    | undefined
+    | null;
+  if (!act || typeof act !== 'object') return 'N/A';
+  if (act.nombre) return act.nombre;
+  if (act.descripcion) return act.descripcion;
+  const cod = act.codigo != null && act.codigo !== '' ? String(act.codigo) : '';
+  const cl = act.clase != null && act.clase !== '' ? String(act.clase) : '';
+  if (cod && cl) return `${cod} - ${cl}`;
+  if (cod) return cod;
+  if (cl) return cl;
+  return 'N/A';
+};
 
 const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
   const formatCOP = (value: any) => {
@@ -42,8 +69,8 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
       </div>
 
       <div className="card-body">
+        {/* Campos alineados con el modal “Editar datos del contrato” */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Columna Izquierda */}
           <div className="space-y-4">
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Código de Contrato</p>
@@ -64,7 +91,7 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Fecha de Finalización</p>
               <p className="text-xs font-bold text-gray-900 dark:text-white">
-                {contrato?.fechaFinalContrato || 'N/A'}
+                {contrato?.fechaFinalContrato ?? 'N/A'}
               </p>
             </div>
             <div>
@@ -79,9 +106,14 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
                 {contrato?.horasmes ?? 'N/A'}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Período de pago</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {labelPeriodoPago(contrato?.periodoPago)}
+              </p>
+            </div>
           </div>
 
-          {/* Columna Derecha */}
           <div className="space-y-4">
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Estado</p>
@@ -94,37 +126,75 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
               )}
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cargo</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cargo (rol)</p>
               <p className="text-xs font-bold text-gray-900 dark:text-white">
                 {contrato?.salario?.rol?.name || 'N/A'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Objeto del Contrato</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Forma de pago</p>
               <p className="text-xs font-bold text-gray-900 dark:text-white">
-                {contrato?.objetoContrato || 'N/A'}
+                {resolveFormaPago(contrato) || 'N/A'}
               </p>
             </div>
-            {contrato?.observacion && (
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Observaciones</p>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato.observacion}</p>
-              </div>
-            )}
-            {contrato?.otrosi && (
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Otrosí</p>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato.otrosi}</p>
-              </div>
-            )}
-            {contrato?.actividadRiesgo && (
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Actividad de Riesgo</p>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">
-                  {contrato.actividadRiesgo.nombre || contrato.actividadRiesgo.descripcion || 'N/A'}
-                </p>
-              </div>
-            )}
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Supervisor del contrato</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {contrato?.supervisorContrato || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cargo supervisor</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {contrato?.cargoSupervisor || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Valor total del contrato</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {formatCOP(contrato?.valorTotalContrato)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Actividad de riesgo</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                {labelActividadRiesgo(contrato)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-2xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
+            Textos del contrato
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Objeto del contrato</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                {contrato?.objetoContrato?.trim() ? contrato.objetoContrato : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Observaciones</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                {contrato?.observacion?.trim() ? contrato.observacion : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Perfil profesional</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                {contrato?.perfilProfesional?.trim() ? contrato.perfilProfesional : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Otrosí</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                {contrato?.otrosi != null && String(contrato.otrosi).trim() !== ''
+                  ? String(contrato.otrosi)
+                  : 'N/A'}
+              </p>
+            </div>
           </div>
         </div>
       </div>

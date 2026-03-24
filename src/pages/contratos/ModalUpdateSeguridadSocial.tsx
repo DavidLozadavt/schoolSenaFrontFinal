@@ -25,15 +25,13 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
     idPension: '',
     idSalud: '',
     idArl: '',
-    idCajaCompensacion: '',
-    idCesantias: ''
+    idCajaCompensacion: ''
   });
 
   const [pensiones, setPensiones] = useState<any[]>([]);
   const [eps, setEps] = useState<any[]>([]);
   const [arl, setArl] = useState<any[]>([]);
   const [cajaCompensacion, setCajaCompensacion] = useState<any[]>([]);
-  const [cesantias, setCesantias] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && contrato) {
@@ -41,8 +39,7 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
         idPension: contrato.pension?.id?.toString() || '',
         idSalud: contrato.salud?.id?.toString() || '',
         idArl: contrato.arl?.id?.toString() || '',
-        idCajaCompensacion: contrato.cajaCompensacion?.id?.toString() || '',
-        idCesantias: contrato.cesantias?.id?.toString() || ''
+        idCajaCompensacion: contrato.cajaCompensacion?.id?.toString() || ''
       });
     }
   }, [open, contrato]);
@@ -83,15 +80,6 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
     }
   }, []);
 
-  const fetchCesantias = useCallback(async () => {
-    try {
-      const response = await axios.get('entidades/cesantias');
-      setCesantias(response.data);
-    } catch (err) {
-      console.error('Error al cargar cesantías:', err);
-    }
-  }, []);
-
   useEffect(() => {
     if (!open && !showToast) {
       setToastMessage('');
@@ -105,13 +93,12 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
         fetchPensiones(),
         fetchEps(),
         fetchArl(),
-        fetchCajaCompensacion(),
-        fetchCesantias()
+        fetchCajaCompensacion()
       ]).finally(() => {
         setLoading(false);
       });
     }
-  }, [open, fetchPensiones, fetchEps, fetchArl, fetchCajaCompensacion, fetchCesantias]);
+  }, [open, fetchPensiones, fetchEps, fetchArl, fetchCajaCompensacion]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -143,10 +130,6 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
 
       if (formData.idCajaCompensacion) {
         dataToSend.idCajaCompensacion = Number(formData.idCajaCompensacion);
-      }
-
-      if (formData.idCesantias) {
-        dataToSend.idCesantias = Number(formData.idCesantias);
       }
 
       await axios.post(`update_contrato/${contrato.id}`, dataToSend);
@@ -249,22 +232,6 @@ const ModalUpdateSeguridadSocial = ({ open, onClose, contrato, onSave }: ModalUp
                   {cajaCompensacion.map((caja) => (
                     <option key={caja.id} value={String(caja.id)}>
                       {caja.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Cesantías</label>
-                <select
-                  value={formData.idCesantias}
-                  onChange={(e) => handleInputChange('idCesantias', e.target.value)}
-                  className="select w-full"
-                >
-                  <option value="">Seleccione</option>
-                  {cesantias.map((cesantia) => (
-                    <option key={cesantia.id} value={String(cesantia.id)}>
-                      {cesantia.nombre}
                     </option>
                   ))}
                 </select>
