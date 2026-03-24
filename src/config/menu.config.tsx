@@ -51,7 +51,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_REDES']
           }
         ]
-  },
+      },
       {
         title: 'Ambiente Virtual',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
@@ -72,45 +72,45 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
   {
     title: 'Aula Virtual',
-    icon:'teacher',
-    requiredPermissions:['AULA_VIRTUAL_APRENDIZ'],
-    children:[
+    icon: 'teacher',
+    requiredPermissions: ['AULA_VIRTUAL_APRENDIZ'],
+    children: [
       {
-        title:'Mis clases',
+        title: 'Mis clases',
         path: '/ambiente-virtual/mis-clases',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       },
       {
-        title:'Mis Actividades',
+        title: 'Mis Actividades',
         path: '/ambiente-virtual/actividades',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       },
       {
-        title:'Grupos',
+        title: 'Grupos',
         path: '/ambiente-virtual/grupos',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
-      },
+      }
     ]
   },
   {
     title: 'Administrativo',
-    icon:'teacher',
-    children:[
+    icon: 'teacher',
+    children: [
       {
-        title:'RMI',
+        title: 'RMI',
         path: '/rmi',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
       {
-        title:'GC',
+        title: 'GC',
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
       {
-        title:'CF',
+        title: 'CF',
         path: '/cf',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
-      },
+      }
     ]
   },
   {
@@ -191,7 +191,23 @@ export const MENU_SIDEBAR: TMenuConfig = [
       }
     ]
   },
-
+  {
+    title: 'Gestion instructor',
+    icon: 'tablet-text-down',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
+    children: [
+      {
+        title: 'Contrato',
+        path: '/contratoInstructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Informe',
+        path: '/informeInstructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      }
+    ]
+  },
   {
     title: 'Contabilidad',
     icon: 'chart-line',
