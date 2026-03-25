@@ -1814,11 +1814,13 @@ const ContratacionPage = () => {
                     <div>
                       <label className="block text-sm font-medium mb-2">Correo Electronico *</label>
                       <input
-                        type="text"
+                        type="email"
                         name="email"
                         placeholder="Ingrese el Correo Electronico"
                         value={formDataUbicacion.email}
                         onChange={handleChangeFormUbicacion}
+                        data-preserve-case
+                        data-no-uppercase
                         className={`input ${errors.email ? 'border-red-500' : ''}`}
                       />
                       {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
