@@ -181,7 +181,8 @@ export const CardRap = ({
         await axios.delete(`grado-materia`, {
           params: {
             id: materia.idGradoMateria,
-            eliminarTrimestre: materiasLength && materiasLength == 1 ? true : false
+            eliminarTrimestre: materiasLength && materiasLength == 1 ? true : false,
+            idFicha: idFicha
           }
         });
         enqueueSnackbar('Competencia eliminada correctamente', { variant: 'success' });
