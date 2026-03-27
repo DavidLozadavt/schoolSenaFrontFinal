@@ -152,6 +152,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
               <BookOpen size={16} className="text-primary" />
               Asignar Competencias
             </h3>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>Antes de asignar una competencia, asegúrate de haber cargado los juicios evaluativos de Sofia Plus.</p>
           </div>
           <button
             onClick={handleClose}
@@ -205,13 +206,35 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2">
-                {materiasDisponibles
-                  .filter(Boolean)
-                  .filter((m: any) =>
-                    (m.nombreMateria || '').toLowerCase().includes((buscar || '').toLowerCase())
-                    || (m.codigo || '').toLowerCase().includes((buscar || '').toLowerCase())
-                  )
-                  .map((materia) => {
+                {(() => {
+                  const itemsFiltered = materiasDisponibles
+                    .filter(Boolean)
+                    .filter((m: any) =>
+                      (m.nombreMateria || '').toLowerCase().includes((buscar || '').toLowerCase()) ||
+                      (m.codigo || '').toLowerCase().includes((buscar || '').toLowerCase())
+                    );
+
+                  if (itemsFiltered.length < 1) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+                        <div className="w-16 h-16 bg-gray-50 dark:bg-coal-600 rounded-full flex items-center justify-center mb-2">
+                          <BookOpen className="text-gray-300 dark:text-gray-600" size={32} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-widest mb-1">
+                            {buscar ? 'Sin resultados' : 'No hay competencias disponibles'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px] mx-auto leading-relaxed">
+                            {buscar 
+                              ? `No se encontró nada que coincida con "${buscar}"`
+                              : 'Asegúrate de haber cargado los juicios evaluativos de Sofia Plus para esta ficha.'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return itemsFiltered.map((materia) => {
                     const seleccionada = estaSeleccionada(materia);
 
                     return (
@@ -305,7 +328,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                         )}
                       </div>
                     );
-                  })}
+                  });
+                })()}
               </div>
             )}
           </div>
