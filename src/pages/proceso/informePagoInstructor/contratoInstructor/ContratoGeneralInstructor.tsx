@@ -23,7 +23,7 @@ const FORMAS_DE_PAGO: Contrato['formaDePago'][] = ['COMISIONES', 'SALARIO INTEGR
 const FORMA_PAGO_STYLES: Record<Contrato['formaDePago'], string> = {
   COMISIONES: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
   'SALARIO INTEGRAL': 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
-  NORMAL: 'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400',
+  NORMAL: 'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400'
 };
 
 const ContratoGeneralInstructor: React.FC = () => {
@@ -35,7 +35,7 @@ const ContratoGeneralInstructor: React.FC = () => {
     supervisorContrato: '',
     cargoSupervisor: '',
     objetoContrato: '',
-    formaDePago: 'NORMAL' as Contrato['formaDePago'],
+    formaDePago: 'NORMAL' as Contrato['formaDePago']
   });
 
   useEffect(() => {
@@ -48,7 +48,7 @@ const ContratoGeneralInstructor: React.FC = () => {
           supervisorContrato: data?.supervisorContrato ?? '',
           cargoSupervisor: data?.cargoSupervisor ?? '',
           objetoContrato: data?.objetoContrato ?? '',
-          formaDePago: data?.formaDePago ?? 'NORMAL',
+          formaDePago: data?.formaDePago ?? 'NORMAL'
         });
       } finally {
         setLoading(false);
@@ -65,7 +65,7 @@ const ContratoGeneralInstructor: React.FC = () => {
       supervisorContrato: contrato?.supervisorContrato ?? '',
       cargoSupervisor: contrato?.cargoSupervisor ?? '',
       objetoContrato: contrato?.objetoContrato ?? '',
-      formaDePago: contrato?.formaDePago ?? 'NORMAL',
+      formaDePago: contrato?.formaDePago ?? 'NORMAL'
     });
   };
 
@@ -96,7 +96,9 @@ const ContratoGeneralInstructor: React.FC = () => {
   if (!contrato) {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400">No se encontró un contrato activo.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          No se encontró un contrato activo.
+        </p>
       </div>
     );
   }
@@ -104,17 +106,8 @@ const ContratoGeneralInstructor: React.FC = () => {
   const supervisorAsignado = contrato.supervisorContrato || contrato.cargoSupervisor;
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Contrato del instructor</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Gestión y seguimiento del contrato para el instructor
-        </p>
-      </div>
-
-      <div className="bg-white dark:bg-coal-500 rounded-xl border border-gray-200 dark:border-coal-300 shadow-sm overflow-hidden">
-
+    <div className="w-full">
+      <div className="overflow-hidden">
         {/* Banner centro de formación */}
         <div className="px-5 py-4 border-b border-gray-100 dark:border-coal-300 flex items-center gap-4">
           <img
@@ -180,7 +173,9 @@ const ContratoGeneralInstructor: React.FC = () => {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Supervisor</p>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                   {contrato.supervisorContrato ?? (
-                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">No asignado</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
                   )}
                 </p>
               </div>
@@ -188,7 +183,9 @@ const ContratoGeneralInstructor: React.FC = () => {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Cargo supervisor</p>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                   {contrato.cargoSupervisor ?? (
-                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">No asignado</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
                   )}
                 </p>
               </div>
@@ -201,21 +198,29 @@ const ContratoGeneralInstructor: React.FC = () => {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Supervisor</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                    Supervisor
+                  </label>
                   <input
                     type="text"
                     value={form.supervisorContrato}
-                    onChange={(e) => setForm({ ...form, supervisorContrato: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setForm({ ...form, supervisorContrato: e.target.value.toUpperCase() })
+                    }
                     placeholder="NOMBRE DEL SUPERVISOR"
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Cargo supervisor</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                    Cargo supervisor
+                  </label>
                   <input
                     type="text"
                     value={form.cargoSupervisor}
-                    onChange={(e) => setForm({ ...form, cargoSupervisor: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setForm({ ...form, cargoSupervisor: e.target.value.toUpperCase() })
+                    }
                     placeholder="CARGO DEL SUPERVISOR"
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -240,20 +245,28 @@ const ContratoGeneralInstructor: React.FC = () => {
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Forma de pago</p>
                 {contrato.formaDePago ? (
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${FORMA_PAGO_STYLES[contrato.formaDePago]}`}>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${FORMA_PAGO_STYLES[contrato.formaDePago]}`}
+                  >
                     {contrato.formaDePago}
                   </span>
                 ) : (
-                  <span className="text-sm text-yellow-600 dark:text-yellow-400 italic">No asignado</span>
+                  <span className="text-sm text-yellow-600 dark:text-yellow-400 italic">
+                    No asignado
+                  </span>
                 )}
               </div>
 
               {/* Objeto del contrato */}
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Objeto del contrato</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
+                  Objeto del contrato
+                </p>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
                   {contrato.objetoContrato ?? (
-                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">No asignado</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
                   )}
                 </p>
               </div>
@@ -267,11 +280,15 @@ const ContratoGeneralInstructor: React.FC = () => {
                 </label>
                 <select
                   value={form.formaDePago}
-                  onChange={(e) => setForm({ ...form, formaDePago: e.target.value as Contrato['formaDePago'] })}
+                  onChange={(e) =>
+                    setForm({ ...form, formaDePago: e.target.value as Contrato['formaDePago'] })
+                  }
                   className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {FORMAS_DE_PAGO.map((f) => (
-                    <option key={f} value={f}>{f}</option>
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -284,7 +301,9 @@ const ContratoGeneralInstructor: React.FC = () => {
                 <textarea
                   rows={4}
                   value={form.objetoContrato}
-                  onChange={(e) => setForm({ ...form, objetoContrato: e.target.value.toUpperCase() })}
+                  onChange={(e) =>
+                    setForm({ ...form, objetoContrato: e.target.value.toUpperCase() })
+                  }
                   placeholder="DESCRIPCIÓN DEL OBJETO DEL CONTRATO"
                   className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />

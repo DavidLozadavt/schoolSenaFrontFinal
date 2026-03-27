@@ -16,9 +16,10 @@ interface RmiModalProps {
   periodo?: string;
   fichas: any[];
   onRefresh?: () => void;
+  readOnlyAsociacion?: boolean;
 }
 
-const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, periodo, fichas, onRefresh }) => {
+const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, periodo, fichas, onRefresh, readOnlyAsociacion }) => {
   if (!isOpen) return null;
 
   const { persona } = instructor;
@@ -758,7 +759,7 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                                   checked={r.estadoAsociacion} 
                                   title='Asociado en Sofía Plus'
                                   onChange={(e)=> handleEstadoAsociacion(r.idGradoMateria , e.target.checked)}
-                                  disabled={loadingAssociation === r.idGradoMateria}
+                                  disabled={loadingAssociation === r.idGradoMateria || readOnlyAsociacion}
                                 />
                               </div>
                             </td>

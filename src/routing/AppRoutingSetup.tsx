@@ -120,8 +120,7 @@ import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgram
 import RmiGeneral from '@/pages/gestion-rmi/RmiGeneral';
 import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
 import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
-import ContratoGeneralInstructor from '@/pages/proceso/contratoInstructor/ContratoGeneralInstructor';
-import InformeGeneralInstructor from '@/pages/proceso/informeInstructor/InformeGeneralInstructor';
+import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -238,18 +237,10 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
-            path="/contratoInstructor"
-            element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
-                <ContratoGeneralInstructor />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/informeInstructor"
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
-                <InformeGeneralInstructor />
+                <InformePagoGeneral />
               </ProtectedRoute>
             }
           />

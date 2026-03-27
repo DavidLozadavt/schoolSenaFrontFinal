@@ -197,12 +197,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
     children: [
       {
-        title: 'Contrato',
-        path: '/contratoInstructor',
-        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      },
-      {
-        title: 'Informe',
+        title: 'Informe de Pago',
         path: '/informeInstructor',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       }
