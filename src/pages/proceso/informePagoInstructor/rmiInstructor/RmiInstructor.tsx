@@ -1,0 +1,241 @@
+import { AuthContext } from '@/auth/providers/JWTProvider';
+import axios from 'axios';
+import React, { useContext, useEffect, useState } from 'react';
+import RmiModal from '../../../gestion-rmi/RmiModal';
+import { Instructor } from '../../../gestion-rmi/interfaceInstructor';
+
+interface DetalleRmi {
+  idDetalleRmi: number;
+  estadoDetalle: string;
+  observacion: string | null;
+  idHorarioMateria: number;
+  horaInicial: string;
+  horaFinal: string;
+  fechaInicial: string;
+  fechaFinal: string | null;
+  estadoHorario: string;
+}
+
+interface Periodo {
+  periodo: string;
+  idRmi: number;
+  estadoRmi: string;
+  observacion: string | null;
+  horasAsignadas: number;
+  detalles: DetalleRmi[];
+}
+
+interface ContratoRmi {
+  idContrato: number;
+  fechaContratacion: string;
+  fechaFinal: string | null;
+  periodos: Periodo[];
+}
+
+const RmiInstructor: React.FC = () => {
+  const authContext = useContext(AuthContext);
+  if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
+
+  const [anioGestion, setAnioGestion] = useState<number>(0);
+  const [aniosContrato, setAniosContrato] = useState<number[]>([]);
+  const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
+  const [loadingRmi, setLoadingRmi] = useState(false);
+
+  // Estados para el Modal
+  const [rmiModalOpen, setRmiModalOpen] = useState(false);
+  const [fichas, setFichas] = useState<any[]>([]);
+  const [loadingFichas, setLoadingFichas] = useState(false);
+  const [selectedPeriodo, setSelectedPeriodo] = useState<string | undefined>();
+  const [selectedContratoId, setSelectedContratoId] = useState<number>(0);
+
+  // Carga los años disponibles
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const res = await axios.get('get_years_contract_person', {
+          params: { idPerson: authContext.persona.id }
+        });
+        setAniosContrato(res.data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadData();
+  }, [authContext]);
+
+  // Carga los RMI cuando cambia el año seleccionado
+  useEffect(() => {
+    if (!anioGestion) return;
+
+    const loadRmi = async () => {
+      setLoadingRmi(true);
+      try {
+        const res = await axios.get('get_data_rmi_configuration_by_year', {
+          params: {
+            year: anioGestion,
+            idPerson: authContext.persona.id
+          }
+        });
+        setDataRmi(res.data);
+      } catch {
+        setDataRmi([]);
+      } finally {
+        setLoadingRmi(false);
+      }
+    };
+    loadRmi();
+  }, [anioGestion]);
+
+  const handleVerRmi = async (idContrato: number, periodoStr: string) => {
+    setLoadingFichas(true);
+    setSelectedPeriodo(periodoStr);
+    setSelectedContratoId(idContrato);
+    try {
+      const r = await axios.get('instructores/fichas', {
+        params: {
+          idContrato,
+          periodo: periodoStr
+        }
+      });
+      setFichas(r.data);
+      setRmiModalOpen(true);
+    } catch (e) {
+      console.error(e);
+      setFichas([]);
+      setRmiModalOpen(true);
+    } finally {
+      setLoadingFichas(false);
+    }
+  };
+
+  const fetchFichas = () => {
+    if (selectedContratoId && selectedPeriodo) {
+      handleVerRmi(selectedContratoId, selectedPeriodo);
+    }
+  };
+
+  const dummyInstructor: Instructor = {
+    idActivation: 0,
+    emailUsuario: authContext.persona.email,
+    idContrato: selectedContratoId,
+    roles: authContext.roles || [],
+    totalHoras: 160,
+    totalHorasFormato: '0',
+    horarios: [],
+    persona: authContext.persona as any
+  };
+
+  return (
+    <div className="p-5 w-full">
+      <div className="mb-4">
+        <select
+          value={anioGestion}
+          onChange={(e) => setAnioGestion(Number(e.target.value))}
+          className="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value={0} disabled>
+            Seleccione un año
+          </option>
+          {aniosContrato.map((val) => (
+            <option key={val} value={val}>
+              {val}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {loadingRmi ? (
+        <div className="flex justify-center py-10">
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : !anioGestion ? (
+        <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
+          Seleccione un año para ver los RMIs
+        </div>
+      ) : dataRmi.length === 0 ? (
+        <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
+          No hay datos RMI para el año {anioGestion}
+        </div>
+      ) : (
+        dataRmi.map((contrato) => (
+          <div
+            key={contrato.idContrato}
+            className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
+          >
+            <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Contrato #{contrato.idContrato}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {contrato.fechaContratacion} — {contrato.fechaFinal ?? 'Vigente'}
+              </p>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {contrato.periodos.map((periodo) => (
+                <div
+                  key={periodo.periodo}
+                  className="border border-gray-100 dark:border-coal-300 rounded-lg p-3"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      Periodo: {periodo.periodo}
+                    </span>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        periodo.estadoRmi === 'ACEPTADO'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                          : periodo.estadoRmi === 'RECHAZADO'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
+                      }`}
+                    >
+                      {periodo.estadoRmi}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <i className="ki-outline ki-time text-gray-400 text-xs" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Horas asignadas:
+                      <span className="font-semibold text-gray-700 dark:text-gray-200 ml-1">
+                        {periodo.horasAsignadas} h
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    <button
+                      onClick={() => handleVerRmi(contrato.idContrato, periodo.periodo)}
+                      disabled={loadingFichas && selectedPeriodo === periodo.periodo}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {loadingFichas && selectedPeriodo === periodo.periodo ? (
+                        <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <i className="ki-outline ki-book-square text-sm" />
+                      )}
+                      Ver y Descargar RMI
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Modal RMI para el instructor */}
+      <RmiModal
+        isOpen={rmiModalOpen}
+        onClose={() => setRmiModalOpen(false)}
+        instructor={dummyInstructor}
+        periodo={selectedPeriodo}
+        fichas={fichas}
+        onRefresh={fetchFichas}
+        readOnlyAsociacion={true}
+      />
+    </div>
+  );
+};
+
+export default RmiInstructor;
