@@ -80,7 +80,7 @@ const InformeGeneralInstructor: React.FC = () => {
 
   const handleDescargarPdf = async (idContrato: number, idRmi: number) => {
     try {
-      const res = await axios.get('rmi/download-pdf', {
+      const res = await axios.get('get_informe_by_instructor_rmi', {
         params: { idContrato, idRmi },
         responseType: 'blob'
       });
@@ -181,12 +181,6 @@ const InformeGeneralInstructor: React.FC = () => {
                   <div className="flex gap-2 flex-wrap mt-3">
                     {periodo.estadoRmi === 'ACEPTADO' && (
                       <>
-                        <button
-                          onClick={() => handleDescargarPdf(contrato.idContrato, periodo.idRmi)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 font-medium text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-file-down text-sm" /> Descargar PDF
-                        </button>
                         <button
                           onClick={() => handleDescargarPdf(contrato.idContrato, periodo.idRmi)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 font-medium text-green-700 dark:text-green-400 dark:bg-white/5 rounded-lg transition-all"
