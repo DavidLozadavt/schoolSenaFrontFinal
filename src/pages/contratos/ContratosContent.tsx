@@ -8,6 +8,8 @@ import { toAbsoluteUrl } from '@/utils/Assets';
 import { Calendar, Folder, CreditCard, ChevronRight, Building, Briefcase } from 'lucide-react';
 import { useAuthContext } from '@/auth';
 import ReactPaginate from 'react-paginate';
+import Zoom from 'react-medium-image-zoom';
+import 'react-medium-image-zoom/dist/styles.css';
 
 type ContractPhotoProps = {
   src?: string | null;
@@ -83,12 +85,14 @@ const ContractPhoto = ({ src }: ContractPhotoProps) => {
 
   if (status === 'loaded' && normalizedSrc) {
     return (
-      <img
-        src={normalizedSrc}
-        alt="Foto de perfil"
-        className="w-full h-full object-cover object-center"
-        draggable={false}
-      />
+      <Zoom>
+        <img
+          src={normalizedSrc}
+          alt=""
+          className="h-full w-full cursor-zoom-in object-cover object-center"
+          draggable={false}
+        />
+      </Zoom>
     );
   }
 
@@ -115,7 +119,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem(storageFilterId) || '');
   const [currentPage, setCurrentPage] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(9);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
 
   const [selectedEmpresa, setSelectedEmpresa] = useState<number | null>(null);
   const [selectedCentroFormacion, setSelectedCentroFormacion] = useState<number | null>(null);
@@ -387,45 +391,69 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
     return toTitleCase(`${partes[0]} ${partes[1]}`);
   };
 
+  /** Solo primer nombre y primer apellido en la tarjeta. */
+  const nombreTitularTarjeta = (contrato: ContratoInterface) => {
+    const persona = contrato.persona as any;
+    if (!persona) return 'Sin nombre';
+    const n1 = String(persona.nombre1 || '').trim();
+    const a1 = String(persona.apellido1 || '').trim();
+    if (n1 || a1) {
+      const corto = `${n1} ${a1}`.trim();
+      return corto ? toTitleCase(corto) : 'Sin nombre';
+    }
+    const palabras = getNombreCompleto(contrato).trim().split(/\s+/).filter(Boolean);
+    if (palabras.length >= 2) return toTitleCase(`${palabras[0]} ${palabras[1]}`);
+    if (palabras.length === 1) return toTitleCase(palabras[0]);
+    return 'Sin nombre';
+  };
+
   const renderItem = (contrato: ContratoInterface, index: number) => {
     const estadoTexto = contrato.estado?.estado || 'ACTIVO';
     const fechaFin = contrato.fechaFinalContrato
       ? formatDate(contrato.fechaFinalContrato as string)
       : 'Indefinido';
 
-    const persona = contrato.persona as any;
-    const nombre1 = persona?.nombre1 ? String(persona.nombre1).trim() : '';
-    const apellido1 = persona?.apellido1 ? String(persona.apellido1).trim() : '';
-    // Si backend no trae nombre1/apellido1, usamos el mismo fallback que ya teníamos antes.
-    const nombreCard = [nombre1, apellido1].filter(Boolean).join(' ') || getNombreCorto(contrato);
-
-    // idArea viene de la tabla `areas`.
-    // En este listado no siempre viene tipado, así que usamos (contrato as any).
+    const areaNombre =
+      (contrato as any)?.area?.nombre ?? (contrato as any)?.area?.nombreAreaConocimiento ?? '';
     const areaId = (contrato as any)?.idArea ?? (contrato as any)?.area?.id ?? '';
-    const areaNombre = (contrato as any)?.area?.nombre ?? (contrato as any)?.area?.nombreAreaConocimiento ?? '';
     const areaValue = (String(areaNombre || areaId).trim() || '—') as string;
+
+    const codigoValue = contrato.id ?? '—';
+    const nombreCard = nombreTitularTarjeta(contrato);
+    const cargoValue = contrato.salario?.rol?.name || 'Sin cargo asignado';
+    const identificacionValue = contrato.persona?.identificacion || '—';
+    const fechaInicio = formatDate(contrato.fechaContratacion as string);
 
     return (
       <div
         key={String(contrato.id ?? index)}
-        className="card rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 shadow-sm hover:shadow-md transition-shadow"
+        className="group relative overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-[0_10px_30px_-18px_rgba(15,23,42,0.32)] transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[0_20px_45px_-24px_rgba(15,23,42,0.38)] dark:border-gray-700 dark:bg-coal-400"
       >
-        <div className="card-body px-3 pt-5 pb-3 text-left">
-          <div className="relative flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="size-11 mt-1 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/85 via-primary/60 to-transparent" />
+
+        <div className="p-4 text-left">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-inner dark:border-gray-700 dark:bg-gray-800">
                 <ContractPhoto src={getFotoPerfil(contrato)} />
               </div>
 
-              {nombreCard ? (
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white leading-snug line-clamp-1">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                  Contrato #{codigoValue}
+                </p>
+                <h3 className="mt-0.5 line-clamp-2 text-sm font-semibold leading-5 text-gray-900 dark:text-white">
                   {nombreCard}
                 </h3>
-              ) : null}
+                <p className="mt-0.5 truncate text-xs text-gray-600 dark:text-gray-400">
+                  {cargoValue}
+                </p>
+              </div>
             </div>
+
             <span
               className={clsx(
-                'absolute top-2 right-2 inline-flex items-center justify-center rounded-md border px-3 py-1 text-xs font-semibold shrink-0',
+                'inline-flex shrink-0 items-center justify-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]',
                 getEstadoBadgeClass(estadoTexto)
               )}
             >
@@ -433,40 +461,60 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
             </span>
           </div>
 
-          <div className="mt-2 px-2 space-y-1.5 text-sm text-gray-600 dark:text-gray-400">
-            <p>
-              <span className="font-medium text-gray-800 dark:text-gray-200">Código:</span>{' '}
-              {contrato.id ?? '—'}
-            </p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="rounded-xl border border-gray-200/80 bg-gray-50/80 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                <CreditCard className="size-3.5 opacity-70" />
+                Identificacion
+              </div>
+              <p className="mt-1.5 truncate text-xs font-medium text-gray-800 dark:text-gray-100">
+                {identificacionValue}
+              </p>
+            </div>
 
-            <p className="flex items-center gap-3">
-              <CreditCard className="size-3.5 shrink-0 opacity-70" />
-              <span className="truncate">{contrato.persona?.identificacion || '—'}</span>
-            </p>
-
-            <p className="flex items-center gap-3">
-              <Folder className="size-3.5 shrink-0 opacity-70" />
-              <span className="truncate">
+            <div className="rounded-xl border border-gray-200/80 bg-gray-50/80 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                <Folder className="size-3.5 opacity-70" />
+                Area
+              </div>
+              <p className="mt-1.5 truncate text-xs font-medium text-gray-800 dark:text-gray-100">
                 {areaValue}
-              </span>
-            </p>
-
-            <p className="flex items-center gap-3">
-              <Calendar className="size-3.5 shrink-0 opacity-70" />
-              <span>
-                {formatDate(contrato.fechaContratacion as string)} — {fechaFin}
-              </span>
-            </p>
+              </p>
+            </div>
           </div>
 
-          <div className="mt-2 mx-2 border-t border-gray-100 dark:border-gray-700" />
-          <div className="mt-2 mx-2 w-full flex justify-start items-center">
+          <div className="mt-2.5 rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Calendar className="size-3.5" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                  Vigencia del contrato
+                </p>
+                <p className="mt-1 text-xs font-medium text-gray-800 dark:text-gray-100">
+                  {fechaInicio} - {fechaFin}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 dark:border-gray-700">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
+                Registro
+              </p>
+              <p className="text-xs font-medium text-gray-800 dark:text-gray-100">
+                Codigo interno {codigoValue}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => contrato.id != null && handleContrato(Number(contrato.id))}
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 inline-flex items-center gap-1.5 hover:underline justify-start text-left"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
             >
-              Ver más información
+              Ver detalle
               <ChevronRight className="size-4" />
             </button>
           </div>
@@ -476,9 +524,10 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
   };
   return (
     <div className="card card-grid min-w-full">
-      <div className="card-header flex-wrap gap-4 py-5">
-        <div className="flex flex-col gap-4 w-full">
-          <div className="relative w-full max-w-xl">
+      <div className="card-header flex-wrap py-5">
+        <h3 className="card-title">Contratos</h3>
+        <div className="flex w-full justify-end gap-6">
+          <div className="relative w-full max-w-xl lg:max-w-[36rem]">
             <KeenIcon
               icon="magnifier"
               className="leading-none text-md text-gray-500 absolute top-1/2 left-0 -translate-y-1/2 ml-3"
@@ -491,7 +540,9 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+        </div>
 
+        <div className="flex flex-col gap-4 w-full mt-2 pt-4 border-t border-gray-100 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-3">
             {showEmpresaSelect && (
               <div className="flex items-center gap-2 min-w-[220px]">
@@ -568,7 +619,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
         </div>
       </div>
 
-      <div className="card-body">
+      <div className="card-body p-4 lg:p-5">
         {error && (
           <div className="alert alert-danger mb-4" role="alert">
             {error}
@@ -583,12 +634,13 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
           <p className="text-center text-gray-500 py-12 text-sm">No hay contratos para mostrar.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
-              {currentData.map((c, i) => renderItem(c, i))}
-            </div>
+            <div className="px-4 py-4 lg:px-5 lg:py-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+                {currentData.map((c, i) => renderItem(c, i))}
+              </div>
 
             {pageCount > 1 && (
-              <div className="mt-8 flex flex-wrap items-center justify-between gap-2 w-full">
+              <div className="mt-8 flex w-full flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                   <span>Mostrar</span>
                   <select
@@ -599,7 +651,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
                       setCurrentPage(0);
                     }}
                   >
-                    {[9, 18, 45].map((n) => (
+                    {[6, 9, 18, 45].map((n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>
@@ -628,6 +680,7 @@ const ContratoContent = ({ reload }: ContratosContentProps) => {
                 />
               </div>
             )}
+            </div>
           </>
         )}
       </div>

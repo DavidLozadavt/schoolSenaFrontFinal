@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import Select from 'react-select';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
@@ -36,42 +37,23 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
     sexo: '',
     rh: '',
     idciudadNac: '',
-    idciudadUbicacion: ''
+    idciudadUbicacion: '',
+    idciudadExpedicion: ''
   });
 
   const [tiposIdentificacion, setTiposIdentificacion] = useState<any[]>([]);
-  const [departamentos, setDepartamentos] = useState<any[]>([]);
   const [ciudadesNac, setCiudadesNac] = useState<any[]>([]);
   const [ciudadesUbicacion, setCiudadesUbicacion] = useState<any[]>([]);
+  const [ciudadesExpedicion, setCiudadesExpedicion] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (open && contrato?.persona) {
-      const persona = contrato.persona as any;
-      
-      const tipoIdValue = persona.tipoIdentificacion?.id 
-        || persona.idTipoIdentificacion 
-        || persona.idtipoIdentificacion
-        || '';
-      
-      setFormData({
-        nombre1: persona.nombre1 || '',
-        nombre2: persona.nombre2 || '',
-        apellido1: persona.apellido1 || '',
-        apellido2: persona.apellido2 || '',
-        identificacion: persona.identificacion || '',
-        idtipoIdentificacion: tipoIdValue ? String(tipoIdValue) : '',
-        email: persona.email || '',
-        celular: persona.celular || '',
-        telefonoFijo: persona.telefonoFijo || '',
-        fechaNac: persona.fechaNac ? persona.fechaNac.split('T')[0] : '',
-        direccion: persona.direccion || '',
-        sexo: persona.sexo || '',
-        rh: persona.rh || '',
-        idciudadNac: persona.idCiudadNac?.toString() || persona.CiudadNac?.id?.toString() || persona.ciudadNac?.id?.toString() || '',
-        idciudadUbicacion: persona.idCiudadUbicacion?.toString() || persona.ciudadUbicacion?.id?.toString() || ''
-      });
-    }
-  }, [open, contrato]);
+  const optionsCiudadExpedicion = useMemo(
+    () =>
+      ciudadesExpedicion.map((c) => ({
+        value: String(c.id),
+        label: `${c.descripcion} - ${c.codigo}`
+      })),
+    [ciudadesExpedicion]
+  );
 
   const fetchTiposIdentificacion = useCallback(async () => {
     try {
@@ -79,15 +61,6 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
       setTiposIdentificacion(response.data);
     } catch (err) {
       console.error('Error al cargar tipos de identificación:', err);
-    }
-  }, []);
-
-  const fetchDepartamentos = useCallback(async () => {
-    try {
-      const response = await axios.get('departamentos');
-      setDepartamentos(response.data);
-    } catch (err) {
-      console.error('Error al cargar departamentos:', err);
     }
   }, []);
 
@@ -105,6 +78,56 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
   }, []);
 
   useEffect(() => {
+    if (open && contrato?.persona) {
+      const persona = contrato.persona as any;
+
+      const tipoIdValue =
+        persona.tipoIdentificacion?.id ||
+        persona.idTipoIdentificacion ||
+        persona.idtipoIdentificacion ||
+        '';
+
+      const rawCiudadExp = persona.ciudadExpedicion ?? persona.ciudad_expedicion;
+      const idCiudadExpParsed =
+        (rawCiudadExp != null && typeof rawCiudadExp === 'object'
+          ? (rawCiudadExp as { id?: unknown }).id
+          : rawCiudadExp) ?? '';
+      const idCityExp =
+        idCiudadExpParsed != null && idCiudadExpParsed !== ''
+          ? idCiudadExpParsed
+          : persona.id_ciudad_expedicion ?? persona.idCiudadExpedicion ?? '';
+
+      setFormData({
+        nombre1: persona.nombre1 || '',
+        nombre2: persona.nombre2 || '',
+        apellido1: persona.apellido1 || '',
+        apellido2: persona.apellido2 || '',
+        identificacion: persona.identificacion || '',
+        idtipoIdentificacion: tipoIdValue ? String(tipoIdValue) : '',
+        email: persona.email || '',
+        celular: persona.celular || '',
+        telefonoFijo: persona.telefonoFijo || '',
+        fechaNac: persona.fechaNac ? persona.fechaNac.split('T')[0] : '',
+        direccion: persona.direccion || '',
+        sexo: persona.sexo || '',
+        rh: persona.rh || '',
+        idciudadNac:
+          (persona.ciudad_nac?.id != null ? String(persona.ciudad_nac.id) : '') ||
+          (persona.ciudadNac?.id != null ? String(persona.ciudadNac.id) : '') ||
+          (persona.id_ciudad_nac != null && persona.id_ciudad_nac !== ''
+            ? String(persona.id_ciudad_nac)
+            : '') ||
+          persona.idCiudadNac?.toString() ||
+          persona.CiudadNac?.id?.toString() ||
+          '',
+        idciudadUbicacion:
+          persona.idCiudadUbicacion?.toString() || persona.ciudadUbicacion?.id?.toString() || '',
+        idciudadExpedicion: idCityExp ? String(idCityExp) : ''
+      });
+    }
+  }, [open, contrato]);
+
+  useEffect(() => {
     if (!open && !showToast) {
       setToastMessage('');
     }
@@ -113,10 +136,13 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
   useEffect(() => {
     if (open) {
       fetchTiposIdentificacion();
-      fetchDepartamentos();
       setError('');
+      axios
+        .get('ciudades')
+        .then((res) => setCiudadesExpedicion(Array.isArray(res.data) ? res.data : []))
+        .catch(() => setCiudadesExpedicion([]));
     }
-  }, [open, fetchTiposIdentificacion, fetchDepartamentos]);
+  }, [open, fetchTiposIdentificacion]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -173,7 +199,11 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
       if (formData.rh) {
         dataToSend.rh = formData.rh;
       }
-      
+
+      dataToSend.idciudadExpedicion = formData.idciudadExpedicion
+        ? Number(formData.idciudadExpedicion)
+        : null;
+
       await axios.post(`update_contrato_persona/${contrato.persona.id}`, dataToSend);
 
       setToastMessage('Datos de la persona actualizados correctamente');
@@ -365,6 +395,52 @@ const ModalUpdatePerson = ({ open, onClose, contrato, onSave }: ModalUpdatePerso
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
               </select>
+            </div>
+
+            <div>
+              <label
+                className="block text-sm font-medium text-gray-600 mb-1"
+                htmlFor="modal-idciudadExpedicion"
+              >
+                Ciudad expedición documento
+              </label>
+              <Select
+                inputId="modal-idciudadExpedicion"
+                options={optionsCiudadExpedicion}
+                placeholder="Buscar o seleccionar ciudad..."
+                isClearable
+                isSearchable
+                classNamePrefix="react-select-ciudad-exp"
+                classNames={{
+                  control: () =>
+                    `min-h-9 text-sm rounded-md bg-white dark:bg-coal-400 border border-gray-300 dark:border-coal-200 text-gray-900 dark:text-gray-100`,
+                  singleValue: () => 'text-gray-900 dark:text-gray-100',
+                  placeholder: () => 'text-gray-400 dark:text-gray-300 text-sm',
+                  input: () => 'text-gray-900 dark:text-gray-100 text-sm',
+                  menu: () => 'bg-white dark:bg-coal-500 z-[200] text-sm',
+                  menuList: () => 'text-sm',
+                  option: ({ isFocused, isSelected }) =>
+                    `text-gray-900 dark:text-gray-100 text-sm ${
+                      isSelected ? 'bg-primary-500 text-white' : ''
+                    } ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}`,
+                  indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                  dropdownIndicator: () =>
+                    'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                  clearIndicator: () =>
+                    'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                }}
+                value={
+                  formData.idciudadExpedicion
+                    ? optionsCiudadExpedicion.find(
+                        (o) => o.value === String(formData.idciudadExpedicion)
+                      ) ?? null
+                    : null
+                }
+                onChange={(opt) =>
+                  handleInputChange('idciudadExpedicion', opt?.value ? String(opt.value) : '')
+                }
+                noOptionsMessage={() => 'Sin coincidencias'}
+              />
             </div>
 
             <div className="md:col-span-2">

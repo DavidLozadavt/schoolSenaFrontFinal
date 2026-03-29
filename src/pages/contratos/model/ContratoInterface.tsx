@@ -17,6 +17,12 @@ export interface ContratoInterface {
   formaDePago?: string | Record<string, unknown>;
   supervisorContrato?: string;
   cargoSupervisor?: string;
+  numeroDocumentoContrato?: string | number | null;
+  /** Consecutivo / número interno del contrato (tabla contrato.numeroContrato) */
+  numeroContrato?: string | number | null;
+  /** Variante snake_case que puede enviar Laravel en algunos endpoints */
+  numero_contrato?: string | number | null;
+  numero_documento_contrato?: string | number | null;
   observacion?: string;
   fechaFinalContrato?: any;
   valorTotalContrato?: any;
@@ -27,10 +33,13 @@ export interface ContratoInterface {
   numeroCuentaBancaria: any;
   idCompany?: number; // Agregado
 
-  actividadRiesgo: {
-    nombre: string;
-    descripcion: string;
-  };
+  actividadRiesgo?: {
+    id?: number;
+    nombre?: string;
+    descripcion?: string;
+    codigo?: string;
+    clase?: string;
+  } | null;
 
   persona?: {
     id?: number;
@@ -47,6 +56,11 @@ export interface ContratoInterface {
     celular: string;
     telefonoFijo?: string;
     rutaFotoUrl?: string;
+    ciudadExpedicion?: { id?: number; descripcion?: string; codigo?: string };
+    ciudad_expedicion?: { id?: number; descripcion?: string; codigo?: string };
+    /** API Laravel (append en modelo Persona) */
+    ciudad_expedicion_info?: { id?: number; descripcion?: string; codigo?: string };
+    ciudadExpedicionInfo?: { id?: number; descripcion?: string; codigo?: string };
     usuario?: {
       idCentroFormacion?: number;
       centroFormacion?: {
