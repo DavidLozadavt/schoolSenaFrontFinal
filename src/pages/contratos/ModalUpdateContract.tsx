@@ -36,7 +36,9 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
     formaPago: '',
     supervisorContrato: '',
     cargoSupervisor: '',
-    valorTotalContrato: ''
+    valorTotalContrato: '',
+    numeroDocumentoContrato: '',
+    numeroContrato: ''
   });
 
   const [tiposContrato, setTiposContrato] = useState<any[]>([]);
@@ -75,7 +77,7 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         idtipoContrato: contrato.idtipoContrato?.toString() || '',
         fechaContratacion: fechaInicio,
         fechaFinalContrato: fechaFinal,
-        idActividadRiesgo: (contrato as any).actividadRiesgo?.id?.toString() || '',
+        idActividadRiesgo: contrato.actividadRiesgo?.id?.toString() || '',
         salario: contrato.salario?.valor?.toString() || '',
         otrosi: contrato.otrosi || '',
         horasmes: contrato.horasmes?.toString() || '',
@@ -84,9 +86,21 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
             ? String(contrato.periodoPago)
             : '',
         formaPago: resolveFormaPago(contrato),
-        supervisorContrato: (contrato as any).supervisorContrato || '',
-        cargoSupervisor: (contrato as any).cargoSupervisor || '',
-        valorTotalContrato: contrato.valorTotalContrato?.toString() || ''
+        supervisorContrato: contrato.supervisorContrato || '',
+        cargoSupervisor: contrato.cargoSupervisor || '',
+        valorTotalContrato: contrato.valorTotalContrato?.toString() || '',
+        numeroDocumentoContrato:
+          contrato.numeroDocumentoContrato != null && contrato.numeroDocumentoContrato !== ''
+            ? String(contrato.numeroDocumentoContrato)
+            : contrato.numero_documento_contrato != null && contrato.numero_documento_contrato !== ''
+              ? String(contrato.numero_documento_contrato)
+              : '',
+        numeroContrato:
+          contrato.numeroContrato != null && contrato.numeroContrato !== ''
+            ? String(contrato.numeroContrato)
+            : contrato.numero_contrato != null && contrato.numero_contrato !== ''
+              ? String(contrato.numero_contrato)
+              : ''
       });
     }
   }, [open, contrato]);
@@ -202,6 +216,14 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
         dataToSend.valorTotalContrato = formData.valorTotalContrato;
       }
 
+      dataToSend.numeroDocumentoContrato = formData.numeroDocumentoContrato.trim()
+        ? formData.numeroDocumentoContrato.trim()
+        : null;
+
+      dataToSend.numeroContrato = formData.numeroContrato.trim()
+        ? formData.numeroContrato.trim()
+        : null;
+
       await axios.post(`update_contrato/${contrato.id}`, dataToSend);
 
       setToastMessage('Datos del contrato actualizados correctamente');
@@ -267,6 +289,30 @@ const ModalUpdateContract = ({ open, onClose, contrato, onSave }: ModalUpdateCon
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Número de contrato</label>
+                <input
+                  type="text"
+                  value={formData.numeroContrato}
+                  onChange={(e) => handleInputChange('numeroContrato', e.target.value)}
+                  className="input w-full"
+                  placeholder="Consecutivo interno (ej. acuerdo con talento humano)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  Número de documento (contrato)
+                </label>
+                <input
+                  type="text"
+                  value={formData.numeroDocumentoContrato}
+                  onChange={(e) => handleInputChange('numeroDocumentoContrato', e.target.value)}
+                  className="input w-full"
+                  placeholder="Opcional (referencia documento legal)"
+                />
               </div>
 
               <div>

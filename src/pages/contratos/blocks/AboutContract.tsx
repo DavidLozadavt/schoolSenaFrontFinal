@@ -18,10 +18,7 @@ const labelPeriodoPago = (pp: string | number | null | undefined): string => {
 
 /** Misma etiqueta que las opciones del modal de actividad de riesgo. */
 const labelActividadRiesgo = (contrato: ContratoInterface): string => {
-  const act = contrato?.actividadRiesgo as
-    | { nombre?: string; descripcion?: string; codigo?: string; clase?: string }
-    | undefined
-    | null;
+  const act = contrato?.actividadRiesgo;
   if (!act || typeof act !== 'object') return 'N/A';
   if (act.nombre) return act.nombre;
   if (act.descripcion) return act.descripcion;
@@ -33,8 +30,20 @@ const labelActividadRiesgo = (contrato: ContratoInterface): string => {
   return 'N/A';
 };
 
+const displayNumeroContrato = (c: ContratoInterface): string => {
+  const v = c.numeroContrato ?? c.numero_contrato;
+  if (v === null || v === undefined || String(v).trim() === '') return 'N/A';
+  return String(v).trim();
+};
+
+const displayNumeroDocumentoContrato = (c: ContratoInterface): string => {
+  const v = c.numeroDocumentoContrato ?? c.numero_documento_contrato;
+  if (v === null || v === undefined || String(v).trim() === '') return 'N/A';
+  return String(v).trim();
+};
+
 const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
-  const formatCOP = (value: any) => {
+  const formatCOP = (value: unknown) => {
     if (value === null || value === undefined || value === '') return 'N/A';
     const num = Number(value);
     if (isNaN(num)) return 'N/A';
@@ -77,9 +86,21 @@ const AboutContract = ({ contrato, onEdit }: AboutContractProps) => {
               <p className="text-xs font-bold text-gray-900 dark:text-white">{contrato?.id || 'N/A'}</p>
             </div>
             <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Número de contrato</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {displayNumeroContrato(contrato)}
+              </p>
+            </div>
+            <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tipo de Contrato</p>
               <p className="text-xs font-bold text-gray-900 dark:text-white">
                 {contrato?.tipoContrato?.nombreTipoContrato || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Número de documento (contrato)</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white">
+                {displayNumeroDocumentoContrato(contrato)}
               </p>
             </div>
             <div>

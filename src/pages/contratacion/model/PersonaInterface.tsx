@@ -12,6 +12,7 @@ export interface PersonaInterface {
   apellido2?: string;
   apellido1?: string;
   idciudadNac?: string;
+  idciudadExpedicion?: string;
   celular?: string;
   email?: string;
   direccion?: string;

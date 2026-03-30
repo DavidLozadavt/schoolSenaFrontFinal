@@ -10,7 +10,7 @@ import { useLayout } from '@/providers';
 import axios from 'axios';
 import Select from 'react-select'
 
-import React, { Fragment, useContext, useEffect, useRef, useState } from 'react';
+import React, { Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { PersonaInterface } from './model/PersonaInterface';
 import { ContratoInterface } from './model/ContratoInterface';
 import { validateFieldPersona } from './utils/validationPersona';
@@ -220,6 +220,7 @@ const ContratacionPage = () => {
   const [departamentos, setDepartamentos] = useState<any[]>([]);
   const [ciudades, setCiudades] = useState<any[]>([]);
   const [ciudadesUbicacion, setCiudadesUbicacion] = useState<any[]>([]);
+  const [ciudadesExpedicion, setCiudadesExpedicion] = useState<any[]>([]);
   const [tipoIdentificaciones, setTipoIdentificacion] = useState<TipoDocumentoInterface[]>([]);
   const [tipoContratos, setTipoContratos] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
@@ -275,8 +276,18 @@ const ContratacionPage = () => {
     fechaNac: '',
     idciudadNac: '',
     departamento: '',
+    idciudadExpedicion: '',
     apellido2: ''
   });
+
+  const optionsCiudadExpedicion = useMemo(
+    () =>
+      ciudadesExpedicion.map((c) => ({
+        value: String(c.id),
+        label: `${c.descripcion} - ${c.codigo}`
+      })),
+    [ciudadesExpedicion]
+  );
 
   const [formDataContrato, setFormDataContrato] = useState<ContratoInterface>({
     salario_id: '',
@@ -313,7 +324,9 @@ const ContratacionPage = () => {
     idGrupoNomina: '',
     horasmes: '',
     idNivelEducativo: '',
-    idCentroFormacion: ''
+    idCentroFormacion: '',
+    numeroDocumentoContrato: '',
+    numeroContrato: ''
   });
 
   const steps = [
@@ -353,7 +366,12 @@ const ContratacionPage = () => {
     let { value } = e.target;
 
     // No convertir a mayúsculas los campos numéricos (IDs)
-    const numericFields = ['idciudadNac', 'departamento', 'idtipoIdentificacion'];
+    const numericFields = [
+      'idciudadNac',
+      'departamento',
+      'idciudadExpedicion',
+      'idtipoIdentificacion'
+    ];
     if (!numericFields.includes(name)) {
       value = value.toUpperCase();
     }
@@ -382,6 +400,7 @@ const ContratacionPage = () => {
         fetchCiudades(Number(value));
       }
     }
+
   };
 
   const handleChangeFormContrato = (e: any) => {
@@ -390,6 +409,8 @@ const ContratacionPage = () => {
     // No convertir a mayúsculas campos numéricos o idCentroFormacion
     if (
       name !== 'idCentroFormacion' &&
+      name !== 'numeroDocumentoContrato' &&
+      name !== 'numeroContrato' &&
       !name.startsWith('id') &&
       name !== 'horasmes' &&
       name !== 'sueldo' &&
@@ -664,6 +685,9 @@ const ContratacionPage = () => {
       data.append('apellido2', formDataPersona.apellido2.toUpperCase() + '');
     }
     data.append('idciudadNac', fv(formDataPersona.idciudadNac));
+    if (formDataPersona.idciudadExpedicion) {
+      data.append('idciudadExpedicion', fv(formDataPersona.idciudadExpedicion));
+    }
     data.append('sexo', fv(formDataPersona.sexo));
     data.append('rh', fv(formDataPersona.rh));
 
@@ -730,7 +754,9 @@ const ContratacionPage = () => {
           horasmes: formDataContrato.horasmes ? Number(formDataContrato.horasmes) : undefined,
           idNivelEducativo: formDataContrato.idNivelEducativo,
           idCentroFormacion: formDataContrato.idCentroFormacion,
-          areasConocimiento: areasConocimientoUnicas
+          areasConocimiento: areasConocimientoUnicas,
+          numeroDocumentoContrato: formDataContrato.numeroDocumentoContrato || undefined,
+          numeroContrato: String(formDataContrato.numeroContrato || '').trim() || undefined
         };
 
         axios
@@ -813,6 +839,7 @@ const ContratacionPage = () => {
       fechaNac: '',
       idciudadNac: '',
       departamento: '',
+      idciudadExpedicion: '',
       apellido2: ''
     });
 
@@ -860,7 +887,9 @@ const ContratacionPage = () => {
       idGrupoNomina: '',
       horasmes: '',
       idNivelEducativo: '',
-      idCentroFormacion: ''
+      idCentroFormacion: '',
+      numeroDocumentoContrato: '',
+      numeroContrato: ''
     });
     setSelectedAreasConocimiento([]);
     setFotoUrl('');
@@ -1131,6 +1160,13 @@ const ContratacionPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    axios
+      .get('ciudades')
+      .then((res) => setCiudadesExpedicion(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setCiudadesExpedicion([]));
+  }, []);
+
   const fetchGruposNomina = async () => {
     try {
       const response = await axios.get('grupos_nomina');
@@ -1295,10 +1331,38 @@ const ContratacionPage = () => {
       const data = response.data;
 
       if (data && Object.keys(data).length > 0) {
-        const idDepartamentoNac = data.ciudad_nac?.departamento?.id || '';
-        const idCiudadNac = data.idCiudadNac || '';
+        const idDepartamentoNac =
+          data.ciudad_nac?.departamento?.id ||
+          data.ciudadNac?.departamento?.id ||
+          '';
+        // Nacimiento: solo claves de ciudad de nacimiento (snake_case y camelCase de Laravel)
+        const idCiudadNac =
+          (data.ciudad_nac?.id != null ? String(data.ciudad_nac.id) : '') ||
+          (data.ciudadNac?.id != null ? String(data.ciudadNac.id) : '') ||
+          (data.id_ciudad_nac != null && data.id_ciudad_nac !== ''
+            ? String(data.id_ciudad_nac)
+            : '') ||
+          (data.idCiudadNac != null && data.idCiudadNac !== '' ? String(data.idCiudadNac) : '') ||
+          '';
         const idDepartamentoU = data.ciudad_ubicacion?.departamento?.id || '';
         const idCiudadU = data.idCiudadUbicacion || '';
+        // Expedición: solo relación/atributos de expedición (no mezclar con ciudad_nac)
+        const rawCiudadExp = data.ciudadExpedicion ?? data.ciudad_expedicion;
+        const idCiudadExp =
+          (rawCiudadExp != null && typeof rawCiudadExp === 'object'
+            ? (rawCiudadExp as { id?: unknown }).id
+            : rawCiudadExp) ??
+          '';
+        const idCiudadExpStr =
+          idCiudadExp != null && idCiudadExp !== ''
+            ? String(idCiudadExp)
+            : (data.id_ciudad_expedicion != null && data.id_ciudad_expedicion !== ''
+                ? String(data.id_ciudad_expedicion)
+                : '') ||
+              (data.idCiudadExpedicion != null && data.idCiudadExpedicion !== ''
+                ? String(data.idCiudadExpedicion)
+                : '') ||
+              '';
 
         setFormDataPersona((prev) => ({
           ...prev,
@@ -1310,7 +1374,9 @@ const ContratacionPage = () => {
           idtipoIdentificacion: data.idTipoIdentificacion || '',
           rh: data.rh || '',
           sexo: data.sexo || '',
-          departamento: idDepartamentoNac
+          departamento: idDepartamentoNac,
+          idciudadExpedicion: idCiudadExpStr,
+          idciudadNac: ''
         }));
 
         setFormDataUbicacion((prev) => ({
@@ -1331,16 +1397,25 @@ const ContratacionPage = () => {
             ...prev,
             idciudadNac: idCiudadNac
           }));
+        } else {
+          setCiudades([]);
+          if (requestId === fetchContratoRequestIdRef.current) {
+            setFormDataPersona((prev) => ({
+              ...prev,
+              idciudadNac: idCiudadNac
+            }));
+          }
         }
 
         if (idDepartamentoU) {
-          await fetchCiudades(idDepartamentoU);
+          await fetchCiudadesUbicacion(idDepartamentoU);
           if (requestId !== fetchContratoRequestIdRef.current) return;
           setFormDataUbicacion((prev) => ({
             ...prev,
             idciudadUbicacion: idCiudadU
           }));
         }
+
       } else {
         enqueueSnackbar('No se encontraron datos de contrato para esta identificación.', {
           variant: 'info'
@@ -1505,243 +1580,290 @@ const ContratacionPage = () => {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-5">Información Personal</h2>
                   <form>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 gap-x-8">
-                      {/* Columna Izquierda */}
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Tipo de Documento *
-                          </label>
-                          <select
-                            name="idtipoIdentificacion"
-                            value={formDataPersona.idtipoIdentificacion}
-                            onChange={handleChangeFormPerson}
-                            className="select text-sm h-9 w-full"
-                          >
-                            <option value="">Seleccione una opción</option>
-                            {tipoIdentificaciones.map((tipoIdentificacion) => (
-                              <option key={tipoIdentificacion.id} value={tipoIdentificacion.id}>
-                                {tipoIdentificacion.codigo}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.idtipoIdentificacion && (
-                            <p className="text-red-500 text-xs mt-1">{errors.idtipoIdentificacion}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Primer Nombre *
-                          </label>
-                          <input
-                            type="text"
-                            name="nombre1"
-                            placeholder="Ingrese el primer nombre"
-                            value={formDataPersona.nombre1}
-                            onChange={handleChangeFormPerson}
-                            className={`input text-sm h-9 w-full ${errors.nombre1 ? 'border-red-500' : ''}`}
-                          />
-                          {errors.nombre1 && (
-                            <p className="text-red-500 text-xs mt-1">{errors.nombre1}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Primer Apellido *
-                          </label>
-                          <input
-                            type="text"
-                            name="apellido1"
-                            placeholder="Ingrese el primer apellido"
-                            value={formDataPersona.apellido1}
-                            onChange={handleChangeFormPerson}
-                            className={`input text-sm h-9 w-full ${errors.apellido1 ? 'border-red-500' : ''}`}
-                          />
-                          {errors.apellido1 && (
-                            <p className="text-red-500 text-xs mt-1">{errors.apellido1}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Fecha de Nacimiento *
-                          </label>
-                          <input
-                            type="date"
-                            name="fechaNac"
-                            value={formDataPersona.fechaNac}
-                            onChange={handleChangeFormPerson}
-                            className={`input text-sm h-9 w-full ${errors.fechaNac ? 'border-red-500' : ''}`}
-                            max={new Date().toISOString().split('T')[0]}
-                          />
-                          {errors.fechaNac && (
-                            <p className="text-red-500 text-xs mt-1">{errors.fechaNac}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Departamento de Nacimiento *
-                          </label>
-                          <select
-                            name="departamento"
-                            value={formDataPersona.departamento}
-                            onChange={handleChangeFormPerson}
-                            className="select text-sm h-9 w-full"
-                          >
-                            <option value="">Seleccione un departamento</option>
-                            {departamentos.map((departamento) => (
-                              <option key={departamento.id} value={departamento.id}>
-                                {departamento.descripcion} - {departamento.codigo}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.departamento && (
-                            <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Grupo Sanguíneo *
-                          </label>
-                          <select
-                            name="rh"
-                            value={formDataPersona.rh}
-                            onChange={handleChangeFormPerson}
-                            className="select text-sm h-9 w-full"
-                          >
-                            <option value="">Seleccione una opción</option>
-                            <option value="A+">A POSITIVO</option>
-                            <option value="A-">A NEGATIVO</option>
-                            <option value="AB+">AB POSTITIVO</option>
-                            <option value="AB-">AB NEGATIVO</option>
-                            <option value="B+">B POSITIVO</option>
-                            <option value="B-">B NEGATIVO</option>
-                            <option value="O+">O POSITIVO</option>
-                            <option value="O-">O NEGATIVO</option>
-                          </select>
-                          {errors.rh && <p className="text-red-500 text-xs mt-1">{errors.rh}</p>}
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Tipo de Documento *
+                        </label>
+                        <select
+                          name="idtipoIdentificacion"
+                          value={formDataPersona.idtipoIdentificacion}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una opción</option>
+                          {tipoIdentificaciones.map((tipoIdentificacion) => (
+                            <option key={tipoIdentificacion.id} value={tipoIdentificacion.id}>
+                              {tipoIdentificacion.codigo}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.idtipoIdentificacion && (
+                          <p className="text-red-500 text-xs mt-1">{errors.idtipoIdentificacion}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Número de Documento *
+                        </label>
+                        <input
+                          type="text"
+                          name="identificacion"
+                          placeholder="Ingrese el número de documento"
+                          value={formDataPersona.identificacion}
+                          onChange={handleChangeFormPerson}
+                          onBlur={handleIdentificacionBlur}
+                          className={`input text-sm h-9 w-full ${errors.identificacion ? 'border-red-500' : ''}`}
+                        />
+                        {errors.identificacion && (
+                          <p className="text-red-500 text-xs mt-1">{errors.identificacion}</p>
+                        )}
                       </div>
 
-                      {/* Columna Derecha */}
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Número de Documento *
-                          </label>
+                      <div>
+                        <label
+                          className="block text-xs font-medium mb-1.5 text-gray-700"
+                          htmlFor="idciudadExpedicion"
+                        >
+                          Ciudad expedición documento
+                        </label>
+                        <Select
+                          inputId="idciudadExpedicion"
+                          options={optionsCiudadExpedicion}
+                          placeholder="Buscar o seleccionar ciudad..."
+                          isClearable
+                          isSearchable
+                          classNamePrefix="react-select-ciudad-exp"
+                          classNames={{
+                            control: () =>
+                              `min-h-9 text-sm rounded-md bg-white dark:bg-coal-400 border border-gray-300 dark:border-coal-200 text-gray-900 dark:text-gray-100`,
+                            singleValue: () => 'text-gray-900 dark:text-gray-100',
+                            placeholder: () => 'text-gray-400 dark:text-gray-300 text-sm',
+                            input: () => 'text-gray-900 dark:text-gray-100 text-sm',
+                            menu: () => 'bg-white dark:bg-coal-500 z-20 text-sm',
+                            menuList: () => 'text-sm',
+                            option: ({ isFocused, isSelected }) =>
+                              `text-gray-900 dark:text-gray-100 text-sm ${
+                                isSelected ? 'bg-primary-500 text-white' : ''
+                              } ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}`,
+                            indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                            dropdownIndicator: () =>
+                              'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                            clearIndicator: () =>
+                              'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                          }}
+                          value={
+                            formDataPersona.idciudadExpedicion
+                              ? optionsCiudadExpedicion.find(
+                                  (o) => o.value === String(formDataPersona.idciudadExpedicion)
+                                ) ?? null
+                              : null
+                          }
+                          onChange={(opt) => {
+                            setFormDataPersona((prev) => ({
+                              ...prev,
+                              idciudadExpedicion: opt?.value ? String(opt.value) : ''
+                            }));
+                          }}
+                          noOptionsMessage={() => 'Sin coincidencias'}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Fecha de Nacimiento *
+                        </label>
+                        <input
+                          type="date"
+                          name="fechaNac"
+                          value={formDataPersona.fechaNac}
+                          onChange={handleChangeFormPerson}
+                          className={`input text-sm h-9 w-full ${errors.fechaNac ? 'border-red-500' : ''}`}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        {errors.fechaNac && (
+                          <p className="text-red-500 text-xs mt-1">{errors.fechaNac}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Primer Nombre *
+                        </label>
+                        <input
+                          type="text"
+                          name="nombre1"
+                          placeholder="Ingrese el primer nombre"
+                          value={formDataPersona.nombre1}
+                          onChange={handleChangeFormPerson}
+                          className={`input text-sm h-9 w-full ${errors.nombre1 ? 'border-red-500' : ''}`}
+                        />
+                        {errors.nombre1 && (
+                          <p className="text-red-500 text-xs mt-1">{errors.nombre1}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Segundo Nombre
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ingrese el segundo nombre"
+                          name="nombre2"
+                          value={formDataPersona.nombre2}
+                          onChange={handleChangeFormPerson}
+                          className="input text-sm h-9 w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Primer Apellido *
+                        </label>
+                        <input
+                          type="text"
+                          name="apellido1"
+                          placeholder="Ingrese el primer apellido"
+                          value={formDataPersona.apellido1}
+                          onChange={handleChangeFormPerson}
+                          className={`input text-sm h-9 w-full ${errors.apellido1 ? 'border-red-500' : ''}`}
+                        />
+                        {errors.apellido1 && (
+                          <p className="text-red-500 text-xs mt-1">{errors.apellido1}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Segundo Apellido
+                        </label>
+                        <input
+                          type="text"
+                          name="apellido2"
+                          placeholder="Ingrese el segundo apellido"
+                          value={formDataPersona.apellido2}
+                          onChange={handleChangeFormPerson}
+                          className="input text-sm h-9 w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Departamento de Nacimiento *
+                        </label>
+                        <select
+                          name="departamento"
+                          value={formDataPersona.departamento}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione un departamento</option>
+                          {departamentos.map((departamento) => (
+                            <option key={departamento.id} value={departamento.id}>
+                              {departamento.descripcion} - {departamento.codigo}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.departamento && (
+                          <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Ciudad de Nacimiento *
+                        </label>
+                        <select
+                          name="idciudadNac"
+                          value={formDataPersona.idciudadNac}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una ciudad</option>
+                          {ciudades.map((ciudad) => (
+                            <option key={ciudad.id} value={ciudad.id}>
+                              {ciudad.descripcion} - {ciudad.codigo}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.idciudadNac && (
+                          <p className="text-red-500 text-xs mt-1">{errors.idciudadNac}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Género *
+                        </label>
+                        <select
+                          name="sexo"
+                          value={formDataPersona.sexo}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una opción</option>
+                          <option value="F">FEMENINO</option>
+                          <option value="M">MASCULINO</option>
+                          <option value="O">OTRO</option>
+                        </select>
+                        {errors.sexo && <p className="text-red-500 text-xs mt-1">{errors.sexo}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Grupo Sanguíneo *
+                        </label>
+                        <select
+                          name="rh"
+                          value={formDataPersona.rh}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una opción</option>
+                          <option value="A+">A POSITIVO</option>
+                          <option value="A-">A NEGATIVO</option>
+                          <option value="AB+">AB POSTITIVO</option>
+                          <option value="AB-">AB NEGATIVO</option>
+                          <option value="B+">B POSITIVO</option>
+                          <option value="B-">B NEGATIVO</option>
+                          <option value="O+">O POSITIVO</option>
+                          <option value="O-">O NEGATIVO</option>
+                        </select>
+                        {errors.rh && <p className="text-red-500 text-xs mt-1">{errors.rh}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto</label>
+                        {!selectedFilePersona && !fotoUrl ? (
                           <input
-                            type="text"
-                            name="identificacion"
-                            placeholder="Ingrese el número de documento"
-                            value={formDataPersona.identificacion}
-                            onChange={handleChangeFormPerson}
-                            onBlur={handleIdentificacionBlur}
-                            className={`input text-sm h-9 w-full ${errors.identificacion ? 'border-red-500' : ''}`}
+                            type="file"
+                            name="rutaFoto"
+                            onChange={handleFilePersonaChange}
+                            className="file-input w-full"
                           />
-                          {errors.identificacion && (
-                            <p className="text-red-500 text-xs mt-1">{errors.identificacion}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Segundo Nombre
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ingrese el segundo nombre"
-                            name="nombre2"
-                            value={formDataPersona.nombre2}
-                            onChange={handleChangeFormPerson}
-                            className="input text-sm h-9 w-full"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Segundo Apellido
-                          </label>
-                          <input
-                            type="text"
-                            name="apellido2"
-                            placeholder="Ingrese el segundo apellido"
-                            value={formDataPersona.apellido2}
-                            onChange={handleChangeFormPerson}
-                            className="input text-sm h-9 w-full"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Género *
-                          </label>
-                          <select
-                            name="sexo"
-                            value={formDataPersona.sexo}
-                            onChange={handleChangeFormPerson}
-                            className="select text-sm h-9 w-full"
-                          >
-                            <option value="">Seleccione una opción</option>
-                            <option value="F">FEMENINO</option>
-                            <option value="M">MASCULINO</option>
-                            <option value="O">OTRO</option>
-                          </select>
-                          {errors.sexo && <p className="text-red-500 text-xs mt-1">{errors.sexo}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">
-                            Ciudad de Nacimiento *
-                          </label>
-                          <select
-                            name="idciudadNac"
-                            value={formDataPersona.idciudadNac}
-                            onChange={handleChangeFormPerson}
-                            className="select text-sm h-9 w-full"
-                          >
-                            <option value="">Seleccione una ciudad</option>
-                            {ciudades.map((ciudad) => (
-                              <option key={ciudad.id} value={ciudad.id}>
-                                {ciudad.descripcion} - {ciudad.codigo}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.idciudadNac && (
-                            <p className="text-red-500 text-xs mt-1">{errors.idciudadNac}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto</label>
-                          {!selectedFilePersona && !fotoUrl ? (
-                            <input
-                              type="file"
-                              name="rutaFoto"
-                              onChange={handleFilePersonaChange}
-                              className="file-input"
-                            />
-                          ) : selectedFilePersona ? (
-                            <div className="flex items-center">
-                              <p className="text-sm input flex justify-between w-full items-center">
-                                {selectedFilePersona.name}
-                                <span
-                                  onClick={handleFilePersonaDelete}
-                                  className="ml-2 cursor-pointer"
-                                >
-                                  <KeenIcon icon="trash" />
-                                </span>
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <img
-                                src={fotoUrl}
-                                alt="Foto cargada"
-                                className="w-24 h-24 object-cover rounded mr-4 border"
-                              />
-                              <span onClick={() => setFotoUrl('')} className="ml-2 cursor-pointer">
+                        ) : selectedFilePersona ? (
+                          <div className="flex items-center">
+                            <p className="text-sm input flex justify-between w-full items-center">
+                              {selectedFilePersona.name}
+                              <span
+                                onClick={handleFilePersonaDelete}
+                                className="ml-2 cursor-pointer"
+                              >
                                 <KeenIcon icon="trash" />
                               </span>
-                            </div>
-                          )}
-                          {errors['rutaFoto'] && (
-                            <p className="text-red-500 text-xs mt-1">{errors['rutaFoto']}</p>
-                          )}
-                        </div>
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <img
+                              src={fotoUrl}
+                              alt="Foto cargada"
+                              className="w-24 h-24 object-cover rounded mr-4 border"
+                            />
+                            <span onClick={() => setFotoUrl('')} className="ml-2 cursor-pointer">
+                              <KeenIcon icon="trash" />
+                            </span>
+                          </div>
+                        )}
+                        {errors['rutaFoto'] && (
+                          <p className="text-red-500 text-xs mt-1">{errors['rutaFoto']}</p>
+                        )}
                       </div>
                     </div>
                   </form>
@@ -1919,6 +2041,20 @@ const ContratacionPage = () => {
                       {errorsContrato.idtipoContrato && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.idtipoContrato}</p>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Número de contrato</label>
+                      <input
+                        type="text"
+                        name="numeroContrato"
+                        value={formDataContrato.numeroContrato}
+                        onChange={handleChangeFormContrato}
+                        className="input"
+                        placeholder="Opcional: si lo deja vacío, se guardará el código interno (id)"
+                      />
                     </div>
                   </div>
 
