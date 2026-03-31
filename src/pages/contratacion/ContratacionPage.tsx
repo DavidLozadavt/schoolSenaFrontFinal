@@ -55,6 +55,64 @@ const contratacionScrollStyles = `
   }
 `;
 
+/** Fechas del paso 3 pueden ser string o objeto con `jsdate` (datepicker). */
+function parseContratoFechaInput(value: unknown): Date | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object' && value !== null && 'jsdate' in (value as object)) {
+    const js = (value as { jsdate?: string }).jsdate;
+    if (js) {
+      const d = new Date(js);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/**
+ * Valor total = sueldo del cargo × meses entre fechas (input type="date" o jsdate).
+ * Contrato indefinido (tipo 6): sin fecha fin en BD; usamos el sueldo mensual como total por defecto.
+ */
+function computeValorTotalContrato(
+  state: ContratoInterface,
+  rolesList: { id: number | string; salario?: { valor?: number } }[]
+): string | undefined {
+  if (!state.rol) return undefined;
+
+  const selectedRol = rolesList.find((r) => Number(r.id) === Number(state.rol));
+  if (!selectedRol) return undefined;
+
+  const salarioMensual = Number(selectedRol?.salario?.valor) || 0;
+  const idTipo = parseInt(String(state.idtipoContrato), 10);
+
+  if (!state.idtipoContrato || Number.isNaN(idTipo)) {
+    return undefined;
+  }
+
+  if (idTipo === 6) {
+    return String(salarioMensual);
+  }
+
+  const fechaInicio = parseContratoFechaInput(state.fechaContratacion);
+  const fechaFin = parseContratoFechaInput(state.fechaFinalContrato);
+
+  if (!fechaInicio || !fechaFin) return undefined;
+
+  let diffMonths =
+    (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 +
+    (fechaFin.getMonth() - fechaInicio.getMonth());
+
+  if (fechaFin.getDate() >= fechaInicio.getDate()) {
+    diffMonths += 1;
+  }
+
+  return String(salarioMensual * diffMonths);
+}
+
 const tiposCotizante = [
   { id: 1, codigo: '1', tipoCotizante: 'DEPENDIENTE' },
   { id: 2, codigo: '2', tipoCotizante: 'SERVICIO DOMÉSTICO' },
@@ -409,6 +467,7 @@ const ContratacionPage = () => {
     if (
       name !== 'idCentroFormacion' &&
       name !== 'numeroDocumentoContrato' &&
+      name !== 'rol' &&
       !name.startsWith('id') &&
       name !== 'horasmes' &&
       name !== 'sueldo' &&
@@ -419,13 +478,67 @@ const ContratacionPage = () => {
       value = value.toUpperCase();
     }
 
-    setFormDataContrato((prevState) => ({
-      ...prevState,
-      [name]: value,
-      ...(name === 'idtipoContrato' && parseInt(value) === 6
-        ? { fechaFinalContrato: '', valorTotalContrato: '' }
-        : {})
-    }));
+    if (name === 'rol') {
+      const selectedRol = roles.find((r) => Number(r.id) === Number(value));
+      const salarioMensual = Number(selectedRol?.salario?.valor) || 0;
+      const idSalario = selectedRol?.salario?.id;
+
+      setFormDataContrato((prevState) => {
+        const next: typeof prevState = {
+          ...prevState,
+          rol: value
+        };
+
+        if (!value) {
+          next.sueldo = '';
+          next.salario_id = '';
+          next.valorTotalContrato = '';
+          return next;
+        }
+
+        if (selectedRol) {
+          next.sueldo = String(salarioMensual);
+          next.salario_id = idSalario != null ? String(idSalario) : '';
+        }
+
+        const vt = computeValorTotalContrato(next, roles);
+        if (vt !== undefined) {
+          next.valorTotalContrato = vt;
+        }
+
+        return next;
+      });
+
+      const error = validateContratoField(name, value);
+      setErrorsContrato((prevErrors) => ({
+        ...prevErrors,
+        [name]: error || undefined
+      }));
+      return;
+    }
+
+    setFormDataContrato((prevState) => {
+      const next: typeof prevState = {
+        ...prevState,
+        [name]: value,
+        ...(name === 'idtipoContrato' && parseInt(value) === 6
+          ? { fechaFinalContrato: '', valorTotalContrato: '' }
+          : {})
+      };
+
+      if (
+        name === 'fechaContratacion' ||
+        name === 'fechaFinalContrato' ||
+        name === 'idtipoContrato'
+      ) {
+        const vt = computeValorTotalContrato(next, roles);
+        if (vt !== undefined) {
+          next.valorTotalContrato = vt;
+        }
+      }
+
+      return next;
+    });
 
     const error = validateContratoField(name, value);
     setErrorsContrato((prevErrors) => ({
@@ -466,34 +579,6 @@ const ContratacionPage = () => {
 
       if (selectedTipoContrato) {
         fetchDocumentosContrato(selectedTipoContrato.nombreTipoContrato);
-      }
-    }
-
-    if (name === 'rol') {
-      const selectedRol = roles.find((rol) => rol.id === parseInt(value));
-      let salarioMensual = selectedRol?.salario?.valor || 0;
-      let idSalario = selectedRol?.salario?.id || null;
-
-      if (formDataContrato.fechaContratacion && formDataContrato.fechaFinalContrato) {
-        const fechaInicio = new Date(formDataContrato.fechaContratacion);
-        const fechaFin = new Date(formDataContrato.fechaFinalContrato);
-
-        if (!isNaN(fechaInicio.getTime()) && !isNaN(fechaFin.getTime())) {
-          let diffMonths =
-            (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 +
-            (fechaFin.getMonth() - fechaInicio.getMonth());
-
-          if (fechaFin.getDate() >= fechaInicio.getDate()) {
-            diffMonths += 1;
-          }
-
-          setFormDataContrato((prevState) => ({
-            ...prevState,
-            sueldo: salarioMensual.toString(),
-            valorTotalContrato: (salarioMensual * diffMonths).toString(),
-            salario_id: idSalario
-          }));
-        }
       }
     }
   };
