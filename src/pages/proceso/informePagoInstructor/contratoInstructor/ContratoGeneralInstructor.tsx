@@ -31,6 +31,7 @@ interface Contrato {
   supervisorContrato: null | string;
   objetoContrato: null | string;
   formaDePago: 'COMISIONES' | 'SALARIO INTEGRAL' | 'NORMAL';
+  siif: null | number;
 }
 
 interface CiudadDepartamento {
@@ -63,7 +64,8 @@ const ContratoGeneralInstructor: React.FC = () => {
     cargoSupervisor: '',
     objetoContrato: '',
     formaDePago: 'NORMAL' as Contrato['formaDePago'],
-    ciudadExpedicionId: '' as number | ''
+    ciudadExpedicionId: '' as number | '',
+    siif: null as null | number
   });
 
   useEffect(() => {
@@ -85,7 +87,8 @@ const ContratoGeneralInstructor: React.FC = () => {
             cargoSupervisor: data.cargoSupervisor ?? '',
             objetoContrato: data.objetoContrato ?? '',
             formaDePago: data.formaDePago ?? 'NORMAL',
-            ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
+            ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '', // Cambiado a snake_case
+            siif: data.siif ?? null
           });
         }
       } finally {
@@ -105,7 +108,8 @@ const ContratoGeneralInstructor: React.FC = () => {
       cargoSupervisor: contrato?.cargoSupervisor ?? '',
       objetoContrato: contrato?.objetoContrato ?? '',
       formaDePago: contrato?.formaDePago ?? 'NORMAL',
-      ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
+      ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '', // Cambiado a snake_case
+      siif: contrato?.siif ?? 0
     });
   };
 
@@ -122,7 +126,7 @@ const ContratoGeneralInstructor: React.FC = () => {
         ...form,
         persona: {
           ...contrato.persona,
-          ciudad_expedicion_rel: ciudadSeleccionada, // Cambiado a snake_case
+          ciudad_expedicion_rel: ciudadSeleccionada // Cambiado a snake_case
         }
       });
 
@@ -326,7 +330,16 @@ const ContratoGeneralInstructor: React.FC = () => {
                   </span>
                 )}
               </div>
-
+              <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">SIIF</p>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                  {contrato.siif ?? (
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
+                  )}
+                </p>
+              </div>
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
                   Objeto del contrato
@@ -359,6 +372,20 @@ const ContratoGeneralInstructor: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                  SIIF
+                </label>
+                <input
+                  type="number"
+                  value={form.siif ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, siif: e.target.value ? Number(e.target.value) : null })
+                  }
+                  placeholder="Número SIIF"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               <div className="sm:col-span-2">
