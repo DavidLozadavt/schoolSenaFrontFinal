@@ -41,6 +41,4 @@ export interface ContratoInterface {
   idCentroFormacion?: string;
   /** Número de documento propio del contrato */
   numeroDocumentoContrato?: string;
-  /** Número interno del contrato (si va vacío, el servidor usa el id del registro) */
-  numeroContrato?: string;
 }
