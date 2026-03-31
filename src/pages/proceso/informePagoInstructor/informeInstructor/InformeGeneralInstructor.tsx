@@ -41,9 +41,19 @@ const InformeGeneralInstructor: React.FC = () => {
   const [aniosContrato, setAniosContrato] = useState<number[]>([]);
   const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
   const [loadingRmi, setLoadingRmi] = useState(false);
-  const [comisionModalParams, setComisionModalParams] = useState<{ idContrato: number; idRmi: number } | null>(null);
+  const [comisionModalParams, setComisionModalParams] = useState<{
+    idContrato: number;
+    idRmi: number;
+  } | null>(null);
   const [actividadModalParams, setActividadModalParams] = useState<{ idRmi: number } | null>(null);
 
+  //plazo para el informe:
+  const [plazoModalParams, setPlazoModalParams] = useState<{
+    idContrato: number;
+    idRmi: number;
+  } | null>(null);
+  const [plazoInput, setPlazoInput] = useState('');
+  const [nPlanillaInput, setnPlanillaInput] = useState('');
   // Carga los años disponibles
   useEffect(() => {
     const loadData = async () => {
@@ -78,10 +88,15 @@ const InformeGeneralInstructor: React.FC = () => {
     loadRmi();
   }, [anioGestion]);
 
-  const handleDescargarPdf = async (idContrato: number, idRmi: number) => {
+  const handleDescargarPdf = async (
+    idContrato: number,
+    idRmi: number,
+    plazo: string,
+    nPlanilla: string
+  ) => {
     try {
-      const res = await axios.get('rmi/download-pdf', {
-        params: { idContrato, idRmi },
+      const res = await axios.get('get_informe_by_instructor_rmi', {
+        params: { idContrato, idRmi, plazo, nPlanilla },
         responseType: 'blob'
       });
 
@@ -98,7 +113,6 @@ const InformeGeneralInstructor: React.FC = () => {
 
   return (
     <div className="p-5 w-full">
-
       <div className="mb-4">
         <select
           value={anioGestion}
@@ -182,13 +196,13 @@ const InformeGeneralInstructor: React.FC = () => {
                     {periodo.estadoRmi === 'ACEPTADO' && (
                       <>
                         <button
-                          onClick={() => handleDescargarPdf(contrato.idContrato, periodo.idRmi)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 font-medium text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-file-down text-sm" /> Descargar PDF
-                        </button>
-                        <button
-                          onClick={() => handleDescargarPdf(contrato.idContrato, periodo.idRmi)}
+                          onClick={() => {
+                            setPlazoInput('');
+                            setPlazoModalParams({
+                              idContrato: contrato.idContrato,
+                              idRmi: periodo.idRmi
+                            });
+                          }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 font-medium text-green-700 dark:text-green-400 dark:bg-white/5 rounded-lg transition-all"
                         >
                           <i className="ki-outline ki-document text-sm" /> Informe
@@ -196,7 +210,12 @@ const InformeGeneralInstructor: React.FC = () => {
                       </>
                     )}
                     <button
-                      onClick={() => setComisionModalParams({ idContrato: contrato.idContrato, idRmi: periodo.idRmi })}
+                      onClick={() =>
+                        setComisionModalParams({
+                          idContrato: contrato.idContrato,
+                          idRmi: periodo.idRmi
+                        })
+                      }
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-white/5 rounded-lg transition-all"
                     >
                       <i className="ki-outline ki-credit-cart text-sm" /> Comisiones
@@ -217,20 +236,27 @@ const InformeGeneralInstructor: React.FC = () => {
 
       {/* Modal CRUD Comisiones */}
       {comisionModalParams && (
-        <Modal open={true} onClose={() => setComisionModalParams(null)} className="mx-4 sm:mx-auto max-w-4xl w-full">
+        <Modal
+          open={true}
+          onClose={() => setComisionModalParams(null)}
+          className="mx-4 sm:mx-auto max-w-4xl w-full"
+        >
           <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
             <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
               <ModalTitle>Comisiones de Instructor</ModalTitle>
-              <button 
-                type="button" 
-                onClick={() => setComisionModalParams(null)} 
+              <button
+                type="button"
+                onClick={() => setComisionModalParams(null)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <i className="ki-outline ki-cross text-lg" />
               </button>
             </ModalHeader>
             <ModalBody className="p-5">
-              <ComisionesIndex idContrato={comisionModalParams.idContrato} idRmi={comisionModalParams.idRmi} />
+              <ComisionesIndex
+                idContrato={comisionModalParams.idContrato}
+                idRmi={comisionModalParams.idRmi}
+              />
             </ModalBody>
           </ModalContent>
         </Modal>
@@ -238,13 +264,17 @@ const InformeGeneralInstructor: React.FC = () => {
 
       {/* Modal CRUD Actividades */}
       {actividadModalParams && (
-        <Modal open={true} onClose={() => setActividadModalParams(null)} className="mx-4 sm:mx-auto max-w-4xl w-full">
+        <Modal
+          open={true}
+          onClose={() => setActividadModalParams(null)}
+          className="mx-4 sm:mx-auto max-w-4xl w-full"
+        >
           <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
             <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
               <ModalTitle>Actividades del Instructor</ModalTitle>
-              <button 
-                type="button" 
-                onClick={() => setActividadModalParams(null)} 
+              <button
+                type="button"
+                onClick={() => setActividadModalParams(null)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <i className="ki-outline ki-cross text-lg" />
@@ -252,6 +282,74 @@ const InformeGeneralInstructor: React.FC = () => {
             </ModalHeader>
             <ModalBody className="p-5">
               <ActividadesIndex idRmi={actividadModalParams.idRmi} />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+      {/* Modal input Plazo */}
+      {plazoModalParams && (
+        <Modal
+          open={true}
+          onClose={() => setPlazoModalParams(null)}
+          className="mx-4 sm:mx-auto max-w-sm w-full"
+        >
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>Generar Informe</ModalTitle>
+              <button
+                type="button"
+                onClick={() => setPlazoModalParams(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  No. planilla
+                </label>
+                <input
+                type='text'
+                  value={nPlanillaInput}
+                  onChange={(e) => setnPlanillaInput(e.target.value)}
+                  placeholder="Ingrese el número de la planilla..."
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Valor y forma de pago
+                </label>
+                <textarea
+                  value={plazoInput}
+                  onChange={(e) => setPlazoInput(e.target.value)}
+                  placeholder="Ingrese el valor y la forma de pago..."
+                  rows={3}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setPlazoModalParams(null)}
+                  className="px-4 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 hover:bg-gray-200 rounded-lg transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={!plazoInput.trim()}
+                  onClick={async () => {
+                    await handleDescargarPdf(
+                      plazoModalParams.idContrato,
+                      plazoModalParams.idRmi,
+                      plazoInput.trim(),
+                      nPlanillaInput.trim()
+                    );
+                    setPlazoModalParams(null);
+                  }}
+                  className="px-4 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
+                >
+                  <i className="ki-outline ki-document text-sm mr-1" /> Descargar PDF
+                </button>
+              </div>
             </ModalBody>
           </ModalContent>
         </Modal>

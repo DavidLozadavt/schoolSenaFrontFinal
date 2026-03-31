@@ -9,13 +9,37 @@ interface CentroFormacion {
   direccion: string;
 }
 
+interface CiudadExpedicion {
+  id: number;
+  descripcion: string;
+  departamento: {
+    id: number;
+    descripcion: string;
+  };
+}
+
+interface Persona {
+  ciudadExpedicion: number | null;
+  ciudad_expedicion_rel: CiudadExpedicion | null; // Cambiado a snake_case
+}
+
 interface Contrato {
   id: number;
   centroFormacion: CentroFormacion;
+  persona: Persona;
   cargoSupervisor: null | string;
   supervisorContrato: null | string;
   objetoContrato: null | string;
   formaDePago: 'COMISIONES' | 'SALARIO INTEGRAL' | 'NORMAL';
+}
+
+interface CiudadDepartamento {
+  id: number;
+  descripcion: string;
+  departamento: {
+    id: number;
+    descripcion: string;
+  };
 }
 
 const FORMAS_DE_PAGO: Contrato['formaDePago'][] = ['COMISIONES', 'SALARIO INTEGRAL', 'NORMAL'];
@@ -31,25 +55,39 @@ const ContratoGeneralInstructor: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [ciudades, setCiudades] = useState<CiudadDepartamento[]>([]);
+  const [ciudadSearch, setCiudadSearch] = useState('');
+
   const [form, setForm] = useState({
     supervisorContrato: '',
     cargoSupervisor: '',
     objetoContrato: '',
-    formaDePago: 'NORMAL' as Contrato['formaDePago']
+    formaDePago: 'NORMAL' as Contrato['formaDePago'],
+    ciudadExpedicionId: '' as number | ''
   });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const res = await axios.get('instructores/contratoByInstructor');
-        const data: Contrato = res.data.contrato[0] ?? null;
+        const [resContrato, resCiudades] = await Promise.all([
+          axios.get('instructores/contratoByInstructor'),
+          axios.get('ciudades-departamento')
+        ]);
+
+        setCiudades(resCiudades.data);
+
+        const data: Contrato = resContrato.data.contrato[0] ?? null;
         setContrato(data);
-        setForm({
-          supervisorContrato: data?.supervisorContrato ?? '',
-          cargoSupervisor: data?.cargoSupervisor ?? '',
-          objetoContrato: data?.objetoContrato ?? '',
-          formaDePago: data?.formaDePago ?? 'NORMAL'
-        });
+
+        if (data) {
+          setForm({
+            supervisorContrato: data.supervisorContrato ?? '',
+            cargoSupervisor: data.cargoSupervisor ?? '',
+            objetoContrato: data.objetoContrato ?? '',
+            formaDePago: data.formaDePago ?? 'NORMAL',
+            ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -61,11 +99,13 @@ const ContratoGeneralInstructor: React.FC = () => {
 
   const handleCancel = () => {
     setEditing(false);
+    setCiudadSearch('');
     setForm({
       supervisorContrato: contrato?.supervisorContrato ?? '',
       cargoSupervisor: contrato?.cargoSupervisor ?? '',
       objetoContrato: contrato?.objetoContrato ?? '',
-      formaDePago: contrato?.formaDePago ?? 'NORMAL'
+      formaDePago: contrato?.formaDePago ?? 'NORMAL',
+      ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
     });
   };
 
@@ -74,8 +114,20 @@ const ContratoGeneralInstructor: React.FC = () => {
     setSaving(true);
     try {
       await axios.put(`instructores/${contrato.id}/supervisor`, form);
-      setContrato({ ...contrato, ...form });
+
+      // Actualiza la ciudad en el estado local
+      const ciudadSeleccionada = ciudades.find((c) => c.id === form.ciudadExpedicionId) ?? null;
+      setContrato({
+        ...contrato,
+        ...form,
+        persona: {
+          ...contrato.persona,
+          ciudad_expedicion_rel: ciudadSeleccionada, // Cambiado a snake_case
+        }
+      });
+
       setEditing(false);
+      setCiudadSearch('');
       enqueueSnackbar('Contrato actualizado con éxito.', { variant: 'success' });
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Error al guardar los cambios.';
@@ -85,9 +137,27 @@ const ContratoGeneralInstructor: React.FC = () => {
     }
   };
 
+  // Filtra ciudades según el texto de búsqueda
+  const ciudadesFiltradas =
+    ciudadSearch.trim().length >= 2
+      ? ciudades
+          .filter(
+            (c) =>
+              c.descripcion.toLowerCase().includes(ciudadSearch.toLowerCase()) ||
+              c.departamento.descripcion.toLowerCase().includes(ciudadSearch.toLowerCase())
+          )
+          .slice(0, 8)
+      : [];
+
+  const ciudadSeleccionadaLabel = (() => {
+    if (!form.ciudadExpedicionId) return null;
+    const c = ciudades.find((c) => c.id === form.ciudadExpedicionId);
+    return c ? `${c.descripcion} — ${c.departamento.descripcion}` : null;
+  })();
+
   if (loading) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="p-6 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -95,7 +165,7 @@ const ContratoGeneralInstructor: React.FC = () => {
 
   if (!contrato) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="p-6 flex items-center justify-center">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           No se encontró un contrato activo.
         </p>
@@ -104,11 +174,12 @@ const ContratoGeneralInstructor: React.FC = () => {
   }
 
   const supervisorAsignado = contrato.supervisorContrato || contrato.cargoSupervisor;
+  const ciudadActual = contrato.persona?.ciudad_expedicion_rel; // Cambiado a snake_case
 
   return (
     <div className="w-full">
       <div className="overflow-hidden">
-        {/* Banner centro de formación */}
+        {/* ── Banner centro de formación ── */}
         <div className="px-5 py-4 border-b border-gray-100 dark:border-coal-300 flex items-center gap-4">
           <img
             src={contrato.centroFormacion.rutaFotoUrl}
@@ -137,7 +208,7 @@ const ContratoGeneralInstructor: React.FC = () => {
           </div>
         </div>
 
-        {/* Sección supervisor */}
+        {/* ── Sección supervisor ── */}
         <div className="px-5 py-4 border-b border-gray-100 dark:border-coal-300">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -230,8 +301,8 @@ const ContratoGeneralInstructor: React.FC = () => {
           )}
         </div>
 
-        {/* ── Sección contrato ── */}
-        <div className="px-5 py-4">
+        {/* ── Sección detalles del contrato ── */}
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-coal-300">
           <div className="flex items-center gap-2 mb-3">
             <i className="ki-outline ki-document text-gray-400 dark:text-gray-500 text-base" />
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -241,7 +312,6 @@ const ContratoGeneralInstructor: React.FC = () => {
 
           {!editing ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Forma de pago */}
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Forma de pago</p>
                 {contrato.formaDePago ? (
@@ -257,7 +327,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 )}
               </div>
 
-              {/* Objeto del contrato */}
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
                   Objeto del contrato
@@ -273,7 +342,6 @@ const ContratoGeneralInstructor: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Select forma de pago */}
               <div>
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
                   Forma de pago
@@ -293,7 +361,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 </select>
               </div>
 
-              {/* Textarea objeto del contrato */}
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
                   Objeto del contrato
@@ -310,10 +377,123 @@ const ContratoGeneralInstructor: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
 
-          {/* Acciones (solo visibles en modo edición) */}
+        {/* ── Sección documento del instructor ── */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <i className="ki-outline ki-geolocation text-gray-400 dark:text-gray-500 text-base" />
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Documento del instructor
+            </span>
+          </div>
+
+          {!editing ? (
+            /* Vista de solo lectura */
+            <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 inline-flex flex-col gap-0.5 min-w-48">
+              <p className="text-xs text-gray-400 dark:text-gray-500">Ciudad de expedición</p>
+              {ciudadActual ? (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    {ciudadActual.descripcion}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {ciudadActual.departamento.descripcion}
+                  </p>
+                </div>
+              ) : (
+                <span className="text-sm text-yellow-600 dark:text-yellow-400 italic">
+                  No asignada
+                </span>
+              )}
+            </div>
+          ) : (
+            /* Vista de edición con buscador */
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                Ciudad de expedición del documento
+              </label>
+
+              {/* Ciudad seleccionada actualmente */}
+              {form.ciudadExpedicionId && ciudadSeleccionadaLabel && (
+                <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg w-fit">
+                  <i className="ki-outline ki-geolocation text-blue-500 text-sm" />
+                  <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">
+                    {ciudadSeleccionadaLabel}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setForm({ ...form, ciudadExpedicionId: '' });
+                      setCiudadSearch('');
+                    }}
+                    className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors ml-1"
+                  >
+                    <i className="ki-outline ki-cross text-xs" />
+                  </button>
+                </div>
+              )}
+
+              {/* Input buscador */}
+              <div className="relative">
+                <i className="ki-outline ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
+                <input
+                  type="text"
+                  value={ciudadSearch}
+                  onChange={(e) => setCiudadSearch(e.target.value)}
+                  placeholder="Buscar ciudad o departamento..."
+                  className="w-full text-sm pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Hint */}
+              {ciudadSearch.trim().length > 0 && ciudadSearch.trim().length < 2 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 flex items-center gap-1">
+                  <i className="ki-outline ki-information-2 text-xs" />
+                  Escribe al menos 2 caracteres para buscar.
+                </p>
+              )}
+
+              {/* Dropdown resultados */}
+              {ciudadesFiltradas.length > 0 && (
+                <div className="mt-1.5 border border-gray-200 dark:border-coal-300 rounded-lg overflow-hidden bg-white dark:bg-coal-400 shadow-sm">
+                  {ciudadesFiltradas.map((ciudad, idx) => (
+                    <button
+                      key={ciudad.id}
+                      onClick={() => {
+                        setForm({ ...form, ciudadExpedicionId: ciudad.id });
+                        setCiudadSearch('');
+                      }}
+                      className={[
+                        'w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-coal-300 transition-colors',
+                        idx !== ciudadesFiltradas.length - 1
+                          ? 'border-b border-gray-100 dark:border-coal-300'
+                          : ''
+                      ].join(' ')}
+                    >
+                      <span className="text-sm text-gray-700 dark:text-gray-200">
+                        {ciudad.descripcion}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-2 shrink-0">
+                        {ciudad.departamento.descripcion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sin resultados */}
+              {ciudadSearch.trim().length >= 2 && ciudadesFiltradas.length === 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 flex items-center gap-1">
+                  <i className="ki-outline ki-information-2 text-xs" />
+                  No se encontraron ciudades con ese nombre.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Botones de acción (modo edición) ── */}
           {editing && (
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex justify-end gap-2 pt-5 mt-2 border-t border-gray-100 dark:border-coal-300">
               <button
                 onClick={handleCancel}
                 disabled={saving}
