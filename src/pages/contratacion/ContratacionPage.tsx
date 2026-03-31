@@ -325,8 +325,7 @@ const ContratacionPage = () => {
     horasmes: '',
     idNivelEducativo: '',
     idCentroFormacion: '',
-    numeroDocumentoContrato: '',
-    numeroContrato: ''
+    numeroDocumentoContrato: ''
   });
 
   const steps = [
@@ -410,7 +409,6 @@ const ContratacionPage = () => {
     if (
       name !== 'idCentroFormacion' &&
       name !== 'numeroDocumentoContrato' &&
-      name !== 'numeroContrato' &&
       !name.startsWith('id') &&
       name !== 'horasmes' &&
       name !== 'sueldo' &&
@@ -756,7 +754,6 @@ const ContratacionPage = () => {
           idCentroFormacion: formDataContrato.idCentroFormacion,
           areasConocimiento: areasConocimientoUnicas,
           numeroDocumentoContrato: formDataContrato.numeroDocumentoContrato || undefined,
-          numeroContrato: String(formDataContrato.numeroContrato || '').trim() || undefined
         };
 
         axios
@@ -888,8 +885,7 @@ const ContratacionPage = () => {
       horasmes: '',
       idNivelEducativo: '',
       idCentroFormacion: '',
-      numeroDocumentoContrato: '',
-      numeroContrato: ''
+      numeroDocumentoContrato: ''
     });
     setSelectedAreasConocimiento([]);
     setFotoUrl('');
@@ -2045,17 +2041,6 @@ const ContratacionPage = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Número de contrato</label>
-                      <input
-                        type="text"
-                        name="numeroContrato"
-                        value={formDataContrato.numeroContrato}
-                        onChange={handleChangeFormContrato}
-                        className="input"
-                        placeholder="Opcional: si lo deja vacío, se guardará el código interno (id)"
-                      />
-                    </div>
                   </div>
 
                   {/* 2. Información Laboral */}
