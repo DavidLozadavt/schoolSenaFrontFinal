@@ -121,6 +121,8 @@ import RmiGeneral from '@/pages/gestion-rmi/RmiGeneral';
 import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
 import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
 import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
+import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoEntry';
+import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -824,6 +826,22 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ProyectoFormativoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+                <ActividadProyectoEntry />
               </ProtectedRoute>
             }
           />
