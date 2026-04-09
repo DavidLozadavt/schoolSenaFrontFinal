@@ -35,8 +35,7 @@ function labelCiudadExpedicion(persona: unknown): string {
 
 /** Número de contrato (columna `numeroContrato`), no el número de documento legal. */
 function labelNumeroContrato(contrato: ContratoInterface): string {
-  const c = contrato as Record<string, unknown>;
-  const v = c.numeroContrato ?? c.numero_contrato;
+  const v = contrato.numeroContrato ?? contrato.numero_contrato;
   if (v == null || String(v).trim() === '') return 'N/A';
   return String(v).trim();
 }

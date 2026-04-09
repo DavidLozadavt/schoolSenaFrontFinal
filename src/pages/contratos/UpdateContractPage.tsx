@@ -308,7 +308,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
             (raw as Record<string, unknown>).contrato ??
             raw
           : raw;
-      setContrato(normalizeContratoForUi(body) as ContratoInterface);
+    setContrato(normalizeContratoForUi(body));
     } catch (error) {
       setError('Error al cargar el contrato');
     } finally {
