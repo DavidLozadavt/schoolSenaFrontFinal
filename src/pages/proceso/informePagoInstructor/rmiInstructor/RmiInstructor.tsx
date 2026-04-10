@@ -51,7 +51,7 @@ const RmiInstructor: React.FC = () => {
   const [selectedContratoId, setSelectedContratoId] = useState<number>(0);
 
   //Agregar las actividades del instructor:
-  const [actividadModalParams, setActividadModalParams] = useState<{ idRmi: number } | null>(null);
+  const [actividadModalParams, setActividadModalParams] = useState<{ idRmi: number, idContrato:number } | null>(null);
   
 
   // Carga los años disponibles
@@ -224,7 +224,7 @@ const RmiInstructor: React.FC = () => {
                     </button>
                     
                     <button
-                      onClick={() => setActividadModalParams({ idRmi: periodo.idRmi })}
+                      onClick={() => setActividadModalParams({ idRmi: periodo.idRmi, idContrato:contrato.idContrato })}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 font-medium text-orange-700 dark:text-orange-400  dark:bg-white/5 rounded-lg transition-all"
                     >
                       <i className="ki-outline ki-list text-sm" /> Actividades
@@ -256,7 +256,7 @@ const RmiInstructor: React.FC = () => {
               </button>
             </ModalHeader>
             <ModalBody className="p-5">
-              <ActividadesIndex idRmi={actividadModalParams.idRmi} />
+              <ActividadesIndex idRmi={actividadModalParams.idRmi} idContrato={actividadModalParams.idContrato} />
             </ModalBody>
           </ModalContent>
         </Modal>

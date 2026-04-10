@@ -16,9 +16,10 @@ interface Actividad {
 
 interface ActividadesIndexProps {
   idRmi: number;
+  idContrato:number
 }
 
-const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
+const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi, idContrato }) => {
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +42,7 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`actividades-instructores?idRmi=${idRmi}`);
+      const res = await axios.get(`actividades-instructores?idRmi=${idRmi}&idContrato=${idContrato}`);
       setActividades(res.data);
     } catch {
       enqueueSnackbar('Error cargando las actividades', { variant: 'error' });
@@ -117,6 +118,7 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
         formData.append('fechaFinal', form.fechaFinal);
         formData.append('numeroHoras', form.numeroHoras);
         formData.append('idRmi', String(idRmi));
+        formData.append('idContrato', String(idContrato));
         if (selectedFile) formData.append('documento', selectedFile);
         if (removeDoc) formData.append('removeDocumento', '1');
 
@@ -131,6 +133,7 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
         formData.append('fechaFinal', form.fechaFinal);
         formData.append('numeroHoras', form.numeroHoras);
         formData.append('idRmi', String(idRmi));
+        formData.append('idContrato', String(idContrato));
         if (selectedFile) formData.append('documento', selectedFile);
 
         await axios.post('actividades-instructores', formData, {
