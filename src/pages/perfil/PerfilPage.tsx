@@ -835,7 +835,7 @@ const PerfilPage = () => {
                 disabled={step === 2}
               />
             </div>
-            {roles.includes('INSTRUCTOR SENA') && (
+            {!roles.includes('APRENDIZ') && !roles.includes('ESTUDIANTEUP') && (
               <div>
                 <label className="block text-sm font-medium mb-2">Firma Digital (firma sin fondo)</label>
 
