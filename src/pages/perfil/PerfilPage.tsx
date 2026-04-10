@@ -3,7 +3,7 @@ import { Container } from '@/components/container';
 import { toAbsoluteUrl } from '@/utils';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { TipoDocumentoInterface } from '../contratacion/model/TipoDocumentoInterface';
@@ -18,7 +18,7 @@ interface FormErrors {
 
 const PerfilPage = () => {
   const authContext = useAuthContext();
-  const { persona, getUserAuthenticated, auth } = authContext;
+  const { persona, getUserAuthenticated, auth, roles } = authContext;
   const { enqueueSnackbar } = useSnackbar();
 
   const defaultImage = toAbsoluteUrl('/media/avatars/300-35.png');
@@ -37,6 +37,11 @@ const PerfilPage = () => {
   const [step, setStep] = useState(1); // 1: perfil, 2: contraseña
   const [profileUpdated, setProfileUpdated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  //Para agregar la foto:
+  const [firmaFile, setFirmaFile] = useState<File | null>(null);
+  const [firmaPreview, setFirmaPreview] = useState<string | null>(null);
+  //Termina el agregar foto
 
   const [errors, setErrors] = useState<FormErrors>({});
   /** Si hay contrato laboral activo, se muestra y guarda "Perfil profesional" en ese contrato */
@@ -66,7 +71,7 @@ const PerfilPage = () => {
     try {
       const response = await axios.get('profile/access-check', {
         headers: {
-          'Authorization': `Bearer ${auth}`,
+          Authorization: `Bearer ${auth}`,
           'Content-Type': 'application/json'
         }
       });
@@ -79,7 +84,6 @@ const PerfilPage = () => {
           variant: 'info'
         });
       }
-
     } catch (error) {
       console.error('Error checking profile access:', error);
       // Fallback por roles si el API no funciona
@@ -109,8 +113,9 @@ const PerfilPage = () => {
       const activos = list.filter((c: { idEstado?: number }) => Number(c?.idEstado) === 1);
       const active =
         activos.length > 0
-          ? activos.reduce((a: { fechaContratacion?: string }, b: { fechaContratacion?: string }) =>
-              new Date(b.fechaContratacion || 0) > new Date(a.fechaContratacion || 0) ? b : a
+          ? activos.reduce(
+              (a: { fechaContratacion?: string }, b: { fechaContratacion?: string }) =>
+                new Date(b.fechaContratacion || 0) > new Date(a.fechaContratacion || 0) ? b : a
             )
           : null;
 
@@ -160,6 +165,9 @@ const PerfilPage = () => {
         perfilProfesional: ''
       });
       setSelectedFilePersona(persona.foto || null);
+      if (persona?.firmaDigitalUrl) {
+        setFirmaPreview(persona.firmaDigitalUrl);
+      }
       void cargarPerfilProfesionalDesdeContrato();
     } else {
       setFormDataPersona({
@@ -186,7 +194,6 @@ const PerfilPage = () => {
     }
     setErrors({});
   }, [persona, cargarPerfilProfesionalDesdeContrato, authContext.roles]);
-
 
   useEffect(() => {
     if (selectedFilePersona instanceof File) {
@@ -222,9 +229,23 @@ const PerfilPage = () => {
       });
     }
   };
+  const handleFirmaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    setFirmaFile(file);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setFirmaPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFirmaDelete = () => {
+    setFirmaFile(null);
+    setFirmaPreview(null);
+  };
 
   const handleFilePersonaDelete = () => setSelectedFilePersona(null);
-
 
   useEffect(() => {
     fetchTipoIdentificacion();
@@ -288,6 +309,9 @@ const PerfilPage = () => {
       if (value !== undefined && value !== null) data.append(key, String(value));
     });
     if (selectedFilePersona instanceof File) data.append('rutaFotoFile', selectedFilePersona);
+    if (firmaFile instanceof File) {
+      data.append('firmaDigitalFile', firmaFile);
+    }
 
     try {
       setSaving(true);
@@ -299,7 +323,6 @@ const PerfilPage = () => {
       }
 
       if (needsPasswordUpdate) {
-
         setProfileUpdated(true);
         setStep(2);
         enqueueSnackbar('Paso 1 completado. Ahora actualice su contraseña', { variant: 'success' });
@@ -309,7 +332,6 @@ const PerfilPage = () => {
       } else {
         enqueueSnackbar('Datos actualizados con éxito.', { variant: 'success' });
       }
-
     } catch (error) {
       enqueueSnackbar('Error al actualizar los datos.', { variant: 'error' });
     } finally {
@@ -343,7 +365,6 @@ const PerfilPage = () => {
     setErrors({});
   };
 
-
   const handlePasswordChangeSuccess = async () => {
     setShowPasswordModal(false);
 
@@ -353,7 +374,7 @@ const PerfilPage = () => {
       // Verificar el estado actual del perfil
       const response = await axios.get('profile/access-check', {
         headers: {
-          'Authorization': `Bearer ${auth}`,
+          Authorization: `Bearer ${auth}`,
           'Content-Type': 'application/json'
         }
       });
@@ -364,7 +385,9 @@ const PerfilPage = () => {
       setNeedsPasswordUpdate(response.data.needs_password_update);
 
       if (!response.data.needs_password_update) {
-        enqueueSnackbar('¡Proceso completado! Redirigiendo al inicio de sesión...', { variant: 'success' });
+        enqueueSnackbar('¡Proceso completado! Redirigiendo al inicio de sesión...', {
+          variant: 'success'
+        });
         console.log('Ejecutando logout en 2 segundos...');
 
         setTimeout(() => {
@@ -372,15 +395,16 @@ const PerfilPage = () => {
           authContext.logout();
         }, 2000);
       } else {
-        enqueueSnackbar('Contraseña actualizada, pero el proceso no se completó. Contacte al administrador.', { variant: 'warning' });
+        enqueueSnackbar(
+          'Contraseña actualizada, pero el proceso no se completó. Contacte al administrador.',
+          { variant: 'warning' }
+        );
       }
-
     } catch (error) {
       enqueueSnackbar('Error al verificar el estado de la contraseña.', { variant: 'error' });
       console.error('Error en handlePasswordChangeSuccess:', error);
     }
   };
-
 
   const renderStepIndicator = () => {
     if (!needsPasswordUpdate) return null;
@@ -389,14 +413,18 @@ const PerfilPage = () => {
       <div className="mb-6">
         <div className="flex items-center justify-center">
           <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+            >
               1
             </div>
             <span className="ml-2 font-medium">Perfil</span>
           </div>
           <div className={`w-16 h-1 mx-4 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
           <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}>
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+            >
               2
             </div>
             <span className="ml-2 font-medium">Contraseña</span>
@@ -444,11 +472,17 @@ const PerfilPage = () => {
 
       {/* Alerta si necesita actualizar contraseña */}
       {needsPasswordUpdate && (
-        <div className={`p-4 mb-6 border-l-4 ${step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
-          }`}>
+        <div
+          className={`p-4 mb-6 border-l-4 ${
+            step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
+          }`}
+        >
           <div className="flex">
             <div className="flex-shrink-0">
-              <KeenIcon icon={step === 1 ? "information" : "warning"} className={`h-5 w-5 ${step === 1 ? 'text-blue-400' : 'text-yellow-400'}`} />
+              <KeenIcon
+                icon={step === 1 ? 'information' : 'warning'}
+                className={`h-5 w-5 ${step === 1 ? 'text-blue-400' : 'text-yellow-400'}`}
+              />
             </div>
             <div className="ml-3">
               <p className={`text-sm ${step === 1 ? 'text-blue-700' : 'text-yellow-700'}`}>
@@ -462,10 +496,16 @@ const PerfilPage = () => {
       )}
 
       {/* Formulario de Perfil */}
-      <div className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div
+        className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold text-lg">
-            {needsPasswordUpdate ? (step === 1 ? 'Paso 1: Editar Información Personal' : 'Información Personal (Completada)') : 'Editar Información Personal'}
+            {needsPasswordUpdate
+              ? step === 1
+                ? 'Paso 1: Editar Información Personal'
+                : 'Información Personal (Completada)'
+              : 'Editar Información Personal'}
           </h2>
           <div className="flex gap-2">
             <button
@@ -480,7 +520,13 @@ const PerfilPage = () => {
               onClick={handleSubmitPropietarios}
               disabled={saving || step === 2}
             >
-              {saving ? 'Guardando...' : (needsPasswordUpdate ? (step === 1 ? 'Continuar al Paso 2' : 'Guardado') : 'Actualizar')}
+              {saving
+                ? 'Guardando...'
+                : needsPasswordUpdate
+                  ? step === 1
+                    ? 'Continuar al Paso 2'
+                    : 'Guardado'
+                  : 'Actualizar'}
             </button>
           </div>
         </div>
@@ -533,9 +579,7 @@ const PerfilPage = () => {
                     className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
                     disabled={step === 2}
                   />
-                  {errors.nombre1 && (
-                    <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>
-                  )}
+                  {errors.nombre1 && <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>}
                 </div>
 
                 <div>
@@ -549,9 +593,7 @@ const PerfilPage = () => {
                     className="input"
                     disabled={step === 2}
                   />
-                  {errors.nombre2 && (
-                    <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>
-                  )}
+                  {errors.nombre2 && <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>}
                 </div>
               </div>
 
@@ -750,9 +792,7 @@ const PerfilPage = () => {
                 className={`input ${errors.direccion ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
-              {errors.direccion && (
-                <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>
-              )}
+              {errors.direccion && <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>}
             </div>
           </div>
 
@@ -795,6 +835,51 @@ const PerfilPage = () => {
                 disabled={step === 2}
               />
             </div>
+            {roles.includes('INSTRUCTOR SENA') && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Firma Digital (firma sin fondo)</label>
+
+                {firmaPreview && (
+                  <div className="mb-2 border rounded p-1 w-32 h-16 flex items-center justify-center bg-gray-50">
+                    <img src={firmaPreview} alt="firma" className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+
+                {!firmaFile ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFirmaChange}
+                      className="file-input w-full"
+                      disabled={step === 2}
+                    />
+                    {firmaPreview && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light-danger"
+                        onClick={handleFirmaDelete}
+                        disabled={step === 2}
+                      >
+                        <KeenIcon icon="trash" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500 truncate max-w-[140px]">{firmaFile.name}</span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light-danger"
+                      onClick={handleFirmaDelete}
+                      disabled={step === 2}
+                    >
+                      <KeenIcon icon="trash" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -813,15 +898,13 @@ const PerfilPage = () => {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  <strong>Último paso:</strong> Establezca su contraseña para completar el proceso de activación.
+                  <strong>Último paso:</strong> Establezca su contraseña para completar el proceso
+                  de activación.
                 </p>
               </div>
             </div>
           </div>
-          <button
-            className="btn btn-warning w-full"
-            onClick={() => setShowPasswordModal(true)}
-          >
+          <button className="btn btn-warning w-full" onClick={() => setShowPasswordModal(true)}>
             <KeenIcon icon="key" className="mr-2" />
             Establecer Contraseña (Finalizar)
           </button>
@@ -833,7 +916,7 @@ const PerfilPage = () => {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         userEmail={formDataPersona.email || ''}
-        isApprentice={authContext.roles?.some(role => ['ESTUDIANTEUP'].includes(role))}
+        isApprentice={authContext.roles?.some((role) => ['ESTUDIANTEUP'].includes(role))}
         onSuccess={handlePasswordChangeSuccess}
       />
     </Container>

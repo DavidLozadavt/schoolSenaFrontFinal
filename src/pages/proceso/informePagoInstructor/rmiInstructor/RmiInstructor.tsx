@@ -3,6 +3,8 @@ import axios from 'axios';
 import React, { useContext, useEffect, useState } from 'react';
 import RmiModal from '../../../gestion-rmi/RmiModal';
 import { Instructor } from '../../../gestion-rmi/interfaceInstructor';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
+import ActividadesIndex from '../actividades/ActividadesIndex';
 
 interface DetalleRmi {
   idDetalleRmi: number;
@@ -47,6 +49,10 @@ const RmiInstructor: React.FC = () => {
   const [loadingFichas, setLoadingFichas] = useState(false);
   const [selectedPeriodo, setSelectedPeriodo] = useState<string | undefined>();
   const [selectedContratoId, setSelectedContratoId] = useState<number>(0);
+
+  //Agregar las actividades del instructor:
+  const [actividadModalParams, setActividadModalParams] = useState<{ idRmi: number } | null>(null);
+  
 
   // Carga los años disponibles
   useEffect(() => {
@@ -216,12 +222,44 @@ const RmiInstructor: React.FC = () => {
                       )}
                       Ver y Descargar RMI
                     </button>
+                    
+                    <button
+                      onClick={() => setActividadModalParams({ idRmi: periodo.idRmi })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 font-medium text-orange-700 dark:text-orange-400  dark:bg-white/5 rounded-lg transition-all"
+                    >
+                      <i className="ki-outline ki-list text-sm" /> Actividades
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ))
+      )}
+
+      {/* Modal CRUD Actividades */}
+      {actividadModalParams && (
+        <Modal
+          open={true}
+          onClose={() => setActividadModalParams(null)}
+          className="mx-4 sm:mx-auto max-w-4xl w-full"
+        >
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>Actividades del Instructor</ModalTitle>
+              <button
+                type="button"
+                onClick={() => setActividadModalParams(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5">
+              <ActividadesIndex idRmi={actividadModalParams.idRmi} />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       )}
 
       {/* Modal RMI para el instructor */}
