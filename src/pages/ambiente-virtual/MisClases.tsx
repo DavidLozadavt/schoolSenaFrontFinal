@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Sesion {
   fecha: string;
@@ -40,9 +42,7 @@ interface MisClasesProps {
   filtro?: 'todas' | 'completadas';
 }
 
-// ─── Normalización de datos del backend ──────────────────────────────────────
-// El backend a veces envía ids como string en vez de number,
-// y puede duplicar la misma materia con sesiones: [] en la segunda copia.
+// ─── Normalización ────────────────────────────────────────────────────────────
 
 const toNum = (v: unknown): number => {
   if (typeof v === 'number') return v;
@@ -56,51 +56,74 @@ const toFloat = (v: unknown): number => {
   return isNaN(n) ? 0 : n;
 };
 
-const normalizarSesion = (s: any): Sesion => ({
-  fecha: s.fecha ?? '',
-  horaInicial: s.horaInicial ?? '',
-  horaFinal: s.horaFinal ?? '',
-  estado: s.estado ?? 'PENDIENTE',
+const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
+  fecha: typeof s.fecha === 'string' ? s.fecha : '',
+  // El backend envía "18:00:00" — normalizamos a "18:00"
+  horaInicial: typeof s.horaInicial === 'string' ? s.horaInicial.substring(0, 5) : '',
+  horaFinal: typeof s.horaFinal === 'string' ? s.horaFinal.substring(0, 5) : '',
+  estado: (['COMPLETADA', 'EN_CURSO', 'PROXIMO', 'PENDIENTE'].includes(s.estado as string)
+    ? s.estado
+    : 'PENDIENTE') as Sesion['estado'],
   numeroSesion: toNum(s.numeroSesion),
   idDia: toNum(s.idDia),
   idHorarioMateria: toNum(s.idHorarioMateria)
 });
 
-const normalizarClases = (data: any[]): Materia[] => {
+const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
+  idMateria: toNum(raw.idMateria),
+  materia_nombre: typeof raw.materia_nombre === 'string' ? raw.materia_nombre : '',
+  profesor_nombre: typeof raw.profesor_nombre === 'string' ? raw.profesor_nombre : '',
+  profesor_email: typeof raw.profesor_email === 'string' ? raw.profesor_email : '',
+  aula_nombre: typeof raw.aula_nombre === 'string' ? raw.aula_nombre : '',
+  horario_texto: typeof raw.horario_texto === 'string' ? raw.horario_texto : '',
+  horarios: Array.isArray(raw.horarios)
+    ? (raw.horarios as Record<string, unknown>[]).map((h) => ({
+        dia: typeof h.dia === 'string' ? h.dia : '',
+        horaInicial: typeof h.horaInicial === 'string' ? h.horaInicial : '',
+        horaFinal: typeof h.horaFinal === 'string' ? h.horaFinal : '',
+        idHorarioMateria: toNum(h.idHorarioMateria)
+      }))
+    : [],
+  total_sesiones: toNum(raw.total_sesiones),
+  sesiones_completadas: toNum(raw.sesiones_completadas),
+  sesiones_restantes: toNum(raw.sesiones_restantes),
+  porcentaje_completado: toFloat(raw.porcentaje_completado),
+  sesiones: Array.isArray(raw.sesiones)
+    ? (raw.sesiones as Record<string, unknown>[]).map(normalizarSesion)
+    : [],
+  idHorariosMateria: Array.isArray(raw.idHorariosMateria)
+    ? (raw.idHorariosMateria as unknown[]).map(toNum)
+    : []
+});
+
+/**
+ * Consolida duplicados por idMateria.
+ * El backend puede enviar la misma materia dos veces: una con sesiones: []
+ * y otra con las sesiones pobladas. Nos quedamos con la que tenga más sesiones;
+ * en empate, preferimos la que tenga sesiones_completadas > 0.
+ */
+const normalizarClases = (data: unknown[]): Materia[] => {
   if (!Array.isArray(data)) return [];
 
   const mapa = new Map<number, Materia>();
 
   for (const raw of data) {
-    const materia: Materia = {
-      idMateria: toNum(raw.idMateria),
-      materia_nombre: raw.materia_nombre ?? '',
-      profesor_nombre: raw.profesor_nombre ?? '',
-      profesor_email: raw.profesor_email ?? '',
-      aula_nombre: raw.aula_nombre ?? '',
-      horario_texto: raw.horario_texto ?? '',
-      horarios: Array.isArray(raw.horarios)
-        ? raw.horarios.map((h: any) => ({
-            dia: h.dia ?? '',
-            horaInicial: h.horaInicial ?? '',
-            horaFinal: h.horaFinal ?? '',
-            idHorarioMateria: toNum(h.idHorarioMateria)
-          }))
-        : [],
-      total_sesiones: toNum(raw.total_sesiones),
-      sesiones_completadas: toNum(raw.sesiones_completadas),
-      sesiones_restantes: toNum(raw.sesiones_restantes),
-      porcentaje_completado: toFloat(raw.porcentaje_completado),
-      sesiones: Array.isArray(raw.sesiones) ? raw.sesiones.map(normalizarSesion) : [],
-      idHorariosMateria: Array.isArray(raw.idHorariosMateria)
-        ? raw.idHorariosMateria.map(toNum)
-        : []
-    };
-
+    if (!raw || typeof raw !== 'object') continue;
+    const materia = normalizarMateria(raw as Record<string, unknown>);
     const existente = mapa.get(materia.idMateria);
 
-    // Si ya existe esta materia, quedarse con la que tenga más sesiones
-    if (!existente || materia.sesiones.length > existente.sesiones.length) {
+    if (!existente) {
+      mapa.set(materia.idMateria, materia);
+      continue;
+    }
+
+    // Preferir la entrada con más sesiones detalladas
+    if (materia.sesiones.length > existente.sesiones.length) {
+      mapa.set(materia.idMateria, materia);
+    } else if (
+      materia.sesiones.length === existente.sesiones.length &&
+      materia.sesiones_completadas > existente.sesiones_completadas
+    ) {
       mapa.set(materia.idMateria, materia);
     }
   }
@@ -110,7 +133,7 @@ const normalizarClases = (data: any[]): Materia[] => {
 
 // ─── Helpers de estado ────────────────────────────────────────────────────────
 
-const obtenerIconoEstado = (estado: Sesion['estado']) => {
+const obtenerIconoEstado = (estado: Sesion['estado']): React.ReactElement | null => {
   switch (estado) {
     case 'COMPLETADA':
       return <KeenIcon icon="check" className="text-sm text-gray-600 dark:text-gray-400" />;
@@ -136,7 +159,6 @@ const obtenerTextoEstado = (estado: Sesion['estado']): string => {
     case 'PROXIMO':
       return 'Próximo';
     case 'PENDIENTE':
-      return 'En espera';
     default:
       return 'En espera';
   }
@@ -156,17 +178,63 @@ const obtenerColorEstado = (estado: Sesion['estado']): string => {
   }
 };
 
+// ─── Helpers de fecha / hora ──────────────────────────────────────────────────
+
+const formatearFecha = (fechaStr: string): string => {
+  if (!fechaStr) return '';
+  try {
+    // Tomamos solo la parte de fecha para evitar desfases de zona horaria
+    const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
+    const fecha = new Date(year, month - 1, day);
+    if (isNaN(fecha.getTime())) return fechaStr;
+    const meses = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic'
+    ];
+    const diasSemana = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+  } catch {
+    return fechaStr;
+  }
+};
+
+const formatearHora = (horaStr: string): string => {
+  if (!horaStr) return '';
+  try {
+    // Acepta "HH:MM" o "HH:MM:SS"
+    const partes = horaStr.split(':').map(Number);
+    const hora24 = partes[0];
+    const minuto = partes[1] ?? 0;
+    let hora12 = hora24 % 12 || 12;
+    const periodo = hora24 < 12 ? 'AM' : 'PM';
+    return `${hora12}:${minuto.toString().padStart(2, '0')} ${periodo}`;
+  } catch {
+    return horaStr;
+  }
+};
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [materias, setMaterias] = useState<Materia[]>([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [error, setError] = useState<string | null>(null);
 
+  // Actualiza el reloj cada minuto para re-evaluar estados EN_CURSO
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -174,14 +242,15 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('fichas/estudiante/clases');
-      const materiasData = normalizarClases(response.data?.data || []);
+      const response = await axios.get<{ data: unknown[] }>('fichas/estudiante/clases');
+      const materiasData = normalizarClases(response.data?.data ?? []);
       setMaterias(materiasData);
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.error ||
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } };
+      const mensaje =
+        axiosError?.response?.data?.error ??
         'No se pudieron cargar las clases. Por favor, intenta nuevamente.';
-      setError(errorMessage);
+      setError(mensaje);
       setMaterias([]);
     } finally {
       setLoading(false);
@@ -192,144 +261,125 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     fetchClases();
   }, [fetchClases]);
 
-  const formatearFecha = (fechaStr: string): string => {
-    if (!fechaStr) return '';
-    try {
-      const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
-      const fecha = new Date(year, month - 1, day);
-      if (isNaN(fecha.getTime())) return fechaStr;
-      const meses = [
-        'ene',
-        'feb',
-        'mar',
-        'abr',
-        'may',
-        'jun',
-        'jul',
-        'ago',
-        'sep',
-        'oct',
-        'nov',
-        'dic'
-      ];
-      const diasSemana = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-      return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
-    } catch {
-      return fechaStr;
-    }
-  };
+  /**
+   * Calcula el estado real de una sesión comparando fecha/hora con el reloj actual.
+   * Si la sesión viene como COMPLETADA desde el backend, se respeta sin recalcular
+   * (evita que sesiones pasadas que el backend ya marcó como completas cambien de estado).
+   */
+  const obtenerEstadoSesion = useCallback(
+    (sesion: Sesion): Sesion['estado'] => {
+      // Si el backend ya la marcó como COMPLETADA, respetamos ese estado
+      if (sesion.estado === 'COMPLETADA') return 'COMPLETADA';
 
-  const formatearHora = (horaStr: string): string => {
-    if (!horaStr) return '';
-    try {
-      const [hora24, minuto] = horaStr.split(':').map(Number);
-      let hora12 = hora24;
-      let periodo = 'AM';
-      if (hora24 === 0) {
-        hora12 = 12;
-        periodo = 'AM';
-      } else if (hora24 === 12) {
-        hora12 = 12;
-        periodo = 'PM';
-      } else if (hora24 > 12) {
-        hora12 = hora24 - 12;
-        periodo = 'PM';
+      try {
+        const [year, month, day] = sesion.fecha.split('T')[0].split('-').map(Number);
+        const [horaIni, minIni] = sesion.horaInicial.split(':').map(Number);
+        const [horaFin, minFin] = sesion.horaFinal.split(':').map(Number);
+
+        const inicio = new Date(year, month - 1, day, horaIni, minIni, 0, 0);
+        const fin = new Date(year, month - 1, day, horaFin, minFin, 0, 0);
+        const ahora = currentTime.getTime();
+
+        if (ahora > fin.getTime()) return 'COMPLETADA';
+        if (ahora >= inicio.getTime()) return 'EN_CURSO';
+        return 'PENDIENTE';
+      } catch {
+        return sesion.estado;
       }
-      return `${hora12}:${minuto.toString().padStart(2, '0')} ${periodo}`;
-    } catch {
-      return horaStr;
-    }
-  };
+    },
+    [currentTime]
+  );
 
-  const obtenerEstadoSesion = (sesion: Sesion): Sesion['estado'] => {
-    try {
-      const [year, month, day] = sesion.fecha.split('T')[0].split('-').map(Number);
-      const fechaSesion = new Date(year, month - 1, day);
-      const [horaIni, minIni] = sesion.horaInicial.split(':').map(Number);
-      const [horaFin, minFin] = sesion.horaFinal.split(':').map(Number);
-      const inicio = new Date(fechaSesion);
-      inicio.setHours(horaIni, minIni, 0, 0);
-      const fin = new Date(fechaSesion);
-      fin.setHours(horaFin, minFin, 0, 0);
-      const ahora = currentTime.getTime();
-      if (ahora > fin.getTime()) return 'COMPLETADA';
-      if (ahora >= inicio.getTime() && ahora <= fin.getTime()) return 'EN_CURSO';
-      if (ahora < inicio.getTime()) return 'PENDIENTE';
-      return sesion.estado;
-    } catch {
-      return sesion.estado;
-    }
-  };
-
-  const materiasConEstadosActualizados = useMemo(() => {
+  /**
+   * Para cada materia:
+   * 1. Ordena sesiones cronológicamente.
+   * 2. Re-evalúa cada estado con el reloj actual.
+   * 3. Marca la primera sesión PENDIENTE como PROXIMO.
+   * 4. Calcula todasSesionesCompletadas (solo si hay sesiones; usa porcentaje como fallback).
+   */
+  const materiasConEstadosActualizados = useMemo<Materia[]>(() => {
     return materias.map((materia) => {
-      const sesionesOrdenadas = [...(materia.sesiones ?? [])].sort(
+      const sesionesOrdenadas = [...materia.sesiones].sort(
         (a, b) =>
-          new Date(a.fecha + 'T' + a.horaInicial).getTime() -
-          new Date(b.fecha + 'T' + b.horaInicial).getTime()
+          new Date(`${a.fecha.split('T')[0]}T${a.horaInicial}`).getTime() -
+          new Date(`${b.fecha.split('T')[0]}T${b.horaInicial}`).getTime()
       );
 
-      let proximaSesionEncontrada = false;
-      const sesionesActualizadas = sesionesOrdenadas.map((sesion) => {
-        const estadoActual = obtenerEstadoSesion(sesion);
-        if (proximaSesionEncontrada) return { ...sesion, estado: estadoActual };
-        if (estadoActual === 'PENDIENTE') {
-          proximaSesionEncontrada = true;
-          return { ...sesion, estado: 'PROXIMO' as const };
+      let proximaMarcada = false;
+      const sesionesActualizadas = sesionesOrdenadas.map((sesion): Sesion => {
+        const estadoCalculado = obtenerEstadoSesion(sesion);
+
+        // Si está en curso o ya completada, no la marcamos como próxima
+        if (estadoCalculado === 'EN_CURSO' || estadoCalculado === 'COMPLETADA') {
+          return { ...sesion, estado: estadoCalculado };
         }
-        return { ...sesion, estado: estadoActual };
+
+        // Primera PENDIENTE en el futuro → PROXIMO
+        if (estadoCalculado === 'PENDIENTE' && !proximaMarcada) {
+          proximaMarcada = true;
+          return { ...sesion, estado: 'PROXIMO' };
+        }
+
+        return { ...sesion, estado: estadoCalculado };
       });
 
-      const todasCompletadas = sesionesActualizadas.every((s) => s.estado === 'COMPLETADA');
+      // Si no hay sesiones detalladas, confiamos en porcentaje_completado del backend
+      const todasSesionesCompletadas =
+        sesionesActualizadas.length > 0
+          ? sesionesActualizadas.every((s) => s.estado === 'COMPLETADA')
+          : materia.porcentaje_completado >= 100;
 
-      return {
-        ...materia,
-        sesiones: sesionesActualizadas,
-        todasSesionesCompletadas: todasCompletadas
-      };
+      return { ...materia, sesiones: sesionesActualizadas, todasSesionesCompletadas };
     });
-  }, [materias, currentTime]);
+  }, [materias, obtenerEstadoSesion]);
 
-  const materiasFiltradas = useMemo(() => {
+  const materiasFiltradas = useMemo<Materia[]>(() => {
     if (filtro === 'completadas') {
       return materiasConEstadosActualizados.filter((m) => m.todasSesionesCompletadas);
     }
     return materiasConEstadosActualizados.filter((m) => !m.todasSesionesCompletadas);
   }, [materiasConEstadosActualizados, filtro]);
 
-  const materiasAgrupadasPorMes = useMemo(() => {
+  /**
+   * Agrupa por mes de la última sesión completada (solo en vista "completadas").
+   */
+  const materiasAgrupadasPorMes = useMemo<
+    Array<{ mes: string | null; materias: Materia[] }>
+  >(() => {
     if (filtro !== 'completadas') {
-      return materiasFiltradas.map((materia) => ({ mes: null, materias: [materia] }));
+      return materiasFiltradas.map((m) => ({ mes: null, materias: [m] }));
     }
 
-    const agrupadas: { [key: string]: Materia[] } = {};
+    const agrupadas: Record<string, Materia[]> = {};
 
-    materiasFiltradas.forEach((materia) => {
+    for (const materia of materiasFiltradas) {
+      // Última sesión completada para determinar el mes
       const ultimaSesion = [...materia.sesiones]
         .filter((s) => s.estado === 'COMPLETADA')
         .sort(
           (a, b) =>
-            new Date(b.fecha + 'T' + b.horaInicial).getTime() -
-            new Date(a.fecha + 'T' + a.horaInicial).getTime()
+            new Date(`${b.fecha.split('T')[0]}T${b.horaInicial}`).getTime() -
+            new Date(`${a.fecha.split('T')[0]}T${a.horaInicial}`).getTime()
         )[0];
 
-      if (ultimaSesion) {
-        const [year, month] = ultimaSesion.fecha.split('T')[0].split('-').map(Number);
-        const mesKey = `${year}-${month}`;
-        if (!agrupadas[mesKey]) agrupadas[mesKey] = [];
-        agrupadas[mesKey].push(materia);
-      }
-    });
+      // Si no hay sesión detallada pero está completada al 100%, usamos fecha vacía
+      const mesKey = ultimaSesion
+        ? ultimaSesion.fecha.split('T')[0].substring(0, 7) // "YYYY-MM"
+        : 'sin-fecha';
+
+      if (!agrupadas[mesKey]) agrupadas[mesKey] = [];
+      agrupadas[mesKey].push(materia);
+    }
 
     return Object.entries(agrupadas)
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([key, materias]) => {
+      .map(([key, items]) => {
+        if (key === 'sin-fecha') return { mes: 'SIN FECHA', materias: items };
         const [year, month] = key.split('-').map(Number);
-        const fecha = new Date(year, month - 1, 1);
-        const mesNombre = fecha
+        const mesNombre = new Date(year, month - 1, 1)
           .toLocaleString('es-ES', { month: 'long', year: 'numeric' })
           .toUpperCase();
-        return { mes: mesNombre, materias };
+        return { mes: mesNombre, materias: items };
       });
   }, [materiasFiltradas, filtro]);
 
@@ -456,33 +506,45 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                   </div>
 
                   {/* Grid de sesiones */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {materia.sesiones.map((sesion, index) => (
-                      <div
-                        key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
-                        className={clsx(
-                          'border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-md',
-                          obtenerColorEstado(sesion.estado)
-                        )}
-                        onClick={() => handleVerDetalle(sesion.idHorarioMateria)}
-                      >
-                        <div className="flex flex-col items-start gap-1">
-                          <div className="flex items-center gap-1 w-full">
-                            <div className="flex-shrink-0">{obtenerIconoEstado(sesion.estado)}</div>
-                            <div className="text-xs font-medium flex-1">
-                              {obtenerTextoEstado(sesion.estado)}
+                  {materia.sesiones.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {materia.sesiones.map((sesion, index) => (
+                        <div
+                          key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
+                          className={clsx(
+                            'border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-md',
+                            obtenerColorEstado(sesion.estado)
+                          )}
+                          onClick={() => handleVerDetalle(sesion.idHorarioMateria)}
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <div className="flex items-center gap-1 w-full">
+                              <div className="flex-shrink-0">
+                                {obtenerIconoEstado(sesion.estado)}
+                              </div>
+                              <div className="text-xs font-medium flex-1">
+                                {obtenerTextoEstado(sesion.estado)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                              {formatearFecha(sesion.fecha)}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                              {formatearHora(sesion.horaInicial)} -{' '}
+                              {formatearHora(sesion.horaFinal)}
                             </div>
                           </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                            {formatearFecha(sesion.fecha)}
-                          </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                            {formatearHora(sesion.horaInicial)}-{formatearHora(sesion.horaFinal)}
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Materia sin sesiones detalladas (backend envió sesiones: [])
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                      {materia.porcentaje_completado >= 100
+                        ? `${materia.total_sesiones} sesiones completadas`
+                        : `${materia.sesiones_completadas} de ${materia.total_sesiones} sesiones completadas`}
+                    </div>
+                  )}
                 </div>
               );
             })}
