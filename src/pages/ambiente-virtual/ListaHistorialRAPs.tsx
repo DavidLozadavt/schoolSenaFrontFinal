@@ -45,7 +45,7 @@ interface Clase {
   grado_nombre: string | null;
   idHorarioMateria: number;
   idGradoMateria: number;
-  idMateria: number; 
+  idMateria: number;
 }
 
 // Helper común: convierte idDia de BD (1=Lunes ... 7=Domingo) a número JS (0=Domingo ... 6=Sábado)
@@ -62,12 +62,68 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   // Estado para actualizar el tiempo en tiempo real y recalcular estados de clases
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  /**
+   * Normaliza los datos de una clase que llegan del backend,
+   * convirtiendo campos que pueden llegar como string a su tipo correcto.
+   */
+  const normalizarClase = (raw: any): Clase => {
+    const toNum = (val: any): number => {
+      const n = Number(val);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const toNumOrNull = (val: any): number | null => {
+      if (val === null || val === undefined || val === '') return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
+    const normalizarSesion = (s: any): SesionCompletada => ({
+      id: toNum(s.id),
+      numeroSesion: toNum(s.numeroSesion),
+      fechaSesion: String(s.fechaSesion ?? ''),
+      fechaFormateada: String(s.fechaFormateada ?? ''),
+      fechaCorta: String(s.fechaCorta ?? ''),
+      estado: String(s.estado ?? ''),
+      observacion: s.observacion != null ? String(s.observacion) : null
+    });
+
+    return {
+      ficha_id: toNum(raw.ficha_id),
+      ficha_codigo: String(raw.ficha_codigo ?? ''),
+      programa_nombre: String(raw.programa_nombre ?? ''),
+      materia_nombre: String(raw.materia_nombre ?? ''),
+      jornada_nombre: String(raw.jornada_nombre ?? ''),
+      jornada_tipo: String(raw.jornada_tipo ?? ''),
+      dia_semana: String(raw.dia_semana ?? ''),
+      idDia: toNum(raw.idDia),
+      horaInicial: String(raw.horaInicial ?? ''),
+      horaFinal: String(raw.horaFinal ?? ''),
+      fechaInicial: String(raw.fechaInicial ?? ''),
+      fechaFinal: raw.fechaFinal != null ? String(raw.fechaFinal) : null,
+      estado: String(raw.estado ?? ''),
+      total_sesiones: toNum(raw.total_sesiones),
+      sesiones_dadas: toNum(raw.sesiones_dadas),
+      sesiones_restantes: toNum(raw.sesiones_restantes),
+      sesiones_completadas: Array.isArray(raw.sesiones_completadas)
+        ? raw.sesiones_completadas.map(normalizarSesion)
+        : [],
+      contrato_id: toNum(raw.contrato_id),
+      instructor_nombre: String(raw.instructor_nombre ?? ''),
+      idGradoPrograma: toNumOrNull(raw.idGradoPrograma),
+      grado_nombre: raw.grado_nombre != null ? String(raw.grado_nombre) : null,
+      idHorarioMateria: toNum(raw.idHorarioMateria),
+      idGradoMateria: toNum(raw.idGradoMateria),
+      idMateria: toNum(raw.idMateria)
+    };
+  };
+
   useEffect(() => {
     const fetchClases = async () => {
       try {
         setLoading(true);
         let response;
-        
+
         if (idInstructor) {
           // Si se proporciona el ID del instructor, usar endpoint específico
           response = await axios.get(`fichas/instructor/${idInstructor}/clases-asignadas`);
@@ -75,8 +131,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
           // Si no, el backend obtendrá automáticamente el ID del usuario autenticado
           response = await axios.get('fichas/instructor/clases-asignadas');
         }
-        
-        const clasesData = response.data?.data || [];
+
+        const clasesData = (response.data?.data || []).map(normalizarClase);
         setClases(clasesData);
         setEvento(false);
       } catch (error: any) {
@@ -113,8 +169,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   const getStatus = (clase: Clase): 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO' => {
     // Usar currentTime en lugar de new Date() para actualización en tiempo real
     const ahora = currentTime;
-    const sesionesRestantes = typeof clase.sesiones_restantes === 'number' ? clase.sesiones_restantes : null;
-    
+    const sesionesRestantes =
+      typeof clase.sesiones_restantes === 'number' ? clase.sesiones_restantes : null;
+
     const parseDate = (dateStr: string) => {
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
       return new Date(year, month - 1, day);
@@ -127,7 +184,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       hoy.setHours(0, 0, 0, 0);
       const fechaFin = parseDate(clase.fechaFinal);
       fechaFin.setHours(0, 0, 0, 0);
-      
+
       if (fechaFin.getTime() < hoy.getTime()) {
         return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
       }
@@ -140,16 +197,23 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     if (clase.sesiones_completadas && clase.sesiones_completadas.length > 0) {
       const hoy = new Date(ahora);
       hoy.setHours(0, 0, 0, 0);
-      
+
       // Verificar si hay una sesión completada hoy o en el pasado
-      const haySesionCompletada = clase.sesiones_completadas.some(sesion => {
+      const haySesionCompletada = clase.sesiones_completadas.some((sesion) => {
         const fechaSesion = new Date(sesion.fechaSesion);
         fechaSesion.setHours(0, 0, 0, 0);
         return fechaSesion.getTime() <= hoy.getTime();
       });
-      
+
       // Si hay sesiones completadas y todos los datos necesarios, verificar estado en tiempo real
-      if (haySesionCompletada && clase.fechaInicial && clase.fechaFinal && clase.horaInicial && clase.horaFinal && clase.idDia) {
+      if (
+        haySesionCompletada &&
+        clase.fechaInicial &&
+        clase.fechaFinal &&
+        clase.horaInicial &&
+        clase.horaFinal &&
+        clase.idDia
+      ) {
         const hoy = new Date(ahora);
         hoy.setHours(0, 0, 0, 0);
         const fechaInicio = parseDate(clase.fechaInicial);
@@ -159,15 +223,20 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
         // Verificar si hoy es un día de clase
         const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
-        
-        if (ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime()) {
+
+        if (
+          ahora.getDay() === diaNumero &&
+          fechaInicio.getTime() <= hoy.getTime() &&
+          hoy.getTime() <= fechaFin.getTime()
+        ) {
           // Verificar si estamos dentro del rango de horas
           let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
           let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-          
+
           // Ajuste de 12h a 24h basado en jornada (el backend envía 12h sin indicador AM/PM)
           const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
-          const esTardeONoche = lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+          const esTardeONoche =
+            lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
           if (esTardeONoche && hIni < 12) hIni += 12;
           if (esTardeONoche && hFin < 12) hFin += 12;
 
@@ -184,7 +253,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
           if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
             return 'EN CURSO';
           }
-          
+
           // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
           if (ahora.getTime() > horaFinal.getTime()) {
             return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
@@ -192,7 +261,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         }
       }
     }
-    
+
     // Fallback: calcular básico en tiempo real
     if (!clase.fechaInicial) {
       return 'PENDIENTE';
@@ -215,18 +284,22 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     // Si estamos dentro del rango de fechas, verificar si es un día de clase y el horario
     if (clase.fechaInicial && fechaFin && clase.horaInicial && clase.horaFinal && clase.idDia) {
       const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
-      
+
       // Verificar si hoy es un día de clase (día de la semana coincide Y está en el rango de fechas)
-      const esDiaDeClase = ahora.getDay() === diaNumero && fechaInicio.getTime() <= hoy.getTime() && hoy.getTime() <= fechaFin.getTime();
-      
+      const esDiaDeClase =
+        ahora.getDay() === diaNumero &&
+        fechaInicio.getTime() <= hoy.getTime() &&
+        hoy.getTime() <= fechaFin.getTime();
+
       if (esDiaDeClase) {
         // Verificar si estamos dentro del rango de horas
         let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
         let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-        
+
         // Ajuste de 12h a 24h basado en jornada
         const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
-        const esTardeONoche = lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+        const esTardeONoche =
+          lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
         if (esTardeONoche && hIni < 12) hIni += 12;
         if (esTardeONoche && hFin < 12) hFin += 12;
 
@@ -244,7 +317,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinal.getTime()) {
           return 'EN CURSO';
         }
-        
+
         // Si ya pasó la hora final de hoy, marcar como COMPLETADO inmediatamente
         if (ahora.getTime() > horaFinal.getTime()) {
           return sesionesRestantes === 0 ? 'COMPLETADO' : 'PENDIENTE';
@@ -258,7 +331,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   /**
    * Formatea una fecha usando Intl.DateTimeFormat (API nativa de JavaScript)
    * No usa datos hardcodeados, usa la configuración del navegador
-   * 
+   *
    * @param dateString Fecha en formato YYYY-MM-DD
    * @param jornadaTipo Tipo de jornada para mostrar si es hoy
    * @returns String formateado: "Jornada (hoy)" o "Mañana (día, fecha)" o "(día, fecha)"
@@ -267,22 +340,22 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     // Parsear fecha sin problemas de zona horaria
     const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    
+
     // Verificar si es hoy, mañana o más adelante
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     date.setHours(0, 0, 0, 0);
-    
+
     const diffTime = date.getTime() - hoy.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     // Usar Intl.DateTimeFormat para formatear fecha (sin datos hardcodeados)
     const formatter = new Intl.DateTimeFormat('es-ES', {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     });
-    
+
     if (diffDays === 0) {
       // Es hoy - usar la jornada
       return `${jornadaTipo} (hoy)`;
@@ -296,7 +369,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       return `(${fechaFormateada})`;
     }
   };
-
 
   const isToday = (dateString: string): boolean => {
     // Parsear fecha sin problemas de zona horaria (formato YYYY-MM-DD)
@@ -314,10 +386,10 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   const getJornadaType = (jornadaTipo: string): string => {
     if (!jornadaTipo) return 'Mañana';
-    
+
     // Normalizar: convertir a minúsculas para comparar
     const lower = jornadaTipo.toLowerCase().trim();
-    
+
     // Detectar el tipo basándose en palabras clave
     if (lower.includes('mañana') || lower.includes('manana')) {
       return 'Mañana';
@@ -328,7 +400,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     if (lower.includes('noche') || lower.includes('nocturna')) {
       return 'Noche';
     }
-    
+
     // Si no coincide, devolver el valor original capitalizado
     // Capitalizar solo la primera letra
     return jornadaTipo.charAt(0).toUpperCase() + jornadaTipo.slice(1).toLowerCase();
@@ -337,7 +409,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   /**
    * Convierte hora de formato 24h a formato 12h con AM/PM
    * La jornada NO tiene nada que ver, se usa solo la hora en formato 24h
-   * 
+   *
    * @param timeString Hora en formato HH:MM o HH:MM:SS
    * @returns Hora formateada en 12h con AM/PM (ej: "10:00 AM", "2:30 PM")
    */
@@ -346,10 +418,10 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const time = timeString.substring(0, 5); // Obtener HH:MM
     const [hours, minutes] = time.split(':');
     const hour24 = parseInt(hours, 10);
-    
+
     // Determinar AM/PM basado SOLO en la hora (la jornada no tiene nada que ver)
     const esPM = hour24 >= 12;
-    
+
     // Convertir a formato 12h
     let hour12: number;
     if (hour24 === 0) {
@@ -361,13 +433,13 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     } else {
       hour12 = hour24 - 12; // 1-11 PM
     }
-    
+
     return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
   };
 
   /**
    * Obtiene el horario formateado de una clase
-   * 
+   *
    * @param clase Clase con horaInicial y horaFinal
    * @returns String con formato "H:MM AM - H:MM PM" o string vacío si no hay horario
    */
@@ -393,7 +465,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
    * Convierte idDia del backend al formato de JavaScript getDay()
    * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
    * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
-   * 
+   *
    * @param idDia ID del día desde el backend (1-7)
    * @returns Número del día para JavaScript getDay()
    */
@@ -426,12 +498,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     if (!clase.idDia) {
       return null;
     }
-    
+
     const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
 
     // Buscar la próxima fecha del día de la semana
     let fechaBusqueda = new Date(hoy);
-    
+
     // Si la fecha de inicio es futura, empezar desde ahí
     if (fechaInicio.getTime() > hoy.getTime()) {
       fechaBusqueda = new Date(fechaInicio);
@@ -443,7 +515,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       while (fechaBusqueda.getDay() !== diaNumero) {
         fechaBusqueda.setDate(fechaBusqueda.getDate() + 1);
       }
-      
+
       // Si la fecha encontrada es antes de la fecha de inicio, buscar desde la fecha de inicio
       if (fechaBusqueda.getTime() < fechaInicio.getTime()) {
         fechaBusqueda = new Date(fechaInicio);
@@ -544,7 +616,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
   /**
    * Navega a la página de detalle de una clase
-   * 
+   *
    * @param clase Clase a visualizar
    */
   const handleNavigateToClase = (clase: Clase): void => {
@@ -593,18 +665,14 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     filtered.sort((a, b) => {
       const statusA = getStatus(a);
       const statusB = getStatus(b);
-      const statusOrder = { 'EN CURSO': 1, 'PENDIENTE': 2, 'COMPLETADO': 3 };
+      const statusOrder = { 'EN CURSO': 1, PENDIENTE: 2, COMPLETADO: 3 };
 
       if (statusOrder[statusA] !== statusOrder[statusB]) {
         return statusOrder[statusA] - statusOrder[statusB];
       }
 
-      const fechaA = a.fechaInicial
-        ? new Date(a.fechaInicial).getTime()
-        : 0;
-      const fechaB = b.fechaInicial
-        ? new Date(b.fechaInicial).getTime()
-        : 0;
+      const fechaA = a.fechaInicial ? new Date(a.fechaInicial).getTime() : 0;
+      const fechaB = b.fechaInicial ? new Date(b.fechaInicial).getTime() : 0;
 
       // Si las fechas son diferentes, ordenar por fecha
       if (fechaA !== fechaB) {
@@ -631,7 +699,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       if (!clase.fechaInicial) return false;
       return isToday(clase.fechaInicial);
     });
-    
+
     // Ordenar por hora inicial
     return today.sort((a, b) => {
       const horaA = a.horaInicial || '00:00:00';
@@ -681,22 +749,26 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
    * Agrupa todas las sesiones completadas de todas las clases por fecha
    * y las ordena de más reciente a más antigua.
    * Cada sesión se mostrará en su propia tarjeta independiente.
-   * 
+   *
    * IMPORTANTE: Incluye sesiones de TODAS las clases que tengan sesiones completadas,
    * no solo de las clases marcadas como COMPLETADO, para mostrar todas las sesiones
    * que están guardadas en sesionMateria.
-   * 
+   *
    * @returns Objeto con todas las sesiones y agrupación por fecha
    */
   const sesionesCompletadasAgrupadas = useMemo(() => {
     // Obtener todas las sesiones completadas de TODAS las clases (no solo las completadas)
     const todasLasSesiones: Array<{ clase: Clase; sesion: SesionCompletada }> = [];
-    
+
     // Importante: iterar sobre TODAS las clases originales, no sobre filteredClases,
     // para no perder sesiones completadas de clases que aún tienen pendientes.
     clases.forEach((clase) => {
       // Validar que la clase tenga sesiones completadas y que sean válidas
-      if (clase.sesiones_completadas && Array.isArray(clase.sesiones_completadas) && clase.sesiones_completadas.length > 0) {
+      if (
+        clase.sesiones_completadas &&
+        Array.isArray(clase.sesiones_completadas) &&
+        clase.sesiones_completadas.length > 0
+      ) {
         clase.sesiones_completadas.forEach((sesion) => {
           // Validar que la sesión tenga los campos requeridos
           if (sesion && sesion.id && sesion.fechaSesion && sesion.numeroSesion) {
@@ -708,10 +780,10 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
     // Agrupar sesiones por fecha
     const grupos: { [fecha: string]: Array<{ clase: Clase; sesion: SesionCompletada }> } = {};
-    
+
     todasLasSesiones.forEach((item) => {
       const fecha = item.sesion.fechaSesion; // YYYY-MM-DD
-      
+
       // Validar que la fecha no esté vacía
       if (fecha && fecha.trim() !== '') {
         if (!grupos[fecha]) {
@@ -723,7 +795,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
     // Ordenar fechas de más reciente a más antigua
     const fechasOrdenadas = Object.keys(grupos)
-      .filter(fecha => {
+      .filter((fecha) => {
         // Validar que la fecha sea válida antes de ordenar
         const fechaDate = new Date(fecha);
         return !isNaN(fechaDate.getTime());
@@ -738,8 +810,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       todasLasSesiones,
       sesionesPorFecha: fechasOrdenadas.map((fecha) => ({
         fecha,
-        items: grupos[fecha] || [],
-      })),
+        items: grupos[fecha] || []
+      }))
     };
   }, [clases]);
 
@@ -816,14 +888,16 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     }
 
     // Obtener todas las clases de hoy ordenadas por hora
-    const clasesHoy = filteredClases.filter((c) => {
-      if (!c.fechaInicial) return false;
-      return isToday(c.fechaInicial);
-    }).sort((a, b) => {
-      const horaA = a.horaInicial || '00:00:00';
-      const horaB = b.horaInicial || '00:00:00';
-      return horaA.localeCompare(horaB);
-    });
+    const clasesHoy = filteredClases
+      .filter((c) => {
+        if (!c.fechaInicial) return false;
+        return isToday(c.fechaInicial);
+      })
+      .sort((a, b) => {
+        const horaA = a.horaInicial || '00:00:00';
+        const horaB = b.horaInicial || '00:00:00';
+        return horaA.localeCompare(horaB);
+      });
 
     // Encontrar la clase en curso
     const claseEnCurso = clasesHoy.find((c) => getStatus(c) === 'EN CURSO');
@@ -834,20 +908,20 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     // Verificar si esta clase viene después de la clase en curso
     const horaEnCurso = claseEnCurso.horaInicial || '00:00:00';
     const horaEstaClase = clase.horaInicial || '00:00:00';
-    
+
     return horaEstaClase > horaEnCurso;
   };
 
   /**
    * Renderiza el badge de estado de una clase
-   * 
+   *
    * @param status Estado de la clase: 'EN CURSO', 'PENDIENTE', 'COMPLETADO'
    * @param clase Clase opcional para verificar si es próxima
    * @returns JSX del badge de estado
    */
   const getStatusBadge = (status: string, clase?: Clase): JSX.Element | null => {
     const esProxima = clase && esProximaClase(clase);
-    
+
     switch (status) {
       case 'EN CURSO':
         return (
@@ -883,22 +957,32 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     if (!fechaStr) {
       return 'Fecha no disponible';
     }
-    
+
     try {
       // Parsear fechaSesion (formato YYYY-MM-DD) sin problemas de zona horaria
       const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
       const fecha = new Date(year, month - 1, day);
-      
+
       // Validar que la fecha sea válida
       if (isNaN(fecha.getTime())) {
         return 'Fecha inválida';
       }
-      
+
       const meses = [
-        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        'enero',
+        'febrero',
+        'marzo',
+        'abril',
+        'mayo',
+        'junio',
+        'julio',
+        'agosto',
+        'septiembre',
+        'octubre',
+        'noviembre',
+        'diciembre'
       ];
-      
+
       return `${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
     } catch (error) {
       return 'Fecha inválida';
@@ -913,17 +997,17 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     if (!fechaSesion) {
       return 'Fecha no disponible';
     }
-    
+
     try {
       // Parsear fechaSesion (formato YYYY-MM-DD) sin problemas de zona horaria
       const [year, month, day] = fechaSesion.split('T')[0].split('-').map(Number);
       const fecha = new Date(year, month - 1, day);
-      
+
       // Validar que la fecha sea válida
       if (isNaN(fecha.getTime())) {
         return 'Fecha inválida';
       }
-      
+
       // Usar Intl.DateTimeFormat para formatear (sin datos hardcodeados)
       const formatter = new Intl.DateTimeFormat('es-ES', {
         weekday: 'long',
@@ -931,7 +1015,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
         month: 'long',
         year: 'numeric'
       });
-      
+
       return formatter.format(fecha);
     } catch (error) {
       return 'Fecha inválida';
@@ -943,17 +1027,17 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
    * Cada sesión tiene su propia tarjeta independiente
    * Esto permite que en el futuro cada tarjeta pueda tener información específica
    * como lista de asistencia, actividades, etc.
-   * 
+   *
    * @param clase - Información de la clase a la que pertenece la sesión
    * @param sesion - Información específica de la sesión completada
    */
-  const SesionCompletadaCard: React.FC<{ 
-    clase: Clase; 
+  const SesionCompletadaCard: React.FC<{
+    clase: Clase;
     sesion: SesionCompletada;
   }> = ({ clase, sesion }) => {
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
-    
+
     // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
     const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
 
@@ -998,9 +1082,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
               )}
               <div className="flex items-center gap-1.5">
                 <i className="ki-outline ki-calendar text-sm"></i>
-                <span className="capitalize">
-                  {fechaMostrar}
-                </span>
+                <span className="capitalize">{fechaMostrar}</span>
               </div>
             </div>
           </div>
@@ -1015,9 +1097,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   /**
    * Componente reutilizable para renderizar una tarjeta de clase
    */
-  const ClaseCard: React.FC<{ clase: Clase; showProximaFecha?: boolean }> = ({ 
-    clase, 
-    showProximaFecha = false 
+  const ClaseCard: React.FC<{ clase: Clase; showProximaFecha?: boolean }> = ({
+    clase,
+    showProximaFecha = false
   }) => {
     const status = getStatus(clase);
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
@@ -1042,9 +1124,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
                 {clase.materia_nombre || clase.programa_nombre || 'Sin nombre'}
               </h3>
-              <div className="flex items-center">
-                {getStatusBadge(status, clase)}
-              </div>
+              <div className="flex items-center">{getStatusBadge(status, clase)}</div>
             </div>
             <div className="flex items-center gap-4 flex-wrap text-xs text-gray-600 dark:text-gray-400">
               <div className="flex items-center gap-1.5">
@@ -1072,7 +1152,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 </div>
               )}
             </div>
-            
           </div>
           <div className="flex-shrink-0 pt-1">
             <i className="ki-outline ki-right text-base text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"></i>
@@ -1140,23 +1219,26 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
       )}
 
       {/* Clases Pendientes - Agrupadas por fecha */}
-      {showPendiente && Object.entries(groupedPendientes).map(([dateKey, clases]) => (
-        <div key={dateKey} className="space-y-3">
-          <div className="flex items-center gap-3 py-2">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{dateKey}</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                {clases.length} {clases.length === 1 ? 'clase' : 'clases'}
-              </span>
+      {showPendiente &&
+        Object.entries(groupedPendientes).map(([dateKey, clases]) => (
+          <div key={dateKey} className="space-y-3">
+            <div className="flex items-center gap-3 py-2">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {dateKey}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  {clases.length} {clases.length === 1 ? 'clase' : 'clases'}
+                </span>
+              </div>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
             </div>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+            {clases.map((clase) => (
+              <ClaseCard key={clase.idHorarioMateria} clase={clase} showProximaFecha={true} />
+            ))}
           </div>
-          {clases.map((clase) => (
-            <ClaseCard key={clase.idHorarioMateria} clase={clase} showProximaFecha={true} />
-          ))}
-        </div>
-      ))}
+        ))}
 
       {/* Clases Completadas - Una tarjeta por cada sesión */}
       {/* Mostrar sesiones completadas según el filtro seleccionado */}
@@ -1169,7 +1251,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 Clases Completadas
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                {sesionesCompletadasAgrupadas.todasLasSesiones.length} {sesionesCompletadasAgrupadas.todasLasSesiones.length === 1 ? 'sesión' : 'sesiones'}
+                {sesionesCompletadasAgrupadas.todasLasSesiones.length}{' '}
+                {sesionesCompletadasAgrupadas.todasLasSesiones.length === 1 ? 'sesión' : 'sesiones'}
               </span>
             </div>
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
@@ -1193,10 +1276,10 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
               </div>
               {/* Tarjetas de sesiones de esta fecha */}
               {grupo.items.map((item) => (
-                <SesionCompletadaCard 
-                  key={`${item.clase.idHorarioMateria}-${item.sesion.id}`} 
-                  clase={item.clase} 
-                  sesion={item.sesion} 
+                <SesionCompletadaCard
+                  key={`${item.clase.idHorarioMateria}-${item.sesion.id}`}
+                  clase={item.clase}
+                  sesion={item.sesion}
                 />
               ))}
             </div>

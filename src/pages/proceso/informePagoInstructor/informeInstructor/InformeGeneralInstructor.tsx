@@ -220,12 +220,6 @@ const InformeGeneralInstructor: React.FC = () => {
                     >
                       <i className="ki-outline ki-credit-cart text-sm" /> Comisiones
                     </button>
-                    <button
-                      onClick={() => setActividadModalParams({ idRmi: periodo.idRmi })}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 font-medium text-orange-700 dark:text-orange-400  dark:bg-white/5 rounded-lg transition-all"
-                    >
-                      <i className="ki-outline ki-list text-sm" /> Actividades
-                    </button>
                   </div>
                 </div>
               ))}

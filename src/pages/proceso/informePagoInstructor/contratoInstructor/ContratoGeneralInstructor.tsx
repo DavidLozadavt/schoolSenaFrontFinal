@@ -20,7 +20,17 @@ interface CiudadExpedicion {
 
 interface Persona {
   ciudadExpedicion: number | null;
-  ciudad_expedicion_rel: CiudadExpedicion | null; // Cambiado a snake_case
+  ciudad_expedicion_rel: CiudadExpedicion | null;
+}
+
+interface ActividadContrato {
+  id: number;
+  obligaciones: string;
+  accionesRealizadas: string;
+  evidencias: string;
+  idContrato: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Contrato {
@@ -31,6 +41,7 @@ interface Contrato {
   supervisorContrato: null | string;
   objetoContrato: null | string;
   formaDePago: 'COMISIONES' | 'SALARIO INTEGRAL' | 'NORMAL';
+  siif: null | number;
 }
 
 interface CiudadDepartamento {
@@ -58,12 +69,29 @@ const ContratoGeneralInstructor: React.FC = () => {
   const [ciudades, setCiudades] = useState<CiudadDepartamento[]>([]);
   const [ciudadSearch, setCiudadSearch] = useState('');
 
+  // Estados para actividades
+  const [actividades, setActividades] = useState<ActividadContrato[]>([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
+  const [showActividadesModal, setShowActividadesModal] = useState(false);
+  const [editingActividad, setEditingActividad] = useState<ActividadContrato | null>(null);
+  const [savingActividad, setSavingActividad] = useState(false);
+
+  //Acordeon del formulario de actividades
+  const [openForm, setOpenForm] = useState(true);
+
   const [form, setForm] = useState({
     supervisorContrato: '',
     cargoSupervisor: '',
     objetoContrato: '',
     formaDePago: 'NORMAL' as Contrato['formaDePago'],
-    ciudadExpedicionId: '' as number | ''
+    ciudadExpedicionId: '' as number | '',
+    siif: null as null | number
+  });
+
+  const [actividadForm, setActividadForm] = useState({
+    obligaciones: '',
+    accionesRealizadas: '',
+    evidencias: ''
   });
 
   useEffect(() => {
@@ -85,7 +113,8 @@ const ContratoGeneralInstructor: React.FC = () => {
             cargoSupervisor: data.cargoSupervisor ?? '',
             objetoContrato: data.objetoContrato ?? '',
             formaDePago: data.formaDePago ?? 'NORMAL',
-            ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
+            ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '',
+            siif: data.siif ?? null
           });
         }
       } finally {
@@ -94,6 +123,20 @@ const ContratoGeneralInstructor: React.FC = () => {
     };
     loadData();
   }, []);
+
+  const loadActividades = async () => {
+    if (!contrato) return;
+    setLoadingActividades(true);
+    try {
+      const response = await axios.get(`actividades-contrato?idContrato=${contrato.id}`);
+      setActividades(response.data.actividades || []);
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Error al cargar las actividades.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setLoadingActividades(false);
+    }
+  };
 
   const handleEdit = () => setEditing(true);
 
@@ -105,7 +148,8 @@ const ContratoGeneralInstructor: React.FC = () => {
       cargoSupervisor: contrato?.cargoSupervisor ?? '',
       objetoContrato: contrato?.objetoContrato ?? '',
       formaDePago: contrato?.formaDePago ?? 'NORMAL',
-      ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '' // Cambiado a snake_case
+      ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '',
+      siif: contrato?.siif ?? 0
     });
   };
 
@@ -115,14 +159,13 @@ const ContratoGeneralInstructor: React.FC = () => {
     try {
       await axios.put(`instructores/${contrato.id}/supervisor`, form);
 
-      // Actualiza la ciudad en el estado local
       const ciudadSeleccionada = ciudades.find((c) => c.id === form.ciudadExpedicionId) ?? null;
       setContrato({
         ...contrato,
         ...form,
         persona: {
           ...contrato.persona,
-          ciudad_expedicion_rel: ciudadSeleccionada, // Cambiado a snake_case
+          ciudad_expedicion_rel: ciudadSeleccionada
         }
       });
 
@@ -137,7 +180,97 @@ const ContratoGeneralInstructor: React.FC = () => {
     }
   };
 
-  // Filtra ciudades según el texto de búsqueda
+  // Gestión de actividades
+  const handleOpenActividades = () => {
+    setShowActividadesModal(true);
+    loadActividades();
+  };
+
+  const handleCloseActividadesModal = () => {
+    setShowActividadesModal(false);
+    setEditingActividad(null);
+    setActividadForm({
+      obligaciones: '',
+      accionesRealizadas: '',
+      evidencias: ''
+    });
+  };
+
+  const handleEditActividad = (actividad: ActividadContrato) => {
+    setEditingActividad(actividad);
+    setActividadForm({
+      obligaciones: actividad.obligaciones,
+      accionesRealizadas: actividad.accionesRealizadas,
+      evidencias: actividad.evidencias
+    });
+  };
+
+  const handleCancelActividadEdit = () => {
+    setEditingActividad(null);
+    setActividadForm({
+      obligaciones: '',
+      accionesRealizadas: '',
+      evidencias: ''
+    });
+  };
+
+  const handleSaveActividad = async () => {
+    if (!contrato) return;
+
+    // Validación
+    if (
+      !actividadForm.obligaciones.trim() ||
+      !actividadForm.accionesRealizadas.trim() ||
+      !actividadForm.evidencias.trim()
+    ) {
+      enqueueSnackbar('Todos los campos son requeridos.', { variant: 'warning' });
+      return;
+    }
+
+    setSavingActividad(true);
+    try {
+      if (editingActividad) {
+        // Actualizar
+        const response = await axios.put(`actividades-contrato/${editingActividad.id}`, {
+          ...actividadForm,
+          idContrato: contrato.id
+        });
+        setActividades((prev) =>
+          prev.map((a) => (a.id === editingActividad.id ? response.data.actividad : a))
+        );
+        enqueueSnackbar('Actividad actualizada con éxito.', { variant: 'success' });
+      } else {
+        // Crear
+        const response = await axios.post('actividades-contrato', {
+          ...actividadForm,
+          idContrato: contrato.id
+        });
+        setActividades((prev) => [response.data.actividad, ...prev]);
+        enqueueSnackbar('Actividad creada con éxito.', { variant: 'success' });
+      }
+
+      handleCancelActividadEdit();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Error al guardar la actividad.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setSavingActividad(false);
+    }
+  };
+
+  const handleDeleteActividad = async (id: number) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta actividad?')) return;
+
+    try {
+      await axios.delete(`actividades-contrato/${id}`);
+      setActividades((prev) => prev.filter((a) => a.id !== id));
+      enqueueSnackbar('Actividad eliminada con éxito.', { variant: 'success' });
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Error al eliminar la actividad.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    }
+  };
+
   const ciudadesFiltradas =
     ciudadSearch.trim().length >= 2
       ? ciudades
@@ -174,7 +307,7 @@ const ContratoGeneralInstructor: React.FC = () => {
   }
 
   const supervisorAsignado = contrato.supervisorContrato || contrato.cargoSupervisor;
-  const ciudadActual = contrato.persona?.ciudad_expedicion_rel; // Cambiado a snake_case
+  const ciudadActual = contrato.persona?.ciudad_expedicion_rel;
 
   return (
     <div className="w-full">
@@ -206,6 +339,29 @@ const ContratoGeneralInstructor: React.FC = () => {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* ── Botón de Actividades ── */}
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-500/5 dark:to-indigo-500/5">
+          <button
+            onClick={handleOpenActividades}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-coal-400 border border-blue-200 dark:border-blue-500/30 rounded-lg hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <i className="ki-outline ki-clipboard text-blue-600 dark:text-blue-400 text-lg" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                  Actividades del Contrato
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Gestiona las obligaciones y evidencias
+                </p>
+              </div>
+            </div>
+            <i className="ki-outline ki-right text-gray-400 dark:text-gray-500 group-hover:translate-x-1 transition-transform" />
+          </button>
         </div>
 
         {/* ── Sección supervisor ── */}
@@ -326,7 +482,16 @@ const ContratoGeneralInstructor: React.FC = () => {
                   </span>
                 )}
               </div>
-
+              <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">SIIF</p>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                  {contrato.siif ?? (
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
+                  )}
+                </p>
+              </div>
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
                   Objeto del contrato
@@ -360,6 +525,20 @@ const ContratoGeneralInstructor: React.FC = () => {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                  SIIF
+                </label>
+                <input
+                  type="number"
+                  value={form.siif ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, siif: e.target.value ? Number(e.target.value) : null })
+                  }
+                  placeholder="Número SIIF"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
@@ -389,7 +568,6 @@ const ContratoGeneralInstructor: React.FC = () => {
           </div>
 
           {!editing ? (
-            /* Vista de solo lectura */
             <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 inline-flex flex-col gap-0.5 min-w-48">
               <p className="text-xs text-gray-400 dark:text-gray-500">Ciudad de expedición</p>
               {ciudadActual ? (
@@ -408,13 +586,11 @@ const ContratoGeneralInstructor: React.FC = () => {
               )}
             </div>
           ) : (
-            /* Vista de edición con buscador */
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
                 Ciudad de expedición del documento
               </label>
 
-              {/* Ciudad seleccionada actualmente */}
               {form.ciudadExpedicionId && ciudadSeleccionadaLabel && (
                 <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg w-fit">
                   <i className="ki-outline ki-geolocation text-blue-500 text-sm" />
@@ -433,7 +609,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 </div>
               )}
 
-              {/* Input buscador */}
               <div className="relative">
                 <i className="ki-outline ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
                 <input
@@ -445,7 +620,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 />
               </div>
 
-              {/* Hint */}
               {ciudadSearch.trim().length > 0 && ciudadSearch.trim().length < 2 && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 flex items-center gap-1">
                   <i className="ki-outline ki-information-2 text-xs" />
@@ -453,7 +627,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 </p>
               )}
 
-              {/* Dropdown resultados */}
               {ciudadesFiltradas.length > 0 && (
                 <div className="mt-1.5 border border-gray-200 dark:border-coal-300 rounded-lg overflow-hidden bg-white dark:bg-coal-400 shadow-sm">
                   {ciudadesFiltradas.map((ciudad, idx) => (
@@ -481,7 +654,6 @@ const ContratoGeneralInstructor: React.FC = () => {
                 </div>
               )}
 
-              {/* Sin resultados */}
               {ciudadSearch.trim().length >= 2 && ciudadesFiltradas.length === 0 && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 flex items-center gap-1">
                   <i className="ki-outline ki-information-2 text-xs" />
@@ -491,7 +663,6 @@ const ContratoGeneralInstructor: React.FC = () => {
             </div>
           )}
 
-          {/* ── Botones de acción (modo edición) ── */}
           {editing && (
             <div className="flex justify-end gap-2 pt-5 mt-2 border-t border-gray-100 dark:border-coal-300">
               <button
@@ -518,6 +689,243 @@ const ContratoGeneralInstructor: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Modal de Actividades ── */}
+      {showActividadesModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-coal-500 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-coal-300 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center">
+                  <i className="ki-outline ki-clipboard text-blue-600 dark:text-blue-400 text-lg" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                    Actividades del Contrato
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Contrato #{contrato.id}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseActividadesModal}
+                className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 flex items-center justify-center transition-colors"
+              >
+                <i className="ki-outline ki-cross text-gray-500 dark:text-gray-400 text-lg" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Formulario para crear/editar */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-500/5 dark:to-indigo-500/5 rounded-xl p-5 mb-6 border border-blue-200 dark:border-blue-500/30">
+                <div
+                  onClick={() => setOpenForm(!openForm)}
+                  className="cursor-pointer flex items-center justify-between mb-4"
+                >
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                    <i className="ki-outline ki-add-item text-blue-600 dark:text-blue-400" />
+                    {editingActividad ? 'Editar Actividad' : 'Nueva Actividad'}
+                  </h3>
+
+                  <i
+                    className={`ki-outline ${
+                      openForm ? 'ki-up' : 'ki-down'
+                    } text-gray-500 transition-transform`}
+                  />
+                </div>
+
+                {openForm && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                        Obligaciones
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={actividadForm.obligaciones}
+                        onChange={(e) =>
+                          setActividadForm({
+                            ...actividadForm,
+                            obligaciones: e.target.value.toUpperCase()
+                          })
+                        }
+                        placeholder="DESCRIPCIÓN DE LAS OBLIGACIONES..."
+                        className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                        Acciones Realizadas
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={actividadForm.accionesRealizadas}
+                        onChange={(e) =>
+                          setActividadForm({
+                            ...actividadForm,
+                            accionesRealizadas: e.target.value.toUpperCase()
+                          })
+                        }
+                        placeholder="DESCRIPCIÓN DE LAS ACCIONES REALIZADAS..."
+                        className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                        Evidencias
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={actividadForm.evidencias}
+                        onChange={(e) =>
+                          setActividadForm({
+                            ...actividadForm,
+                            evidencias: e.target.value.toUpperCase()
+                          })
+                        }
+                        placeholder="EVIDENCIAS PRESENTADAS..."
+                        className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      {editingActividad && (
+                        <button
+                          onClick={handleCancelActividadEdit}
+                          className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-300 transition-all"
+                        >
+                          Cancelar edición
+                        </button>
+                      )}
+                      <button
+                        onClick={handleSaveActividad}
+                        disabled={savingActividad}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-all disabled:opacity-50"
+                      >
+                        {savingActividad ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <i className="ki-outline ki-check text-sm" />
+                            {editingActividad ? 'Actualizar' : 'Crear Actividad'}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de actividades */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <i className="ki-outline ki-notification-status text-gray-400" />
+                  Actividades Registradas
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-coal-400 text-gray-600 dark:text-gray-400">
+                    {actividades.length}
+                  </span>
+                </h3>
+
+                {loadingActividades ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : actividades.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-200 dark:border-coal-300">
+                    <i className="ki-outline ki-file-deleted text-4xl text-gray-300 dark:text-gray-600 mb-3" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No hay actividades registradas
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Crea tu primera actividad usando el formulario de arriba
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {actividades.map((actividad, index) => (
+                      <div
+                        key={actividad.id}
+                        className="bg-white dark:bg-coal-400 rounded-lg border border-gray-200 dark:border-coal-300 p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/10 flex items-center justify-center shrink-0">
+                              <i className="ki-outline ki-document text-indigo-600 dark:text-indigo-400 text-sm" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Actividad # {index + 1}
+                              </p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">
+                                {new Date(actividad.created_at).toLocaleDateString('es-CO', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditActividad(actividad)}
+                              className="w-7 h-7 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center justify-center transition-colors"
+                              title="Editar"
+                            >
+                              <i className="ki-outline ki-pencil text-blue-600 dark:text-blue-400 text-sm" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteActividad(actividad.id)}
+                              className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                              title="Eliminar"
+                            >
+                              <i className="ki-outline ki-trash text-red-600 dark:text-red-400 text-sm" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                              Obligaciones:
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                              {actividad.obligaciones}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                              Acciones Realizadas:
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                              {actividad.accionesRealizadas}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                              Evidencias:
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                              {actividad.evidencias}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -569,6 +569,15 @@ export const GestionProgramas = ({
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
                             </button>
+                            <button
+                              title="Proyectos Formativos"
+                              onClick={() => {
+                                navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`)
+                              }}
+                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
+                            >
+                              <i className="text-sm ki-outline ki-book-square"></i>
+                            </button>
                           </div>
                         </div>
                       </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
+import PagoGeneralInstructor from './pago/PagoGeneralInstructor'
 
 const STEPS = [
   {
@@ -21,6 +22,12 @@ const STEPS = [
     title: 'Informes',
     description: 'Informes y comisiones por periodo',
     icon: 'ki-chart-line-star',
+  },
+  {
+    number: 4,
+    title: 'Pago',
+    description: 'Archivo de pago',
+    icon: 'ki-wallet',
   },
   
 ]
@@ -148,6 +155,7 @@ const InformePagoGeneral: React.FC = () => {
           {currentStep === 0 && <ContratoGeneralInstructor />}
           {currentStep === 1 && <RmiInstructor />}
           {currentStep === 2 && <InformeGeneralInstructor />}
+          {currentStep === 3 && <PagoGeneralInstructor />}
         </div>
       </div>
 
