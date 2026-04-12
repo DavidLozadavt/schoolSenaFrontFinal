@@ -17,9 +17,11 @@ interface Comision {
 interface ComisionesIndexProps {
   idContrato: number;
   idRmi: number;
+  fechaMinima: string; // 'YYYY-MM-DD'
+  fechaMaxima: string; // 'YYYY-MM-DD'
 }
 
-const ComisionesIndex: React.FC<ComisionesIndexProps> = ({ idContrato, idRmi }) => {
+const ComisionesIndex: React.FC<ComisionesIndexProps> = ({ idContrato, idRmi, fechaMaxima, fechaMinima }) => {
   const [comisiones, setComisiones] = useState<Comision[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -261,6 +263,8 @@ const ComisionesIndex: React.FC<ComisionesIndexProps> = ({ idContrato, idRmi }) 
                   <input
                     type="date"
                     required
+                    min={fechaMinima}
+                    max={fechaMaxima}
                     value={form.fechaInicialDesplazamiento}
                     onChange={(e) => setForm({ ...form, fechaInicialDesplazamiento: e.target.value })}
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:light] dark:[color-scheme:dark]"
@@ -273,6 +277,8 @@ const ComisionesIndex: React.FC<ComisionesIndexProps> = ({ idContrato, idRmi }) 
                   <input
                     type="date"
                     required
+                    min={fechaMinima}
+                    max={fechaMaxima}
                     value={form.fechaFinalDesplazamiento}
                     onChange={(e) => setForm({ ...form, fechaFinalDesplazamiento: e.target.value })}
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:light] dark:[color-scheme:dark]"

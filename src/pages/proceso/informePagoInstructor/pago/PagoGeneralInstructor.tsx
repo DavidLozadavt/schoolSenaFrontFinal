@@ -21,6 +21,8 @@ interface Periodo {
 
 interface ContratoRmi {
   idContrato: number;
+  siif: string | null;
+  identificacion: string | null;
   fechaContratacion: string;
   fechaFinal: string | null;
   periodos: Periodo[];
@@ -36,9 +38,13 @@ const PagoGeneralInstructor: React.FC = () => {
   const [loadingRmi, setLoadingRmi] = useState(false);
   const [uploadingRmi, setUploadingRmi] = useState<number | null>(null);
 
-  // Merge PDFs
+  // Modal de unir PDFs
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContrato, setModalContrato] = useState<ContratoRmi | null>(null);
+  const [modalPeriodo, setModalPeriodo] = useState<Periodo | null>(null);
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [merging, setMerging] = useState(false);
+  const [savingMerge, setSavingMerge] = useState(false);
   const mergeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,6 +96,28 @@ const PagoGeneralInstructor: React.FC = () => {
     }
   };
 
+  const buildFileName = (contrato: ContratoRmi, periodoStr: string): string => {
+    const identificacion =
+      contrato.identificacion ?? authContext.persona.identificacion ?? 'SIN_CC';
+    const siif = contrato.siif ?? 'SIN_SIIF';
+    const [anio, mes] = periodoStr.split('-');
+    return `GF_${identificacion}_${siif}_${mes}_${anio}.pdf`;
+  };
+
+  const openMergeModal = (contrato: ContratoRmi, periodo: Periodo) => {
+    setModalContrato(contrato);
+    setModalPeriodo(periodo);
+    setPdfFiles([]);
+    setModalOpen(true);
+  };
+
+  const closeMergeModal = () => {
+    setModalOpen(false);
+    setModalContrato(null);
+    setModalPeriodo(null);
+    setPdfFiles([]);
+  };
+
   const handleAddPdfFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setPdfFiles((prev) => [...prev, ...files]);
@@ -101,39 +129,51 @@ const PagoGeneralInstructor: React.FC = () => {
   };
 
   const handleMergePdfs = async () => {
-    if (pdfFiles.length < 2) return;
+    if (!modalContrato || !modalPeriodo || pdfFiles.length < 2) return;
     setMerging(true);
     try {
       const formData = new FormData();
       pdfFiles.forEach((file) => formData.append('pdfs[]', file));
 
-      const res = await axios.post('merge_pdfs', formData, {
-        responseType: 'blob'
-      });
+      const res = await axios.post('merge_pdfs', formData, { responseType: 'blob' });
+      const mergedBlob = new Blob([res.data], { type: 'application/pdf' });
+      const fileName = buildFileName(modalContrato, modalPeriodo.periodo);
 
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      // Descarga local
+      const url = window.URL.createObjectURL(mergedBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'documento_unido.pdf');
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
+
+      // Guarda en el servidor
+      setSavingMerge(true);
+      const uploadForm = new FormData();
+      uploadForm.append('archivoPago', mergedBlob, fileName);
+      uploadForm.append('idRmi', String(modalPeriodo.idRmi));
+      await axios.post('detalle_rmi/archivo_pago_periodo', uploadForm);
+      await recargarDatos();
+      closeMergeModal();
+    } catch (e: any) {
+      if (e.response?.data?.type === 'PDF_ENCRYPTED') {
+        alert('Uno de los PDFs está protegido. Ábrelo e imprímelo como PDF antes de subirlo.');
+      } else {
+        alert('Error uniendo los PDFs');
+      }
     } finally {
       setMerging(false);
+      setSavingMerge(false);
     }
   };
 
-  // Obtener un detalleRmi representativo del periodo (el primero aceptado)
-  const getArchivoPeriodo = (periodo: Periodo) => {
-    const aceptado = periodo.detalles.find((d) => d.estadoDetalle === 'ACEPTADO');
-    return aceptado ?? null;
-  };
+  const getArchivoPeriodo = (periodo: Periodo) =>
+    periodo.detalles.find((d) => d.estadoDetalle === 'ACEPTADO') ?? null;
 
   return (
     <div className="p-5 w-full space-y-6">
-      {/* ── Sección 1: Comprobante de pago por periodo ── */}
       <div>
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
           Comprobante de pago por periodo
@@ -193,27 +233,23 @@ const PagoGeneralInstructor: React.FC = () => {
                       key={periodo.periodo}
                       className="flex items-center justify-between bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3"
                     >
-                      {/* Info del periodo */}
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Periodo: {periodo.periodo}
-                          </p>
-                          <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              periodo.estadoRmi === 'ACEPTADO'
-                                ? 'bg-green-100 text-green-700'
-                                : periodo.estadoRmi === 'RECHAZADO'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                            }`}
-                          >
-                            {periodo.estadoRmi}
-                          </span>
-                        </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          Periodo: {periodo.periodo}
+                        </p>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            periodo.estadoRmi === 'ACEPTADO'
+                              ? 'bg-green-100 text-green-700'
+                              : periodo.estadoRmi === 'RECHAZADO'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {periodo.estadoRmi}
+                        </span>
                       </div>
 
-                      {/* Archivo de pago - solo si periodo ACEPTADO */}
                       {periodo.estadoRmi === 'ACEPTADO' && (
                         <div className="flex items-center gap-2">
                           {detalle?.archivoPagoUrl ? (
@@ -252,6 +288,14 @@ const PagoGeneralInstructor: React.FC = () => {
                               }}
                             />
                           </label>
+
+                          <button
+                            onClick={() => openMergeModal(contrato, periodo)}
+                            className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 transition-all"
+                          >
+                            <i className="ki-outline ki-document-2 text-sm" />
+                            Unir y subir PDF
+                          </button>
                         </div>
                       )}
                     </div>
@@ -263,84 +307,108 @@ const PagoGeneralInstructor: React.FC = () => {
         )}
       </div>
 
-      {/* ── Sección 2: Unir PDFs ── */}
-      <div className="bg-white dark:bg-coal-500 rounded-xl border border-gray-200 dark:border-coal-300 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300">
-          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Unir PDFs</p>
-          <p className="text-xs text-gray-400">
-            Agrega los PDFs que deseas unir en el orden deseado
-          </p>
-        </div>
-
-        <div className="p-4 space-y-3">
-          {/* Lista de PDFs agregados */}
-          {pdfFiles.length > 0 && (
-            <div className="space-y-2">
-              {pdfFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between bg-gray-50 dark:bg-coal-400 rounded-lg px-3 py-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <i className="ki-outline ki-document text-red-500 text-sm" />
-                    <span className="text-xs text-gray-700 dark:text-gray-200 truncate max-w-[250px]">
-                      {file.name}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      ({(file.size / 1024).toFixed(0)} KB)
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleRemovePdf(index)}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <i className="ki-outline ki-cross text-sm" />
-                  </button>
-                </div>
-              ))}
+      {/* Modal de unir PDFs */}
+      {modalOpen && modalContrato && modalPeriodo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-coal-500 rounded-xl border border-gray-200 dark:border-coal-300 w-full max-w-md shadow-lg overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Unir PDFs</p>
+                <p className="text-xs text-gray-400">
+                  Contrato #{modalContrato.idContrato} · Periodo {modalPeriodo.periodo}
+                </p>
+              </div>
+              <button
+                onClick={closeMergeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-base" />
+              </button>
             </div>
-          )}
 
-          {/* Botones */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-gray-50 hover:bg-gray-100 dark:bg-coal-400 dark:hover:bg-coal-300 text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer border border-gray-200 dark:border-coal-300 transition-all">
-              <i className="ki-outline ki-plus text-sm" /> Agregar PDF
-              <input
-                type="file"
-                accept="application/pdf"
-                multiple
-                className="hidden"
-                ref={mergeInputRef}
-                onChange={handleAddPdfFiles}
-              />
-            </label>
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                <i className="ki-outline ki-document text-blue-500 text-sm" />
+                <span className="text-xs text-blue-700 dark:text-blue-400 font-mono truncate">
+                  {buildFileName(modalContrato, modalPeriodo.periodo)}
+                </span>
+              </div>
 
-            {pdfFiles.length > 1 && (
-              <button
-                onClick={handleMergePdfs}
-                disabled={merging}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
-              >
-                <i className="ki-outline ki-document text-sm" />
-                {merging ? 'Uniendo...' : `Unir ${pdfFiles.length} PDFs`}
-              </button>
-            )}
+              {pdfFiles.length > 0 && (
+                <div className="space-y-2">
+                  {pdfFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between bg-gray-50 dark:bg-coal-400 rounded-lg px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <i className="ki-outline ki-document text-red-500 text-sm" />
+                        <span className="text-xs text-gray-700 dark:text-gray-200 truncate max-w-[220px]">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          ({(file.size / 1024).toFixed(0)} KB)
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleRemovePdf(index)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <i className="ki-outline ki-cross text-sm" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {pdfFiles.length > 0 && (
-              <button
-                onClick={() => setPdfFiles([])}
-                className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-2"
-              >
-                Limpiar todo
-              </button>
-            )}
+              {pdfFiles.length === 1 && (
+                <p className="text-xs text-yellow-600">Agrega al menos 2 PDFs para unirlos</p>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-gray-50 hover:bg-gray-100 dark:bg-coal-400 dark:hover:bg-coal-300 text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer border border-gray-200 dark:border-coal-300 transition-all">
+                  <i className="ki-outline ki-plus text-sm" /> Agregar PDF
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    className="hidden"
+                    ref={mergeInputRef}
+                    onChange={handleAddPdfFiles}
+                  />
+                </label>
+
+                {pdfFiles.length >= 2 && (
+                  <button
+                    onClick={handleMergePdfs}
+                    disabled={merging || savingMerge}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
+                  >
+                    {(merging || savingMerge) && (
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    )}
+                    <i className="ki-outline ki-document text-sm" />
+                    {merging
+                      ? 'Uniendo...'
+                      : savingMerge
+                        ? 'Guardando...'
+                        : `Unir ${pdfFiles.length} PDFs y guardar`}
+                  </button>
+                )}
+
+                {pdfFiles.length > 0 && (
+                  <button
+                    onClick={() => setPdfFiles([])}
+                    className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2 py-2"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-
-          {pdfFiles.length < 2 && pdfFiles.length > 0 && (
-            <p className="text-xs text-yellow-600">Agrega al menos 2 PDFs para unirlos</p>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

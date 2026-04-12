@@ -16,9 +16,17 @@ interface Actividad {
 
 interface ActividadesIndexProps {
   idRmi: number;
+  idContrato: number;
+  fechaMinima: string; // 'YYYY-MM-DD'
+  fechaMaxima: string; // 'YYYY-MM-DD'
 }
 
-const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
+const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
+  idRmi,
+  idContrato,
+  fechaMinima,
+  fechaMaxima
+}) => {
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,13 +43,15 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
     descripcion: '',
     fechaInicial: '',
     fechaFinal: '',
-    numeroHoras: '',
+    numeroHoras: ''
   });
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`actividades-instructores?idRmi=${idRmi}`);
+      const res = await axios.get(
+        `actividades-instructores?idRmi=${idRmi}&idContrato=${idContrato}`
+      );
       setActividades(res.data);
     } catch {
       enqueueSnackbar('Error cargando las actividades', { variant: 'error' });
@@ -73,7 +83,7 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
       descripcion: actividad.descripcion,
       fechaInicial: actividad.fechaInicial?.slice(0, 10) ?? '',
       fechaFinal: actividad.fechaFinal?.slice(0, 10) ?? '',
-      numeroHoras: actividad.numeroHoras.toString(),
+      numeroHoras: actividad.numeroHoras.toString()
     });
     setEditingId(actividad.id);
     setIsFormOpen(true);
@@ -117,11 +127,12 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
         formData.append('fechaFinal', form.fechaFinal);
         formData.append('numeroHoras', form.numeroHoras);
         formData.append('idRmi', String(idRmi));
+        formData.append('idContrato', String(idContrato));
         if (selectedFile) formData.append('documento', selectedFile);
         if (removeDoc) formData.append('removeDocumento', '1');
 
         await axios.post(`actividades-instructores/${editingId}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         enqueueSnackbar('Actividad actualizada', { variant: 'success' });
       } else {
@@ -131,10 +142,11 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
         formData.append('fechaFinal', form.fechaFinal);
         formData.append('numeroHoras', form.numeroHoras);
         formData.append('idRmi', String(idRmi));
+        formData.append('idContrato', String(idContrato));
         if (selectedFile) formData.append('documento', selectedFile);
 
         await axios.post('actividades-instructores', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         enqueueSnackbar('Actividad registrada', { variant: 'success' });
       }
@@ -182,12 +194,24 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 dark:bg-coal-500 border-b border-gray-200 dark:border-coal-300">
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Descripción</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Fecha Inicial</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Fecha Final</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">N° Horas</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Documento</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 text-right">Acciones</th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                Descripción
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                Fecha Inicial
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                Fecha Final
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                N° Horas
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                Documento
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 text-right">
+                Acciones
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -244,7 +268,9 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 italic">Sin documento</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                        Sin documento
+                      </span>
                     )}
                   </td>
 
@@ -272,7 +298,11 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
       </div>
 
       {/* Modal Formulario CRUD */}
-      <Modal open={isFormOpen} onClose={() => setIsFormOpen(false)} className="mx-4 sm:mx-auto max-w-lg w-full">
+      <Modal
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        className="mx-4 sm:mx-auto max-w-lg w-full"
+      >
         <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
           <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
             <ModalTitle>{editingId ? 'Editar Actividad' : 'Nueva Actividad'}</ModalTitle>
@@ -306,6 +336,8 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
                   <input
                     type="date"
                     required
+                    min={fechaMinima}
+                    max={fechaMaxima}
                     value={form.fechaInicial}
                     onChange={(e) => setForm({ ...form, fechaInicial: e.target.value })}
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:light] dark:[color-scheme:dark]"
@@ -318,6 +350,8 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
                   <input
                     type="date"
                     required
+                    min={fechaMinima}
+                    max={fechaMaxima}
                     value={form.fechaFinal}
                     onChange={(e) => setForm({ ...form, fechaFinal: e.target.value })}
                     className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 [color-scheme:light] dark:[color-scheme:dark]"
@@ -344,27 +378,30 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({ idRmi }) => {
                   </label>
 
                   {/* Documento actual en modo edición */}
-                  {editingId && actividadEditando?.rutaDocumentoUrl && !removeDoc && !selectedFile && (
-                    <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-lg">
-                      <i className="ki-outline ki-document text-green-600 dark:text-green-400 text-sm" />
-                      <a
-                        href={actividadEditando.rutaDocumentoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-green-700 dark:text-green-400 font-medium underline underline-offset-2 flex-1 truncate"
-                      >
-                        Documento actual
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => setRemoveDoc(true)}
-                        className="text-red-400 hover:text-red-600 transition-colors"
-                        title="Quitar documento"
-                      >
-                        <i className="ki-outline ki-cross text-xs" />
-                      </button>
-                    </div>
-                  )}
+                  {editingId &&
+                    actividadEditando?.rutaDocumentoUrl &&
+                    !removeDoc &&
+                    !selectedFile && (
+                      <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-lg">
+                        <i className="ki-outline ki-document text-green-600 dark:text-green-400 text-sm" />
+                        <a
+                          href={actividadEditando.rutaDocumentoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-green-700 dark:text-green-400 font-medium underline underline-offset-2 flex-1 truncate"
+                        >
+                          Documento actual
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setRemoveDoc(true)}
+                          className="text-red-400 hover:text-red-600 transition-colors"
+                          title="Quitar documento"
+                        >
+                          <i className="ki-outline ki-cross text-xs" />
+                        </button>
+                      </div>
+                    )}
 
                   {/* Aviso de que se va a quitar el doc */}
                   {removeDoc && !selectedFile && (
