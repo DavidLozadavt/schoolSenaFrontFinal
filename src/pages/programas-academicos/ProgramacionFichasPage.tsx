@@ -393,10 +393,23 @@ export const ProgramacionFichasPage = () => {
               setIsModalOpen={setIsModalOpen}
               programaId={programId}
               onAction={() => {
-                // Guardar IDs actuales para detectar la nueva ficha
                 const idsActuales = fichas.map((f) => f.id);
                 setFichasAntesDeCrear(idsActuales);
-                loadFichas(idsActuales);
+                loadFichas(idsActuales).then(() => {
+                  // Si NO es instructor SENA, abrir modal de asignar con la ficha recién creada
+                  if (!esInstructorSena) {
+                    // Pequeño delay para que las fichas ya estén en el estado
+                    setTimeout(() => {
+                      setFichas((fichasActuales) => {
+                        const nuevaFicha = fichasActuales.find((f) => !idsActuales.includes(f.id));
+                        if (nuevaFicha) {
+                          setFichaAsignarLider(nuevaFicha);
+                        }
+                        return fichasActuales;
+                      });
+                    }, 300);
+                  }
+                });
                 setEvento((prev) => !prev);
               }}
             />
@@ -536,25 +549,64 @@ export const ProgramacionFichasPage = () => {
                             {/* Botón Asignar/Cambiar líder */}
                             <div className="flex items-center gap-3">
                               {ficha.idInstructorLider && ficha.instructorLider?.persona ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setFichaAsignarLider(ficha)}
-                                  className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
-                                >
-                                  Cambiar
-                                </button>
+                                !esInstructorSena && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFichaAsignarLider(ficha)}
+                                    className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                                  >
+                                    Cambiar
+                                  </button>
+                                )
                               ) : (
                                 <>
                                   <span className="text-sm text-gray-500 dark:text-gray-400">
                                     Sin líder asignado
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setFichaAsignarLider(ficha)}
-                                    className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                  >
-                                    Asignar
-                                  </button>
+                                  {esInstructorSena ? (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const idContratoUsuario = user?.persona?.contrato?.find(
+                                          (c: any) => c.idEstado === 1
+                                        )?.id;
+                                        if (!idContratoUsuario) {
+                                          enqueueSnackbar('No se encontró tu contrato activo', {
+                                            variant: 'error'
+                                          });
+                                          return;
+                                        }
+                                        try {
+                                          await axios.post(
+                                            `fichas/${ficha.id}/asignar-instructor-lider`,
+                                            {
+                                              idInstructorLider: idContratoUsuario
+                                            }
+                                          );
+                                          enqueueSnackbar(
+                                            'Te has asignado correctamente a esta ficha',
+                                            { variant: 'success' }
+                                          );
+                                          loadFichas();
+                                        } catch {
+                                          enqueueSnackbar('Error al asignarte a la ficha', {
+                                            variant: 'error'
+                                          });
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                      Asignarme
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setFichaAsignarLider(ficha)}
+                                      className="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                      Asignar
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
