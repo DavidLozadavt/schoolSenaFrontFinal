@@ -150,10 +150,27 @@ export const GestionProgramas = ({
       setLoading(true);
       setError(null);
 
-      let url = `programasporRed/${idRed}`;
+      let url = '';
 
-      if (idCentroFormacion !== 0) {
-        url += `?centro=${idCentroFormacion}`;
+      // 🔥 SI ES DOCENTE
+      if (authContext?.roles?.includes('INSTRUCTOR SENA')) {
+        const idContrato = authContext?.user?.persona?.contrato?.find(
+          (c: any) => c.idEstado === 1
+        )?.id;
+
+        if (!idContrato) {
+          setPrograms([]);
+          return;
+        }
+
+        url = `programas_docente/${idContrato}`;
+      } else {
+        // 👇 flujo normal
+        url = `programasporRed/${idRed}`;
+
+        if (idCentroFormacion !== 0) {
+          url += `?centro=${idCentroFormacion}`;
+        }
       }
 
       const response = await axios.get(url);
@@ -163,24 +180,20 @@ export const GestionProgramas = ({
       }
     } catch (error) {
       console.error('Error al cargar programas:', error);
-      setError('No se pudieron cargar los programas. Por favor, intente más tarde.');
+      setError('No se pudieron cargar los programas.');
     } finally {
       setLoading(false);
     }
-  }, [idCentroFormacion, idRed, mapBackendToUi]);
-
+  }, [idCentroFormacion, idRed, mapBackendToUi, authContext]);
   useEffect(() => {
-  if (!idRed) return;
+    if (!idRed) return;
 
-  if (
-    authContext?.roles?.includes('ADMIN CENTRO') &&
-    idCentroFormacion === 0
-  ) {
-    return;
-  }
+    if (authContext?.roles?.includes('ADMIN CENTRO') && idCentroFormacion === 0) {
+      return;
+    }
 
-  fetchProgramas();
-}, [idRed, idCentroFormacion]);
+    fetchProgramas();
+  }, [idRed, idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
@@ -572,7 +585,9 @@ export const GestionProgramas = ({
                             <button
                               title="Proyectos Formativos"
                               onClick={() => {
-                                navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`)
+                                navigate(
+                                  `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`
+                                );
                               }}
                               className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
                             >

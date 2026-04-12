@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import FormularioRedes from '@/pages/gestion-red/FormularioRedes';
 import ListaRedesProgramas from './ListaRedesProgramas';
 
-const RedesProgramas:React.FC = () => {
-    const location = useLocation();
-    const esProgramas = location.pathname.includes('/programas');
-    const [searchTerm, setSearchTerm] = useState<string>('');
-      const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-      //Para actualizar la Data una vez ocurra un vambio:
-      const [evento, setEvento] = useState<boolean>(true);
-    
-      //Toast para el success
-      const [toastOpen, setToastOpen] = useState(false);
-      const [toastMessage, setToastMessage] = useState('');
-    
-      const showToast = (message: string) => {
-        setToastMessage(message);
-        setToastOpen(true);
-      };
+const RedesProgramas: React.FC = () => {
+  const location = useLocation();
+  const esProgramas = location.pathname.includes('/programas');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  //Para actualizar la Data una vez ocurra un vambio:
+  const [evento, setEvento] = useState<boolean>(true);
+
+  //Toast para el success
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
   return (
-    <div className='relative min-h-screen'>
-        {/** titulo */}
+    <div className="relative min-h-screen">
+      {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
           {esProgramas ? 'Programas' : 'Elige la red'}
@@ -43,19 +43,17 @@ const RedesProgramas:React.FC = () => {
             className="w-full px-3 text-sm font-medium transition-opacity bg-transparent border-none outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 dark:text-white"
           />
         </div>
-
-        
       </div>
-        <FormularioRedes
-          open={isModalOpen}
-          onClose={()=>setIsModalOpen(false)}
-          setEvento={setEvento}
-        />
+      <FormularioRedes
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        setEvento={setEvento}
+      />
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <ListaRedesProgramas searchTerm={searchTerm} evento={evento} setEvento={setEvento}/>
+        <ListaRedesProgramas searchTerm={searchTerm} evento={evento} setEvento={setEvento} />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default RedesProgramas
+export default RedesProgramas;
