@@ -53,6 +53,7 @@ export const GestionProgramas = ({
 
   // Filtros para ver los programas por regional:
   const { setCentroF } = authContext;
+  const esInstructorSena = authContext?.roles?.includes('INSTRUCTOR SENA');
 
   const [regionales, setRegionales] = useState<Regional[]>([]);
   const [idRegional, setIdRegional] = useState<number>(0);
@@ -150,10 +151,27 @@ export const GestionProgramas = ({
       setLoading(true);
       setError(null);
 
-      let url = `programasporRed/${idRed}`;
+      let url = '';
 
-      if (idCentroFormacion !== 0) {
-        url += `?centro=${idCentroFormacion}`;
+      // 🔥 SI ES DOCENTE
+      if (authContext?.roles?.includes('INSTRUCTOR SENA')) {
+        const idContrato = authContext?.user?.persona?.contrato?.find(
+          (c: any) => c.idEstado === 1
+        )?.id;
+
+        if (!idContrato) {
+          setPrograms([]);
+          return;
+        }
+
+        url = `programas_docente/${idContrato}`;
+      } else {
+        // 👇 flujo normal
+        url = `programasporRed/${idRed}`;
+
+        if (idCentroFormacion !== 0) {
+          url += `?centro=${idCentroFormacion}`;
+        }
       }
 
       const response = await axios.get(url);
@@ -163,24 +181,20 @@ export const GestionProgramas = ({
       }
     } catch (error) {
       console.error('Error al cargar programas:', error);
-      setError('No se pudieron cargar los programas. Por favor, intente más tarde.');
+      setError('No se pudieron cargar los programas.');
     } finally {
       setLoading(false);
     }
-  }, [idCentroFormacion, idRed, mapBackendToUi]);
-
+  }, [idCentroFormacion, idRed, mapBackendToUi, authContext]);
   useEffect(() => {
-  if (!idRed) return;
+    if (!idRed) return;
 
-  if (
-    authContext?.roles?.includes('ADMIN CENTRO') &&
-    idCentroFormacion === 0
-  ) {
-    return;
-  }
+    if (authContext?.roles?.includes('ADMIN CENTRO') && idCentroFormacion === 0) {
+      return;
+    }
 
-  fetchProgramas();
-}, [idRed, idCentroFormacion]);
+    fetchProgramas();
+  }, [idRed, idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
@@ -356,20 +370,22 @@ export const GestionProgramas = ({
             />
           </div>
 
-          <button
-            onClick={() => {
-              setProgramToEdit(null);
-              setIsModalOpen(true);
-            }}
-            className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
-          >
-            <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
-              <i className="text-lg ki-filled ki-plus"></i>
-            </div>
-            <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-              Añadir Programa
-            </span>
-          </button>
+          {!esInstructorSena && (
+            <button
+              onClick={() => {
+                setProgramToEdit(null);
+                setIsModalOpen(true);
+              }}
+              className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+            >
+              <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                <i className="text-lg ki-filled ki-plus"></i>
+              </div>
+              <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                Añadir Programa
+              </span>
+            </button>
+          )}
         </div>
         <div className="flex">
           {/** Filros para ver regionales por centros de formación */}
@@ -548,20 +564,27 @@ export const GestionProgramas = ({
                                 <i className="text-sm ki-outline ki-document"></i>
                               </span>
                             )}
-                            <button
-                              onClick={() => openEditModal(program)}
-                              title="Actualizar"
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-arrows-loop"></i>
-                            </button>
-                            <button
-                              onClick={() => openDeleteConfirm(program)}
-                              title="Eliminar"
-                              className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-trash"></i>
-                            </button>
+
+                            {/* Solo visible si NO es instructor SENA */}
+                            {!esInstructorSena && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(program)}
+                                  title="Actualizar"
+                                  className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
+                                >
+                                  <i className="text-sm ki-outline ki-arrows-loop"></i>
+                                </button>
+                                <button
+                                  onClick={() => openDeleteConfirm(program)}
+                                  title="Eliminar"
+                                  className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
+                                >
+                                  <i className="text-sm ki-outline ki-trash"></i>
+                                </button>
+                              </>
+                            )}
+
                             <button
                               title="Información"
                               onClick={() => handleOpenInfo(program)}
@@ -569,15 +592,20 @@ export const GestionProgramas = ({
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
                             </button>
-                            <button
-                              title="Proyectos Formativos"
-                              onClick={() => {
-                                navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`)
-                              }}
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-book-square"></i>
-                            </button>
+
+                            {!esInstructorSena && (
+                              <button
+                                title="Proyectos Formativos"
+                                onClick={() => {
+                                  navigate(
+                                    `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`
+                                  );
+                                }}
+                                className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
+                              >
+                                <i className="text-sm ki-outline ki-book-square"></i>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
