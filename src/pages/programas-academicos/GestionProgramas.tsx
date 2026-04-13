@@ -156,7 +156,7 @@ export const GestionProgramas = ({
       // 🔥 SI ES DOCENTE
       if (authContext?.roles?.includes('INSTRUCTOR SENA')) {
         const idContrato = authContext?.user?.persona?.contrato?.find(
-          (c: any) => c.idEstado === 1
+          (c: any) => Number(c.idEstado) === 1
         )?.id;
 
         if (!idContrato) {

@@ -160,17 +160,20 @@ export const ProgramacionFichasPage = () => {
     setLoading(true);
 
     try {
-      const idContratoUsuario = user?.persona?.contrato?.find((c: any) => c.idEstado === 1)?.id;
+      // ✅ CORRECTO
+      const idContratoUsuario = user?.persona?.contrato?.find(
+        (c: any) => Number(c.idEstado) === 1
+      )?.id;
 
       const aplicarFiltro = (fichasConDocumento: any[]) => {
         return esInstructorSena
           ? fichasConDocumento.filter(
               (ficha: any) =>
-                !ficha.idInstructorLider || ficha.idInstructorLider === idContratoUsuario
+                !ficha.idInstructorLider ||
+                Number(ficha.idInstructorLider) === Number(idContratoUsuario) // ✅
             )
           : fichasConDocumento;
       };
-
       if (centroF != 0) {
         const res = await axios.get(`fichas/programa/${programId}/${centroF}`);
         const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
@@ -567,8 +570,9 @@ export const ProgramacionFichasPage = () => {
                                     <button
                                       type="button"
                                       onClick={async () => {
+                                        // Busca el contrato activo
                                         const idContratoUsuario = user?.persona?.contrato?.find(
-                                          (c: any) => c.idEstado === 1
+                                          (c: any) => Number(c.idEstado) === 1 // ✅
                                         )?.id;
                                         if (!idContratoUsuario) {
                                           enqueueSnackbar('No se encontró tu contrato activo', {
