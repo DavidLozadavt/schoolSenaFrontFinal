@@ -72,7 +72,12 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
       // No mostrar errores técnicos al usuario, solo loguear en consola
       const errorMessage = error?.response?.data?.message || '';
       // Solo mostrar mensaje si no es un error técnico (rutas de archivos, etc)
-      if (errorMessage && !errorMessage.includes('File does not exist') && !errorMessage.includes('\\') && !errorMessage.includes('/')) {
+      if (
+        errorMessage &&
+        !errorMessage.includes('File does not exist') &&
+        !errorMessage.includes('\\') &&
+        !errorMessage.includes('/')
+      ) {
         enqueueSnackbar('Error al cargar instructores disponibles', { variant: 'error' });
       }
       setInstructores([]);
@@ -100,7 +105,12 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
       console.error('Error al asignar instructor:', error);
       const errorMessage = error?.response?.data?.message || '';
       // No mostrar errores técnicos al usuario
-      if (errorMessage && !errorMessage.includes('File does not exist') && !errorMessage.includes('\\') && !errorMessage.includes('/')) {
+      if (
+        errorMessage &&
+        !errorMessage.includes('File does not exist') &&
+        !errorMessage.includes('\\') &&
+        !errorMessage.includes('/')
+      ) {
         enqueueSnackbar('Error al asignar instructor líder', { variant: 'error' });
       }
     } finally {
@@ -127,10 +137,7 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
       <ModalContent className="max-w-3xl">
         <ModalHeader>
           <ModalTitle>Seleccionar Líder de Ficha</ModalTitle>
-          <button
-            className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
-            onClick={onClose}
-          >
+          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
             <KeenIcon icon="cross" />
           </button>
         </ModalHeader>
@@ -159,9 +166,7 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
             </div>
           ) : instructores.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">
-                No hay instructores disponibles para este programa
-              </p>
+              <p className="text-gray-500">No hay instructores disponibles para este programa</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
@@ -192,7 +197,7 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
                             }}
                           />
                         ) : null}
-                        <div 
+                        <div
                           className={`absolute inset-0 flex items-center justify-center text-gray-600 font-semibold text-sm ${instructor.persona?.rutaFotoUrl ? 'hidden' : 'flex'}`}
                         >
                           {getIniciales(instructor)}
@@ -205,26 +210,27 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
                         <p className="text-xs text-gray-500 mt-1">
                           ID: {instructor.persona.identificacion}
                         </p>
-                        {instructor.areasConocimiento && instructor.areasConocimiento.length > 0 && (
-                          <div className="mt-1">
-                            <p className="text-xs text-gray-600 mb-1">Áreas de conocimiento:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {instructor.areasConocimiento.slice(0, 3).map((area) => (
-                                <span
-                                  key={area.id}
-                                  className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
-                                >
-                                  {area.nombreAreaConocimiento}
-                                </span>
-                              ))}
-                              {instructor.areasConocimiento.length > 3 && (
-                                <span className="px-2 py-0.5 text-xs text-gray-500">
-                                  +{instructor.areasConocimiento.length - 3} más
-                                </span>
-                              )}
+                        {instructor.areasConocimiento &&
+                          instructor.areasConocimiento.length > 0 && (
+                            <div className="mt-1">
+                              <p className="text-xs text-gray-600 mb-1">Áreas de conocimiento:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {instructor.areasConocimiento.slice(0, 3).map((area) => (
+                                  <span
+                                    key={area.id}
+                                    className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
+                                  >
+                                    {area.nombreAreaConocimiento}
+                                  </span>
+                                ))}
+                                {instructor.areasConocimiento.length > 3 && (
+                                  <span className="px-2 py-0.5 text-xs text-gray-500">
+                                    +{instructor.areasConocimiento.length - 3} más
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -241,14 +247,27 @@ export const AsignarInstructorLiderModal: React.FC<AsignarInstructorLiderModalPr
               })}
             </div>
           )}
-
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+          <div className="flex justify-between gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
-              className="btn btn-sm btn-light"
-              onClick={onClose}
+              className="btn btn-sm btn-light text-gray-500"
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await axios.post(`fichas/${fichaId}/asignar-instructor-lider`, {
+                    idInstructorLider: null
+                  });
+                  enqueueSnackbar('Ficha dejada sin instructor líder', { variant: 'info' });
+                  onSuccess();
+                  onClose();
+                } catch {
+                  enqueueSnackbar('Error al quitar el instructor líder', { variant: 'error' });
+                } finally {
+                  setSaving(false);
+                }
+              }}
               disabled={saving}
             >
-              Cancelar
+              Dejar sin asignación
             </button>
             <button
               className="btn btn-sm btn-primary"

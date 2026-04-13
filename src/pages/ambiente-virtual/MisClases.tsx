@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Sesion {
   fecha: string;
@@ -40,15 +42,107 @@ interface MisClasesProps {
   filtro?: 'todas' | 'completadas';
 }
 
-// Funciones helper para obtener icono y texto de estado
-const obtenerIconoEstado = (estado: Sesion['estado']) => {
+// ─── Normalización ────────────────────────────────────────────────────────────
+
+const toNum = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  const n = parseInt(String(v), 10);
+  return isNaN(n) ? 0 : n;
+};
+
+const toFloat = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v));
+  return isNaN(n) ? 0 : n;
+};
+
+const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
+  fecha: typeof s.fecha === 'string' ? s.fecha : '',
+  // El backend envía "18:00:00" — normalizamos a "18:00"
+  horaInicial: typeof s.horaInicial === 'string' ? s.horaInicial.substring(0, 5) : '',
+  horaFinal: typeof s.horaFinal === 'string' ? s.horaFinal.substring(0, 5) : '',
+  estado: (['COMPLETADA', 'EN_CURSO', 'PROXIMO', 'PENDIENTE'].includes(s.estado as string)
+    ? s.estado
+    : 'PENDIENTE') as Sesion['estado'],
+  numeroSesion: toNum(s.numeroSesion),
+  idDia: toNum(s.idDia),
+  idHorarioMateria: toNum(s.idHorarioMateria)
+});
+
+const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
+  idMateria: toNum(raw.idMateria),
+  materia_nombre: typeof raw.materia_nombre === 'string' ? raw.materia_nombre : '',
+  profesor_nombre: typeof raw.profesor_nombre === 'string' ? raw.profesor_nombre : '',
+  profesor_email: typeof raw.profesor_email === 'string' ? raw.profesor_email : '',
+  aula_nombre: typeof raw.aula_nombre === 'string' ? raw.aula_nombre : '',
+  horario_texto: typeof raw.horario_texto === 'string' ? raw.horario_texto : '',
+  horarios: Array.isArray(raw.horarios)
+    ? (raw.horarios as Record<string, unknown>[]).map((h) => ({
+        dia: typeof h.dia === 'string' ? h.dia : '',
+        horaInicial: typeof h.horaInicial === 'string' ? h.horaInicial : '',
+        horaFinal: typeof h.horaFinal === 'string' ? h.horaFinal : '',
+        idHorarioMateria: toNum(h.idHorarioMateria)
+      }))
+    : [],
+  total_sesiones: toNum(raw.total_sesiones),
+  sesiones_completadas: toNum(raw.sesiones_completadas),
+  sesiones_restantes: toNum(raw.sesiones_restantes),
+  porcentaje_completado: toFloat(raw.porcentaje_completado),
+  sesiones: Array.isArray(raw.sesiones)
+    ? (raw.sesiones as Record<string, unknown>[]).map(normalizarSesion)
+    : [],
+  idHorariosMateria: Array.isArray(raw.idHorariosMateria)
+    ? (raw.idHorariosMateria as unknown[]).map(toNum)
+    : []
+});
+
+/**
+ * Consolida duplicados por idMateria.
+ * El backend puede enviar la misma materia dos veces: una con sesiones: []
+ * y otra con las sesiones pobladas. Nos quedamos con la que tenga más sesiones;
+ * en empate, preferimos la que tenga sesiones_completadas > 0.
+ */
+const normalizarClases = (data: unknown[]): Materia[] => {
+  if (!Array.isArray(data)) return [];
+
+  const mapa = new Map<number, Materia>();
+
+  for (const raw of data) {
+    if (!raw || typeof raw !== 'object') continue;
+    const materia = normalizarMateria(raw as Record<string, unknown>);
+    const existente = mapa.get(materia.idMateria);
+
+    if (!existente) {
+      mapa.set(materia.idMateria, materia);
+      continue;
+    }
+
+    // Preferir la entrada con más sesiones detalladas
+    if (materia.sesiones.length > existente.sesiones.length) {
+      mapa.set(materia.idMateria, materia);
+    } else if (
+      materia.sesiones.length === existente.sesiones.length &&
+      materia.sesiones_completadas > existente.sesiones_completadas
+    ) {
+      mapa.set(materia.idMateria, materia);
+    }
+  }
+
+  return Array.from(mapa.values());
+};
+
+// ─── Helpers de estado ────────────────────────────────────────────────────────
+
+const obtenerIconoEstado = (estado: Sesion['estado']): React.ReactElement | null => {
   switch (estado) {
     case 'COMPLETADA':
       return <KeenIcon icon="check" className="text-sm text-gray-600 dark:text-gray-400" />;
     case 'EN_CURSO':
       return <KeenIcon icon="circle" className="text-sm text-green-600 dark:text-green-400" />;
     case 'PROXIMO':
-      return <KeenIcon icon="arrow-right" className="text-sm text-orange-600 dark:text-orange-400" />;
+      return (
+        <KeenIcon icon="arrow-right" className="text-sm text-orange-600 dark:text-orange-400" />
+      );
     case 'PENDIENTE':
       return <KeenIcon icon="lock" className="text-sm text-gray-500 dark:text-gray-400" />;
     default:
@@ -65,41 +159,98 @@ const obtenerTextoEstado = (estado: Sesion['estado']): string => {
     case 'PROXIMO':
       return 'Próximo';
     case 'PENDIENTE':
-      // Pendiente pero aún no es la próxima sesión visible → se muestra como "En espera"
-      return 'En espera';
     default:
       return 'En espera';
   }
 };
 
+const obtenerColorEstado = (estado: Sesion['estado']): string => {
+  switch (estado) {
+    case 'COMPLETADA':
+      return 'bg-gray-100 dark:bg-coal-300 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
+    case 'EN_CURSO':
+      return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700';
+    case 'PROXIMO':
+      return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
+    case 'PENDIENTE':
+    default:
+      return 'bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
+  }
+};
+
+// ─── Helpers de fecha / hora ──────────────────────────────────────────────────
+
+const formatearFecha = (fechaStr: string): string => {
+  if (!fechaStr) return '';
+  try {
+    // Tomamos solo la parte de fecha para evitar desfases de zona horaria
+    const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
+    const fecha = new Date(year, month - 1, day);
+    if (isNaN(fecha.getTime())) return fechaStr;
+    const meses = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic'
+    ];
+    const diasSemana = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+  } catch {
+    return fechaStr;
+  }
+};
+
+const formatearHora = (horaStr: string): string => {
+  if (!horaStr) return '';
+  try {
+    // Acepta "HH:MM" o "HH:MM:SS"
+    const partes = horaStr.split(':').map(Number);
+    const hora24 = partes[0];
+    const minuto = partes[1] ?? 0;
+    let hora12 = hora24 % 12 || 12;
+    const periodo = hora24 < 12 ? 'AM' : 'PM';
+    return `${hora12}:${minuto.toString().padStart(2, '0')} ${periodo}`;
+  } catch {
+    return horaStr;
+  }
+};
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [materias, setMaterias] = useState<Materia[]>([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [error, setError] = useState<string | null>(null);
 
-  // Actualizar tiempo cada minuto para recalcular estados en tiempo real
-  // (optimizado: no es necesario actualizar cada segundo)
+  // Actualiza el reloj cada minuto para re-evaluar estados EN_CURSO
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Actualizar cada minuto en lugar de cada segundo
-
+    const interval = setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => clearInterval(interval);
   }, []);
 
-  // Obtener clases del estudiante
   const fetchClases = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('fichas/estudiante/clases');
-      const materiasData = response.data?.data || [];
+      const response = await axios.get<{ data: unknown[] }>('fichas/estudiante/clases');
+      const materiasData = normalizarClases(response.data?.data ?? []);
       setMaterias(materiasData);
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.error || 'No se pudieron cargar las clases. Por favor, intenta nuevamente.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } };
+      const mensaje =
+        axiosError?.response?.data?.error ??
+        'No se pudieron cargar las clases. Por favor, intenta nuevamente.';
+      setError(mensaje);
       setMaterias([]);
     } finally {
       setLoading(false);
@@ -110,247 +261,139 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     fetchClases();
   }, [fetchClases]);
 
-  // Función para formatear fecha (formato: "mar, 8 de abr")
-  const formatearFecha = (fechaStr: string): string => {
-    if (!fechaStr) return '';
-    
-    try {
-      const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
-      const fecha = new Date(year, month - 1, day);
-      
-      if (isNaN(fecha.getTime())) {
-        return fechaStr;
-      }
-      
-      const meses = [
-        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-        'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-      ];
-      
-      const diasSemana = [
-        'dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'
-      ];
-      
-      return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
-    } catch (error) {
-      return fechaStr;
-    }
-  };
+  /**
+   * Calcula el estado real de una sesión comparando fecha/hora con el reloj actual.
+   * Si la sesión viene como COMPLETADA desde el backend, se respeta sin recalcular
+   * (evita que sesiones pasadas que el backend ya marcó como completas cambien de estado).
+   */
+  const obtenerEstadoSesion = useCallback(
+    (sesion: Sesion): Sesion['estado'] => {
+      // Si el backend ya la marcó como COMPLETADA, respetamos ese estado
+      if (sesion.estado === 'COMPLETADA') return 'COMPLETADA';
 
-  // Función para formatear hora (12h con AM/PM: "1:00 PM")
-  const formatearHora = (horaStr: string): string => {
-    if (!horaStr) return '';
-    
-    try {
-      const [hora24, minuto] = horaStr.split(':').map(Number);
-      
-      // Convertir de 24h a 12h
-      let hora12 = hora24;
-      let periodo = 'AM';
-      
-      if (hora24 === 0) {
-        hora12 = 12; // Medianoche
-        periodo = 'AM';
-      } else if (hora24 === 12) {
-        hora12 = 12; // Mediodía
-        periodo = 'PM';
-      } else if (hora24 > 12) {
-        hora12 = hora24 - 12;
-        periodo = 'PM';
-      }
-      
-      return `${hora12}:${minuto.toString().padStart(2, '0')} ${periodo}`;
-    } catch (error) {
-      return horaStr;
-    }
-  };
+      try {
+        const [year, month, day] = sesion.fecha.split('T')[0].split('-').map(Number);
+        const [horaIni, minIni] = sesion.horaInicial.split(':').map(Number);
+        const [horaFin, minFin] = sesion.horaFinal.split(':').map(Number);
 
-  // Función para obtener el estado actualizado de una sesión
-  const obtenerEstadoSesion = (sesion: Sesion): Sesion['estado'] => {
-    const ahora = currentTime;
-    
-    try {
-      const [year, month, day] = sesion.fecha.split('T')[0].split('-').map(Number);
-      const fechaSesion = new Date(year, month - 1, day);
-      
-      const [horaIni, minIni] = sesion.horaInicial.split(':').map(Number);
-      const [horaFin, minFin] = sesion.horaFinal.split(':').map(Number);
-      
-      const fechaHoraInicio = new Date(fechaSesion);
-      fechaHoraInicio.setHours(horaIni, minIni, 0, 0);
-      
-      const fechaHoraFin = new Date(fechaSesion);
-      fechaHoraFin.setHours(horaFin, minFin, 0, 0);
-      
-      // Si ya pasó la hora final, está completada
-      if (ahora.getTime() > fechaHoraFin.getTime()) {
-        return 'COMPLETADA';
-      }
-      
-      // Si está dentro del rango de horas, está en curso
-      if (ahora.getTime() >= fechaHoraInicio.getTime() && ahora.getTime() <= fechaHoraFin.getTime()) {
-        return 'EN_CURSO';
-      }
-      
-      // Si es la próxima sesión pendiente, es próximo
-      // (esto se calcula comparando con otras sesiones)
-      if (ahora.getTime() < fechaHoraInicio.getTime()) {
-        // Verificar si es la próxima sesión pendiente
+        const inicio = new Date(year, month - 1, day, horaIni, minIni, 0, 0);
+        const fin = new Date(year, month - 1, day, horaFin, minFin, 0, 0);
+        const ahora = currentTime.getTime();
+
+        if (ahora > fin.getTime()) return 'COMPLETADA';
+        if (ahora >= inicio.getTime()) return 'EN_CURSO';
         return 'PENDIENTE';
+      } catch {
+        return sesion.estado;
       }
-      
-      return sesion.estado;
-    } catch (error) {
-      return sesion.estado;
-    }
-  };
+    },
+    [currentTime]
+  );
 
-  // Recalcular estados de sesiones en tiempo real y marcar solo una como "PROXIMO"
-  const materiasConEstadosActualizados = useMemo(() => {
-    return materias.map(materia => {
-      const sesionesRaw = Array.isArray(materia.sesiones) ? materia.sesiones : [];
-      // Ordenar sesiones por fecha y hora
-      const sesionesOrdenadas = [...sesionesRaw].sort((a, b) => {
-        const fechaA = new Date(a.fecha + 'T' + a.horaInicial).getTime();
-        const fechaB = new Date(b.fecha + 'T' + b.horaInicial).getTime();
-        return fechaA - fechaB;
-      });
-      
-      // Encontrar la primera sesión pendiente (próxima)
-      let proximaSesionEncontrada = false;
-      const sesionesActualizadas = sesionesOrdenadas.map(sesion => {
-        const estadoActual = obtenerEstadoSesion(sesion);
-        
-        // Si ya encontramos la próxima sesión, no marcar más como PROXIMO
-        if (proximaSesionEncontrada) {
-          return { ...sesion, estado: estadoActual };
+  /**
+   * Para cada materia:
+   * 1. Ordena sesiones cronológicamente.
+   * 2. Re-evalúa cada estado con el reloj actual.
+   * 3. Marca la primera sesión PENDIENTE como PROXIMO.
+   * 4. Calcula todasSesionesCompletadas (solo si hay sesiones; usa porcentaje como fallback).
+   */
+  const materiasConEstadosActualizados = useMemo<Materia[]>(() => {
+    return materias.map((materia) => {
+      const sesionesOrdenadas = [...materia.sesiones].sort(
+        (a, b) =>
+          new Date(`${a.fecha.split('T')[0]}T${a.horaInicial}`).getTime() -
+          new Date(`${b.fecha.split('T')[0]}T${b.horaInicial}`).getTime()
+      );
+
+      let proximaMarcada = false;
+      const sesionesActualizadas = sesionesOrdenadas.map((sesion): Sesion => {
+        const estadoCalculado = obtenerEstadoSesion(sesion);
+
+        // Si está en curso o ya completada, no la marcamos como próxima
+        if (estadoCalculado === 'EN_CURSO' || estadoCalculado === 'COMPLETADA') {
+          return { ...sesion, estado: estadoCalculado };
         }
-        
-        // Si es pendiente y aún no encontramos la próxima, marcarla como PROXIMO
-        if (estadoActual === 'PENDIENTE') {
-          proximaSesionEncontrada = true;
-          return { ...sesion, estado: 'PROXIMO' as const };
+
+        // Primera PENDIENTE en el futuro → PROXIMO
+        if (estadoCalculado === 'PENDIENTE' && !proximaMarcada) {
+          proximaMarcada = true;
+          return { ...sesion, estado: 'PROXIMO' };
         }
-        
-        return { ...sesion, estado: estadoActual };
+
+        return { ...sesion, estado: estadoCalculado };
       });
-      
-      // Verificar si todas las sesiones están completadas
-      const todasCompletadas = sesionesActualizadas.every(sesion => sesion.estado === 'COMPLETADA');
-      
-      return {
-        ...materia,
-        sesiones: sesionesActualizadas,
-        todasSesionesCompletadas: todasCompletadas
-      };
+
+      // Si no hay sesiones detalladas, confiamos en porcentaje_completado del backend
+      const todasSesionesCompletadas =
+        sesionesActualizadas.length > 0
+          ? sesionesActualizadas.every((s) => s.estado === 'COMPLETADA')
+          : materia.porcentaje_completado >= 100;
+
+      return { ...materia, sesiones: sesionesActualizadas, todasSesionesCompletadas };
     });
-  }, [materias, currentTime]);
+  }, [materias, obtenerEstadoSesion]);
 
-  // Filtrar materias según el filtro seleccionado
-  const materiasFiltradas = useMemo(() => {
+  const materiasFiltradas = useMemo<Materia[]>(() => {
     if (filtro === 'completadas') {
-      // Solo mostrar las que están completamente completadas
-      return materiasConEstadosActualizados.filter(materia => materia.todasSesionesCompletadas);
-    } else {
-      // En "todas las clases" solo mostrar las que aún tienen sesiones pendientes
-      return materiasConEstadosActualizados.filter(materia => !materia.todasSesionesCompletadas);
+      return materiasConEstadosActualizados.filter((m) => m.todasSesionesCompletadas);
     }
+    return materiasConEstadosActualizados.filter((m) => !m.todasSesionesCompletadas);
   }, [materiasConEstadosActualizados, filtro]);
 
-  // Agrupar materias completadas por mes
-  const materiasAgrupadasPorMes = useMemo(() => {
+  /**
+   * Agrupa por mes de la última sesión completada (solo en vista "completadas").
+   */
+  const materiasAgrupadasPorMes = useMemo<
+    Array<{ mes: string | null; materias: Materia[] }>
+  >(() => {
     if (filtro !== 'completadas') {
-      return materiasFiltradas.map(materia => ({ mes: null, materias: [materia] }));
+      return materiasFiltradas.map((m) => ({ mes: null, materias: [m] }));
     }
 
-    const agrupadas: { [key: string]: Materia[] } = {};
-    
-    materiasFiltradas.forEach(materia => {
-      // Obtener la fecha de la última sesión completada
+    const agrupadas: Record<string, Materia[]> = {};
+
+    for (const materia of materiasFiltradas) {
+      // Última sesión completada para determinar el mes
       const ultimaSesion = [...materia.sesiones]
-        .filter(s => s.estado === 'COMPLETADA')
-        .sort((a, b) => {
-          const fechaA = new Date(a.fecha + 'T' + a.horaInicial).getTime();
-          const fechaB = new Date(b.fecha + 'T' + b.horaInicial).getTime();
-          return fechaB - fechaA; // Ordenar descendente para obtener la última
-        })[0];
+        .filter((s) => s.estado === 'COMPLETADA')
+        .sort(
+          (a, b) =>
+            new Date(`${b.fecha.split('T')[0]}T${b.horaInicial}`).getTime() -
+            new Date(`${a.fecha.split('T')[0]}T${a.horaInicial}`).getTime()
+        )[0];
 
-      if (ultimaSesion) {
-        const [year, month] = ultimaSesion.fecha.split('T')[0].split('-').map(Number);
-        const fecha = new Date(year, month - 1, 1);
-        const mesKey = `${year}-${month}`;
-        const mesNombre = fecha.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
-        
-        if (!agrupadas[mesKey]) {
-          agrupadas[mesKey] = [];
-        }
-        agrupadas[mesKey].push(materia);
-      }
-    });
+      // Si no hay sesión detallada pero está completada al 100%, usamos fecha vacía
+      const mesKey = ultimaSesion
+        ? ultimaSesion.fecha.split('T')[0].substring(0, 7) // "YYYY-MM"
+        : 'sin-fecha';
 
-    // Convertir a array y ordenar por mes (más reciente primero)
+      if (!agrupadas[mesKey]) agrupadas[mesKey] = [];
+      agrupadas[mesKey].push(materia);
+    }
+
     return Object.entries(agrupadas)
-      .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
-      .map(([key, materias]) => {
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, items]) => {
+        if (key === 'sin-fecha') return { mes: 'SIN FECHA', materias: items };
         const [year, month] = key.split('-').map(Number);
-        const fecha = new Date(year, month - 1, 1);
-        const mesNombre = fecha.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
-        return { mes: mesNombre, materias };
+        const mesNombre = new Date(year, month - 1, 1)
+          .toLocaleString('es-ES', { month: 'long', year: 'numeric' })
+          .toUpperCase();
+        return { mes: mesNombre, materias: items };
       });
   }, [materiasFiltradas, filtro]);
 
-  // Determinar la próxima sesión
-  const obtenerProximaSesion = (sesiones: Sesion[]): Sesion | null => {
-    const ahora = currentTime;
-    const sesionesPendientes = sesiones.filter(s => {
-      const [year, month, day] = s.fecha.split('T')[0].split('-').map(Number);
-      const fechaSesion = new Date(year, month - 1, day);
-      const [horaIni, minIni] = s.horaInicial.split(':').map(Number);
-      const fechaHoraInicio = new Date(fechaSesion);
-      fechaHoraInicio.setHours(horaIni, minIni, 0, 0);
-      return ahora.getTime() < fechaHoraInicio.getTime();
-    });
-    
-    if (sesionesPendientes.length === 0) return null;
-    
-    // Ordenar por fecha y hora
-    sesionesPendientes.sort((a, b) => {
-      const fechaA = new Date(a.fecha + 'T' + a.horaInicial);
-      const fechaB = new Date(b.fecha + 'T' + b.horaInicial);
-      return fechaA.getTime() - fechaB.getTime();
-    });
-    
-    return sesionesPendientes[0];
-  };
-
-  // Función para obtener el color del estado (según imagen)
-  const obtenerColorEstado = (estado: Sesion['estado']): string => {
-    switch (estado) {
-      case 'COMPLETADA':
-        // Completadas totalmente en gris
-        return 'bg-gray-100 dark:bg-coal-300 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
-      case 'EN_CURSO':
-        return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700';
-      case 'PROXIMO':
-        return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
-      case 'PENDIENTE':
-      // Pendientes/en espera: fondo blanco, solo borde gris
-      return 'bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
-      default:
-      return 'bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
-    }
-  };
-
-  // Función para navegar al detalle de la clase
   const handleVerDetalle = (idHorarioMateria: number) => {
     navigate(`/ambiente-virtual/clase/${idHorarioMateria}`);
   };
+
+  // ─── Estados de carga / error / vacío ──────────────────────────────────────
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
           <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando clases...</p>
         </div>
       </div>
@@ -361,13 +404,14 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="text-center">
-          <KeenIcon icon="cross-circle" className="text-4xl text-red-400 dark:text-red-500 mx-auto mb-3" />
+          <KeenIcon
+            icon="cross-circle"
+            className="text-4xl text-red-400 dark:text-red-500 mx-auto mb-3"
+          />
           <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">
             Error al cargar las clases
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {error}
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{error}</p>
         </div>
       </div>
     );
@@ -377,7 +421,10 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="text-center">
-          <KeenIcon icon="document" className="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+          <KeenIcon
+            icon="document"
+            className="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3"
+          />
           <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
             No tienes clases asignadas
           </p>
@@ -389,12 +436,14 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     );
   }
 
-  // "Todas" oculta materias ya 100% completadas; si todas lo están, el filtro deja lista vacía → pantalla en blanco
   if (materiasFiltradas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="text-center">
-          <KeenIcon icon="check-circle" className="text-4xl text-green-500 dark:text-green-400 mx-auto mb-3" />
+          <KeenIcon
+            icon="check-circle"
+            className="text-4xl text-green-500 dark:text-green-400 mx-auto mb-3"
+          />
           <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
             {filtro === 'completadas'
               ? 'No hay clases completadas en este periodo'
@@ -410,6 +459,8 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
     );
   }
 
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="space-y-4">
@@ -420,82 +471,81 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase">
                   {grupo.mes}
                 </h3>
-                <div className="mt-1.5 border-t border-gray-300 dark:border-gray-600"></div>
+                <div className="mt-1.5 border-t border-gray-300 dark:border-gray-600" />
               </div>
             )}
+
             {grupo.materias.map((materia) => {
-              // Clave única usando idMateria y profesor_nombre (el backend ya agrupa correctamente)
               const uniqueKey = `${materia.idMateria}-${materia.profesor_nombre || 'sin-profesor'}`;
-              
+
               return (
                 <div
                   key={uniqueKey}
                   className="bg-white dark:bg-coal-400 rounded-lg shadow-md border border-gray-200 dark:border-gray-600 p-4"
                 >
-              {/* Encabezado de la materia */}
-              <div className="mb-4">
-                <div className="flex items-start gap-3 mb-4">
-                  {/* Icono de libro con fondo azul claro y borde azul oscuro - más pequeño */}
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-600 dark:border-blue-500 rounded-lg flex items-center justify-center">
-                    <KeenIcon icon="book" className="text-blue-600 dark:text-blue-400 text-base" />
-                  </div>
-                  
-                  <div className="flex-1">
-                    {/* Nombre del tema - más pequeño */}
-                    <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 uppercase">
-                      {materia.materia_nombre}
-                    </h2>
-
-                    {/* Información del instructor - más pequeño */}
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">Instructor:</span> {materia.profesor_nombre || 'Sin asignar'}{materia.profesor_email ? ` - ${materia.profesor_email}` : ''}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Grid de sesiones */}
-              <div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                  {materia.sesiones.map((sesion, index) => {
-                    const estadoFinal = sesion.estado;
-                    
-                    return (
-                      <div
-                        key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
-                        className={clsx(
-                          'border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-md',
-                          obtenerColorEstado(estadoFinal)
-                        )}
-                        onClick={() => handleVerDetalle(sesion.idHorarioMateria)}
-                      >
-                        <div className="flex flex-col items-start gap-1">
-                          {/* Icono y estado */}
-                          <div className="flex items-center gap-1 w-full">
-                            <div className="flex-shrink-0">
-                              {obtenerIconoEstado(estadoFinal)}
-                            </div>
-                            <div className="text-xs font-medium flex-1">
-                              {obtenerTextoEstado(estadoFinal)}
-                            </div>
-                          </div>
-                          
-                          {/* Fecha */}
-                          <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                            {formatearFecha(sesion.fecha)}
-                          </div>
-                          
-                          {/* Hora */}
-                          <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                            {formatearHora(sesion.horaInicial)}-{formatearHora(sesion.horaFinal)}
-                          </div>
+                  {/* Encabezado */}
+                  <div className="mb-4">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-600 dark:border-blue-500 rounded-lg flex items-center justify-center">
+                        <KeenIcon
+                          icon="book"
+                          className="text-blue-600 dark:text-blue-400 text-base"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-1.5 uppercase">
+                          {materia.materia_nombre}
+                        </h2>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">Instructor:</span>{' '}
+                          {materia.profesor_nombre || 'Sin asignar'}
+                          {materia.profesor_email ? ` - ${materia.profesor_email}` : ''}
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+
+                  {/* Grid de sesiones */}
+                  {materia.sesiones.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {materia.sesiones.map((sesion, index) => (
+                        <div
+                          key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
+                          className={clsx(
+                            'border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-md',
+                            obtenerColorEstado(sesion.estado)
+                          )}
+                          onClick={() => handleVerDetalle(sesion.idHorarioMateria)}
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <div className="flex items-center gap-1 w-full">
+                              <div className="flex-shrink-0">
+                                {obtenerIconoEstado(sesion.estado)}
+                              </div>
+                              <div className="text-xs font-medium flex-1">
+                                {obtenerTextoEstado(sesion.estado)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                              {formatearFecha(sesion.fecha)}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                              {formatearHora(sesion.horaInicial)} -{' '}
+                              {formatearHora(sesion.horaFinal)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Materia sin sesiones detalladas (backend envió sesiones: [])
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                      {materia.porcentaje_completado >= 100
+                        ? `${materia.total_sesiones} sesiones completadas`
+                        : `${materia.sesiones_completadas} de ${materia.total_sesiones} sesiones completadas`}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
               );
             })}
           </React.Fragment>
