@@ -42,6 +42,7 @@ interface Contrato {
   objetoContrato: null | string;
   formaDePago: 'COMISIONES' | 'SALARIO INTEGRAL' | 'NORMAL';
   siif: null | number;
+  descripcionFormaPago: string | null;
 }
 
 interface CiudadDepartamento {
@@ -85,7 +86,8 @@ const ContratoGeneralInstructor: React.FC = () => {
     objetoContrato: '',
     formaDePago: 'NORMAL' as Contrato['formaDePago'],
     ciudadExpedicionId: '' as number | '',
-    siif: null as null | number
+    siif: null as null | number,
+    descripcionFormaPago: ''
   });
 
   const [actividadForm, setActividadForm] = useState({
@@ -114,7 +116,8 @@ const ContratoGeneralInstructor: React.FC = () => {
             objetoContrato: data.objetoContrato ?? '',
             formaDePago: data.formaDePago ?? 'NORMAL',
             ciudadExpedicionId: data.persona?.ciudad_expedicion_rel?.id ?? '',
-            siif: data.siif ?? null
+            siif: data.siif ?? null,
+            descripcionFormaPago: data.descripcionFormaPago ?? ''
           });
         }
       } finally {
@@ -149,7 +152,8 @@ const ContratoGeneralInstructor: React.FC = () => {
       objetoContrato: contrato?.objetoContrato ?? '',
       formaDePago: contrato?.formaDePago ?? 'NORMAL',
       ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '',
-      siif: contrato?.siif ?? 0
+      siif: contrato?.siif ?? 0,
+      descripcionFormaPago: contrato?.descripcionFormaPago ?? ''
     });
   };
 
@@ -482,6 +486,18 @@ const ContratoGeneralInstructor: React.FC = () => {
                   </span>
                 )}
               </div>
+              <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
+                  Descripción forma de pago
+                </p>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                  {contrato.descripcionFormaPago ?? (
+                    <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
+                      No asignado
+                    </span>
+                  )}
+                </p>
+              </div>
               <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">SIIF</p>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -524,6 +540,20 @@ const ContratoGeneralInstructor: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                  Descripción forma de pago
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.descripcionFormaPago}
+                  onChange={(e) =>
+                    setForm({ ...form, descripcionFormaPago: e.target.value.toUpperCase() })
+                  }
+                  placeholder="DESCRIBA LA FORMA DE PAGO..."
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
