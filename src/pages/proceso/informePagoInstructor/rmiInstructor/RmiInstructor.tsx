@@ -1,6 +1,6 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import RmiModal from '../../../gestion-rmi/RmiModal';
 import { Instructor } from '../../../gestion-rmi/interfaceInstructor';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
@@ -60,6 +60,20 @@ const RmiInstructor: React.FC = () => {
   // Agregar estado para actividades
   const [actividadesRmi, setActividadesRmi] = useState<any[]>([]);
   const [selectedIdRmi, setSelectedIdRmi] = useState<number>(0);
+
+  const periodoActual = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const dataRmiFiltrada = useMemo(() => {
+    return dataRmi.map((contrato) => ({
+      ...contrato,
+      periodos: contrato.periodos
+        .filter((p) => p.periodo <= periodoActual) // solo pasados + actual
+        .sort((a, b) => (a.periodo < b.periodo ? 1 : -1)) // actual primero
+    }));
+  }, [dataRmi, periodoActual]);
 
   // Carga los años disponibles
   useEffect(() => {
@@ -175,7 +189,7 @@ const RmiInstructor: React.FC = () => {
           No hay datos RMI para el año {anioGestion}
         </div>
       ) : (
-        dataRmi.map((contrato) => (
+        dataRmiFiltrada.map((contrato) => (
           <div
             key={contrato.idContrato}
             className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
