@@ -96,30 +96,24 @@ export const ProgramacionFichasPage = () => {
   const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
   const [fichaSelected, setFichaSelected] = useState<any | null>(null);
 
-  // Estados para edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fichaIdToEdit, setFichaIdToEdit] = useState<number | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [messageToast, setMessageToast] = useState('');
   const [evento, setEvento] = useState(false);
 
-  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Juicios evaluativos
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
   const [idFicha, setIdFicha] = useState<number>(0);
   const [idSede, setIdSede] = useState<number | undefined>(0);
   const [idGrado, setIdGrado] = useState<number | undefined>(0);
 
-  // Creacion de ficha
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  // Para filtrar las jornadas por el idCentroFormacion
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
-  // Fichas creadas en esta sesión (para permitir editar/eliminar al instructor)
   const [fichasCreadasEnSesion, setFichasCreadasEnSesion] = useState<number[]>([]);
   const [fichasAntesDeCrear, setFichasAntesDeCrear] = useState<number[]>([]);
 
@@ -138,10 +132,10 @@ export const ProgramacionFichasPage = () => {
     try {
       const res = await axios.get('/programas');
       if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
-        const p = res.data.data.find((prog: any) => prog.id === Number(programId));
+        const p = res.data.data.find((prog: any) => Number(prog.id) === Number(programId));
         if (p) {
           setProgram({
-            id: p.id,
+            id: Number(p.id),
             name: p.nombrePrograma,
             codigo: p.codigoPrograma,
             nivel: p.nivel?.nombreNivel || 'N/A',
@@ -160,7 +154,6 @@ export const ProgramacionFichasPage = () => {
     setLoading(true);
 
     try {
-      // ✅ CORRECTO
       const idContratoUsuario = user?.persona?.contrato?.find(
         (c: any) => Number(c.idEstado) === 1
       )?.id;
@@ -170,62 +163,79 @@ export const ProgramacionFichasPage = () => {
           ? fichasConDocumento.filter(
               (ficha: any) =>
                 !ficha.idInstructorLider ||
-                Number(ficha.idInstructorLider) === Number(idContratoUsuario) // ✅
+                Number(ficha.idInstructorLider) === Number(idContratoUsuario)
             )
           : fichasConDocumento;
       };
-      if (centroF != 0) {
-        const res = await axios.get(`fichas/programa/${programId}/${centroF}`);
-        const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
-        if (res.status === 200 && Array.isArray(res.data.data)) {
-          const fichasConDocumento = res.data.data.map((ficha: any) => ({
-            ...ficha,
-            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
-          }));
+      const centroId = Number(centroF) !== 0 ? Number(centroF) : Number(user?.idCentroFormacion);
 
-          setIdCentroFormacion(user?.idCentroFormacion);
-          const filtradas = aplicarFiltro(fichasConDocumento);
-          setFichas(filtradas);
+      const res = await axios.get(`fichas/programa/${programId}/${centroId}`);
+      const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
-          // Detectar fichas recién creadas
-          if (idsAnteriores && idsAnteriores.length > 0) {
-            const nuevas = filtradas
-              .filter((f: any) => !idsAnteriores.includes(f.id))
-              .map((f: any) => f.id);
-            if (nuevas.length > 0) {
-              setFichasCreadasEnSesion((prev) => [...prev, ...nuevas]);
-            }
+      if (res.status === 200 && Array.isArray(res.data.data)) {
+        const fichasConDocumento = res.data.data.map((ficha: any) => ({
+          ...ficha,
+          id: Number(ficha.id),
+          idInstructorLider:
+            ficha.idInstructorLider != null ? Number(ficha.idInstructorLider) : null,
+          documento: ficha.documento ? `${backUrl}${ficha.documento}` : null,
+          sede: ficha.sede
+            ? {
+                ...ficha.sede,
+                id: Number(ficha.sede.id),
+                idCentroFormacion: Number(ficha.sede.idCentroFormacion)
+              }
+            : undefined,
+          jornada: ficha.jornada ? { ...ficha.jornada, id: Number(ficha.jornada.id) } : undefined,
+          regional: ficha.regional
+            ? { ...ficha.regional, id: Number(ficha.regional.id) }
+            : undefined,
+          asignacion: ficha.asignacion
+            ? {
+                ...ficha.asignacion,
+                id: Number(ficha.asignacion.id),
+                programa: ficha.asignacion.programa
+                  ? {
+                      ...ficha.asignacion.programa,
+                      id: Number(ficha.asignacion.programa.id),
+                      grados: ficha.asignacion.programa.grados?.map((g: any) => ({
+                        ...g,
+                        id: Number(g.id),
+                        pivot: { idGrado: Number(g.pivot?.idGrado) }
+                      }))
+                    }
+                  : undefined
+              }
+            : undefined,
+          instructorLider: ficha.instructorLider
+            ? {
+                ...ficha.instructorLider,
+                id: Number(ficha.instructorLider.id),
+                persona: ficha.instructorLider.persona
+                  ? {
+                      ...ficha.instructorLider.persona,
+                      id: Number(ficha.instructorLider.persona.id)
+                    }
+                  : undefined
+              }
+            : undefined
+        }));
+
+        setIdCentroFormacion(Number(user?.idCentroFormacion));
+        const filtradas = aplicarFiltro(fichasConDocumento);
+        setFichas(filtradas);
+
+        if (idsAnteriores && idsAnteriores.length > 0) {
+          const nuevas = filtradas
+            .filter((f: any) => !idsAnteriores.includes(f.id))
+            .map((f: any) => f.id);
+          if (nuevas.length > 0) {
+            setFichasCreadasEnSesion((prev) => [...prev, ...nuevas]);
           }
-        } else {
-          setFichas([]);
         }
       } else {
-        const res = await axios.get(`fichas/programa/${programId}/${user?.idCentroFormacion}`);
-        const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
-
-        if (res.status === 200 && Array.isArray(res.data.data)) {
-          const fichasConDocumento = res.data.data.map((ficha: any) => ({
-            ...ficha,
-            documento: ficha.documento ? `${backUrl}${ficha.documento}` : null
-          }));
-
-          setIdCentroFormacion(user?.idCentroFormacion);
-          const filtradas = aplicarFiltro(fichasConDocumento);
-          setFichas(filtradas);
-
-          // Detectar fichas recién creadas
-          if (idsAnteriores && idsAnteriores.length > 0) {
-            const nuevas = filtradas
-              .filter((f: any) => !idsAnteriores.includes(f.id))
-              .map((f: any) => f.id);
-            if (nuevas.length > 0) {
-              setFichasCreadasEnSesion((prev) => [...prev, ...nuevas]);
-            }
-          }
-        } else {
-          setFichas([]);
-        }
+        setFichas([]);
       }
     } catch (error) {
       console.error('Error cargando fichas', error);
@@ -242,7 +252,6 @@ export const ProgramacionFichasPage = () => {
     }
   }, [programId, evento]);
 
-  // Auto-cierre del toast
   useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => setShowToast(false), 3000);
@@ -250,7 +259,6 @@ export const ProgramacionFichasPage = () => {
     }
   }, [showToast]);
 
-  // Cálculos de paginación
   const totalPages = Math.ceil(fichas.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -285,7 +293,6 @@ export const ProgramacionFichasPage = () => {
       try {
         await axios.delete(`fichas/${fichaId}`);
         enqueueSnackbar('Ficha eliminada correctamente', { variant: 'success' });
-        // Remover de fichas creadas en sesión
         setFichasCreadasEnSesion((prev) => prev.filter((id) => id !== fichaId));
         setEvento((prev) => !prev);
       } catch (error: any) {
@@ -296,7 +303,6 @@ export const ProgramacionFichasPage = () => {
     }
   };
 
-  // Helper para saber si el instructor puede editar/eliminar una ficha
   const puedeEditarEliminar = (ficha: Ficha): boolean => {
     if (!esInstructorSena) return true;
     return fichasCreadasEnSesion.includes(ficha.id);
@@ -318,7 +324,6 @@ export const ProgramacionFichasPage = () => {
           idGrado={idGrado}
         />
 
-        {/* Breadcrumbs */}
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
           <nav className="text-sm text-gray-600 dark:text-gray-400">
             <span
@@ -341,7 +346,6 @@ export const ProgramacionFichasPage = () => {
           </nav>
         </div>
 
-        {/* Header del Programa */}
         <div className="px-6 py-4 bg-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -365,7 +369,6 @@ export const ProgramacionFichasPage = () => {
           </div>
         </div>
 
-        {/* Contenido Principal */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -378,7 +381,6 @@ export const ProgramacionFichasPage = () => {
                   : 'Gestiona las fichas del programa y asigna líderes'}
               </p>
             </div>
-            {/* Botón Crear Ficha - siempre visible */}
             <button
               type="button"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
@@ -399,9 +401,7 @@ export const ProgramacionFichasPage = () => {
                 const idsActuales = fichas.map((f) => f.id);
                 setFichasAntesDeCrear(idsActuales);
                 loadFichas(idsActuales).then(() => {
-                  // Si NO es instructor SENA, abrir modal de asignar con la ficha recién creada
                   if (!esInstructorSena) {
-                    // Pequeño delay para que las fichas ya estén en el estado
                     setTimeout(() => {
                       setFichas((fichasActuales) => {
                         const nuevaFicha = fichasActuales.find((f) => !idsActuales.includes(f.id));
@@ -433,7 +433,6 @@ export const ProgramacionFichasPage = () => {
             </div>
           ) : (
             <>
-              {/* Lista de Fichas */}
               <div className="space-y-3 mb-6">
                 {paginatedFichas.map((ficha) => {
                   const expandida = fichaExpandida === ficha.id;
@@ -442,11 +441,9 @@ export const ProgramacionFichasPage = () => {
                       key={ficha.id}
                       className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg shadow-sm overflow-hidden transition-all hover:shadow-md"
                     >
-                      {/* Fila Principal */}
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 flex-1">
-                            {/* Avatar instructor */}
                             <div
                               className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-coal-200 border border-gray-200 dark:border-coal-100 flex items-center justify-center"
                               title={
@@ -502,7 +499,6 @@ export const ProgramacionFichasPage = () => {
                               )}
                             </div>
 
-                            {/* Información Principal */}
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
@@ -549,7 +545,6 @@ export const ProgramacionFichasPage = () => {
                               </div>
                             </div>
 
-                            {/* Botón Asignar/Cambiar líder */}
                             <div className="flex items-center gap-3">
                               {ficha.idInstructorLider && ficha.instructorLider?.persona ? (
                                 !esInstructorSena && (
@@ -570,9 +565,8 @@ export const ProgramacionFichasPage = () => {
                                     <button
                                       type="button"
                                       onClick={async () => {
-                                        // Busca el contrato activo
                                         const idContratoUsuario = user?.persona?.contrato?.find(
-                                          (c: any) => Number(c.idEstado) === 1 // ✅
+                                          (c: any) => Number(c.idEstado) === 1
                                         )?.id;
                                         if (!idContratoUsuario) {
                                           enqueueSnackbar('No se encontró tu contrato activo', {
@@ -584,7 +578,7 @@ export const ProgramacionFichasPage = () => {
                                           await axios.post(
                                             `fichas/${ficha.id}/asignar-instructor-lider`,
                                             {
-                                              idInstructorLider: idContratoUsuario
+                                              idInstructorLider: Number(idContratoUsuario)
                                             }
                                           );
                                           enqueueSnackbar(
@@ -615,7 +609,6 @@ export const ProgramacionFichasPage = () => {
                               )}
                             </div>
 
-                            {/* Botón Expandir/Colapsar */}
                             <button
                               type="button"
                               onClick={() => toggleExpandirFicha(ficha.id)}
@@ -629,7 +622,6 @@ export const ProgramacionFichasPage = () => {
                         </div>
                       </div>
 
-                      {/* Contenido Expandido */}
                       {expandida && (
                         <div className="px-4 pb-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
                           <div className="pt-4 grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
@@ -681,7 +673,6 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           </div>
 
-                          {/* Documento */}
                           {ficha.documento ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
@@ -729,7 +720,6 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           )}
 
-                          {/* BOTONES DE ACCIÓN */}
                           <div className="grid grid-cols-3 md:grid-cols-5 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
@@ -738,7 +728,8 @@ export const ProgramacionFichasPage = () => {
                                 setIdFicha(ficha.id);
                                 setIdSede(ficha.sede?.id);
                                 setIdGrado(
-                                  ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado ?? 1
+                                  Number(ficha.asignacion?.programa?.grados?.[0]?.pivot?.idGrado) ||
+                                    1
                                 );
                               }}
                               title="Juicios evaluativos"
@@ -766,7 +757,6 @@ export const ProgramacionFichasPage = () => {
                               <i className="ki-outline ki-book-square text-base"></i>
                             </button>
 
-                            {/* Editar - solo si puede */}
                             {puedeEditarEliminar(ficha) && (
                               <button
                                 type="button"
@@ -778,7 +768,6 @@ export const ProgramacionFichasPage = () => {
                               </button>
                             )}
 
-                            {/* Eliminar - solo si puede */}
                             {puedeEditarEliminar(ficha) && (
                               <button
                                 type="button"
@@ -797,7 +786,6 @@ export const ProgramacionFichasPage = () => {
                 })}
               </div>
 
-              {/* Paginación */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-600 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -844,7 +832,6 @@ export const ProgramacionFichasPage = () => {
         </div>
       </div>
 
-      {/* Modales */}
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
         onClose={() => setAsignarFicha(null)}
@@ -879,7 +866,6 @@ export const ProgramacionFichasPage = () => {
         }}
       />
 
-      {/* Modal de Edición */}
       <CrearEditarFicha
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
@@ -908,7 +894,6 @@ export const ProgramacionFichasPage = () => {
         />
       )}
 
-      {/* Toast */}
       {showToast && (
         <div className="fixed top-4 right-4 z-[200]">
           <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in">
