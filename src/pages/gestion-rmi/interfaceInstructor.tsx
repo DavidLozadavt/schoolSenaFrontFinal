@@ -21,6 +21,7 @@ export interface Instructor {
   totalHorasFormato: string;
   horarios: HorarioMateria[];
   estado?: string; // 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO'
+  idRmi?: number;
   motivoRechazo?: string;
   persona: {
     identificacion: string;

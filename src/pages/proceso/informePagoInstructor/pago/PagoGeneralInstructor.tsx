@@ -2,6 +2,9 @@ import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
 interface DetalleRmi {
   idDetalleRmi: number;
   estadoDetalle: string;
@@ -46,6 +49,8 @@ const PagoGeneralInstructor: React.FC = () => {
   const [merging, setMerging] = useState(false);
   const [savingMerge, setSavingMerge] = useState(false);
   const mergeInputRef = useRef<HTMLInputElement>(null);
+
+  const MySwal = withReactContent(Swal);
 
   useEffect(() => {
     const loadData = async () => {
@@ -158,10 +163,50 @@ const PagoGeneralInstructor: React.FC = () => {
       await recargarDatos();
       closeMergeModal();
     } catch (e: any) {
-      if (e.response?.data?.type === 'PDF_ENCRYPTED') {
-        alert('Uno de los PDFs está protegido. Ábrelo e imprímelo como PDF antes de subirlo.');
+      // Como responseType es 'blob', hay que parsear el error manualmente
+      let errorData: any = {};
+      if (e.response?.data instanceof Blob) {
+        try {
+          const text = await e.response.data.text();
+          errorData = JSON.parse(text);
+        } catch {
+          errorData = {};
+        }
       } else {
-        alert('Error uniendo los PDFs');
+        errorData = e.response?.data ?? {};
+      }
+
+      const isEncrypted =
+        errorData?.type === 'PDF_ENCRYPTED' ||
+        JSON.stringify(errorData?.errors ?? {})
+          .toLowerCase()
+          .includes('failed to upload');
+
+      if (isEncrypted) {
+        await MySwal.fire({
+          title: 'PDF protegido',
+          html: `
+        <p class="text-sm text-gray-600">Uno o más archivos tienen protección y no pueden procesarse.</p>
+        <div class="mt-3 text-left bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
+          <p class="font-semibold text-gray-700">¿Cómo quitarle la protección?</p>
+          <p>1. Abre el PDF en <strong>Chrome</strong> o <strong>Edge</strong></p>
+          <p>2. Ve a <strong>Imprimir</strong> (Ctrl + P)</p>
+          <p>3. Como destino selecciona <strong>"Guardar como PDF"</strong></p>
+          <p>4. Guarda el archivo y vuelve a subirlo</p>
+        </div>
+      `,
+          icon: 'warning',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#2563eb'
+        });
+      } else {
+        await MySwal.fire({
+          title: 'Error al unir los PDFs',
+          text: 'Ocurrió un error inesperado. Intenta de nuevo.',
+          icon: 'error',
+          confirmButtonText: 'Cerrar',
+          confirmButtonColor: '#dc2626'
+        });
       }
     } finally {
       setMerging(false);
