@@ -34,6 +34,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
   // ── Estado del modal RMI ──
   const [rmiModalOpen, setRmiModalOpen] = useState(false);
   const [fichas, setFichas] = useState<any[]>([]);
+  const [actividades, setActividades] = useState<any[]>([]);
   const [loadingRmi, setLoadingRmi] = useState(false);
   const [rechazarModalOpen, setRechazarModalOpen] = useState(false);
   const [instructorState, setInstructorState] = useState<Instructor>(instructor);
@@ -80,27 +81,39 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
     setRmiModalOpen(false);
   }, [periodo]);
 
-  const fetchFichas = () => {
+  const fetchFichas = async () => {
     setLoadingRmi(true);
-    axios
-      .get('instructores/fichas', {
-        params: {
-          idContrato: instructor.idContrato,
-          periodo: periodo || undefined
-        }
-      })
-      .then((r) => {
-        setFichas(r.data);
-      })
-      .finally(() => setLoadingRmi(false));
+    try {
+      const [fichasRes, actividadesRes] = await Promise.all([
+        axios.get('instructores/fichas', {
+          params: {
+            idContrato: instructor.idContrato,
+            periodo: periodo || undefined
+          }
+        }),
+        instructor.idRmi
+          ? axios.get('actividades-instructores', {
+              params: { idRmi: instructor.idRmi, idContrato: instructor.idContrato }
+            })
+          : Promise.resolve({ data: [] })
+      ]);
+
+      setFichas(fichasRes.data);
+      setActividades(actividadesRes.data);
+    } catch (error) {
+      console.error('Error fetching RMI data:', error);
+      enqueueSnackbar('Error al cargar la información del RMI', { variant: 'error' });
+    } finally {
+      setLoadingRmi(false);
+    }
   };
 
-  const handleVerRmi = () => {
+  const handleVerRmi = async () => {
     if (fichas.length > 0) {
       setRmiModalOpen(true);
       return;
     }
-    fetchFichas();
+    await fetchFichas();
     setRmiModalOpen(true);
   };
 
@@ -134,15 +147,21 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
             <div className="mt-2 space-y-0.5">
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Número de horas:
-                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{instructor.totalHoras || 160} h</span>
+                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">
+                  {instructor.totalHoras || 160} h
+                </span>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Horas programadas:
-                <span className={`font-bold text-sm ${semaforoHoras(totalHoras)}`}>{totalHoras || 0} h</span>
+                <span className={`font-bold text-sm ${semaforoHoras(totalHoras)}`}>
+                  {totalHoras || 0} h
+                </span>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Horas ejecutadas:{' '}
-                <span className={`font-bold text-sm ${semaforoHoras(Number(instructor.totalHorasFormato))}`}>
+                <span
+                  className={`font-bold text-sm ${semaforoHoras(Number(instructor.totalHorasFormato))}`}
+                >
                   {instructor.totalHorasFormato || 0}h
                 </span>
               </p>
@@ -331,6 +350,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
         instructor={instructorState}
         periodo={periodo}
         fichas={fichas}
+        actividades={actividades}
         onRefresh={fetchFichas}
       />
       {/* Modal Rechazar RMI */}

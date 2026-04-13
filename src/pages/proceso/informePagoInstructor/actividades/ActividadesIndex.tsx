@@ -3,12 +3,15 @@ import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
 interface Actividad {
   id: number;
   idRmi: number;
   descripcion: string;
-  fechaInicial: string;
-  fechaFinal: string;
+  fechaInicial: string | null;
+  fechaFinal: string | null;
   numeroHoras: number;
   documento: string | null;
   rutaDocumentoUrl: string | null;
@@ -38,6 +41,8 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [removeDoc, setRemoveDoc] = useState(false); // flag para quitar doc en edición
+
+  const MySwal = withReactContent(Swal);
 
   const [form, setForm] = useState({
     descripcion: '',
@@ -90,7 +95,19 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta actividad?')) return;
+    const result = await MySwal.fire({
+      title: '¿Eliminar actividad?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.delete(`actividades-instructores/${id}`);
       enqueueSnackbar('Actividad eliminada con éxito', { variant: 'success' });
@@ -101,7 +118,19 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
   };
 
   const handleDeleteDocumento = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar el documento?')) return;
+    const result = await MySwal.fire({
+      title: '¿Eliminar documento?',
+      text: 'Solo se eliminará el archivo adjunto.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280'
+    });
+
+    if (!result.isConfirmed) return;
+
     setDeletingDocId(id);
     try {
       await axios.delete(`actividades-instructores/${id}/documento`);
@@ -335,7 +364,6 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
                   </label>
                   <input
                     type="date"
-                    required
                     min={fechaMinima}
                     max={fechaMaxima}
                     value={form.fechaInicial}
@@ -349,7 +377,6 @@ const ActividadesIndex: React.FC<ActividadesIndexProps> = ({
                   </label>
                   <input
                     type="date"
-                    required
                     min={fechaMinima}
                     max={fechaMaxima}
                     value={form.fechaFinal}
