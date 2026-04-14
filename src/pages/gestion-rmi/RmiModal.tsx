@@ -55,7 +55,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
       const todos = response.data.data || [];
 
       const filtrados = todos.filter(
-        (h: any) => h.idGradoMateria === r.idGradoMateria && h.idContrato === instructor.idContrato
+        (h: any) => Number(h.idGradoMateria) === Number(r.idGradoMateria) && Number(h.idContrato) === Number(instructor.idContrato)
       );
 
       setMateriaSeleccionada({
@@ -528,8 +528,8 @@ const RmiModal: React.FC<RmiModalProps> = ({
         const todos = horariosPorFicha[ficha.idFicha] || [];
         const filtrados = todos.filter(
           (h: any) =>
-            h.idGradoMateria === r.idGradoMateria &&
-            h.idContrato === instructor.idContrato &&
+            Number(h.idGradoMateria) === Number(r.idGradoMateria) &&
+            Number(h.idContrato) === Number(instructor.idContrato) &&
             h.estado === 'ASIGNADO'
         );
 
