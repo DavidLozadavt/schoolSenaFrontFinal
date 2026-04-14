@@ -800,11 +800,12 @@ const PerfilPage = () => {
             <div>
               <label className="block text-sm font-medium mb-2">Correo Electrónico *</label>
               <input
-                type="text"
+                type="email"
                 name="email"
                 placeholder="Ingrese el Correo Electrónico"
                 value={formDataPersona.email}
                 onChange={handleChangeFormPerson}
+                data-no-uppercase
                 className={`input ${errors.email ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
