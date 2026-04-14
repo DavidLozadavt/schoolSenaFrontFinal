@@ -167,7 +167,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
         const dayNum = date.getDay();
         const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
-        const jsDayFromId = idDiaRaw !== undefined ? (idDiaRaw === 7 ? 0 : idDiaRaw) : -1;
+        const jsDayFromId = idDiaRaw !== undefined ? (Number(idDiaRaw) === 7 ? 0 : Number(idDiaRaw)) : -1;
 
         const matchDay = (h.dia?.dia?.toUpperCase() === dayName) ||
           (h.dia_semana?.toUpperCase() === dayName) ||

@@ -172,6 +172,7 @@ const Login = () => {
                 placeholder="••••••••"
                 autoComplete="off"
                 {...formik.getFieldProps('password')}
+                data-no-uppercase
                 className={clsx(
                   'w-full rounded-xl border px-4 py-3 pr-12 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
                   'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',

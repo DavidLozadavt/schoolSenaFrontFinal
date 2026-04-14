@@ -1,8 +1,10 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import RmiModal from '../../../gestion-rmi/RmiModal';
 import { Instructor } from '../../../gestion-rmi/interfaceInstructor';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
+import ActividadesIndex from '../actividades/ActividadesIndex';
 
 interface DetalleRmi {
   idDetalleRmi: number;
@@ -48,6 +50,31 @@ const RmiInstructor: React.FC = () => {
   const [selectedPeriodo, setSelectedPeriodo] = useState<string | undefined>();
   const [selectedContratoId, setSelectedContratoId] = useState<number>(0);
 
+  //Agregar las actividades del instructor:
+  const [actividadModalParams, setActividadModalParams] = useState<{
+    idRmi: number;
+    idContrato: number;
+    fechaMinima: string;
+    fechaMaxima: string;
+  } | null>(null);
+  // Agregar estado para actividades
+  const [actividadesRmi, setActividadesRmi] = useState<any[]>([]);
+  const [selectedIdRmi, setSelectedIdRmi] = useState<number>(0);
+
+  const periodoActual = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const dataRmiFiltrada = useMemo(() => {
+    return dataRmi.map((contrato) => ({
+      ...contrato,
+      periodos: contrato.periodos
+        .filter((p) => p.periodo <= periodoActual) // solo pasados + actual
+        .sort((a, b) => (a.periodo < b.periodo ? 1 : -1)) // actual primero
+    }));
+  }, [dataRmi, periodoActual]);
+
   // Carga los años disponibles
   useEffect(() => {
     const loadData = async () => {
@@ -86,22 +113,27 @@ const RmiInstructor: React.FC = () => {
     loadRmi();
   }, [anioGestion]);
 
-  const handleVerRmi = async (idContrato: number, periodoStr: string) => {
+  const handleVerRmi = async (idContrato: number, periodoStr: string, idRmi: number) => {
+    setSelectedIdRmi(idRmi);
     setLoadingFichas(true);
     setSelectedPeriodo(periodoStr);
     setSelectedContratoId(idContrato);
     try {
-      const r = await axios.get('instructores/fichas', {
-        params: {
-          idContrato,
-          periodo: periodoStr
-        }
-      });
-      setFichas(r.data);
+      const [fichasRes, actividadesRes] = await Promise.all([
+        axios.get('instructores/fichas', {
+          params: { idContrato, periodo: periodoStr }
+        }),
+        axios.get('actividades-instructores', {
+          params: { idRmi, idContrato }
+        })
+      ]);
+      setFichas(fichasRes.data);
+      setActividadesRmi(actividadesRes.data);
       setRmiModalOpen(true);
     } catch (e) {
       console.error(e);
       setFichas([]);
+      setActividadesRmi([]);
       setRmiModalOpen(true);
     } finally {
       setLoadingFichas(false);
@@ -109,8 +141,8 @@ const RmiInstructor: React.FC = () => {
   };
 
   const fetchFichas = () => {
-    if (selectedContratoId && selectedPeriodo) {
-      handleVerRmi(selectedContratoId, selectedPeriodo);
+    if (selectedContratoId && selectedPeriodo && selectedIdRmi) {
+      handleVerRmi(selectedContratoId, selectedPeriodo, selectedIdRmi);
     }
   };
 
@@ -157,7 +189,7 @@ const RmiInstructor: React.FC = () => {
           No hay datos RMI para el año {anioGestion}
         </div>
       ) : (
-        dataRmi.map((contrato) => (
+        dataRmiFiltrada.map((contrato) => (
           <div
             key={contrato.idContrato}
             className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
@@ -205,7 +237,9 @@ const RmiInstructor: React.FC = () => {
 
                   <div className="flex gap-2 flex-wrap mt-3">
                     <button
-                      onClick={() => handleVerRmi(contrato.idContrato, periodo.periodo)}
+                      onClick={() =>
+                        handleVerRmi(contrato.idContrato, periodo.periodo, periodo.idRmi)
+                      }
                       disabled={loadingFichas && selectedPeriodo === periodo.periodo}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50"
                     >
@@ -216,12 +250,61 @@ const RmiInstructor: React.FC = () => {
                       )}
                       Ver y Descargar RMI
                     </button>
+
+                    <button
+                      onClick={() => {
+                        const [year, month] = periodo.periodo.split('-').map(Number);
+                        const fechaMinima = `${year}-${String(month).padStart(2, '0')}-01`;
+                        const lastDay = new Date(year, month, 0).getDate(); // último día del mes
+                        const fechaMaxima = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+
+                        setActividadModalParams({
+                          idRmi: periodo.idRmi,
+                          idContrato: contrato.idContrato,
+                          fechaMinima,
+                          fechaMaxima
+                        });
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 font-medium text-orange-700 dark:text-orange-400 dark:bg-white/5 rounded-lg transition-all"
+                    >
+                      <i className="ki-outline ki-list text-sm" /> Actividades
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ))
+      )}
+
+      {/* Modal CRUD Actividades */}
+      {actividadModalParams && (
+        <Modal
+          open={true}
+          onClose={() => setActividadModalParams(null)}
+          className="mx-4 sm:mx-auto max-w-4xl w-full"
+        >
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>Actividades del Instructor</ModalTitle>
+              <button
+                type="button"
+                onClick={() => setActividadModalParams(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5">
+              <ActividadesIndex
+                idRmi={actividadModalParams.idRmi}
+                idContrato={actividadModalParams.idContrato}
+                fechaMinima={actividadModalParams.fechaMinima}
+                fechaMaxima={actividadModalParams.fechaMaxima}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       )}
 
       {/* Modal RMI para el instructor */}
@@ -231,6 +314,7 @@ const RmiInstructor: React.FC = () => {
         instructor={dummyInstructor}
         periodo={selectedPeriodo}
         fichas={fichas}
+        actividades={actividadesRmi}
         onRefresh={fetchFichas}
         readOnlyAsociacion={true}
       />

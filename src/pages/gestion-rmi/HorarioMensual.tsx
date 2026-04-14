@@ -15,7 +15,8 @@ interface HorarioMensualProps {
 const DIAS_LABEL = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 // idDia backend: 1=Lun … 6=Sab, 7=Dom  /  js getDay(): 0=Dom, 1=Lun … 6=Sab
-function idDiaToJsDay(idDia: number): number {
+function idDiaToJsDay(idDiaArg: any): number {
+  const idDia = Number(idDiaArg);
   return idDia === 7 ? 0 : idDia;
 }
 
@@ -92,13 +93,13 @@ function agruparFilas(horarios: HorarioMateria[], year: number, month: number): 
     const fila = map.get(key)!;
     const diasMes = getDiasActivos(h, year, month);
 
-    if (!fila.diasActivos.includes(h.idDia)) fila.diasActivos.push(h.idDia);
-    const diasExistentes = fila.activosPorDia.get(h.idDia) || new Set<number>();
-    // Fusionar los días nuevos con los existentes
+    const idDia = Number(h.idDia);
+    if (!fila.diasActivos.includes(idDia)) fila.diasActivos.push(idDia);
+    const diasExistentes = fila.activosPorDia.get(idDia) || new Set<number>();
+    
     diasMes.forEach(d => diasExistentes.add(d));
-    // Guardar el set actualizado
-    fila.activosPorDia.set(h.idDia, diasExistentes);
-    fila.horasMes += diasMes.size * h.duracionSesion; // ← usa duracionSesion
+    fila.activosPorDia.set(idDia, diasExistentes);
+    fila.horasMes += diasMes.size * Number(h.duracionSesion);
   }
 
   return Array.from(map.values()).sort((a, b) => a.horaInicial.localeCompare(b.horaInicial));

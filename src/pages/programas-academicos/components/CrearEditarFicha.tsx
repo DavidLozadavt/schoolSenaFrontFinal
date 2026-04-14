@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import ModalPeriodo from '@/pages/periodos/ModalPeriodo';
 import Select from 'react-select';
 import * as Yup from 'yup';
@@ -8,14 +8,15 @@ import FormularioInfraestructura from '@/pages/gestion-infraestructura/Formulari
 import { ModalBody } from '@/components/modal';
 import ModalError from '@/pages/gestion-sedes-sena/ModalError';
 import Toast from './Toast';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   idCentro?: number;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
-  programaId?: string;          // solo para CREAR
-  fichaId?: number | null;      // solo para EDITAR — si viene, entra en modo edición
+  programaId?: string; // solo para CREAR
+  fichaId?: number | null; // solo para EDITAR — si viene, entra en modo edición
   onAction: () => void;
   // callbacks opcionales que usaba EditarFicha (se mantienen por compatibilidad)
   setEvento?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -24,12 +25,33 @@ interface Props {
 }
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
-interface Jornada   { id: number; nombreJornada: string }
-interface Periodo   { id: number; nombrePeriodo: string; fechaInicial: string; fechaFinal: string }
-interface Sedes     { id: number; nombre: string }
-interface Programas { id: number; nombrePrograma: string }
-interface Regionales{ id: number; razonSocial: string }
-interface Ambientes { id: number; nombreInfraestructura: string; capacidad: number }
+interface Jornada {
+  id: number;
+  nombreJornada: string;
+}
+interface Periodo {
+  id: number;
+  nombrePeriodo: string;
+  fechaInicial: string;
+  fechaFinal: string;
+}
+interface Sedes {
+  id: number;
+  nombre: string;
+}
+interface Programas {
+  id: number;
+  nombrePrograma: string;
+}
+interface Regionales {
+  id: number;
+  razonSocial: string;
+}
+interface Ambientes {
+  id: number;
+  nombreInfraestructura: string;
+  capacidad: number;
+}
 
 interface FormValues {
   observacion: string;
@@ -59,13 +81,13 @@ const toDate = (date?: string) => (date ? new Date(date) : null);
 const normalizeDate = (date?: string | null) => (date ? date.split('T')[0] : '');
 
 const ESTADOS_APERTURA = [
-  { value: 'ACTIVO',    label: 'ACTIVO' },
-  { value: 'INACTIVO',  label: 'INACTIVO' },
-  { value: 'EN CURSO',  label: 'EN CURSO' },
-  { value: 'CERRADO',   label: 'CERRADO' },
+  { value: 'ACTIVO', label: 'ACTIVO' },
+  { value: 'INACTIVO', label: 'INACTIVO' },
+  { value: 'EN CURSO', label: 'EN CURSO' },
+  { value: 'CERRADO', label: 'CERRADO' },
   { value: 'PENDIENTE', label: 'PENDIENTE' },
-  { value: 'APROBADO',  label: 'APROBADO' },
-  { value: 'CANCELADO', label: 'CANCELADO' },
+  { value: 'APROBADO', label: 'APROBADO' },
+  { value: 'CANCELADO', label: 'CANCELADO' }
 ];
 
 // ─── Validación ───────────────────────────────────────────────────────────────
@@ -73,29 +95,41 @@ const buildValidationSchema = (isEditing: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
 
-    idPeriodo: Yup.number().typeError('Debe seleccionar un periodo').required('Debe seleccionar un periodo'),
+    idPeriodo: Yup.number()
+      .typeError('Debe seleccionar un periodo')
+      .required('Debe seleccionar un periodo'),
 
     // En edición el programa se puede cambiar; en creación viene por prop
     idPrograma: isEditing
-      ? Yup.number().typeError('Debe seleccionar un programa').required('Debe seleccionar un programa')
+      ? Yup.number()
+          .typeError('Debe seleccionar un programa')
+          .required('Debe seleccionar un programa')
       : Yup.number().nullable(),
 
-    idRegional: Yup.number().typeError('Debe seleccionar una regional').required('Debe seleccionar una regional'),
+    idRegional: Yup.number()
+      .typeError('Debe seleccionar una regional')
+      .required('Debe seleccionar una regional'),
 
     // Estado solo se valida en edición
     estado: isEditing
       ? Yup.string().required('Debe seleccionar un estado')
       : Yup.string().nullable(),
 
-    idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
+    idSede: Yup.number()
+      .typeError('Debe seleccionar una sede')
+      .required('Debe seleccionar una sede'),
 
     idInfraestructura: Yup.number().nullable(),
 
-    idJornada: Yup.number().typeError('Debe seleccionar una jornada').required('Debe seleccionar una jornada'),
+    idJornada: Yup.number()
+      .typeError('Debe seleccionar una jornada')
+      .required('Debe seleccionar una jornada'),
 
     codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
-    fechaInicialInscripciones: Yup.string().required('La fecha inicial de inscripciones es obligatoria'),
+    fechaInicialInscripciones: Yup.string().required(
+      'La fecha inicial de inscripciones es obligatoria'
+    ),
 
     fechaFinalInscripciones: Yup.string()
       .required('La fecha final de inscripciones es obligatoria')
@@ -106,32 +140,48 @@ const buildValidationSchema = (isEditing: boolean) =>
 
     fechaInicialMatriculas: Yup.string()
       .required('La fecha inicial de matrículas es obligatoria')
-      .test('matricula-after-inscripcion', 'Debe ser mayor o igual a la fecha inicial de inscripciones', function (value) {
-        const { fechaInicialInscripciones } = this.parent;
-        return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-      }),
+      .test(
+        'matricula-after-inscripcion',
+        'Debe ser mayor o igual a la fecha inicial de inscripciones',
+        function (value) {
+          const { fechaInicialInscripciones } = this.parent;
+          return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
+        }
+      ),
 
     fechaFinalMatriculas: Yup.string()
       .required('La fecha final de matrículas es obligatoria')
-      .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial de matrículas', function (value) {
-        const { fechaInicialMatriculas } = this.parent;
-        return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
-      })
-      .test('fin-matriculas-before-clases', 'Debe ser menor a la fecha inicial de la etapa electiva', function (value) {
-        const { fechaInicialClases } = this.parent;
-        if (!value || !fechaInicialClases) return true;
-        return toDate(value)! < toDate(fechaInicialClases)!;
-      }),
+      .test(
+        'after-or-equal',
+        'Debe ser mayor o igual a la fecha inicial de matrículas',
+        function (value) {
+          const { fechaInicialMatriculas } = this.parent;
+          return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
+        }
+      )
+      .test(
+        'fin-matriculas-before-clases',
+        'Debe ser menor a la fecha inicial de la etapa electiva',
+        function (value) {
+          const { fechaInicialClases } = this.parent;
+          if (!value || !fechaInicialClases) return true;
+          return toDate(value)! < toDate(fechaInicialClases)!;
+        }
+      ),
 
     fechaInicialClases: Yup.string().required('La fecha inicial de etapa electiva es obligatoria'),
 
     fechaFinalClases: Yup.string()
       .required('La fecha final de etapa electiva es obligatoria')
-      .test('fin-clases-after-inicio', 'Debe ser mayor o igual a la fecha inicial de etapa electiva', function (value) {
-        const { fechaInicialClases } = this.parent;
-        if (!value || !fechaInicialClases) return true;
-        return toDate(value)! >= toDate(fechaInicialClases)!;
-      }),
+      .test(
+        'fin-clases-after-inicio',
+        'Debe ser mayor o igual a la fecha inicial de etapa electiva',
+        function (value) {
+          const { fechaInicialClases } = this.parent;
+          if (!value || !fechaInicialClases) return true;
+          return toDate(value)! >= toDate(fechaInicialClases)!;
+        }
+      ),
 
     fechaInicialPlanMejoramiento: Yup.string()
       .required('La fecha inicial de la etapa productiva es obligatoria')
@@ -143,11 +193,15 @@ const buildValidationSchema = (isEditing: boolean) =>
 
     fechaFinalPlanMejoramiento: Yup.string()
       .required('La fecha final de la etapa productiva es obligatoria')
-      .test('plan-fin-after-inicio', 'Debe ser mayor o igual a la fecha inicial de la etapa productiva', function (value) {
-        const { fechaInicialPlanMejoramiento } = this.parent;
-        if (!value || !fechaInicialPlanMejoramiento) return true;
-        return toDate(value)! >= toDate(fechaInicialPlanMejoramiento)!;
-      }),
+      .test(
+        'plan-fin-after-inicio',
+        'Debe ser mayor o igual a la fecha inicial de la etapa productiva',
+        function (value) {
+          const { fechaInicialPlanMejoramiento } = this.parent;
+          if (!value || !fechaInicialPlanMejoramiento) return true;
+          return toDate(value)! >= toDate(fechaInicialPlanMejoramiento)!;
+        }
+      ),
 
     porcentajeEjecucion: Yup.number()
       .typeError('Debe ser un número')
@@ -164,12 +218,12 @@ const buildValidationSchema = (isEditing: boolean) =>
       .test('fileSize', 'El archivo no puede superar los 5MB', (value) => {
         if (!value) return true;
         return value instanceof File && value.size <= 5 * 1024 * 1024;
-      }),
+      })
   });
-
 // ─── Estilos compartidos para react-select ────────────────────────────────────
 const selectClassNames = {
-  control: () => 'bg-white dark:bg-coal-400 border border-gray-300 dark:border-coal-200 text-gray-900 dark:text-gray-100',
+  control: () =>
+    'bg-white dark:bg-coal-400 border border-gray-300 dark:border-coal-200 text-gray-900 dark:text-gray-100',
   singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
   placeholder: () => 'text-gray-400 dark:text-gray-300',
   input: () => 'text-gray-900 dark:text-gray-100',
@@ -177,8 +231,9 @@ const selectClassNames = {
   option: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) =>
     `text-gray-900 dark:text-gray-100 ${isSelected ? 'bg-primary-500 text-white' : ''} ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}`,
   indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-  dropdownIndicator: () => 'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-  clearIndicator: () => 'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white',
+  dropdownIndicator: () =>
+    'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+  clearIndicator: () => 'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
 };
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -190,33 +245,44 @@ const CrearEditarFicha: React.FC<Props> = ({
   fichaId,
   onAction,
   setShowToast,
-  setMessageToast,
+  setMessageToast
 }) => {
   const isEditing = Boolean(fichaId);
 
+  const authContext = useContext(AuthContext);
+  const esInstructorSenaRef = React.useRef(false);
+  const idContratoUsuarioRef = React.useRef<number | undefined>(undefined);
+
+  // Actualizar refs cuando cambie el contexto
+  useEffect(() => {
+    esInstructorSenaRef.current = authContext?.roles?.includes('INSTRUCTOR SENA') ?? false;
+    idContratoUsuarioRef.current = authContext?.user?.persona?.contrato?.find(
+      (c: any) => c.idEstado === 1
+    )?.id;
+  }, [authContext]);
   // UI state
-  const [isLoading, setIsLoading]       = useState(false);
-  const [reload, setReload]             = useState(false);
-  const [openModal, setOpenModal]       = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [reload, setReload] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
   const [showAmbienteForm, setShowAmbienteForm] = useState(false);
-  const [eventoAmbiente, setEventoAmbiente]     = useState(false);
+  const [eventoAmbiente, setEventoAmbiente] = useState(false);
   const [idInfraestructura, setIdInfraestructura] = useState('');
-  const [codigoExist, setCodigoExist]   = useState(false);
-  const [codigo, setCodigo]             = useState('');
+  const [codigoExist, setCodigoExist] = useState(false);
+  const [codigo, setCodigo] = useState('');
 
   // Toast / error state
-  const [handleError, setHandleError]     = useState(false);
-  const [messageError, setMessageError]   = useState('');
+  const [handleError, setHandleError] = useState(false);
+  const [messageError, setMessageError] = useState('');
   const [handleSuccess, setHandleSuccess] = useState(false);
   const [messageSuccess, setMessageSuccess] = useState('');
 
   // Catálogos
-  const [jornadas,   setJornadas]   = useState<Jornada[]>([]);
-  const [periodos,   setPeriodos]   = useState<Periodo[]>([]);
-  const [sedes,      setSedes]      = useState<Sedes[]>([]);
-  const [programas,  setProgramas]  = useState<Programas[]>([]);
+  const [jornadas, setJornadas] = useState<Jornada[]>([]);
+  const [periodos, setPeriodos] = useState<Periodo[]>([]);
+  const [sedes, setSedes] = useState<Sedes[]>([]);
+  const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
-  const [ambientes,  setAmbientes]  = useState<Ambientes[]>([]);
+  const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
 
   // ── Formik ─────────────────────────────────────────────────────────────────
   const formik = useFormik<FormValues>({
@@ -241,7 +307,7 @@ const CrearEditarFicha: React.FC<Props> = ({
       fechaFinalMatriculas: '',
       tipoCalificacion: 'NUMERICO',
       porcentajeEjecucion: isEditing ? null : 100,
-      documento: null,
+      documento: null
     },
     validationSchema: buildValidationSchema(isEditing),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
@@ -255,17 +321,29 @@ const CrearEditarFicha: React.FC<Props> = ({
 
         if (isEditing) {
           await axios.post(`fichas/${fichaId}?_method=PUT`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
           setMessageSuccess('Ficha actualizada correctamente');
         } else {
           formData.append('idPrograma', String(programaId));
-          await axios.post('fichas', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+          const fichaRes = await axios.post('fichas', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
+
+          const nuevaFichaId = fichaRes.data?.data?.ficha?.id;
+
+          if (esInstructorSenaRef.current && idContratoUsuarioRef.current && nuevaFichaId) {
+            try {
+              await axios.post(`fichas/${nuevaFichaId}/asignar-instructor-lider`, {
+                idInstructorLider: idContratoUsuarioRef.current
+              });
+            } catch (e: any) {
+              console.warn('No se pudo asignar automáticamente el instructor líder');
+            }
+          }
+
           setMessageSuccess('Ficha creada correctamente');
         }
-
         setHandleSuccess(true);
         setTimeout(() => {
           resetForm();
@@ -283,7 +361,7 @@ const CrearEditarFicha: React.FC<Props> = ({
       } finally {
         setSubmitting(false);
       }
-    },
+    }
   });
 
   // ── Cargar catálogos generales (solo CREAR) ───────────────────────────────
@@ -294,7 +372,7 @@ const CrearEditarFicha: React.FC<Props> = ({
         const [jornadaRes, periodosRes, regionalesRes] = await Promise.all([
           axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentro } }),
           axios.get('periodos'),
-          axios.get('regional'),
+          axios.get('regional')
         ]);
         setJornadas(jornadaRes.data.data);
         setPeriodos(periodosRes.data);
@@ -320,9 +398,7 @@ const CrearEditarFicha: React.FC<Props> = ({
         const idSede = ficha.idSede || apertura.idSede || 0;
         // Usar el idCentroFormacion que viene en la respuesta del API
         const idCentroFromApi =
-          ficha.sede?.idCentroFormacion ||
-          ficha.jornada?.idCentroFormacion ||
-          idCentro;
+          ficha.sede?.idCentroFormacion || ficha.jornada?.idCentroFormacion || idCentro;
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
         const [jornadaRes, periodosRes, regionalesRes, programasRes, sedesRes, ambientesRes] =
@@ -332,7 +408,7 @@ const CrearEditarFicha: React.FC<Props> = ({
             axios.get('regional'),
             axios.get('programas'),
             idRegional ? axios.get(`sedes/regional/${idRegional}`) : Promise.resolve(null),
-            idSede ? axios.get(`sedes/${idSede}/infraestructuras`) : Promise.resolve(null),
+            idSede ? axios.get(`sedes/${idSede}/infraestructuras`) : Promise.resolve(null)
           ]);
 
         setJornadas(jornadaRes.data.data);
@@ -343,26 +419,26 @@ const CrearEditarFicha: React.FC<Props> = ({
         if (ambientesRes) setAmbientes(ambientesRes.data.data);
 
         formik.setValues({
-          observacion:                  apertura.observacion || '',
-          idPeriodo:                    apertura.idPeriodo || 0,
-          idPrograma:                   apertura.idPrograma || 0,
+          observacion: apertura.observacion || '',
+          idPeriodo: apertura.idPeriodo || 0,
+          idPrograma: apertura.idPrograma || 0,
           idRegional,
-          estado:                       apertura.estado || '',
+          estado: apertura.estado || '',
           idSede,
-          idJornada:                    ficha.idJornada || 0,
-          codigo:                       ficha.codigo || '',
-          fechaInicialClases:           normalizeDate(apertura.fechaInicialClases),
-          fechaFinalClases:             normalizeDate(apertura.fechaFinalClases),
-          fechaInicialInscripciones:    normalizeDate(apertura.fechaInicialInscripciones),
-          fechaFinalInscripciones:      normalizeDate(apertura.fechaFinalInscripciones),
-          fechaInicialMatriculas:       normalizeDate(apertura.fechaInicialMatriculas),
-          fechaFinalMatriculas:         normalizeDate(apertura.fechaFinalMatriculas),
+          idJornada: ficha.idJornada || 0,
+          codigo: ficha.codigo || '',
+          fechaInicialClases: normalizeDate(apertura.fechaInicialClases),
+          fechaFinalClases: normalizeDate(apertura.fechaFinalClases),
+          fechaInicialInscripciones: normalizeDate(apertura.fechaInicialInscripciones),
+          fechaFinalInscripciones: normalizeDate(apertura.fechaFinalInscripciones),
+          fechaInicialMatriculas: normalizeDate(apertura.fechaInicialMatriculas),
+          fechaFinalMatriculas: normalizeDate(apertura.fechaFinalMatriculas),
           fechaInicialPlanMejoramiento: normalizeDate(apertura.fechaInicialPlanMejoramiento),
-          fechaFinalPlanMejoramiento:   normalizeDate(apertura.fechaFinalPlanMejoramiento),
-          idInfraestructura:            ficha.idInfraestructura || 0,
-          tipoCalificacion:             apertura.tipoCalificacion || 'NUMERICO',
-          porcentajeEjecucion:          ficha.porcentajeEjecucion ?? null,
-          documento:                    null,
+          fechaFinalPlanMejoramiento: normalizeDate(apertura.fechaFinalPlanMejoramiento),
+          idInfraestructura: ficha.idInfraestructura || 0,
+          tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
+          porcentajeEjecucion: ficha.porcentajeEjecucion ?? null,
+          documento: null
         });
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Error al cargar la ficha';
@@ -382,50 +458,66 @@ const CrearEditarFicha: React.FC<Props> = ({
     // En edición, la carga inicial la hace loadFichaData.
     // Este efecto solo actúa cuando el usuario cambia la regional manualmente.
     if (isLoading) return; // evita pisar la carga inicial
-    if (!formik.values.idRegional) { setSedes([]); return; }
-    axios.get(`sedes/regional/${formik.values.idRegional}`)
-      .then(res => setSedes(res.data.data))
+    if (!formik.values.idRegional) {
+      setSedes([]);
+      return;
+    }
+    axios
+      .get(`sedes/regional/${formik.values.idRegional}`)
+      .then((res) => setSedes(res.data.data))
       .catch(() => setSedes([]));
   }, [formik.values.idRegional]);
 
   // ── Cargar ambientes al cambiar sede (solo cuando el usuario cambia manual) ──
   useEffect(() => {
     if (isLoading) return; // evita pisar la carga inicial
-    if (!formik.values.idSede) { setAmbientes([]); return; }
-    axios.get(`sedes/${formik.values.idSede}/infraestructuras`)
-      .then(res => setAmbientes(res.data.data))
+    if (!formik.values.idSede) {
+      setAmbientes([]);
+      return;
+    }
+    axios
+      .get(`sedes/${formik.values.idSede}/infraestructuras`)
+      .then((res) => setAmbientes(res.data.data))
       .catch(() => setAmbientes([]));
   }, [formik.values.idSede, eventoAmbiente]);
 
   // ── Verificar duplicado de código (solo creación) ─────────────────────────
   useEffect(() => {
     if (isEditing || !codigo) return;
-    axios.get(`ficha/validar-codigo/${codigo}`)
-      .then(res => setCodigoExist(res.data.existe))
+    axios
+      .get(`ficha/validar-codigo/${codigo}`)
+      .then((res) => setCodigoExist(res.data.existe))
       .catch(() => setCodigoExist(false));
   }, [codigo]);
 
   // ── Opciones para react-select ────────────────────────────────────────────
-  const optionsJornadas   = jornadas.map(v => ({ value: v.id, label: v.nombreJornada }));
-  const optionsPeriodos   = periodos.map(v => ({ value: v.id, label: `${v.nombrePeriodo} fecha inicio: ${v.fechaInicial} fecha fin: ${v.fechaFinal}` }));
-  const optionsSedes      = sedes.map(v => ({ value: v.id, label: v.nombre }));
-  const optionsRegionales = regionales.map(v => ({ value: v.id, label: v.razonSocial }));
-  const optionsAmbientes  = ambientes.map(v => ({ value: v.id, label: v.nombreInfraestructura }));
-  const optionsProgramas  = programas.map(v => ({ value: v.id, label: v.nombrePrograma }));
+  const optionsJornadas = jornadas.map((v) => ({ value: v.id, label: v.nombreJornada }));
+  const optionsPeriodos = periodos.map((v) => ({
+    value: v.id,
+    label: `${v.nombrePeriodo} fecha inicio: ${v.fechaInicial} fecha fin: ${v.fechaFinal}`
+  }));
+  const optionsSedes = sedes.map((v) => ({ value: v.id, label: v.nombre }));
+  const optionsRegionales = regionales.map((v) => ({ value: v.id, label: v.razonSocial }));
+  const optionsAmbientes = ambientes.map((v) => ({ value: v.id, label: v.nombreInfraestructura }));
+  const optionsProgramas = programas.map((v) => ({ value: v.id, label: v.nombrePrograma }));
 
   if (!isModalOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/60 items-center justify-center px-4">
       <div className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl dark:border-coal-100 bg-white dark:bg-coal-400 shadow-xl">
-
         {/* Cerrar */}
         <button
           type="button"
           aria-label="Cerrar modal"
-          onClick={() => { setIsModalOpen(false); formik.resetForm(); }}
+          onClick={() => {
+            setIsModalOpen(false);
+            formik.resetForm();
+          }}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl"
-        >✕</button>
+        >
+          ✕
+        </button>
 
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
@@ -440,7 +532,6 @@ const CrearEditarFicha: React.FC<Props> = ({
           <ModalBody className="grid gap-5 px-0 py-5">
             <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                 {/* ── Información académica ─────────────────────── */}
                 <div className="md:col-span-2">
                   <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
@@ -455,7 +546,10 @@ const CrearEditarFicha: React.FC<Props> = ({
                     type="text"
                     name="codigo"
                     value={formik.values.codigo}
-                    onChange={(e) => { formik.handleChange(e); if (!isEditing) setCodigo(e.target.value); }}
+                    onChange={(e) => {
+                      formik.handleChange(e);
+                      if (!isEditing) setCodigo(e.target.value);
+                    }}
                     onBlur={formik.handleBlur}
                     className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
                   />
@@ -499,8 +593,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                     options={optionsJornadas}
                     placeholder="Seleccione la jornada"
                     isClearable
-                    value={optionsJornadas.find(o => o.value === formik.values.idJornada)}
-                    onChange={option => formik.setFieldValue('idJornada', option?.value || 0)}
+                    value={optionsJornadas.find((o) => o.value === formik.values.idJornada)}
+                    onChange={(option) => formik.setFieldValue('idJornada', option?.value || 0)}
                     onBlur={() => formik.setFieldTouched('idJornada', true)}
                     classNames={selectClassNames}
                   />
@@ -518,8 +612,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                         options={optionsPeriodos}
                         placeholder="Seleccione el periodo"
                         isClearable
-                        value={optionsPeriodos.find(o => o.value === formik.values.idPeriodo)}
-                        onChange={option => formik.setFieldValue('idPeriodo', option?.value || 0)}
+                        value={optionsPeriodos.find((o) => o.value === formik.values.idPeriodo)}
+                        onChange={(option) => formik.setFieldValue('idPeriodo', option?.value || 0)}
                         onBlur={() => formik.setFieldTouched('idPeriodo', true)}
                         classNames={selectClassNames}
                       />
@@ -529,7 +623,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                       onClick={() => setOpenModal(true)}
                       className="h-[38px] w-[38px] flex items-center justify-center border border-gray-300 rounded-md text-lg font-medium text-gray-600 hover:border-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       title="Agregar periodo"
-                    >+</button>
+                    >
+                      +
+                    </button>
                   </div>
                   {formik.touched.idPeriodo && formik.errors.idPeriodo && (
                     <p className="text-red-500 text-xs">{formik.errors.idPeriodo}</p>
@@ -544,8 +640,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                       options={optionsProgramas}
                       placeholder="Seleccione el programa"
                       isClearable
-                      value={optionsProgramas.find(o => o.value === formik.values.idPrograma)}
-                      onChange={option => formik.setFieldValue('idPrograma', option?.value || 0)}
+                      value={optionsProgramas.find((o) => o.value === formik.values.idPrograma)}
+                      onChange={(option) => formik.setFieldValue('idPrograma', option?.value || 0)}
                       onBlur={() => formik.setFieldTouched('idPrograma', true)}
                       classNames={selectClassNames}
                     />
@@ -563,8 +659,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                       options={ESTADOS_APERTURA}
                       placeholder="Seleccione el estado"
                       isClearable
-                      value={ESTADOS_APERTURA.find(o => o.value === formik.values.estado)}
-                      onChange={option => formik.setFieldValue('estado', option?.value || '')}
+                      value={ESTADOS_APERTURA.find((o) => o.value === formik.values.estado)}
+                      onChange={(option) => formik.setFieldValue('estado', option?.value || '')}
                       onBlur={() => formik.setFieldTouched('estado', true)}
                       classNames={selectClassNames}
                     />
@@ -576,7 +672,9 @@ const CrearEditarFicha: React.FC<Props> = ({
 
                 {/* ── Ubicación ────────────────────────────────────── */}
                 <div className="md:col-span-2 mt-4">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">Ubicación</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
+                    Ubicación
+                  </h3>
                 </div>
 
                 {/* Regional */}
@@ -586,8 +684,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                     options={optionsRegionales}
                     placeholder="Seleccione la regional"
                     isClearable
-                    value={optionsRegionales.find(o => o.value === formik.values.idRegional)}
-                    onChange={option => {
+                    value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
+                    onChange={(option) => {
                       formik.setFieldValue('idRegional', option?.value || 0);
                       formik.setFieldValue('idSede', 0);
                       formik.setFieldValue('idInfraestructura', 0);
@@ -606,14 +704,16 @@ const CrearEditarFicha: React.FC<Props> = ({
                   <Select
                     options={optionsSedes}
                     placeholder={
-                      !formik.values.idRegional ? 'Seleccione primero una regional'
-                      : sedes.length === 0 ? 'No hay sedes para esta regional'
-                      : 'Seleccione la sede'
+                      !formik.values.idRegional
+                        ? 'Seleccione primero una regional'
+                        : sedes.length === 0
+                          ? 'No hay sedes para esta regional'
+                          : 'Seleccione la sede'
                     }
                     isDisabled={!formik.values.idRegional || sedes.length === 0}
                     isClearable
-                    value={optionsSedes.find(o => o.value === formik.values.idSede)}
-                    onChange={option => {
+                    value={optionsSedes.find((o) => o.value === formik.values.idSede)}
+                    onChange={(option) => {
                       formik.setFieldValue('idSede', option?.value || 0);
                       formik.setFieldValue('idInfraestructura', 0);
                     }}
@@ -633,14 +733,20 @@ const CrearEditarFicha: React.FC<Props> = ({
                       <Select
                         options={optionsAmbientes}
                         placeholder={
-                          !formik.values.idSede ? 'Seleccione primero una sede'
-                          : ambientes.length === 0 ? 'No hay ambientes para esta sede'
-                          : 'Seleccione el ambiente'
+                          !formik.values.idSede
+                            ? 'Seleccione primero una sede'
+                            : ambientes.length === 0
+                              ? 'No hay ambientes para esta sede'
+                              : 'Seleccione el ambiente'
                         }
                         isDisabled={!formik.values.idSede || ambientes.length === 0}
                         isClearable
-                        value={optionsAmbientes.find(o => o.value === formik.values.idInfraestructura)}
-                        onChange={option => formik.setFieldValue('idInfraestructura', option?.value || 0)}
+                        value={optionsAmbientes.find(
+                          (o) => o.value === formik.values.idInfraestructura
+                        )}
+                        onChange={(option) =>
+                          formik.setFieldValue('idInfraestructura', option?.value || 0)
+                        }
                         onBlur={() => formik.setFieldTouched('idInfraestructura', true)}
                         classNames={selectClassNames}
                       />
@@ -651,7 +757,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                       onClick={() => setShowAmbienteForm(true)}
                       className="h-[38px] w-[38px] flex items-center justify-center border border-gray-300 rounded-md text-lg font-medium text-gray-600 bg-white hover:border-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition"
                       title="Agregar ambiente"
-                    >+</button>
+                    >
+                      +
+                    </button>
                   </div>
                   {formik.touched.idInfraestructura && formik.errors.idInfraestructura && (
                     <p className="text-red-500 text-xs mt-1">{formik.errors.idInfraestructura}</p>
@@ -660,7 +768,9 @@ const CrearEditarFicha: React.FC<Props> = ({
 
                 {/* ── Fechas del proceso ───────────────────────────── */}
                 <div className="md:col-span-2 mt-6">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">Fechas del proceso</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
+                    Fechas del proceso
+                  </h3>
                 </div>
 
                 {/* Inscripciones */}
@@ -669,13 +779,37 @@ const CrearEditarFicha: React.FC<Props> = ({
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Inicio</label>
-                  <input type="date" name="fechaInicialInscripciones" value={formik.values.fechaInicialInscripciones} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaInicialInscripciones && formik.errors.fechaInicialInscripciones && <p className="text-red-500 text-xs">{formik.errors.fechaInicialInscripciones}</p>}
+                  <input
+                    type="date"
+                    name="fechaInicialInscripciones"
+                    value={formik.values.fechaInicialInscripciones}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaInicialInscripciones &&
+                    formik.errors.fechaInicialInscripciones && (
+                      <p className="text-red-500 text-xs">
+                        {formik.errors.fechaInicialInscripciones}
+                      </p>
+                    )}
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Fin</label>
-                  <input type="date" name="fechaFinalInscripciones" value={formik.values.fechaFinalInscripciones} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaFinalInscripciones && formik.errors.fechaFinalInscripciones && <p className="text-red-500 text-xs">{formik.errors.fechaFinalInscripciones}</p>}
+                  <input
+                    type="date"
+                    name="fechaFinalInscripciones"
+                    value={formik.values.fechaFinalInscripciones}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaFinalInscripciones &&
+                    formik.errors.fechaFinalInscripciones && (
+                      <p className="text-red-500 text-xs">
+                        {formik.errors.fechaFinalInscripciones}
+                      </p>
+                    )}
                 </div>
 
                 {/* Matrículas */}
@@ -684,13 +818,32 @@ const CrearEditarFicha: React.FC<Props> = ({
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Inicio</label>
-                  <input type="date" name="fechaInicialMatriculas" value={formik.values.fechaInicialMatriculas} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaInicialMatriculas && formik.errors.fechaInicialMatriculas && <p className="text-red-500 text-xs">{formik.errors.fechaInicialMatriculas}</p>}
+                  <input
+                    type="date"
+                    name="fechaInicialMatriculas"
+                    value={formik.values.fechaInicialMatriculas}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaInicialMatriculas &&
+                    formik.errors.fechaInicialMatriculas && (
+                      <p className="text-red-500 text-xs">{formik.errors.fechaInicialMatriculas}</p>
+                    )}
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Fin</label>
-                  <input type="date" name="fechaFinalMatriculas" value={formik.values.fechaFinalMatriculas} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>}
+                  <input
+                    type="date"
+                    name="fechaFinalMatriculas"
+                    value={formik.values.fechaFinalMatriculas}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && (
+                    <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
+                  )}
                 </div>
 
                 {/* Etapa electiva */}
@@ -699,13 +852,31 @@ const CrearEditarFicha: React.FC<Props> = ({
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Inicio</label>
-                  <input type="date" name="fechaInicialClases" value={formik.values.fechaInicialClases} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>}
+                  <input
+                    type="date"
+                    name="fechaInicialClases"
+                    value={formik.values.fechaInicialClases}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && (
+                    <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Fin</label>
-                  <input type="date" name="fechaFinalClases" value={formik.values.fechaFinalClases} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>}
+                  <input
+                    type="date"
+                    name="fechaFinalClases"
+                    value={formik.values.fechaFinalClases}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
+                    <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
+                  )}
                 </div>
 
                 {/* Etapa productiva */}
@@ -714,13 +885,37 @@ const CrearEditarFicha: React.FC<Props> = ({
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Inicio</label>
-                  <input type="date" name="fechaInicialPlanMejoramiento" value={formik.values.fechaInicialPlanMejoramiento} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaInicialPlanMejoramiento && formik.errors.fechaInicialPlanMejoramiento && <p className="text-red-500 text-xs">{formik.errors.fechaInicialPlanMejoramiento}</p>}
+                  <input
+                    type="date"
+                    name="fechaInicialPlanMejoramiento"
+                    value={formik.values.fechaInicialPlanMejoramiento}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaInicialPlanMejoramiento &&
+                    formik.errors.fechaInicialPlanMejoramiento && (
+                      <p className="text-red-500 text-xs">
+                        {formik.errors.fechaInicialPlanMejoramiento}
+                      </p>
+                    )}
                 </div>
                 <div>
                   <label className="text-sm text-gray-700">Fin</label>
-                  <input type="date" name="fechaFinalPlanMejoramiento" value={formik.values.fechaFinalPlanMejoramiento} onChange={formik.handleChange} onBlur={formik.handleBlur} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400" />
-                  {formik.touched.fechaFinalPlanMejoramiento && formik.errors.fechaFinalPlanMejoramiento && <p className="text-red-500 text-xs">{formik.errors.fechaFinalPlanMejoramiento}</p>}
+                  <input
+                    type="date"
+                    name="fechaFinalPlanMejoramiento"
+                    value={formik.values.fechaFinalPlanMejoramiento}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                  />
+                  {formik.touched.fechaFinalPlanMejoramiento &&
+                    formik.errors.fechaFinalPlanMejoramiento && (
+                      <p className="text-red-500 text-xs">
+                        {formik.errors.fechaFinalPlanMejoramiento}
+                      </p>
+                    )}
                 </div>
 
                 {/* Porcentaje de ejecución */}
@@ -729,9 +924,17 @@ const CrearEditarFicha: React.FC<Props> = ({
                     <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
                   </div>
                   <input
-                    type="number" name="porcentajeEjecucion" min={1} max={100}
+                    type="number"
+                    name="porcentajeEjecucion"
+                    min={1}
+                    max={100}
                     value={formik.values.porcentajeEjecucion ?? ''}
-                    onChange={(e) => formik.setFieldValue('porcentajeEjecucion', e.target.value === '' ? null : Number(e.target.value))}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        'porcentajeEjecucion',
+                        e.target.value === '' ? null : Number(e.target.value)
+                      )
+                    }
                     onBlur={formik.handleBlur}
                     className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
                     placeholder="Ej: 75"
@@ -747,15 +950,30 @@ const CrearEditarFicha: React.FC<Props> = ({
                 <p className="text-xs font-bold mb-2 text-gray-800">
                   Documento de la ficha <span className="text-gray-500">(PDF)</span>
                 </p>
-                <label htmlFor="documento" className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500">
+                <label
+                  htmlFor="documento"
+                  className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500"
+                >
                   <div className="flex items-center gap-3">
                     📄
                     <span className="text-sm text-gray-700">
-                      {formik.values.documento ? formik.values.documento.name : 'Seleccionar archivo PDF'}
+                      {formik.values.documento
+                        ? formik.values.documento.name
+                        : 'Seleccionar archivo PDF'}
                     </span>
                   </div>
-                  <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">Examinar</span>
-                  <input id="documento" type="file" accept="application/pdf" onChange={e => formik.setFieldValue('documento', e.currentTarget.files?.[0] || null)} className="hidden" />
+                  <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
+                    Examinar
+                  </span>
+                  <input
+                    id="documento"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) =>
+                      formik.setFieldValue('documento', e.currentTarget.files?.[0] || null)
+                    }
+                    className="hidden"
+                  />
                 </label>
                 <p className="text-xs text-gray-500 mt-1">Solo archivos PDF · Máx 5MB</p>
                 {formik.touched.documento && formik.errors.documento && (
@@ -767,17 +985,26 @@ const CrearEditarFicha: React.FC<Props> = ({
               <div className="flex justify-end gap-2 mt-6 border-t pt-4">
                 <button
                   type="button"
-                  onClick={() => { setIsModalOpen(false); formik.resetForm(); }}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    formik.resetForm();
+                  }}
                   className="px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                >Cancelar</button>
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
                   disabled={formik.isSubmitting}
                   className={`px-4 py-2 rounded-lg text-sm text-white transition-colors duration-200 ${formik.isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'}`}
                 >
                   {formik.isSubmitting
-                    ? isEditing ? 'Actualizando...' : 'Guardando...'
-                    : isEditing ? 'Actualizar ficha' : 'Guardar ficha'}
+                    ? isEditing
+                      ? 'Actualizando...'
+                      : 'Guardando...'
+                    : isEditing
+                      ? 'Actualizar ficha'
+                      : 'Guardar ficha'}
                 </button>
               </div>
             </form>
@@ -798,11 +1025,25 @@ const CrearEditarFicha: React.FC<Props> = ({
       <ModalPeriodo
         open={openModal}
         onClose={() => setOpenModal(false)}
-        onSave={() => { setReload(prev => !prev); setOpenModal(false); }}
+        onSave={() => {
+          setReload((prev) => !prev);
+          setOpenModal(false);
+        }}
       />
 
-      <Toast isOpen={handleSuccess} message={messageSuccess} onClose={() => setHandleSuccess(false)} />
-      <ModalError isOpen={handleError} message={messageError} onClose={() => { setHandleError(false); setMessageError(''); }} />
+      <Toast
+        isOpen={handleSuccess}
+        message={messageSuccess}
+        onClose={() => setHandleSuccess(false)}
+      />
+      <ModalError
+        isOpen={handleError}
+        message={messageError}
+        onClose={() => {
+          setHandleError(false);
+          setMessageError('');
+        }}
+      />
     </div>
   );
 };

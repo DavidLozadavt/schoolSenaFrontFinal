@@ -1,9 +1,8 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ComisionesIndex from '../comisiones/ComisionesIndex';
-import ActividadesIndex from '../actividades/ActividadesIndex';
 
 interface DetalleRmi {
   idDetalleRmi: number;
@@ -44,6 +43,8 @@ const InformeGeneralInstructor: React.FC = () => {
   const [comisionModalParams, setComisionModalParams] = useState<{
     idContrato: number;
     idRmi: number;
+    fechaMinima: string;
+    fechaMaxima: string;
   } | null>(null);
   const [actividadModalParams, setActividadModalParams] = useState<{ idRmi: number } | null>(null);
 
@@ -52,7 +53,6 @@ const InformeGeneralInstructor: React.FC = () => {
     idContrato: number;
     idRmi: number;
   } | null>(null);
-  const [plazoInput, setPlazoInput] = useState('');
   const [nPlanillaInput, setnPlanillaInput] = useState('');
   // Carga los años disponibles
   useEffect(() => {
@@ -64,6 +64,20 @@ const InformeGeneralInstructor: React.FC = () => {
     };
     loadData();
   }, [authContext]);
+
+  const periodoActual = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const dataRmiFiltrada = useMemo(() => {
+    return dataRmi.map((contrato) => ({
+      ...contrato,
+      periodos: contrato.periodos
+        .filter((p) => p.periodo <= periodoActual)
+        .sort((a, b) => (a.periodo < b.periodo ? 1 : -1))
+    }));
+  }, [dataRmi, periodoActual]);
 
   // Carga los RMI cuando cambia el año seleccionado
   useEffect(() => {
@@ -88,15 +102,10 @@ const InformeGeneralInstructor: React.FC = () => {
     loadRmi();
   }, [anioGestion]);
 
-  const handleDescargarPdf = async (
-    idContrato: number,
-    idRmi: number,
-    plazo: string,
-    nPlanilla: string
-  ) => {
+  const handleDescargarPdf = async (idContrato: number, idRmi: number, nPlanilla: string) => {
     try {
       const res = await axios.get('get_informe_by_instructor_rmi', {
-        params: { idContrato, idRmi, plazo, nPlanilla },
+        params: { idContrato, idRmi, nPlanilla },
         responseType: 'blob'
       });
 
@@ -144,7 +153,7 @@ const InformeGeneralInstructor: React.FC = () => {
           No hay datos RMI para el año {anioGestion}
         </div>
       ) : (
-        dataRmi.map((contrato) => (
+        dataRmiFiltrada.map((contrato) => (
           <div
             key={contrato.idContrato}
             className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
@@ -197,7 +206,6 @@ const InformeGeneralInstructor: React.FC = () => {
                       <>
                         <button
                           onClick={() => {
-                            setPlazoInput('');
                             setPlazoModalParams({
                               idContrato: contrato.idContrato,
                               idRmi: periodo.idRmi
@@ -210,21 +218,22 @@ const InformeGeneralInstructor: React.FC = () => {
                       </>
                     )}
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        const [year, month] = periodo.periodo.split('-').map(Number);
+                        const fechaMinima = `${year}-${String(month).padStart(2, '0')}-01`;
+                        const lastDay = new Date(year, month, 0).getDate(); // último día del mes
+                        const fechaMaxima = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+
                         setComisionModalParams({
                           idContrato: contrato.idContrato,
-                          idRmi: periodo.idRmi
-                        })
-                      }
+                          idRmi: periodo.idRmi,
+                          fechaMinima,
+                          fechaMaxima
+                        });
+                      }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-white/5 rounded-lg transition-all"
                     >
                       <i className="ki-outline ki-credit-cart text-sm" /> Comisiones
-                    </button>
-                    <button
-                      onClick={() => setActividadModalParams({ idRmi: periodo.idRmi })}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 font-medium text-orange-700 dark:text-orange-400  dark:bg-white/5 rounded-lg transition-all"
-                    >
-                      <i className="ki-outline ki-list text-sm" /> Actividades
                     </button>
                   </div>
                 </div>
@@ -256,36 +265,14 @@ const InformeGeneralInstructor: React.FC = () => {
               <ComisionesIndex
                 idContrato={comisionModalParams.idContrato}
                 idRmi={comisionModalParams.idRmi}
+                fechaMinima={comisionModalParams.fechaMinima}
+                fechaMaxima={comisionModalParams.fechaMaxima}
               />
             </ModalBody>
           </ModalContent>
         </Modal>
       )}
 
-      {/* Modal CRUD Actividades */}
-      {actividadModalParams && (
-        <Modal
-          open={true}
-          onClose={() => setActividadModalParams(null)}
-          className="mx-4 sm:mx-auto max-w-4xl w-full"
-        >
-          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
-            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
-              <ModalTitle>Actividades del Instructor</ModalTitle>
-              <button
-                type="button"
-                onClick={() => setActividadModalParams(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                <i className="ki-outline ki-cross text-lg" />
-              </button>
-            </ModalHeader>
-            <ModalBody className="p-5">
-              <ActividadesIndex idRmi={actividadModalParams.idRmi} />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      )}
       {/* Modal input Plazo */}
       {plazoModalParams && (
         <Modal
@@ -310,20 +297,10 @@ const InformeGeneralInstructor: React.FC = () => {
                   No. planilla
                 </label>
                 <input
-                type='text'
+                  type="text"
                   value={nPlanillaInput}
                   onChange={(e) => setnPlanillaInput(e.target.value)}
                   placeholder="Ingrese el número de la planilla..."
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Valor y forma de pago
-                </label>
-                <textarea
-                  value={plazoInput}
-                  onChange={(e) => setPlazoInput(e.target.value)}
-                  placeholder="Ingrese el valor y la forma de pago..."
-                  rows={3}
                   className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
@@ -335,12 +312,11 @@ const InformeGeneralInstructor: React.FC = () => {
                   Cancelar
                 </button>
                 <button
-                  disabled={!plazoInput.trim()}
+                  disabled={!nPlanillaInput.trim()}
                   onClick={async () => {
                     await handleDescargarPdf(
                       plazoModalParams.idContrato,
                       plazoModalParams.idRmi,
-                      plazoInput.trim(),
                       nPlanillaInput.trim()
                     );
                     setPlazoModalParams(null);

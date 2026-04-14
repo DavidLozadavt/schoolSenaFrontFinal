@@ -46,13 +46,14 @@ export const GestionProgramas = ({
     setSelectedMallaProgram(program);
     setIsMallaOpen(true);
   };
+
   const authContext = useContext(AuthContext);
   if (!authContext) {
     throw new Error('AuthContext debe usarse dentro de AuthProvider');
   }
 
-  // Filtros para ver los programas por regional:
   const { setCentroF } = authContext;
+  const esInstructorSena = authContext?.roles?.includes('INSTRUCTOR SENA');
 
   const [regionales, setRegionales] = useState<Regional[]>([]);
   const [idRegional, setIdRegional] = useState<number>(0);
@@ -69,12 +70,12 @@ export const GestionProgramas = ({
       return;
     }
     if (authContext?.roles?.includes('ADMIN REGIONAL')) {
-      setIdRegional(authContext?.empresa.id);
+      setIdRegional(Number(authContext?.empresa.id));
       return;
     }
     if (authContext?.roles?.includes('ADMIN CENTRO')) {
-      setIdRegional(authContext?.empresa.id);
-      setIdCentroFormacion(authContext?.user?.idCentroFormacion);
+      setIdRegional(Number(authContext?.empresa.id));
+      setIdCentroFormacion(Number(authContext?.user?.idCentroFormacion));
       return;
     }
   }, [authContext]);
@@ -85,7 +86,6 @@ export const GestionProgramas = ({
         const centro = await axios.get(`centrosFormacion/regional/${idRegional}`);
         setCentroFormacion(centro.data.data);
 
-        // Solo resetear si NO es admin centro
         if (!authContext?.roles?.includes('ADMIN CENTRO')) {
           setIdCentroFormacion(0);
         }
@@ -94,8 +94,6 @@ export const GestionProgramas = ({
       loadCentros();
     }
   }, [idRegional]);
-
-  //Terminan filtros para ver los programas por centro de formacion
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [selectedInfoProgram, setSelectedInfoProgram] = useState<Program | null>(null);
@@ -113,7 +111,6 @@ export const GestionProgramas = ({
   const [programToEdit, setProgramToEdit] = useState<Program | null>(null);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
 
-  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
 
@@ -125,7 +122,7 @@ export const GestionProgramas = ({
     (p: any): Program => {
       const nivelKey = p.nivel?.nombreNivel?.trim().toUpperCase() || 'DEFAULT';
       return {
-        id: p.id,
+        id: Number(p.id),
         name: p.nombrePrograma,
         codigo: p.codigoPrograma,
         status: p.estado?.nombre || 'ACTIVO',
@@ -135,9 +132,9 @@ export const GestionProgramas = ({
         imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
         description: p.descripcionPrograma,
         documento: p.documento ? `${backUrl}${p.documento}` : null,
-        idNivelEducativo: p.idNivelEducativo,
-        idTipoFormacion: p.idTipoFormacion,
-        idEstadoPrograma: p.idEstadoPrograma,
+        idNivelEducativo: Number(p.idNivelEducativo),
+        idTipoFormacion: Number(p.idTipoFormacion),
+        idEstadoPrograma: Number(p.idEstadoPrograma),
         red: p.red,
         fichas_count: p.fichas_activas_count ?? 0
       };
@@ -150,10 +147,25 @@ export const GestionProgramas = ({
       setLoading(true);
       setError(null);
 
-      let url = `programasporRed/${idRed}`;
+      let url = '';
 
-      if (idCentroFormacion !== 0) {
-        url += `?centro=${idCentroFormacion}`;
+      if (authContext?.roles?.includes('INSTRUCTOR SENA')) {
+        const idContrato = authContext?.user?.persona?.contrato?.find(
+          (c: any) => Number(c.idEstado) === 1
+        )?.id;
+
+        if (!idContrato) {
+          setPrograms([]);
+          return;
+        }
+
+        url = `programas_docente/${Number(idContrato)}`;
+      } else {
+        url = `programasporRed/${idRed}`;
+
+        if (idCentroFormacion !== 0) {
+          url += `?centro=${idCentroFormacion}`;
+        }
       }
 
       const response = await axios.get(url);
@@ -163,24 +175,21 @@ export const GestionProgramas = ({
       }
     } catch (error) {
       console.error('Error al cargar programas:', error);
-      setError('No se pudieron cargar los programas. Por favor, intente más tarde.');
+      setError('No se pudieron cargar los programas.');
     } finally {
       setLoading(false);
     }
-  }, [idCentroFormacion, idRed, mapBackendToUi]);
+  }, [idCentroFormacion, idRed, mapBackendToUi, authContext]);
 
   useEffect(() => {
-  if (!idRed) return;
+    if (!idRed) return;
 
-  if (
-    authContext?.roles?.includes('ADMIN CENTRO') &&
-    idCentroFormacion === 0
-  ) {
-    return;
-  }
+    if (authContext?.roles?.includes('ADMIN CENTRO') && idCentroFormacion === 0) {
+      return;
+    }
 
-  fetchProgramas();
-}, [idRed, idCentroFormacion]);
+    fetchProgramas();
+  }, [idRed, idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
@@ -233,16 +242,15 @@ export const GestionProgramas = ({
     );
   }, [searchTerm, programs]);
 
-  // Cálculos de paginación
   const totalPages = Math.ceil(filteredPrograms.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedPrograms = filteredPrograms.slice(startIndex, endIndex);
 
-  // Resetear página cuando cambia el filtro
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
   const customSelectStyles = {
     control: (base: any, state: any) => ({
       ...base,
@@ -252,18 +260,9 @@ export const GestionProgramas = ({
       backdropFilter: 'blur(8px)',
       borderColor: state.isFocused ? '#2563eb' : '#d1d5db',
       boxShadow: state.isFocused ? '0 0 0 2px rgba(37,99,235,0.2)' : 'none',
-      '&:hover': {
-        borderColor: '#2563eb'
-      }
+      '&:hover': { borderColor: '#2563eb' }
     }),
-
-    menu: (base: any) => ({
-      ...base,
-      borderRadius: '12px',
-      overflow: 'hidden',
-      zIndex: 50
-    }),
-
+    menu: (base: any) => ({ ...base, borderRadius: '12px', overflow: 'hidden', zIndex: 50 }),
     option: (base: any, state: any) => ({
       ...base,
       fontSize: '0.875rem',
@@ -271,13 +270,7 @@ export const GestionProgramas = ({
       color: state.isSelected ? 'white' : '#374151',
       cursor: 'pointer'
     }),
-
-    placeholder: (base: any) => ({
-      ...base,
-      fontSize: '0.875rem',
-      color: '#6b7280'
-    }),
-
+    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#6b7280' }),
     singleValue: (base: any) => ({
       ...base,
       fontSize: '0.875rem',
@@ -285,12 +278,10 @@ export const GestionProgramas = ({
       color: '#111827'
     })
   };
+
   const customSelectTheme = (theme: any) => ({
     ...theme,
-    colors: {
-      ...theme.colors,
-      primary: '#2563eb'
-    }
+    colors: { ...theme.colors, primary: '#2563eb' }
   });
 
   const handlePageChange = (page: number) => {
@@ -303,7 +294,6 @@ export const GestionProgramas = ({
   };
 
   const handleOpenProgramacionFichas = (program: Program) => {
-    // Navegar a la página de programación de fichas
     navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas`);
   };
 
@@ -356,23 +346,25 @@ export const GestionProgramas = ({
             />
           </div>
 
-          <button
-            onClick={() => {
-              setProgramToEdit(null);
-              setIsModalOpen(true);
-            }}
-            className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
-          >
-            <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
-              <i className="text-lg ki-filled ki-plus"></i>
-            </div>
-            <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-              Añadir Programa
-            </span>
-          </button>
+          {!esInstructorSena && (
+            <button
+              onClick={() => {
+                setProgramToEdit(null);
+                setIsModalOpen(true);
+              }}
+              className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+            >
+              <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                <i className="text-lg ki-filled ki-plus"></i>
+              </div>
+              <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                Añadir Programa
+              </span>
+            </button>
+          )}
         </div>
+
         <div className="flex">
-          {/** Filros para ver regionales por centros de formación */}
           {authContext?.roles?.includes('ADMINISTRADOR VT') && (
             <div className="m-2">
               <Select
@@ -402,7 +394,7 @@ export const GestionProgramas = ({
                 isDisabled={idRegional === 0}
                 value={optionsCentro.find((c) => c.value === idCentroFormacion) || null}
                 onChange={(e) => {
-                  const value = Number(e?.value);
+                  const value = Number(e?.value) || 0;
                   setIdCentroFormacion(value);
                   setCentroF(value);
                 }}
@@ -411,9 +403,7 @@ export const GestionProgramas = ({
           )}
         </div>
 
-        {/* Grid de Tarjetas Verticales */}
         <div className="relative w-full max-w-7xl mx-auto flex-grow flex flex-col px-4 md:px-6 overflow-hidden">
-          {/* Condicional de Carga */}
           {loading ? (
             <div className="flex flex-col items-center justify-center w-full gap-4 py-12">
               <div className="w-12 h-12 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
@@ -441,7 +431,6 @@ export const GestionProgramas = ({
             </div>
           ) : (
             <>
-              {/* Grid de Tarjetas */}
               <div className="flex-1 overflow-y-auto pb-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {paginatedPrograms.map((program) => {
@@ -460,7 +449,6 @@ export const GestionProgramas = ({
                         `}
                         title={`Fichas asociadas al programa: ${fichasCount}`}
                       >
-                        {/* Imagen del programa */}
                         <div className="relative h-48 overflow-hidden">
                           <img
                             src={program.imageUrl}
@@ -468,14 +456,11 @@ export const GestionProgramas = ({
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                          {/* Nivel */}
                           <div className="absolute top-3 right-3">
                             <span className="px-3 py-1 font-extrabold uppercase rounded-md text-[10px] bg-blue-600 text-white tracking-wider shadow-sm">
                               {program.nivel}
                             </span>
                           </div>
-
-                          {/* 🔵 Burbuja cantidad de fichas */}
                           <div className="absolute top-3 left-3">
                             <span className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-white/90 text-blue-700 rounded-full shadow">
                               <i className="ki-outline ki-book text-[11px]"></i>
@@ -489,9 +474,7 @@ export const GestionProgramas = ({
                           </div>
                         </div>
 
-                        {/* Contenido de la tarjeta */}
                         <div className="p-4 flex flex-col">
-                          {/* Información básica */}
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center gap-2">
                               <i className="text-gray-400 ki-outline ki-hashtag text-xs"></i>
@@ -521,7 +504,6 @@ export const GestionProgramas = ({
                             </div>
                           </div>
 
-                          {/* Botón principal */}
                           <button
                             onClick={() => handleOpenProgramacionFichas(program)}
                             className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors mb-3"
@@ -529,7 +511,6 @@ export const GestionProgramas = ({
                             Ver Programación de Fichas →
                           </button>
 
-                          {/* Botones de acción secundaria */}
                           <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
                             {program.documento ? (
                               <button
@@ -548,20 +529,26 @@ export const GestionProgramas = ({
                                 <i className="text-sm ki-outline ki-document"></i>
                               </span>
                             )}
-                            <button
-                              onClick={() => openEditModal(program)}
-                              title="Actualizar"
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-arrows-loop"></i>
-                            </button>
-                            <button
-                              onClick={() => openDeleteConfirm(program)}
-                              title="Eliminar"
-                              className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-trash"></i>
-                            </button>
+
+                            {!esInstructorSena && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(program)}
+                                  title="Actualizar"
+                                  className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
+                                >
+                                  <i className="text-sm ki-outline ki-arrows-loop"></i>
+                                </button>
+                                <button
+                                  onClick={() => openDeleteConfirm(program)}
+                                  title="Eliminar"
+                                  className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
+                                >
+                                  <i className="text-sm ki-outline ki-trash"></i>
+                                </button>
+                              </>
+                            )}
+
                             <button
                               title="Información"
                               onClick={() => handleOpenInfo(program)}
@@ -569,15 +556,20 @@ export const GestionProgramas = ({
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
                             </button>
-                            <button
-                              title="Proyectos Formativos"
-                              onClick={() => {
-                                navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`)
-                              }}
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-book-square"></i>
-                            </button>
+
+                            {!esInstructorSena && (
+                              <button
+                                title="Proyectos Formativos"
+                                onClick={() => {
+                                  navigate(
+                                    `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`
+                                  );
+                                }}
+                                className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
+                              >
+                                <i className="text-sm ki-outline ki-book-square"></i>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -586,7 +578,6 @@ export const GestionProgramas = ({
                 </div>
               </div>
 
-              {/* Paginación */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-300 rounded-b-lg">
                   <div className="flex items-center gap-3">

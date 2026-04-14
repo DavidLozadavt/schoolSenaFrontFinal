@@ -9,17 +9,36 @@ import { Calendario } from '../programas-academicos/components/malla-curricular/
 import logoSenaExcel from '/media/images/sena/logo-sena-excel-rmi.png';
 import { enqueueSnackbar } from 'notistack';
 
+interface Actividad {
+  id: number;
+  descripcion: string;
+  fechaInicial: string;
+  fechaFinal: string;
+  numeroHoras: number;
+  rutaDocumentoUrl: string | null;
+}
+
 interface RmiModalProps {
   isOpen: boolean;
   onClose: () => void;
   instructor: Instructor;
   periodo?: string;
   fichas: any[];
+  actividades?: Actividad[];
   onRefresh?: () => void;
   readOnlyAsociacion?: boolean;
 }
 
-const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, periodo, fichas, onRefresh, readOnlyAsociacion }) => {
+const RmiModal: React.FC<RmiModalProps> = ({
+  isOpen,
+  onClose,
+  instructor,
+  periodo,
+  fichas,
+  onRefresh,
+  readOnlyAsociacion,
+  actividades = []
+}) => {
   if (!isOpen) return null;
 
   const { persona } = instructor;
@@ -36,7 +55,7 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
       const todos = response.data.data || [];
 
       const filtrados = todos.filter(
-        (h: any) => h.idGradoMateria === r.idGradoMateria && h.idContrato === instructor.idContrato
+        (h: any) => Number(h.idGradoMateria) === Number(r.idGradoMateria) && Number(h.idContrato) === Number(instructor.idContrato)
       );
 
       setMateriaSeleccionada({
@@ -63,7 +82,9 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
     setLoadingAssociation(idGradoMateria);
     try {
       const res = await axios.patch(`set-estado-asociacion/${idGradoMateria}`, { estado });
-      enqueueSnackbar(res.data.message || 'Estado de asociación actualizado correctamente', { variant: 'success' });
+      enqueueSnackbar(res.data.message || 'Estado de asociación actualizado correctamente', {
+        variant: 'success'
+      });
       onRefresh?.();
     } catch (error) {
       enqueueSnackbar('Error al actualizar el estado de asociación', { variant: 'error' });
@@ -73,521 +94,664 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
   };
 
   const handleExportExcel = useCallback(async () => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('RMI', {
-      pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 }
-    });
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('RMI', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 }
+      });
 
-    // ── Colores ──
-    const AZUL_HEADER = 'FF1F4E79';
-    const AZUL_CLARO  = 'FF9DC3E6';
-    const AMARILLO    = 'FFFFFF00';
-    const VERDE       = 'FF92D050';
-    const BLANCO      = 'FFFFFFFF';
-    const NEGRO       = 'FF000000';
-    const GRIS_BORDE  = 'FF000000';
+      // ── Colores ──
+      const AZUL_HEADER = 'FF1F4E79';
+      const AZUL_CLARO = 'FF9DC3E6';
+      const AMARILLO = 'FFFFFF00';
+      const VERDE = 'FF92D050';
+      const BLANCO = 'FFFFFFFF';
+      const NEGRO = 'FF000000';
+      const GRIS_BORDE = 'FF000000';
 
-    // ── Anchos de columna ──
-    worksheet.columns = [
-      { key: 'A', width: 13       },
-      { key: 'B', width: 9.16     },
-      { key: 'C', width: 30       },
-      { key: 'D', width: 13       },
-      { key: 'E', width: 13       },
-      { key: 'F', width: 35       },
-      { key: 'G', width: 20.66    },
-      { key: 'H', width: 10       },
-      { key: 'I', width: 13       },
-      { key: 'J', width: 13       },
-      { key: 'K', width: 13       },
-      { key: 'L', width: 13       },
-      { key: 'M', width: 13       },
-      { key: 'N', width: 13       },
-      { key: 'O', width: 4        },
-      { key: 'P', width: 13       },
-      { key: 'Q', width: 13       },
-      { key: 'R', width: 13       },
-      { key: 'S', width: 13       },
-      { key: 'T', width: 13       },
-      { key: 'U', width: 13       },
-    ];
+      // ── Anchos de columna ──
+      worksheet.columns = [
+        { key: 'A', width: 13 },
+        { key: 'B', width: 9.16 },
+        { key: 'C', width: 30 },
+        { key: 'D', width: 13 },
+        { key: 'E', width: 13 },
+        { key: 'F', width: 35 },
+        { key: 'G', width: 20.66 },
+        { key: 'H', width: 10 },
+        { key: 'I', width: 13 },
+        { key: 'J', width: 13 },
+        { key: 'K', width: 13 },
+        { key: 'L', width: 13 },
+        { key: 'M', width: 13 },
+        { key: 'N', width: 13 },
+        { key: 'O', width: 4 },
+        { key: 'P', width: 13 },
+        { key: 'Q', width: 13 },
+        { key: 'R', width: 13 },
+        { key: 'S', width: 13 },
+        { key: 'T', width: 13 },
+        { key: 'U', width: 13 }
+      ];
 
-    // ── Helpers ──
-    const borderThin: Partial<ExcelJS.Borders> = {
-      top:    { style: 'thin', color: { argb: GRIS_BORDE } },
-      bottom: { style: 'thin', color: { argb: GRIS_BORDE } },
-      left:   { style: 'thin', color: { argb: GRIS_BORDE } },
-      right:  { style: 'thin', color: { argb: GRIS_BORDE } },
-    };
-    const fillSolid = (argb: string): ExcelJS.Fill =>
-      ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-    const fontBold = (size = 9, color = NEGRO): Partial<ExcelJS.Font> =>
-      ({ bold: true, size, color: { argb: color }, name: 'Calibri' });
-    const fontNormal = (size = 8, color = NEGRO): Partial<ExcelJS.Font> =>
-      ({ bold: false, size, color: { argb: color }, name: 'Calibri' });
-    const alignCenter: Partial<ExcelJS.Alignment> =
-      { horizontal: 'center', vertical: 'middle', wrapText: true };
-    const alignLeft: Partial<ExcelJS.Alignment> =
-      { horizontal: 'left', vertical: 'middle', wrapText: true };
+      // ── Helpers ──
+      const borderThin: Partial<ExcelJS.Borders> = {
+        top: { style: 'thin', color: { argb: GRIS_BORDE } },
+        bottom: { style: 'thin', color: { argb: GRIS_BORDE } },
+        left: { style: 'thin', color: { argb: GRIS_BORDE } },
+        right: { style: 'thin', color: { argb: GRIS_BORDE } }
+      };
+      const fillSolid = (argb: string): ExcelJS.Fill => ({
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb }
+      });
+      const fontBold = (size = 9, color = NEGRO): Partial<ExcelJS.Font> => ({
+        bold: true,
+        size,
+        color: { argb: color },
+        name: 'Calibri'
+      });
+      const fontNormal = (size = 8, color = NEGRO): Partial<ExcelJS.Font> => ({
+        bold: false,
+        size,
+        color: { argb: color },
+        name: 'Calibri'
+      });
+      const alignCenter: Partial<ExcelJS.Alignment> = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: true
+      };
+      const alignLeft: Partial<ExcelJS.Alignment> = {
+        horizontal: 'left',
+        vertical: 'middle',
+        wrapText: true
+      };
 
-    const styleCell = (
-      cell: ExcelJS.Cell,
-      opts: {
-        value?: any;
-        fill?: string;
-        font?: Partial<ExcelJS.Font>;
-        alignment?: Partial<ExcelJS.Alignment>;
-        border?: Partial<ExcelJS.Borders>;
+      const styleCell = (
+        cell: ExcelJS.Cell,
+        opts: {
+          value?: any;
+          fill?: string;
+          font?: Partial<ExcelJS.Font>;
+          alignment?: Partial<ExcelJS.Alignment>;
+          border?: Partial<ExcelJS.Borders>;
+        }
+      ) => {
+        if (opts.value !== undefined) cell.value = opts.value;
+        if (opts.fill) cell.fill = fillSolid(opts.fill);
+        if (opts.font) cell.font = opts.font;
+        if (opts.alignment) cell.alignment = opts.alignment;
+        if (opts.border) cell.border = opts.border;
+      };
+
+      // ── Año y mes ──
+      let targetYear = new Date().getFullYear();
+      let targetMonth = new Date().getMonth() + 1;
+      if (periodo && /^\d{4}-\d{2}$/.test(periodo)) {
+        const [y, m] = periodo.split('-');
+        targetYear = parseInt(y);
+        targetMonth = parseInt(m);
       }
-    ) => {
-      if (opts.value !== undefined) cell.value = opts.value;
-      if (opts.fill)      cell.fill      = fillSolid(opts.fill);
-      if (opts.font)      cell.font      = opts.font;
-      if (opts.alignment) cell.alignment = opts.alignment;
-      if (opts.border)    cell.border    = opts.border;
-    };
 
-    // ── Año y mes ──
-    let targetYear  = new Date().getFullYear();
-    let targetMonth = new Date().getMonth() + 1;
-    if (periodo && /^\d{4}-\d{2}$/.test(periodo)) {
-      const [y, m] = periodo.split('-');
-      targetYear  = parseInt(y);
-      targetMonth = parseInt(m);
-    }
+      const nombresMeses = [
+        'ENERO',
+        'FEBRERO',
+        'MARZO',
+        'ABRIL',
+        'MAYO',
+        'JUNIO',
+        'JULIO',
+        'AGOSTO',
+        'SEPTIEMBRE',
+        'OCTUBRE',
+        'NOVIEMBRE',
+        'DICIEMBRE'
+      ];
+      const nombreMes = nombresMeses[targetMonth - 1];
+      const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
 
-    const nombresMeses = [
-      'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
-      'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE',
-    ];
-    const nombreMes   = nombresMeses[targetMonth - 1];
-    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
-
-    // Matriz de semanas L-S sin domingo
-    const calMatrix: (number | null)[][] = [];
-    let currentWeek: (number | null)[] = [null, null, null, null, null, null];
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dow = new Date(targetYear, targetMonth - 1, d).getDay();
-      if (dow === 0) continue;
-      const ci = dow - 1;
-      currentWeek[ci] = d;
-      if (ci === 5 || d === daysInMonth) {
-        calMatrix.push([...currentWeek]);
-        currentWeek = [null, null, null, null, null, null];
+      // Matriz de semanas L-S sin domingo
+      const calMatrix: (number | null)[][] = [];
+      let currentWeek: (number | null)[] = [null, null, null, null, null, null];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(targetYear, targetMonth - 1, d).getDay();
+        if (dow === 0) continue;
+        const ci = dow - 1;
+        currentWeek[ci] = d;
+        if (ci === 5 || d === daysInMonth) {
+          calMatrix.push([...currentWeek]);
+          currentWeek = [null, null, null, null, null, null];
+        }
       }
-    }
 
-    const BLOCK_SIZE = Math.max(calMatrix.length, 5);
-    const CAL_COLS   = ['O', 'P', 'Q', 'R', 'S', 'T'];
-    const mapDiaCols: Record<number, string> = {
-      1: 'H', 2: 'I', 3: 'J', 4: 'K', 5: 'L', 6: 'M', 7: 'N',
-    };
+      const BLOCK_SIZE = Math.max(calMatrix.length, 5);
+      const CAL_COLS = ['O', 'P', 'Q', 'R', 'S', 'T'];
+      const mapDiaCols: Record<number, string> = {
+        1: 'H',
+        2: 'I',
+        3: 'J',
+        4: 'K',
+        5: 'L',
+        6: 'M',
+        7: 'N'
+      };
 
-    // ════════════════════════════════════════
-    // LOGO SENA
-    // ════════════════════════════════════════
-    const logoResponse    = await fetch(logoSenaExcel);
-    const logoArrayBuffer = await logoResponse.arrayBuffer();
-    const uint8Array      = new Uint8Array(logoArrayBuffer);
-    let binary = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const logoId = workbook.addImage({
-      base64:    btoa(binary),
-      extension: 'png',
-    });
+      // ════════════════════════════════════════
+      // LOGO SENA
+      // ════════════════════════════════════════
+      const logoResponse = await fetch(logoSenaExcel);
+      const logoArrayBuffer = await logoResponse.arrayBuffer();
+      const uint8Array = new Uint8Array(logoArrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const logoId = workbook.addImage({
+        base64: btoa(binary),
+        extension: 'png'
+      });
 
-    // ════════════════════════════════════════
-    // FILA 1 — Título
-    // ════════════════════════════════════════
-    worksheet.mergeCells('A1:U1');
-    styleCell(worksheet.getCell('A1'), {
-      value:     'REPORTE MENSUAL DEL INSTRUCTOR - RMI',
-      fill:      AZUL_HEADER,
-      font:      fontBold(12, BLANCO),
-      alignment: alignCenter,
-      border:    borderThin,
-    });
-    worksheet.getRow(1).height = 24;
+      // ════════════════════════════════════════
+      // FILA 1 — Título
+      // ════════════════════════════════════════
+      worksheet.mergeCells('A1:U1');
+      styleCell(worksheet.getCell('A1'), {
+        value: 'REPORTE MENSUAL DEL INSTRUCTOR - RMI',
+        fill: AZUL_HEADER,
+        font: fontBold(12, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      worksheet.getRow(1).height = 24;
 
-    // ════════════════════════════════════════
-    // FILAS 2-5 — Encabezado instructor
-    // ════════════════════════════════════════
-    worksheet.mergeCells('A2:A5');
-    styleCell(worksheet.getCell('A2'), { fill: BLANCO, border: borderThin });
-    worksheet.addImage(logoId, {
-      tl: { col: 0, row: 1 } as any,
-      br: { col: 1, row: 5 } as any,
-      editAs: 'oneCell',
-    });
+      // ════════════════════════════════════════
+      // FILAS 2-5 — Encabezado instructor
+      // ════════════════════════════════════════
+      worksheet.mergeCells('A2:A5');
+      styleCell(worksheet.getCell('A2'), { fill: BLANCO, border: borderThin });
+      worksheet.addImage(logoId, {
+        tl: { col: 0, row: 1 } as any,
+        br: { col: 1, row: 5 } as any,
+        editAs: 'oneCell'
+      });
 
-    worksheet.mergeCells('B2:E5');
-    styleCell(worksheet.getCell('B2'), {
-      value:     'CENTRO DE TELEINFORMÁTICA Y PRODUCCIÓN INDUSTRIAL',
-      fill:      BLANCO, font: fontBold(9),
-      alignment: alignCenter, border: borderThin,
-    });
+      worksheet.mergeCells('B2:E5');
+      styleCell(worksheet.getCell('B2'), {
+        value: 'CENTRO DE TELEINFORMÁTICA Y PRODUCCIÓN INDUSTRIAL',
+        fill: BLANCO,
+        font: fontBold(9),
+        alignment: alignCenter,
+        border: borderThin
+      });
 
-    worksheet.mergeCells('F2:F5');
-    styleCell(worksheet.getCell('F2'), {
-      value:     periodo || nombreMes,
-      fill:      AZUL_CLARO, font: fontBold(16),
-      alignment: alignCenter, border: borderThin,
-    });
+      worksheet.mergeCells('F2:F5');
+      styleCell(worksheet.getCell('F2'), {
+        value: periodo || nombreMes,
+        fill: AZUL_CLARO,
+        font: fontBold(16),
+        alignment: alignCenter,
+        border: borderThin
+      });
 
-    worksheet.mergeCells('G2:N2');
-    styleCell(worksheet.getCell('G2'), {
-      value: 'NOMBRE', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-    worksheet.mergeCells('O2:U2');
-    styleCell(worksheet.getCell('O2'), {
-      value: 'CORREO ELECTRÓNICO', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells('G3:N3');
-    styleCell(worksheet.getCell('G3'), {
-      value: fullName, fill: BLANCO,
-      font: fontBold(10), alignment: alignCenter, border: borderThin,
-    });
-    worksheet.mergeCells('O3:U3');
-    styleCell(worksheet.getCell('O3'), {
-      value: persona.email, fill: BLANCO,
-      font: fontNormal(9), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells('G4:N4');
-    styleCell(worksheet.getCell('G4'), {
-      value: 'CÉDULA', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-    worksheet.mergeCells('O4:U4');
-    styleCell(worksheet.getCell('O4'), {
-      value: 'NÚMERO DE CONTACTO', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells('G5:N5');
-    styleCell(worksheet.getCell('G5'), {
-      value: persona.identificacion, fill: BLANCO,
-      font: fontBold(10), alignment: alignCenter, border: borderThin,
-    });
-    worksheet.mergeCells('O5:U5');
-    styleCell(worksheet.getCell('O5'), {
-      value: persona.celular, fill: BLANCO,
-      font: fontBold(10), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.getRow(2).height = 21;
-    worksheet.getRow(3).height = 24;
-    worksheet.getRow(4).height = 21;
-    worksheet.getRow(5).height = 24;
-
-    // ════════════════════════════════════════
-    // FILA 6 — Separador
-    // ════════════════════════════════════════
-    worksheet.mergeCells('A6:U6');
-    styleCell(worksheet.getCell('A6'), { fill: AZUL_HEADER, border: borderThin });
-    worksheet.getRow(6).height = 23;
-
-    // ════════════════════════════════════════
-    // FILA 7 — Encabezado tabla
-    // ════════════════════════════════════════
-    const headerCells: [string, string, string][] = [
-      ['A7', 'A7', 'No'],
-      ['B7', 'B7', 'No.\nFICHA'],
-      ['C7', 'C7', 'PROGRAMA DE FORMACIÓN'],
-      ['D7', 'D7', 'ACTIVIDAD'],
-      ['E7', 'E7', 'COMPETENCIA'],
-      ['F7', 'F7', 'RESULTADO APRENDIZAJE'],
-      ['G7', 'G7', 'FECHA TERMINACIÓN\nRESULTADO DE\nAPRENDIZAJE'],
-      ['H7', 'N7', 'HORARIO\nFormato 24 horas'],
-      ['O7', 'T7', nombreMes],
-      ['U7', 'U7', 'HORAS\nMES'],
-    ];
-    headerCells.forEach(([from, to, val]) => {
-      if (from !== to) worksheet.mergeCells(`${from}:${to}`);
-      styleCell(worksheet.getCell(from), {
-        value: val, fill: AZUL_HEADER,
+      worksheet.mergeCells('G2:N2');
+      styleCell(worksheet.getCell('G2'), {
+        value: 'NOMBRE',
+        fill: AZUL_HEADER,
         font: fontBold(9, BLANCO),
-        alignment: alignCenter, border: borderThin,
+        alignment: alignCenter,
+        border: borderThin
       });
-    });
-    worksheet.getRow(7).height = 44;
-
-    // ════════════════════════════════════════
-    // FILA 8 — Sub-encabezado días
-    // ════════════════════════════════════════
-    ['H','I','J','K','L','M','N'].forEach((col, i) => {
-      styleCell(worksheet.getCell(`${col}8`), {
-        value: ['L','M','M','J','V','S','D'][i],
-        fill: AZUL_CLARO, font: fontBold(8),
-        alignment: alignCenter, border: borderThin,
+      worksheet.mergeCells('O2:U2');
+      styleCell(worksheet.getCell('O2'), {
+        value: 'CORREO ELECTRÓNICO',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
       });
-    });
-    ['O','P','Q','R','S','T'].forEach((col, i) => {
-      styleCell(worksheet.getCell(`${col}8`), {
-        value: ['L','M','M','J','V','S'][i],
-        fill: AZUL_CLARO, font: fontBold(8),
-        alignment: alignCenter, border: borderThin,
+
+      worksheet.mergeCells('G3:N3');
+      styleCell(worksheet.getCell('G3'), {
+        value: fullName,
+        fill: BLANCO,
+        font: fontBold(10),
+        alignment: alignCenter,
+        border: borderThin
       });
-    });
-    ['A','B','C','D','E','F','G','U'].forEach(col => {
-      styleCell(worksheet.getCell(`${col}8`), { fill: AZUL_HEADER, border: borderThin });
-    });
-    worksheet.getRow(8).height = 16;
+      worksheet.mergeCells('O3:U3');
+      styleCell(worksheet.getCell('O3'), {
+        value: persona.email,
+        fill: BLANCO,
+        font: fontNormal(9),
+        alignment: alignCenter,
+        border: borderThin
+      });
 
-    // ════════════════════════════════════════
-    // Precargar horarios
-    // ════════════════════════════════════════
-    const horariosPorFicha: Record<number, any[]> = {};
-    for (const ficha of fichas) {
-      try {
-        const res = await axios.get(`horario/ficha/${ficha.idFicha}`);
-        horariosPorFicha[ficha.idFicha] = res.data?.data || [];
-      } catch {
-        horariosPorFicha[ficha.idFicha] = [];
-      }
-    }
+      worksheet.mergeCells('G4:N4');
+      styleCell(worksheet.getCell('G4'), {
+        value: 'CÉDULA',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      worksheet.mergeCells('O4:U4');
+      styleCell(worksheet.getCell('O4'), {
+        value: 'NÚMERO DE CONTACTO',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
 
-    // Aplanar fichas + resultados
-    const filas: { ficha: any; r: any; fichaIdx: number; rIdx: number }[] = [];
-    for (let fichaIdx = 0; fichaIdx < fichas.length; fichaIdx++) {
-      for (let rIdx = 0; rIdx < fichas[fichaIdx].resultados.length; rIdx++) {
-        filas.push({
-          ficha: fichas[fichaIdx],
-          r:     fichas[fichaIdx].resultados[rIdx],
-          fichaIdx,
-          rIdx,
+      worksheet.mergeCells('G5:N5');
+      styleCell(worksheet.getCell('G5'), {
+        value: persona.identificacion,
+        fill: BLANCO,
+        font: fontBold(10),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      worksheet.mergeCells('O5:U5');
+      styleCell(worksheet.getCell('O5'), {
+        value: persona.celular,
+        fill: BLANCO,
+        font: fontBold(10),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      worksheet.getRow(2).height = 21;
+      worksheet.getRow(3).height = 24;
+      worksheet.getRow(4).height = 21;
+      worksheet.getRow(5).height = 24;
+
+      // ════════════════════════════════════════
+      // FILA 6 — Separador
+      // ════════════════════════════════════════
+      worksheet.mergeCells('A6:U6');
+      styleCell(worksheet.getCell('A6'), { fill: AZUL_HEADER, border: borderThin });
+      worksheet.getRow(6).height = 23;
+
+      // ════════════════════════════════════════
+      // FILA 7 — Encabezado tabla
+      // ════════════════════════════════════════
+      const headerCells: [string, string, string][] = [
+        ['A7', 'A7', 'No'],
+        ['B7', 'B7', 'No.\nFICHA'],
+        ['C7', 'C7', 'PROGRAMA DE FORMACIÓN'],
+        ['D7', 'D7', 'ACTIVIDAD'],
+        ['E7', 'E7', 'COMPETENCIA'],
+        ['F7', 'F7', 'RESULTADO APRENDIZAJE'],
+        ['G7', 'G7', 'FECHA TERMINACIÓN\nRESULTADO DE\nAPRENDIZAJE'],
+        ['H7', 'N7', 'HORARIO\nFormato 24 horas'],
+        ['O7', 'T7', nombreMes],
+        ['U7', 'U7', 'HORAS\nMES']
+      ];
+      headerCells.forEach(([from, to, val]) => {
+        if (from !== to) worksheet.mergeCells(`${from}:${to}`);
+        styleCell(worksheet.getCell(from), {
+          value: val,
+          fill: AZUL_HEADER,
+          font: fontBold(9, BLANCO),
+          alignment: alignCenter,
+          border: borderThin
         });
-      }
-    }
+      });
+      worksheet.getRow(7).height = 44;
 
-    // ════════════════════════════════════════
-    // BLOQUES DE DATOS
-    // ════════════════════════════════════════
-    const DATA_START = 9;
-
-    for (let bloqueIdx = 0; bloqueIdx < filas.length; bloqueIdx++) {
-      const { ficha, r, fichaIdx, rIdx } = filas[bloqueIdx];
-      const startRow = DATA_START + bloqueIdx * BLOCK_SIZE;
-      const endRow   = startRow + BLOCK_SIZE - 1;
-
-      // Fondo base
-      for (let row = startRow; row <= endRow; row++) {
-        for (let col = 1; col <= 21; col++) {
-          styleCell(worksheet.getCell(row, col), { fill: BLANCO, border: borderThin });
-        }
-        worksheet.getRow(row).height = 14;
-      }
-
-      // Merge columnas de datos verticales
-      const MERGE_COLS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','U'];
-      MERGE_COLS.forEach(col => {
-        worksheet.mergeCells(`${col}${startRow}:${col}${endRow}`);
-        styleCell(worksheet.getCell(`${col}${startRow}`), {
-          fill: BLANCO, font: fontNormal(8),
-          alignment: alignCenter, border: borderThin,
+      // ════════════════════════════════════════
+      // FILA 8 — Sub-encabezado días
+      // ════════════════════════════════════════
+      ['H', 'I', 'J', 'K', 'L', 'M', 'N'].forEach((col, i) => {
+        styleCell(worksheet.getCell(`${col}8`), {
+          value: ['L', 'M', 'M', 'J', 'V', 'S', 'D'][i],
+          fill: AZUL_CLARO,
+          font: fontBold(8),
+          alignment: alignCenter,
+          border: borderThin
         });
       });
-
-      // Amarillo B y C
-      styleCell(worksheet.getCell(`B${startRow}`), {
-        fill: AMARILLO, font: fontBold(9), alignment: alignCenter,
+      ['O', 'P', 'Q', 'R', 'S', 'T'].forEach((col, i) => {
+        styleCell(worksheet.getCell(`${col}8`), {
+          value: ['L', 'M', 'M', 'J', 'V', 'S'][i],
+          fill: AZUL_CLARO,
+          font: fontBold(8),
+          alignment: alignCenter,
+          border: borderThin
+        });
       });
-      styleCell(worksheet.getCell(`C${startRow}`), {
-        fill: AMARILLO, font: fontBold(9), alignment: alignCenter,
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'U'].forEach((col) => {
+        styleCell(worksheet.getCell(`${col}8`), { fill: AZUL_HEADER, border: borderThin });
       });
+      worksheet.getRow(8).height = 16;
 
-      // Datos de ficha
-      if (rIdx === 0) {
-        worksheet.getCell(`A${startRow}`).value = fichaIdx + 1;
-        worksheet.getCell(`B${startRow}`).value = ficha.codigoFicha;
-        worksheet.getCell(`C${startRow}`).value = ficha.programaFormacion;
+      // ════════════════════════════════════════
+      // Precargar horarios
+      // ════════════════════════════════════════
+      const horariosPorFicha: Record<number, any[]> = {};
+      for (const ficha of fichas) {
+        try {
+          const res = await axios.get(`horario/ficha/${ficha.idFicha}`);
+          horariosPorFicha[ficha.idFicha] = res.data?.data || [];
+        } catch {
+          horariosPorFicha[ficha.idFicha] = [];
+        }
       }
-      worksheet.getCell(`E${startRow}`).value     = r.competencia          || '';
-      worksheet.getCell(`E${startRow}`).alignment = alignLeft;
-      worksheet.getCell(`F${startRow}`).value     = r.resultadoAprendizaje || '';
-      worksheet.getCell(`F${startRow}`).alignment = alignLeft;
-      worksheet.getCell(`G${startRow}`).value     = r.fechaTerminacion     || '';
 
-      // ── Horarios ──
-      const todos     = horariosPorFicha[ficha.idFicha] || [];
-      const filtrados = todos.filter((h: any) =>
-        h.idGradoMateria === r.idGradoMateria &&
-        h.idContrato     === instructor.idContrato &&
-        h.estado         === 'ASIGNADO'
-      );
+      // Aplanar fichas + resultados
+      const filas: { ficha: any; r: any; fichaIdx: number; rIdx: number }[] = [];
+      for (let fichaIdx = 0; fichaIdx < fichas.length; fichaIdx++) {
+        for (let rIdx = 0; rIdx < fichas[fichaIdx].resultados.length; rIdx++) {
+          filas.push({
+            ficha: fichas[fichaIdx],
+            r: fichas[fichaIdx].resultados[rIdx],
+            fichaIdx,
+            rIdx
+          });
+        }
+      }
 
-      let horasMesTotal = 0;
-      const classDates        = new Set<number>();
-      const horariosPorDia: Record<string, string[]> = {};
+      // ════════════════════════════════════════
+      // BLOQUES DE DATOS
+      // ════════════════════════════════════════
+      const DATA_START = 9;
 
-      filtrados.forEach((h: any) => {
-        const horaIni = h.horaInicio || h.horaInicial;
-        const horaFin = h.horaFin    || h.horaFinal;
-        if (!horaIni || !horaFin) return;
+      for (let bloqueIdx = 0; bloqueIdx < filas.length; bloqueIdx++) {
+        const { ficha, r, fichaIdx, rIdx } = filas[bloqueIdx];
+        const startRow = DATA_START + bloqueIdx * BLOCK_SIZE;
+        const endRow = startRow + BLOCK_SIZE - 1;
 
-        const colDia = mapDiaCols[h.idDia];
-        if (colDia) {
-          if (!horariosPorDia[colDia]) horariosPorDia[colDia] = [];
-          horariosPorDia[colDia].push(`${horaIni} - ${horaFin}`);
+        // Fondo base
+        for (let row = startRow; row <= endRow; row++) {
+          for (let col = 1; col <= 21; col++) {
+            styleCell(worksheet.getCell(row, col), { fill: BLANCO, border: borderThin });
+          }
+          worksheet.getRow(row).height = 14;
         }
 
-        const [hI, mI] = horaIni.toString().split(':').map(Number);
-        const [hF, mF] = horaFin.toString().split(':').map(Number);
-        const sessionHours = ((hF * 60 + mF) - (hI * 60 + mI)) / 60;
+        // Merge columnas de datos verticales
+        const MERGE_COLS = [
+          'A',
+          'B',
+          'C',
+          'D',
+          'E',
+          'F',
+          'G',
+          'H',
+          'I',
+          'J',
+          'K',
+          'L',
+          'M',
+          'N',
+          'U'
+        ];
+        MERGE_COLS.forEach((col) => {
+          worksheet.mergeCells(`${col}${startRow}:${col}${endRow}`);
+          styleCell(worksheet.getCell(`${col}${startRow}`), {
+            fill: BLANCO,
+            font: fontNormal(8),
+            alignment: alignCenter,
+            border: borderThin
+          });
+        });
 
-        const fIniStr = h.fechaInicial || h.fechaInicio;
-        const fFinStr = h.fechaFinal   || h.fechaFin;
-        if (fIniStr && fFinStr) {
-          const [yI, mI_str, dI] = fIniStr.split('-').map(Number);
-          const [yF, mF_str, dF] = fFinStr.split('-').map(Number);
-          const jsDayRequired = Number(h.idDia) === 7 ? 0 : Number(h.idDia);
-          for (let i = 1; i <= daysInMonth; i++) {
-            const isDay = new Date(targetYear, targetMonth - 1, i).getDay() === jsDayRequired;
-            const cur   = targetYear * 10000 + targetMonth * 100 + i;
-            const ini   = yI * 10000 + mI_str * 100 + dI;
-            const fin   = yF * 10000 + mF_str * 100 + dF;
-            if (isDay && cur >= ini && cur <= fin) {
-              classDates.add(i);
-              horasMesTotal += sessionHours;
+        // Amarillo B y C
+        styleCell(worksheet.getCell(`B${startRow}`), {
+          fill: AMARILLO,
+          font: fontBold(9),
+          alignment: alignCenter
+        });
+        styleCell(worksheet.getCell(`C${startRow}`), {
+          fill: AMARILLO,
+          font: fontBold(9),
+          alignment: alignCenter
+        });
+
+        // Datos de ficha
+        if (rIdx === 0) {
+          worksheet.getCell(`A${startRow}`).value = fichaIdx + 1;
+          worksheet.getCell(`B${startRow}`).value = ficha.codigoFicha;
+          worksheet.getCell(`C${startRow}`).value = ficha.programaFormacion;
+        }
+        worksheet.getCell(`E${startRow}`).value = r.competencia || '';
+        worksheet.getCell(`E${startRow}`).alignment = alignLeft;
+        worksheet.getCell(`F${startRow}`).value = r.resultadoAprendizaje || '';
+        worksheet.getCell(`F${startRow}`).alignment = alignLeft;
+        worksheet.getCell(`G${startRow}`).value = r.fechaTerminacion || '';
+
+        // ── Horarios ──
+        const todos = horariosPorFicha[ficha.idFicha] || [];
+        const filtrados = todos.filter(
+          (h: any) =>
+            Number(h.idGradoMateria) === Number(r.idGradoMateria) &&
+            Number(h.idContrato) === Number(instructor.idContrato) &&
+            h.estado === 'ASIGNADO'
+        );
+
+        let horasMesTotal = 0;
+        const classDates = new Set<number>();
+        const horariosPorDia: Record<string, string[]> = {};
+
+        filtrados.forEach((h: any) => {
+          const horaIni = h.horaInicio || h.horaInicial;
+          const horaFin = h.horaFin || h.horaFinal;
+          if (!horaIni || !horaFin) return;
+
+          const colDia = mapDiaCols[h.idDia];
+          if (colDia) {
+            if (!horariosPorDia[colDia]) horariosPorDia[colDia] = [];
+            horariosPorDia[colDia].push(`${horaIni} - ${horaFin}`);
+          }
+
+          const [hI, mI] = horaIni.toString().split(':').map(Number);
+          const [hF, mF] = horaFin.toString().split(':').map(Number);
+          const sessionHours = (hF * 60 + mF - (hI * 60 + mI)) / 60;
+
+          const fIniStr = h.fechaInicial || h.fechaInicio;
+          const fFinStr = h.fechaFinal || h.fechaFin;
+          if (fIniStr && fFinStr) {
+            const [yI, mI_str, dI] = fIniStr.split('-').map(Number);
+            const [yF, mF_str, dF] = fFinStr.split('-').map(Number);
+            const jsDayRequired = Number(h.idDia) === 7 ? 0 : Number(h.idDia);
+            for (let i = 1; i <= daysInMonth; i++) {
+              const isDay = new Date(targetYear, targetMonth - 1, i).getDay() === jsDayRequired;
+              const cur = targetYear * 10000 + targetMonth * 100 + i;
+              const ini = yI * 10000 + mI_str * 100 + dI;
+              const fin = yF * 10000 + mF_str * 100 + dF;
+              if (isDay && cur >= ini && cur <= fin) {
+                classDates.add(i);
+                horasMesTotal += sessionHours;
+              }
+            }
+          }
+        });
+
+        Object.entries(horariosPorDia).forEach(([colDia, horarios]) => {
+          const cell = worksheet.getCell(`${colDia}${startRow}`);
+          cell.value = horarios.join('\n');
+          cell.alignment = alignCenter;
+          cell.font = fontNormal(8);
+        });
+
+        // ── Calendario ──
+        for (let w = 0; w < calMatrix.length; w++) {
+          for (let c = 0; c < 6; c++) {
+            const dayDate = calMatrix[w][c];
+            const cell = worksheet.getCell(`${CAL_COLS[c]}${startRow + w}`);
+            if (dayDate) {
+              cell.value = dayDate;
+              cell.alignment = alignCenter;
+              cell.font = classDates.has(dayDate) ? fontBold(8, BLANCO) : fontNormal(8);
+              cell.fill = classDates.has(dayDate) ? fillSolid(VERDE) : fillSolid(BLANCO);
+              cell.border = borderThin;
+            } else {
+              cell.value = '';
+              cell.fill = fillSolid(BLANCO);
+              cell.border = borderThin;
             }
           }
         }
-      });
 
-      Object.entries(horariosPorDia).forEach(([colDia, horarios]) => {
-        const cell     = worksheet.getCell(`${colDia}${startRow}`);
-        cell.value     = horarios.join('\n');
-        cell.alignment = alignCenter;
-        cell.font      = fontNormal(8);
-      });
-
-      // ── Calendario ──
-      for (let w = 0; w < calMatrix.length; w++) {
-        for (let c = 0; c < 6; c++) {
-          const dayDate = calMatrix[w][c];
-          const cell    = worksheet.getCell(`${CAL_COLS[c]}${startRow + w}`);
-          if (dayDate) {
-            cell.value     = dayDate;
-            cell.alignment = alignCenter;
-            cell.font      = classDates.has(dayDate) ? fontBold(8, BLANCO) : fontNormal(8);
-            cell.fill      = classDates.has(dayDate) ? fillSolid(VERDE) : fillSolid(BLANCO);
-            cell.border    = borderThin;
-          } else {
-            cell.value  = '';
-            cell.fill   = fillSolid(BLANCO);
-            cell.border = borderThin;
-          }
-        }
+        worksheet.getCell(`U${startRow}`).value = horasMesTotal;
+        worksheet.getCell(`U${startRow}`).font = fontBold(10);
+        worksheet.getCell(`U${startRow}`).alignment = alignCenter;
       }
 
-      worksheet.getCell(`U${startRow}`).value     = horasMesTotal;
-      worksheet.getCell(`U${startRow}`).font      = fontBold(10);
-      worksheet.getCell(`U${startRow}`).alignment = alignCenter;
+      // ════════════════════════════════════════
+      // TOTAL HORAS FORMACIÓN MES
+      // ════════════════════════════════════════
+      const totalRow = DATA_START + filas.length * BLOCK_SIZE;
+      worksheet.mergeCells(`O${totalRow}:T${totalRow}`);
+      styleCell(worksheet.getCell(`O${totalRow}`), {
+        value: 'TOTAL HORAS FORMACIÓN MES',
+        fill: AZUL_CLARO,
+        font: fontBold(9),
+        alignment: { horizontal: 'right', vertical: 'middle' },
+        border: borderThin
+      });
+      styleCell(worksheet.getCell(`U${totalRow}`), {
+        value: { formula: `SUM(U${DATA_START}:U${totalRow - 1})` },
+        fill: AZUL_CLARO,
+        font: fontBold(11),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      worksheet.getRow(totalRow).height = 37.5;
+      // ════════════════════════════════════════
+      // OTRAS ACTIVIDADES — datos reales
+      // ════════════════════════════════════════
+      const otraStart = totalRow + 1;
+      const MAX_OTRAS = Math.max(actividades.length, 6); // mínimo 6 filas
+
+      worksheet.mergeCells(`A${otraStart}:B${otraStart + MAX_OTRAS - 1}`);
+      styleCell(worksheet.getCell(`A${otraStart}`), {
+        value: 'OTRAS ACTIVIDADES',
+        fill: AZUL_CLARO,
+        font: fontBold(10),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      // Encabezados
+      worksheet.mergeCells(`C${otraStart}:E${otraStart}`);
+      styleCell(worksheet.getCell(`C${otraStart}`), {
+        value: 'ACTIVIDAD',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      worksheet.mergeCells(`F${otraStart}:K${otraStart}`);
+      styleCell(worksheet.getCell(`F${otraStart}`), {
+        value: 'DESCRIPCIÓN',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
+      styleCell(worksheet.getCell(`L${otraStart}`), {
+        value: 'HORAS',
+        fill: AZUL_HEADER,
+        font: fontBold(9, BLANCO),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      // Columna HORAS OTRAS ACTIVIDADES (suma)
+      const totalOtras = actividades.reduce((s, a) => s + Number(a.numeroHoras || 0), 0);
+      worksheet.mergeCells(`M${otraStart}:M${otraStart + MAX_OTRAS - 1}`);
+      styleCell(worksheet.getCell(`M${otraStart}`), {
+        value: 'HORAS\nOTRAS\nACTIVIDADES',
+        fill: AZUL_CLARO,
+        font: fontBold(8),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      worksheet.mergeCells(`N${otraStart}:N${otraStart + MAX_OTRAS - 1}`);
+      styleCell(worksheet.getCell(`N${otraStart}`), {
+        value: totalOtras,
+        fill: AZUL_CLARO,
+        font: fontBold(11),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      worksheet.mergeCells(`O${otraStart}:T${otraStart + MAX_OTRAS - 1}`);
+      styleCell(worksheet.getCell(`O${otraStart}`), {
+        value: 'TOTAL HORAS MES',
+        fill: AZUL_CLARO,
+        font: fontBold(10),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      // Total horas mes = formación + otras actividades
+      const totalFormacion =
+        filas.length > 0 ? { formula: `SUM(U${DATA_START}:U${totalRow - 1})` } : 0;
+
+      worksheet.mergeCells(`U${otraStart}:U${otraStart + MAX_OTRAS - 1}`);
+      styleCell(worksheet.getCell(`U${otraStart}`), {
+        value: { formula: `U${totalRow}+${totalOtras}` }, // suma horas formación + otras
+        fill: AZUL_CLARO,
+        font: fontBold(11),
+        alignment: alignCenter,
+        border: borderThin
+      });
+
+      // Filas de datos de actividades
+      for (let i = 0; i < MAX_OTRAS; i++) {
+        const row = otraStart + (i === 0 ? 1 : i); // fila 1 es encabezado
+        const act = actividades[i - 1]; // i=0 es encabezado, datos desde i=1
+
+        if (i === 0) continue; // saltar fila de encabezados
+
+        const dataRow = otraStart + i;
+        worksheet.mergeCells(`C${dataRow}:E${dataRow}`);
+        worksheet.mergeCells(`F${dataRow}:K${dataRow}`);
+
+        styleCell(worksheet.getCell(`C${dataRow}`), {
+          value: act ? `Actividad ${i}` : '',
+          fill: BLANCO,
+          font: fontNormal(8),
+          alignment: alignCenter,
+          border: borderThin
+        });
+        styleCell(worksheet.getCell(`F${dataRow}`), {
+          value: act ? act.descripcion : '',
+          fill: BLANCO,
+          font: fontNormal(8),
+          alignment: alignLeft,
+          border: borderThin
+        });
+        styleCell(worksheet.getCell(`L${dataRow}`), {
+          value: act ? act.numeroHoras : '',
+          fill: BLANCO,
+          font: fontNormal(8),
+          alignment: alignCenter,
+          border: borderThin
+        });
+        worksheet.getRow(dataRow).height = 14;
+      }
+      worksheet.getRow(otraStart).height = 26;
+
+      // ── Descargar ──
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const fecha = new Date().toISOString().split('T')[0];
+      saveAs(blob, `RMI_${fullName.replace(/\s+/g, '_')}_${fecha}.xlsx`);
+    } catch (error) {
+      console.error('Error al generar el RMI:', error);
+      alert(`Error: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
-
-    // ════════════════════════════════════════
-    // TOTAL HORAS FORMACIÓN MES
-    // ════════════════════════════════════════
-    const totalRow = DATA_START + filas.length * BLOCK_SIZE;
-    worksheet.mergeCells(`O${totalRow}:T${totalRow}`);
-    styleCell(worksheet.getCell(`O${totalRow}`), {
-      value:     'TOTAL HORAS FORMACIÓN MES',
-      fill:      AZUL_CLARO, font: fontBold(9),
-      alignment: { horizontal: 'right', vertical: 'middle' },
-      border:    borderThin,
-    });
-    styleCell(worksheet.getCell(`U${totalRow}`), {
-      value:     { formula: `SUM(U${DATA_START}:U${totalRow - 1})` },
-      fill:      AZUL_CLARO, font: fontBold(11),
-      alignment: alignCenter, border: borderThin,
-    });
-    worksheet.getRow(totalRow).height = 37.5;
-
-    // ════════════════════════════════════════
-    // OTRAS ACTIVIDADES
-    // ════════════════════════════════════════
-    const otraStart = totalRow + 1;
-
-    worksheet.mergeCells(`A${otraStart}:B${otraStart + 6}`);
-    styleCell(worksheet.getCell(`A${otraStart}`), {
-      value:     'OTRAS ACTIVIDADES',
-      fill:      AZUL_CLARO, font: fontBold(10),
-      alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells(`C${otraStart}:E${otraStart}`);
-    styleCell(worksheet.getCell(`C${otraStart}`), {
-      value: 'ACTIVIDAD', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells(`F${otraStart}:K${otraStart}`);
-    styleCell(worksheet.getCell(`F${otraStart}`), {
-      value: 'DESCRIPCIÓN', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-
-    styleCell(worksheet.getCell(`L${otraStart}`), {
-      value: 'HORAS', fill: AZUL_HEADER,
-      font: fontBold(9, BLANCO), alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells(`M${otraStart}:M${otraStart + 6}`);
-    styleCell(worksheet.getCell(`M${otraStart}`), {
-      value: 'HORAS\nOTRAS\nACTIVIDADES',
-      fill: AZUL_CLARO, font: fontBold(8),
-      alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells(`N${otraStart}:N${otraStart + 6}`);
-    styleCell(worksheet.getCell(`N${otraStart}`), {
-      fill: AZUL_CLARO, border: borderThin,
-    });
-
-    worksheet.mergeCells(`O${otraStart}:T${otraStart + 6}`);
-    styleCell(worksheet.getCell(`O${otraStart}`), {
-      value: 'TOTAL HORAS MES',
-      fill: AZUL_CLARO, font: fontBold(10),
-      alignment: alignCenter, border: borderThin,
-    });
-
-    worksheet.mergeCells(`U${otraStart}:U${otraStart + 6}`);
-    styleCell(worksheet.getCell(`U${otraStart}`), {
-      fill: AZUL_CLARO, font: fontBold(11),
-      alignment: alignCenter, border: borderThin,
-    });
-
-    // Filas vacías C-L (44-49)
-    for (let i = 1; i <= 6; i++) {
-      const row = otraStart + i;
-      worksheet.mergeCells(`C${row}:E${row}`);
-      worksheet.mergeCells(`F${row}:K${row}`);
-      styleCell(worksheet.getCell(`C${row}`), { fill: BLANCO, border: borderThin });
-      styleCell(worksheet.getCell(`F${row}`), { fill: BLANCO, border: borderThin });
-      styleCell(worksheet.getCell(`L${row}`), { fill: BLANCO, border: borderThin });
-      worksheet.getRow(row).height = 14;
-    }
-    worksheet.getRow(otraStart).height = 26;
-
-    // ── Descargar ──
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob   = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const fecha = new Date().toISOString().split('T')[0];
-    saveAs(blob, `RMI_${fullName.replace(/\s+/g, '_')}_${fecha}.xlsx`);
-
-  } catch (error) {
-    console.error('Error al generar el RMI:', error);
-    alert(`Error: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
-  }
-}, [fichas, fullName, persona, periodo, instructor]);
+  }, [fichas, fullName, persona, periodo, instructor]);
 
   return (
     <>
@@ -750,16 +914,24 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                               )}
                             </td>
                             <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                              {r.horarios.reduce((acc: any, r: any) => acc + Number(r.duracionHoras || 0), 0)}h
+                              {r.horarios.reduce(
+                                (acc: any, r: any) => acc + Number(r.duracionHoras || 0),
+                                0
+                              )}
+                              h
                             </td>
                             <td className="px-3 py-2 text-center">
                               <div className="switch">
-                                <input 
+                                <input
                                   type="checkbox"
-                                  checked={r.estadoAsociacion} 
-                                  title='Asociado en Sofía Plus'
-                                  onChange={(e)=> handleEstadoAsociacion(r.idGradoMateria , e.target.checked)}
-                                  disabled={loadingAssociation === r.idGradoMateria || readOnlyAsociacion}
+                                  checked={r.estadoAsociacion}
+                                  title="Asociado en Sofía Plus"
+                                  onChange={(e) =>
+                                    handleEstadoAsociacion(r.idGradoMateria, e.target.checked)
+                                  }
+                                  disabled={
+                                    loadingAssociation === r.idGradoMateria || readOnlyAsociacion
+                                  }
                                 />
                               </div>
                             </td>
@@ -775,6 +947,85 @@ const RmiModal: React.FC<RmiModalProps> = ({ isOpen, onClose, instructor, period
                           </tr>
                         ))
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {/* ── Otras Actividades ── */}
+            {actividades.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide mb-3">
+                  Otras Actividades
+                </h3>
+                <div className="rounded-xl border border-gray-200 dark:border-coal-300 overflow-hidden shadow-sm">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-primary text-white">
+                        <th className="px-3 py-2 text-left font-semibold">Descripción</th>
+                        <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
+                          Fecha Inicial
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
+                          Fecha Final
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
+                          N° Horas
+                        </th>
+                        <th className="px-3 py-2 text-center font-semibold">Documento</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {actividades.map((act, idx) => (
+                        <tr
+                          key={act.id}
+                          className={`border-t border-gray-200 dark:border-coal-300 ${
+                            idx % 2 === 0
+                              ? 'bg-white dark:bg-coal-500'
+                              : 'bg-blue-50/40 dark:bg-blue-900/10'
+                          }`}
+                        >
+                          <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                            {act.descripcion}
+                          </td>
+                          <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {act.fechaInicial?.slice(0, 10) ?? '-'}
+                          </td>
+                          <td className="px-3 py-2 text-center text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {act.fechaFinal?.slice(0, 10) ?? '-'}
+                          </td>
+                          <td className="px-3 py-2 text-center font-semibold text-gray-800 dark:text-white">
+                            {act.numeroHoras}h
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {act.rutaDocumentoUrl ? (
+                              <a
+                                href={act.rutaDocumentoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-md hover:bg-green-100 transition-colors"
+                              >
+                                <i className="ki-outline ki-document text-sm" /> Ver
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 italic">Sin documento</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Fila total */}
+                      <tr className="border-t-2 border-primary bg-blue-50 dark:bg-blue-500/10">
+                        <td
+                          colSpan={3}
+                          className="px-3 py-2 text-right font-bold text-gray-700 dark:text-gray-300"
+                        >
+                          Total horas otras actividades:
+                        </td>
+                        <td className="px-3 py-2 text-center font-black text-primary text-sm">
+                          {actividades.reduce((sum, a) => sum + Number(a.numeroHoras || 0), 0)}h
+                        </td>
+                        <td />
+                      </tr>
                     </tbody>
                   </table>
                 </div>
