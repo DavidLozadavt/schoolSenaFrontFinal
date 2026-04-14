@@ -615,10 +615,6 @@ const ClaseDetallePage: React.FC = () => {
     setToastOpen(true);
   };
 
-  /**
-   * Debe coincidir con ListaHorarioEstudiantes: prioriza `location.state.ficha_id` (navegación desde historial, etc.).
-   * Si solo se usa `ficha.id` en modales, en producción el modal de asignación puede llamar a otra ficha y la lista de aprendices queda vacía aunque en "Estudiantes" sí se vean.
-   */
   const idFichaParaClase = useMemo(
     () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
     [locationState?.ficha_id, ficha?.id]
