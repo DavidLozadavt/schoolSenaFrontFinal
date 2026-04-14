@@ -10,7 +10,6 @@ import {
 } from '@/components/menu';
 import { ChangeEvent, Fragment } from 'react';
 import { DropdownUserLanguages } from './DropdownUserLanguages';
-import { Link } from 'react-router-dom';
 import { useSettings } from '@/providers/SettingsProvider';
 import { useAuthContext } from '@/auth';
 
@@ -38,12 +37,9 @@ const DropdownUser = () => {
             alt=""
           />
           <div className="flex flex-col gap-1.5">
-            <Link
-              to="/account/hoteme/get-stard"
-              className="text-sm text-gray-800 hover:text-primary font-semibold leading-none"
-            >
+            <span className="text-sm text-gray-800 font-semibold leading-none">
               {persona?.nombre1}
-            </Link>
+            </span>
             <a
               href={`mailto:${persona?.email}`}
               className="text-xs text-gray-600 hover:text-primary font-medium leading-none truncate block max-w-[180px]"

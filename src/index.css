@@ -112,12 +112,18 @@ html {
 }
 
 /* Formularios: mayúsculas (refuerzo visual; la lógica está en utils/formUppercase.ts) */
-#root input:not([type="password"]):not([type="hidden"]):not([type="file"]):not([type="number"]):not([type="date"]):not([type="datetime-local"]):not([type="time"]):not([type="month"]):not([type="week"]):not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="email"]):not([type="url"]):not([type="tel"]):not([data-preserve-case]),
-#root textarea:not([data-preserve-case]) {
+/* Excluir data-no-uppercase: contraseñas con “mostrar” (type=text) y correos deben verse/respetar minúsculas */
+#root input:not([type="password"]):not([type="hidden"]):not([type="file"]):not([type="number"]):not([type="date"]):not([type="datetime-local"]):not([type="time"]):not([type="month"]):not([type="week"]):not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="email"]):not([type="url"]):not([type="tel"]):not([data-preserve-case]):not([data-no-uppercase]),
+#root textarea:not([data-preserve-case]):not([data-no-uppercase]) {
   text-transform: uppercase;
 }
 
 #root input[data-preserve-case],
 #root textarea[data-preserve-case] {
+  text-transform: none;
+}
+
+#root input[data-no-uppercase],
+#root textarea[data-no-uppercase] {
   text-transform: none;
 }
