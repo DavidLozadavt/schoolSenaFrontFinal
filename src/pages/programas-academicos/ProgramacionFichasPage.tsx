@@ -831,7 +831,6 @@ export const ProgramacionFichasPage = () => {
           )}
         </div>
       </div>
-
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
         onClose={() => setAsignarFicha(null)}
@@ -841,20 +840,17 @@ export const ProgramacionFichasPage = () => {
         }}
         ficha={asignarFicha}
       />
-
       <VerDocumentosFichaModal
         isOpen={!!verFicha}
         onClose={() => setVerFicha(null)}
         ficha={verFicha}
       />
-
       <MallaCurricular
         isOpen={isMallaOpen}
         onClose={() => setIsMallaOpen(false)}
         program={program}
         ficha={fichaSelected}
       />
-
       <AsignarInstructorLiderModal
         isOpen={!!fichaAsignarLider}
         onClose={() => setFichaAsignarLider(null)}
@@ -865,7 +861,6 @@ export const ProgramacionFichasPage = () => {
           setFichaAsignarLider(null);
         }}
       />
-
       <CrearEditarFicha
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
@@ -874,7 +869,6 @@ export const ProgramacionFichasPage = () => {
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
       />
-
       {verMallaCurricular && (
         <MallaCurricular
           isOpen={verMallaCurricular}
@@ -883,7 +877,6 @@ export const ProgramacionFichasPage = () => {
           ficha={fichaSelected}
         />
       )}
-
       {verHorariosFicha && (
         <Calendario
           isOpen={!!verHorariosFicha}
@@ -893,7 +886,6 @@ export const ProgramacionFichasPage = () => {
           onAddSchedule={() => {}}
         />
       )}
-
       {showToast && (
         <div className="fixed top-4 right-4 z-[200]">
           <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in">
@@ -908,6 +900,7 @@ export const ProgramacionFichasPage = () => {
           </div>
         </div>
       )}
+      hola mundo
     </>
   );
 };
