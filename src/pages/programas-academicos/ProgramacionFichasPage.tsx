@@ -900,7 +900,6 @@ export const ProgramacionFichasPage = () => {
           </div>
         </div>
       )}
-      hola mundo
     </>
   );
 };
