@@ -58,14 +58,24 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       axios
         .get(`fichas/${idFicha}/asignacion-actividades/datos`)
         .then((res) => {
+          setError('');
           setAprendices(res.data?.aprendices ?? []);
           setGrupos(res.data?.grupos ?? []);
           setActividades(res.data?.actividades ?? []);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+          // Diagnóstico en consola (prod): antes el catch vaciaba listas sin señal de fallo de red/401.
+          console.warn('[ModalAsignarActividad] GET datos', idFicha, ax?.response?.status, ax?.response?.data);
           setAprendices([]);
           setGrupos([]);
           setActividades([]);
+          const msg =
+            ax?.response?.data?.message ||
+            ax?.response?.data?.error ||
+            (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
+            'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
+          setError(msg);
         })
         .finally(() => setLoading(false));
     }
