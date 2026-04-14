@@ -36,7 +36,7 @@ const InformeGeneralInstructor: React.FC = () => {
   const authContext = useContext(AuthContext);
   if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
 
-  const [anioGestion, setAnioGestion] = useState<number>(0);
+  const [anioGestion, setAnioGestion] = useState<number>(new Date().getFullYear());
   const [aniosContrato, setAniosContrato] = useState<number[]>([]);
   const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
   const [loadingRmi, setLoadingRmi] = useState(false);
