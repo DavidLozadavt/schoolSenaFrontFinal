@@ -375,11 +375,28 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     setSelectedAcudiente(null);
   };
 
+  const normalizeText = (value: string): string =>
+    value
+      .toLocaleLowerCase('es')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+  const normalizeIdentity = (value: string): string => value.replace(/\D/g, '');
+
   const filteredStudents = students.filter(student => {
-    const fullName = getFullName(student).toLowerCase();
-    const identificacion = getStudentIdentificacion(student).toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return fullName.includes(search) || identificacion.includes(search);
+    const search = normalizeText(searchTerm);
+    const searchIdentity = normalizeIdentity(searchTerm);
+
+    const fullName = normalizeText(getFullName(student));
+    const identificacionTexto = normalizeText(getStudentIdentificacion(student));
+    const identificacionNumerica = normalizeIdentity(getStudentIdentificacion(student));
+
+    return (
+      fullName.includes(search) ||
+      identificacionTexto.includes(search) ||
+      (searchIdentity.length > 0 && identificacionNumerica.includes(searchIdentity))
+    );
   });
 
   return (
@@ -392,6 +409,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             placeholder="Buscar por nombre o identificación..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            data-no-uppercase
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm shadow-sm"
           />
           <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

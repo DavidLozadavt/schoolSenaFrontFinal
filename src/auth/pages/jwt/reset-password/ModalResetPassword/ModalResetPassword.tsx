@@ -365,6 +365,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
               value={newPassword.password}
               onChange={(e) => setNewPassword({ ...newPassword, password: e.target.value })}
               placeholder="Mínimo 8 caracteres"
+              data-no-uppercase
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
             />
             <button
@@ -385,6 +386,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
               value={newPassword.confirmPassword}
               onChange={(e) => setNewPassword({ ...newPassword, confirmPassword: e.target.value })}
               placeholder="Repite tu contraseña"
+              data-no-uppercase
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
             />
             <button
