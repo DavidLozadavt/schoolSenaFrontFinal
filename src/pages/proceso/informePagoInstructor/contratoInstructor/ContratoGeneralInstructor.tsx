@@ -77,6 +77,9 @@ const ContratoGeneralInstructor: React.FC = () => {
   const [editingActividad, setEditingActividad] = useState<ActividadContrato | null>(null);
   const [savingActividad, setSavingActividad] = useState(false);
 
+  //Para el conteo de actividades:
+  const [totalActividades, setTotalActividades] = useState<number | null>(null);
+
   //Acordeon del formulario de actividades
   const [openForm, setOpenForm] = useState(true);
 
@@ -119,6 +122,10 @@ const ContratoGeneralInstructor: React.FC = () => {
             siif: data.siif ?? null,
             descripcionFormaPago: data.descripcionFormaPago ?? ''
           });
+          axios
+            .get(`actividades-contrato?idContrato=${data.id}`)
+            .then((res) => setTotalActividades((res.data.actividades || []).length))
+            .catch(() => {});
         }
       } finally {
         setLoading(false);
@@ -251,6 +258,7 @@ const ContratoGeneralInstructor: React.FC = () => {
         });
         setActividades((prev) => [response.data.actividad, ...prev]);
         enqueueSnackbar('Actividad creada con éxito.', { variant: 'success' });
+        setTotalActividades((prev) => (editingActividad ? prev : (prev ?? 0) + 1));
       }
 
       handleCancelActividadEdit();
@@ -269,6 +277,7 @@ const ContratoGeneralInstructor: React.FC = () => {
       await axios.delete(`actividades-contrato/${id}`);
       setActividades((prev) => prev.filter((a) => a.id !== id));
       enqueueSnackbar('Actividad eliminada con éxito.', { variant: 'success' });
+      setTotalActividades((prev) => (prev ?? 1) - 1);
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Error al eliminar la actividad.';
       enqueueSnackbar(msg, { variant: 'error' });
@@ -352,20 +361,62 @@ const ContratoGeneralInstructor: React.FC = () => {
             className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-coal-400 border border-blue-200 dark:border-blue-500/30 rounded-lg hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="relative w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i className="ki-outline ki-clipboard text-blue-600 dark:text-blue-400 text-lg" />
+                {/* 👇 BURBUJA con el conteo */}
+                {totalActividades !== null && totalActividades > 0 && (
+                  <span
+                    className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ${
+                      totalActividades >= 6 ? 'bg-green-500' : 'bg-orange-500'
+                    }`}
+                  >
+                    {totalActividades > 99 ? '99+' : totalActividades}
+                  </span>
+                )}
               </div>
               <div className="text-left">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white">
                   Actividades del Contrato
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Gestiona las obligaciones y evidencias
+                  {totalActividades === null
+                    ? 'Cargando...'
+                    : totalActividades === 0
+                      ? 'Mínimo 6 actividades requeridas'
+                      : totalActividades >= 6
+                        ? `${totalActividades} actividades · ✓ Listo para informe`
+                        : `${totalActividades} de 6 actividades mínimas`}
                 </p>
               </div>
             </div>
             <i className="ki-outline ki-right text-gray-400 dark:text-gray-500 group-hover:translate-x-1 transition-transform" />
           </button>
+          {totalActividades !== null && (
+            <div className="mt-2 px-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                  Progreso mínimo para informe
+                </span>
+                <span
+                  className={`text-[10px] font-semibold ${
+                    totalActividades >= 6
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-orange-600 dark:text-orange-400'
+                  }`}
+                >
+                  {Math.min(totalActividades, 6)}/6
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-200 dark:bg-coal-300 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    totalActividades >= 6 ? 'bg-green-500' : 'bg-orange-400'
+                  }`}
+                  style={{ width: `${Math.min((totalActividades / 6) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Sección supervisor ── */}
