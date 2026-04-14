@@ -18,7 +18,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
 
-  const totalHoras = instructor.horarios?.reduce((acc, h) => acc + h.duracionHoras, 0) ?? 0;
+  const totalHoras = instructor.horarios?.reduce((acc: number, h: any) => acc + Number(h.duracionHoras), 0) ?? 0;
 
   const semaforoHoras = (horas: number): string =>
     horas < 145

@@ -207,6 +207,7 @@ const ResetPasswordChange = () => {
                 placeholder="••••••••" 
                 type={showPassword ? 'text' : 'password'} 
                 {...formik.getFieldProps('password')}
+                data-no-uppercase
                 className={clsx(
                   'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
                   'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 hover:border-gray-400',
@@ -235,6 +236,7 @@ const ResetPasswordChange = () => {
                 placeholder="••••••••" 
                 type={showConfirmPassword ? 'text' : 'password'} 
                 {...formik.getFieldProps('password_confirmation')}
+                data-no-uppercase
                 className={clsx(
                   'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
                   'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 hover:border-gray-400',

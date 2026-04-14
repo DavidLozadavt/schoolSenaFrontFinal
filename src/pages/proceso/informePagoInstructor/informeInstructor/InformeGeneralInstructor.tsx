@@ -1,6 +1,6 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ComisionesIndex from '../comisiones/ComisionesIndex';
 
@@ -36,7 +36,7 @@ const InformeGeneralInstructor: React.FC = () => {
   const authContext = useContext(AuthContext);
   if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
 
-  const [anioGestion, setAnioGestion] = useState<number>(0);
+  const [anioGestion, setAnioGestion] = useState<number>(new Date().getFullYear());
   const [aniosContrato, setAniosContrato] = useState<number[]>([]);
   const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
   const [loadingRmi, setLoadingRmi] = useState(false);
@@ -65,6 +65,20 @@ const InformeGeneralInstructor: React.FC = () => {
     loadData();
   }, [authContext]);
 
+  const periodoActual = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const dataRmiFiltrada = useMemo(() => {
+    return dataRmi.map((contrato) => ({
+      ...contrato,
+      periodos: contrato.periodos
+        .filter((p) => p.periodo <= periodoActual)
+        .sort((a, b) => (a.periodo < b.periodo ? 1 : -1))
+    }));
+  }, [dataRmi, periodoActual]);
+
   // Carga los RMI cuando cambia el año seleccionado
   useEffect(() => {
     if (!anioGestion) return;
@@ -88,11 +102,7 @@ const InformeGeneralInstructor: React.FC = () => {
     loadRmi();
   }, [anioGestion]);
 
-  const handleDescargarPdf = async (
-    idContrato: number,
-    idRmi: number,
-    nPlanilla: string
-  ) => {
+  const handleDescargarPdf = async (idContrato: number, idRmi: number, nPlanilla: string) => {
     try {
       const res = await axios.get('get_informe_by_instructor_rmi', {
         params: { idContrato, idRmi, nPlanilla },
@@ -143,7 +153,7 @@ const InformeGeneralInstructor: React.FC = () => {
           No hay datos RMI para el año {anioGestion}
         </div>
       ) : (
-        dataRmi.map((contrato) => (
+        dataRmiFiltrada.map((contrato) => (
           <div
             key={contrato.idContrato}
             className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
@@ -208,7 +218,7 @@ const InformeGeneralInstructor: React.FC = () => {
                       </>
                     )}
                     <button
-                      onClick={() =>{
+                      onClick={() => {
                         const [year, month] = periodo.periodo.split('-').map(Number);
                         const fechaMinima = `${year}-${String(month).padStart(2, '0')}-01`;
                         const lastDay = new Date(year, month, 0).getDate(); // último día del mes
@@ -219,8 +229,8 @@ const InformeGeneralInstructor: React.FC = () => {
                           idRmi: periodo.idRmi,
                           fechaMinima,
                           fechaMaxima
-                        })}
-                      }
+                        });
+                      }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-white/5 rounded-lg transition-all"
                     >
                       <i className="ki-outline ki-credit-cart text-sm" /> Comisiones

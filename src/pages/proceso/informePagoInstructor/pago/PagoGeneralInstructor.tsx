@@ -1,6 +1,6 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
@@ -35,7 +35,7 @@ const PagoGeneralInstructor: React.FC = () => {
   const authContext = useContext(AuthContext);
   if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
 
-  const [anioGestion, setAnioGestion] = useState<number>(0);
+  const [anioGestion, setAnioGestion] = useState<number>(new Date().getFullYear());
   const [aniosContrato, setAniosContrato] = useState<number[]>([]);
   const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
   const [loadingRmi, setLoadingRmi] = useState(false);
@@ -61,6 +61,20 @@ const PagoGeneralInstructor: React.FC = () => {
     };
     loadData();
   }, [authContext]);
+
+  const periodoActual = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const dataRmiFiltrada = useMemo(() => {
+    return dataRmi.map((contrato) => ({
+      ...contrato,
+      periodos: contrato.periodos
+        .filter((p) => p.periodo <= periodoActual)
+        .sort((a, b) => (a.periodo < b.periodo ? 1 : -1))
+    }));
+  }, [dataRmi, periodoActual]);
 
   useEffect(() => {
     if (!anioGestion) return;
@@ -254,7 +268,7 @@ const PagoGeneralInstructor: React.FC = () => {
             No hay datos para el año {anioGestion}
           </div>
         ) : (
-          dataRmi.map((contrato) => (
+          dataRmiFiltrada.map((contrato) => (
             <div
               key={contrato.idContrato}
               className="bg-white dark:bg-coal-500 rounded-xl border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
