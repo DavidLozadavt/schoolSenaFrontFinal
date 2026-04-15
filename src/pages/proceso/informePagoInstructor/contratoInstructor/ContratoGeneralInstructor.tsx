@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { enqueueSnackbar } from 'notistack';
 
 interface CentroFormacion {
@@ -62,7 +62,12 @@ const FORMA_PAGO_STYLES: Record<Contrato['formaDePago'], string> = {
   NORMAL: 'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400'
 };
 
-const ContratoGeneralInstructor: React.FC = () => {
+const ContratoGeneralInstructor = forwardRef<
+  {
+    validate: () => { isValid: boolean; errors: string[] };
+  },
+  {}
+>((props, ref) => {
   const [contrato, setContrato] = useState<Contrato | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -133,6 +138,46 @@ const ContratoGeneralInstructor: React.FC = () => {
     };
     loadData();
   }, []);
+
+  // Validación del formulario
+  useImperativeHandle(ref, () => ({
+    validate: () => {
+      const errors: string[] = [];
+
+      if (!form.supervisorContrato.trim()) {
+        errors.push('El nombre del supervisor es obligatorio');
+      }
+      if (!form.cargoSupervisor.trim()) {
+        errors.push('El cargo del supervisor es obligatorio');
+      }
+      if (!form.objetoContrato.trim()) {
+        errors.push('El objeto del contrato es obligatorio');
+      }
+      if (!form.formaDePago) {
+        errors.push('La forma de pago es obligatoria');
+      }
+      if (!form.ciudadExpedicionId) {
+        errors.push('La ciudad de expedición es obligatoria');
+      }
+      if (!form.siif) {
+        errors.push('El SIIF es obligatorio');
+      }
+      if (!totalActividades || totalActividades < 6) {
+        errors.push(
+          `Se requieren mínimo 6 actividades. Actualmente tiene ${totalActividades || 0}`
+        );
+      }
+
+      if (errors.length > 0) {
+        errors.forEach((error) => enqueueSnackbar(error, { variant: 'error' }));
+      }
+
+      return {
+        isValid: errors.length === 0,
+        errors
+      };
+    }
+  }));
 
   const loadActividades = async () => {
     if (!contrato) return;
@@ -1009,6 +1054,8 @@ const ContratoGeneralInstructor: React.FC = () => {
       )}
     </div>
   );
-};
+});
+
+ContratoGeneralInstructor.displayName = 'ContratoGeneralInstructor';
 
 export default ContratoGeneralInstructor;

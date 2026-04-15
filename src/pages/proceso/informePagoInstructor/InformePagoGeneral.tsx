@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
@@ -34,8 +34,18 @@ const STEPS = [
 
 const InformePagoGeneral: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
+  const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
 
   const goNext = () => {
+    // Validar el paso actual antes de avanzar
+    if (currentStep === 0) {
+      // Validar paso del Contrato
+      const validation = contratoRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
     if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1)
   }
 
@@ -152,7 +162,7 @@ const InformePagoGeneral: React.FC = () => {
 
         {/* Contenido */}
         <div>
-          {currentStep === 0 && <ContratoGeneralInstructor />}
+          {currentStep === 0 && <ContratoGeneralInstructor ref={contratoRef} />}
           {currentStep === 1 && <RmiInstructor />}
           {currentStep === 2 && <InformeGeneralInstructor />}
           {currentStep === 3 && <PagoGeneralInstructor />}
