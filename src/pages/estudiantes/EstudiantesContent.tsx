@@ -75,6 +75,12 @@ function transformAsistenciasToDashboard(asistenciasRaw: any[]): DashboardAsiste
   asistenciasRaw.forEach((asistencia) => {
     // Soportar tanto camelCase como snake_case y diferentes estructuras de relación
     const sesion = asistencia.sesionMateria || asistencia.sesion_materia;
+    const fechaSesionStr = (sesion?.fechaSesion || sesion?.fecha_sesion || '').toString().substring(0, 10);
+    if (fechaSesionStr) {
+      const ahora = new Date();
+      const hoyStr = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+      if (fechaSesionStr > hoyStr) return;
+    }
     const horario = sesion?.horarioMateria || sesion?.horario_materia;
     const grado = horario?.gradoMateria || horario?.grado_materia;
     
