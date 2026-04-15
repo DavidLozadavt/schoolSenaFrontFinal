@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '@/auth/useAuthContext';
 
@@ -46,16 +46,12 @@ interface ActividadAprendiz {
   materia?: { nombreMateria?: string };
 }
 
-// ─── Estado badge config ──────────────────────────────────────────────────────
-
 const ESTADO_CFG: Record<string, { label: string; chip: string; hex: string }> = {
   CALIFICADO:   { label: 'Calificado',   chip: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',   hex: '#16a34a' },
   POR_EVALUAR:  { label: 'Por evaluar',  chip: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',   hex: '#d97706' },
   PENDIENTE:    { label: 'Pendiente',    chip: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',           hex: '#9ca3af' },
   SIN_ENTREGAR: { label: 'Sin entregar', chip: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',            hex: '#dc2626' },
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtFecha(v?: string | null) {
   if (!v) return '—';
@@ -64,40 +60,21 @@ function fmtFecha(v?: string | null) {
   } catch { return v; }
 }
 
-// ─── Función para transformar asistencias raw a DashboardAsistencia ───────────
-function transformAsistenciasToDashboard(asistenciasRaw: any[]): DashboardAsistencia {
-  const areasMap: Record<number, AreaAsistencia> = {};
+function transformGroupedToDashboard(groupedData: Record<string, any>): DashboardAsistencia {
+  const areasMap: Record<string, AreaAsistencia> = {};
   const detalles: RegistroAsistencia[] = [];
   let totalAsistencias = 0;
   let totalInasistencias = 0;
-  let totalJustificadas = 0;
+  let totalRegistros = 0;
 
-  asistenciasRaw.forEach((asistencia) => {
-    // Soportar tanto camelCase como snake_case y diferentes estructuras de relación
-    const sesion = asistencia.sesionMateria || asistencia.sesion_materia;
-    const fechaSesionStr = (sesion?.fechaSesion || sesion?.fecha_sesion || '').toString().substring(0, 10);
-    if (fechaSesionStr) {
-      const ahora = new Date();
-      const hoyStr = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
-      if (fechaSesionStr > hoyStr) return;
-    }
-    const horario = sesion?.horarioMateria || sesion?.horario_materia;
-    const grado = horario?.gradoMateria || horario?.grado_materia;
-    
-    // Si no viene por sesión, intentar por matrícula académica
-    const matriculaDoc = asistencia.matriculaAcademica || asistencia.matricula_academica;
-    const materia = grado?.materia || matriculaDoc?.materia;
-    const area = materia?.areaConocimiento || materia?.area_conocimiento;
-    
-    if (!area) return; // Saltar si no tiene área asociada
+  Object.entries(groupedData).forEach(([clave, materiaData]) => {
+    const resMateria = materiaData.resumen || { asistio:0, falto:0, totalSesiones:0 };
+    const areaNombre = materiaData.areaConocimiento || 'Sin Área';
 
-    const idArea = area.id;
-    const nombreArea = area.nombreAreaConocimiento || area.nombre_area_conocimiento;
-
-    if (!areasMap[idArea]) {
-      areasMap[idArea] = {
-        idArea,
-        nombreArea,
+    if (!areasMap[areaNombre]) {
+      areasMap[areaNombre] = {
+        idArea: materiaData.idMateria || 0,
+        nombreArea: areaNombre,
         asistencias: 0,
         inasistencias: 0,
         justificadas: 0,
@@ -106,45 +83,33 @@ function transformAsistenciasToDashboard(asistenciasRaw: any[]): DashboardAsiste
       };
     }
 
-    const estaJustificada = asistencia.justificacion?.estado === 'APROBADO';
-    const asistio = !!asistencia.asistio;
+    areasMap[areaNombre].asistencias += resMateria.asistio;
+    areasMap[areaNombre].inasistencias += resMateria.falto;
+    areasMap[areaNombre].total += resMateria.totalSesiones;
 
-    if (asistio) {
-      areasMap[idArea].asistencias++;
-      totalAsistencias++;
-    } else if (estaJustificada) {
-      areasMap[idArea].justificadas++;
-      totalJustificadas++;
-    } else {
-      areasMap[idArea].inasistencias++;
-      totalInasistencias++;
-    }
-    areasMap[idArea].total++;
+    totalAsistencias += resMateria.asistio;
+    totalInasistencias += resMateria.falto;
+    totalRegistros += resMateria.totalSesiones;
 
-    // Agregar a detalles
-    detalles.push({
-      id: asistencia.id,
-      fecha: sesion?.fechaSesion || sesion?.fecha_sesion || '',
-      nombreMateria: materia?.nombreMateria || materia?.nombre_materia || 'Sin Materia',
-      asistio: asistio,
-      estaJustificada: estaJustificada,
-      estado: asistio ? 'Presente' : (estaJustificada ? 'Inasistencia Justificada' : 'Ausente')
+    const sessionList = materiaData.asistencias || [];
+    sessionList.forEach((asist: any) => {
+      detalles.push({
+        id: asist.id,
+        fecha: asist.fechaSesion || '',
+        nombreMateria: materiaData.nombreMateria || 'Materia',
+        asistio: !!asist.asistio,
+        estaJustificada: asist.estado === 'Inasistencia Justificada',
+        estado: asist.estado || ''
+      });
     });
   });
 
-  // Calcular porcentajes por área
   const areas = Object.values(areasMap).map(area => ({
     ...area,
     porcentaje: area.total > 0 ? Math.round((area.asistencias / area.total) * 100) : 0
   }));
 
-  // Ordenar detalles por fecha descendente
-  detalles.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-  const totalRegistros = totalAsistencias + totalInasistencias + totalJustificadas;
-  const asistenciaGeneral = totalRegistros > 0 
-    ? Math.round((totalAsistencias / totalRegistros) * 100) 
-    : 0;
+  const asistenciaGeneral = totalRegistros > 0 ? Math.round((totalAsistencias / totalRegistros) * 100) : 0;
 
   return {
     areas,
@@ -152,65 +117,13 @@ function transformAsistenciasToDashboard(asistenciasRaw: any[]): DashboardAsiste
       asistenciaGeneral,
       totalAsistencias,
       totalInasistencias,
-      totalJustificadas,
+      totalJustificadas: 0,
       totalRegistros
     },
     detalles
   };
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const KpiCard: React.FC<{
-  icon: string; label: string; value: string | number;
-  bg: string; text: string; border: string; sub?: string;
-}> = ({ icon, label, value, bg, text, border, sub }) => (
-  <div className={`relative overflow-hidden rounded-lg shadow-md border-2 p-5 ${bg} ${border}`}>
-    <div className="flex items-start justify-between">
-      <div>
-        <p className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${text} opacity-70`}>{label}</p>
-        <p className={`text-3xl font-extrabold leading-none ${text}`}>{value}</p>
-        {sub && <p className={`text-xs mt-1 ${text} opacity-60`}>{sub}</p>}
-      </div>
-      <span className={`text-3xl opacity-20 select-none ${text}`}>{icon}</span>
-    </div>
-  </div>
-);
-
-interface DonutSlice { label: string; value: number; hexColor: string }
-const DonutChart: React.FC<{ slices: DonutSlice[]; size?: number; center?: string | number }> = ({
-  slices, size = 130, center
-}) => {
-  const total = slices.reduce((a, s) => a + s.value, 0) || 1;
-  const r = 36; const cx = 50; const cy = 50;
-  const circ = 2 * Math.PI * r;
-  let off = 0;
-  const segs = slices.map((s) => {
-    const dash = (s.value / total) * circ;
-    const seg = { ...s, dash, gap: circ - dash, off };
-    off += dash;
-    return seg;
-  });
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth="14"
-        className="text-gray-100 dark:text-gray-700" />
-      {segs.map((s, i) => (
-        <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.hexColor} strokeWidth="14"
-          strokeDasharray={`${s.dash} ${s.gap}`} strokeDashoffset={circ / 4 - s.off}
-          strokeLinecap="butt" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
-      ))}
-      <text x="50" y="46" textAnchor="middle" dominantBaseline="middle"
-        className="fill-gray-800 dark:fill-gray-100" fontSize="14" fontWeight="800">
-        {center ?? total}
-      </text>
-      <text x="50" y="57" textAnchor="middle" dominantBaseline="middle"
-        fontSize="5" className="fill-gray-400">total</text>
-    </svg>
-  );
-};
-
-// ─── Main Component ────────────────────────────────────────────────────────────
 const EstudiantesContent: React.FC = () => {
   const { user, persona } = useAuthContext();
   const userName = persona 
@@ -220,270 +133,198 @@ const EstudiantesContent: React.FC = () => {
         : 'Aprendiz');
   
   const [asistencia, setAsistencia] = useState<DashboardAsistencia | null>(null);
+  const [groupedAsistencia, setGroupedAsistencia] = useState<Record<string, any>>({});
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
-  const [loadingA, setLoadingA] = useState(true);
-  const [loadingActs, setLoadingActs] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  // ── Fetch asistencias por área (usa usuario autenticado) ────────────────
   useEffect(() => {
-    setLoadingA(true);
-    axios.get('mis-asistencias-generales')
-      .then((r) => {
-        const rawData = r.data?.data ?? [];
-        if (Array.isArray(rawData)) {
-          // Transformar los datos raw al formato DashboardAsistencia
-          const dashboardData = transformAsistenciasToDashboard(rawData);
-          setAsistencia(dashboardData);
-        } else {
-          setAsistencia(null);
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching asistencias:', error);
-        setAsistencia(null);
-      })
-      .finally(() => setLoadingA(false));
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [resAsis, resActs] = await Promise.all([
+          axios.get('mis-asistencias-generales'),
+          axios.get('actividades-aprendiz')
+        ]);
+        
+        const rawAsis = resAsis.data?.data ?? {};
+        setGroupedAsistencia(rawAsis);
+        setAsistencia(transformGroupedToDashboard(rawAsis));
+        
+        const rawActs = resActs.data?.data ?? [];
+        setActividades(Array.isArray(rawActs) ? rawActs : []);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  // ── Fetch actividades del aprendiz ──────────────────────────────────────
-  useEffect(() => {
-    setLoadingActs(true);
-    axios.get('actividades-aprendiz')
-      .then((r) => {
-        const d = r.data?.data ?? [];
-        setActividades(Array.isArray(d) ? d : []);
-      })
-      .catch((error) => {
-        console.error('Error fetching actividades:', error);
-        setActividades([]);
-      })
-      .finally(() => setLoadingActs(false));
-  }, []);
+  const totalPresentes   = asistencia?.resumen.totalAsistencias ?? 0;
+  const totalAusentes      = asistencia?.resumen.totalInasistencias ?? 0;
+  const totalRegistros     = asistencia?.resumen.totalRegistros ?? 0;
+  const pctGeneral         = asistencia?.resumen.asistenciaGeneral ?? 0;
 
-  // ── Derived: asistencia ─────────────────────────────────────────────────
-  const resumen = asistencia?.resumen;
-  const totalPresentes   = resumen?.totalAsistencias   ?? 0;
-  const totalJustificadas = resumen?.totalJustificadas ?? 0;
-  const totalAusentes      = resumen?.totalInasistencias ?? 0;
-  const totalRegistros     = resumen?.totalRegistros     ?? 0;
-  const pctGeneral         = resumen?.asistenciaGeneral  ?? 0;
-  const areas              = asistencia?.areas ?? [];
-  const detalles           = asistencia?.detalles ?? [];
-
-  // ── Derived: actividades ────────────────────────────────────────────────
   const pendientes  = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
   const vencidas    = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' && a.fechaVencida).length;
   const presentadas = actividades.filter((a) => a.estadoVisual === 'POR_EVALUAR').length;
   const calificadas = actividades.filter((a) => a.estadoVisual === 'CALIFICADO').length;
 
-  const donutActs: DonutSlice[] = [
-    { label: 'Calificado',   value: calificadas,  hexColor: '#16a34a' },
-    { label: 'Por evaluar',  value: presentadas,  hexColor: '#d97706' },
-    { label: 'Pendiente',    value: pendientes,   hexColor: '#9ca3af' },
-    { label: 'Sin entregar', value: vencidas,     hexColor: '#dc2626' },
-  ].filter((s) => s.value > 0);
+  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE').sort((a,b) => {
+    if(!a.fechaFinal) return 1;
+    if(!b.fechaFinal) return -1;
+    return new Date(a.fechaFinal).getTime() - new Date(b.fechaFinal).getTime();
+  }).slice(0, 3);
 
-  const donutAsistencia: DonutSlice[] = [
-    { label: 'Presentes',    value: totalPresentes,    hexColor: '#2563eb' },
-    { label: 'Justificadas', value: totalJustificadas, hexColor: '#10b981' },
-    { label: 'Ausentes',     value: totalAusentes,     hexColor: '#dc2626' },
-  ].filter((s) => s.value > 0);
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <p className="text-gray-500 font-medium">Cargando dashboard...</p>
+      </div>
+    );
+  }
 
-  // Actividades a mostrar en alerta (solo pendientes, máx 5)
-  const actAlerta = useMemo(() =>
-    [...actividades]
-      .filter((a) => a.estadoVisual === 'PENDIENTE')
-      .slice(0, 5),
-    [actividades]
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-screen">
-      <>
-          {/* ══ HEADER PERSONALIZADO ═════════════════════════════════════ */}
-          <header className="mb-2">
-            <h1 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight flex items-baseline gap-2">
-              Dashboard de <span className="text-blue-600 dark:text-blue-400">Aprendiz</span>
-            </h1>
-            <p className="text-sm text-gray-500 font-medium">
-              Bienvenido, <span className="text-gray-900 dark:text-gray-200 font-bold">{userName}</span>
-            </p>
-          </header>
+    <div className="max-w-[1400px] mx-auto p-4 lg:p-6 space-y-8">
+      {/* Bienvenida */}
+      <div className="flex flex-col gap-1 mb-2">
+        <h1 className="text-xl font-extrabold text-gray-800 dark:text-white tracking-tight">¡Hola, {userName}! 👋</h1>
+        <p className="text-sm text-gray-400 font-medium">Aquí tienes el resumen de tu proceso formativo hasta hoy.</p>
+      </div>
 
-          {/* ══ SECCIÓN ASISTENCIA ═══════════════════════════════════════ */}
-           <section className="space-y-3">
-            <h2 className="text-sm font-bold dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
-              <span className="w-1 h-4 rounded-full bg-blue-600 inline-block" />
-              Asistencia
-            </h2>
+      {/* KPIs Generales de Asistencia */}
+      <section className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+            <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Resumen General</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase text-gray-400 mb-2">Total</p>
+                <p className="text-3xl font-black text-gray-800 dark:text-white leading-none">{totalRegistros}</p>
+              </div>
+              <div className="text-center text-blue-600">
+                <p className="text-[10px] font-bold uppercase opacity-70 mb-2 text-gray-400">Presentes</p>
+                <p className="text-3xl font-black leading-none">{totalPresentes}</p>
+              </div>
+              <div className="text-center text-red-500">
+                <p className="text-[10px] font-bold uppercase opacity-70 mb-2 text-gray-400">Faltas</p>
+                <p className="text-3xl font-black leading-none">{totalAusentes}</p>
+              </div>
+            </div>
+          </div>
 
-            {/* Contenedor Grid Asistencia */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+          <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 flex items-center gap-8">
+             <div className="shrink-0">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-100 dark:text-gray-800" />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke={pctGeneral >= 80 ? '#10b981' : '#f59e0b'} strokeWidth="8"
+                    strokeDasharray={`${(pctGeneral/100) * 264} 264`}
+                    strokeDashoffset="66" strokeLinecap="round" className="transition-all duration-1000" />
+                  <text x="50" y="55" textAnchor="middle" className="fill-gray-900 dark:fill-white font-black text-2xl">{pctGeneral}%</text>
+                </svg>
+             </div>
+             <div className="space-y-1">
+                <p className="text-xs font-black dark:text-white uppercase">Nivel de Asistencia</p>
+                <p className="text-[10px] text-gray-400 leading-tight">Mantenerte por arriba del 80% asegura que no pierdas competencias por inasistencia.</p>
+             </div>
+          </div>
+        </div>
+
+        {/* 📊 DESGLOSE POR MATERIA */}
+        <div className="space-y-4">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">📊 Desglose por Materia</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Object.entries(groupedAsistencia).map(([key, data]: [string, any]) => {
+              const res = data.resumen || {};
+              const pct = res.porcentajeAsistencia || 0;
+              const color = pct >= 80 ? 'bg-green-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
               
-              {/* KPI Asistencia */}
-              <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex flex-col justify-center">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0">
-                    <p className="text-[10px] font-bold uppercase text-gray-400">Total</p>
-                    <p className="text-2xl font-black text-gray-800 dark:text-white leading-none mt-1">{totalRegistros}</p>
-                    <p className="text-[9px] mt-1 text-gray-400">sesiones</p>
-                  </div>
-                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-blue-600 dark:text-blue-400">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Presentes</p>
-                    <p className="text-2xl font-black leading-none mt-1">{totalPresentes}</p>
-                    <p className="text-[9px] mt-1 opacity-70">✅ registrados</p>
-                  </div>
-                  <div className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-emerald-600 dark:text-emerald-400">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Justificadas</p>
-                    <p className="text-2xl font-black leading-none mt-1">{totalJustificadas}</p>
-                    <p className="text-[9px] mt-1 opacity-70">🛡 avaladas</p>
-                  </div>
-                  <div className="text-center text-red-600 dark:text-red-400">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Ausencias</p>
-                    <p className="text-2xl font-black leading-none mt-1">{totalAusentes}</p>
-                    <p className="text-[9px] mt-1 opacity-70">❌ faltas</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Gráfica Asistencia */}
-              <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
-                <div className="shrink-0 relative">
-                  <svg width="100" height="100" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-50 dark:text-gray-800" />
-                    <circle cx="50" cy="50" r="40" fill="none"
-                      stroke={pctGeneral >= 80 ? '#16a34a' : pctGeneral >= 60 ? '#d97706' : '#dc2626'}
-                      strokeWidth="8"
-                      strokeDasharray={`${(pctGeneral / 100) * 2 * Math.PI * 40} ${2 * Math.PI * 40}`}
-                      strokeDashoffset={2 * Math.PI * 40 / 4}
-                      strokeLinecap="round"
-                      style={{ transition: 'stroke-dasharray 0.8s ease' }} />
-                    <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="currentColor" className="text-gray-900 dark:text-white font-black" fontSize="18">{pctGeneral}%</text>
-                    <text x="50" y="62" textAnchor="middle" dominantBaseline="middle" fontSize="6" className="fill-gray-400 font-bold uppercase tracking-tighter">Tasa</text>
-                  </svg>
-                </div>
-                <div className="flex-1 space-y-1">
-                  {donutAsistencia.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px]">
-                      <span className="flex items-center gap-1.5 text-gray-500 font-semibold italic">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.hexColor }} />
-                        {s.label}
-                      </span>
-                      <span className="font-bold text-gray-700 dark:text-gray-300">{s.value}</span>
+              return (
+                <div key={key} className="bg-white dark:bg-coal-400 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1 pr-4">
+                      <h3 className="text-xs font-black text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight mb-1">{data.nombreMateria}</h3>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase">{data.areaConocimiento}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
+                    <span className="text-xs font-black text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-lg">{pct}%</span>
+                  </div>
+                  
+                  <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mb-5 overflow-hidden">
+                    <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
+                  </div>
 
-          {/* ══ SECCIÓN ACTIVIDADES ══════════════════════════════════════ */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2 mb-2">
-              <span className="w-1 h-4 rounded-full bg-amber-500 inline-block" />
-              Actividades
-            </h2>
-
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-              {/* KPI Actividades */}
-              <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex flex-col justify-center">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
-                    <p className="text-[10px] font-bold uppercase text-gray-400">Pendientes</p>
-                    <p className="text-2xl font-black text-gray-800 dark:text-white leading-none mt-1">{pendientes}</p>
-                    <p className="text-[9px] mt-1 text-gray-400">⏳ por hacer</p>
-                  </a>
-                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Vencidas</p>
-                    <p className="text-2xl font-black leading-none mt-1">{vencidas}</p>
-                    <p className="text-[9px] mt-1 opacity-70">🚨 sin entrega</p>
-                  </a>
-                  <a href="/ambiente-virtual/actividades" className="text-center border-r border-gray-50 dark:border-gray-800 last:border-0 text-amber-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Entregadas</p>
-                    <p className="text-2xl font-black leading-none mt-1">{presentadas}</p>
-                    <p className="text-[9px] mt-1 opacity-70">📤 por evaluar</p>
-                  </a>
-                  <a href="/ambiente-virtual/actividades" className="text-center text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-coal-300/50 transition-colors rounded-lg py-1">
-                    <p className="text-[10px] font-bold uppercase opacity-70">Calificadas</p>
-                    <p className="text-2xl font-black leading-none mt-1">{calificadas}</p>
-                    <p className="text-[9px] mt-1 opacity-70">🏅 revisadas</p>
-                  </a>
-                </div>
-              </div>
-
-              {/* Gráfica Actividades (Gauge circular igual a asistencia) */}
-              <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
-                 <div className="shrink-0 relative">
-                   {/* Usamos el porcentaje de calificadas como métrica de éxito similar al gauge de asistencia */}
-                   {(() => {
-                     const totalActs = actividades.length || 1;
-                     const pctCalificadas = Math.round((calificadas / totalActs) * 100);
-                     return (
-                      <svg width="100" height="100" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-50 dark:text-gray-800" />
-                        <circle cx="50" cy="50" r="40" fill="none"
-                          stroke="#16a34a"
-                          strokeWidth="8"
-                          strokeDasharray={`${(pctCalificadas / 100) * 2 * Math.PI * 40} ${2 * Math.PI * 40}`}
-                          strokeDashoffset={2 * Math.PI * 40 / 4}
-                          strokeLinecap="round"
-                          style={{ transition: 'stroke-dasharray 0.8s ease' }} />
-                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="currentColor" className="text-gray-900 dark:text-white font-black" fontSize="18">{pctCalificadas}%</text>
-                        <text x="50" y="62" textAnchor="middle" dominantBaseline="middle" fontSize="6" className="fill-gray-400 font-bold uppercase tracking-tighter">Éxito</text>
-                      </svg>
-                     );
-                   })()}
-                 </div>
-                 <div className="flex-1 space-y-1">
-                   {donutActs.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px]">
-                      <span className="flex items-center gap-1.5 text-gray-500 font-semibold italic">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.hexColor }} />
-                        {s.label}
-                      </span>
-                      <span className="font-bold text-gray-700 dark:text-gray-300">{s.value}</span>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase mb-0.5">Sesiones</p>
+                      <p className="text-xs font-black dark:text-white">{res.totalSesiones}</p>
                     </div>
-                  ))}
-                 </div>
-              </div>
-            </div>
+                    <div className="text-blue-600">
+                      <p className="text-[8px] font-bold uppercase mb-0.5 opacity-60">Asistió</p>
+                      <p className="text-xs font-black">{res.asistio}</p>
+                    </div>
+                    <div className="text-red-500">
+                      <p className="text-[8px] font-bold uppercase mb-0.5 opacity-60">Faltó</p>
+                      <p className="text-xs font-black">{res.falto}</p>
+                    </div>
+                  </div>
 
-            {/* Pendientes - Lista refinada */}
-            {actAlerta.length > 0 && (
-              <div className="mt-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">⚠️ Próximas a vencer</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {actAlerta.map((act) => {
-                    const cfg = ESTADO_CFG[act.estadoVisual] ?? ESTADO_CFG['PENDIENTE'];
-                    return (
-                      <a 
-                        key={act.idCalificacionActividad}
-                        href="ambiente-virtual/actividades"
-                        className="group flex flex-col p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-coal-400 hover:border-amber-400 dark:hover:border-amber-500 transition-all hover:shadow-sm"
-                      >
-                        <div className="flex justify-between items-start mb-1.5">
-                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${cfg.chip}`}>
-                            {cfg.label}
-                          </span>
-                          {act.fechaFinal && (
-                            <span className="text-[9px] font-bold text-gray-400 group-hover:text-amber-600 transition-colors">
-                              📅 {fmtFecha(act.fechaFinal)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-1 mb-0.5">{act.tituloActividad}</p>
-                        <p className="text-[10px] text-gray-400 italic font-medium truncate">
-                          {act.area?.nombre || act.materia?.nombreMateria || 'General'}
-                        </p>
-                      </a>
-                    );
-                  })}
+                  {res.justificadas > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center text-[10px]">
+                      <span className="text-emerald-600 font-bold uppercase tracking-tighter">🛡 Justificadas</span>
+                      <span className="font-black text-emerald-600">{res.justificadas}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </section>
-      </>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Actividades */}
+      <section className="space-y-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+        <h2 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider">Gestión de Actividades</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pendientes</p>
+              <p className="text-2xl font-black">{pendientes}</p>
+           </div>
+           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-red-500">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Vencidas</p>
+              <p className="text-2xl font-black">{vencidas}</p>
+           </div>
+           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-amber-500">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Por Evaluar</p>
+              <p className="text-2xl font-black">{presentadas}</p>
+           </div>
+           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-green-500">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Calificadas</p>
+              <p className="text-2xl font-black">{calificadas}</p>
+           </div>
+        </div>
+
+        {actAlerta.length > 0 && (
+          <div className="space-y-4">
+             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Próximos Vencimientos</p>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {actAlerta.map(act => (
+                  <a key={act.idCalificacionActividad} href="/ambiente-virtual/actividades" className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 hover:border-blue-500 transition-colors shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                       <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${ESTADO_CFG[act.estadoVisual]?.chip}`}>
+                         {ESTADO_CFG[act.estadoVisual]?.label}
+                       </span>
+                       <span className="text-[9px] font-bold text-gray-400">📅 {fmtFecha(act.fechaFinal)}</span>
+                    </div>
+                    <p className="text-xs font-black leading-tight line-clamp-2 mb-1">{act.tituloActividad}</p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase truncate">{act.materia?.nombreMateria || 'General'}</p>
+                  </a>
+                ))}
+             </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 };
