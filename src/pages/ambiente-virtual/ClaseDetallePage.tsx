@@ -615,6 +615,11 @@ const ClaseDetallePage: React.FC = () => {
     setToastOpen(true);
   };
 
+  const idFichaParaClase = useMemo(
+    () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
+    [locationState?.ficha_id, ficha?.id]
+  );
+
   /**
    * Convierte idDia del backend al formato de JavaScript getDay()
    * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
@@ -787,13 +792,12 @@ const ClaseDetallePage: React.FC = () => {
   }, [id]);
 
   const fetchActividades = useCallback(async () => {
-    const idFicha = ficha?.id;
-    if (!idFicha) return;
+    if (!idFichaParaClase) return;
     setLoadingActividades(true);
     try {
       const [disponiblesRes, asignadasRes] = await Promise.allSettled([
         axios.get('actividades').catch(() => ({ data: [] })),
-        axios.get(`planeacionactividades/ficha/${idFicha}`).catch(() => ({ data: [] }))
+        axios.get(`planeacionactividades/ficha/${idFichaParaClase}`).catch(() => ({ data: [] }))
       ]);
       const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
       const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
@@ -804,13 +808,13 @@ const ClaseDetallePage: React.FC = () => {
     } finally {
       setLoadingActividades(false);
     }
-  }, [ficha?.id]);
+  }, [idFichaParaClase]);
 
   useEffect(() => {
-    if ((activeMenu === 'agregar-actividades' || activeMenu === 'actividades-asignadas') && ficha?.id) {
+    if ((activeMenu === 'agregar-actividades' || activeMenu === 'actividades-asignadas') && idFichaParaClase > 0) {
       fetchActividades();
     }
-  }, [activeMenu, fetchActividades, ficha?.id]);
+  }, [activeMenu, fetchActividades, idFichaParaClase]);
 
   const idsActividadesAsignadas = useMemo(() => {
     const set = new Set<number>();
@@ -1526,7 +1530,7 @@ const ClaseDetallePage: React.FC = () => {
                 <StudentListByMateria
                   materiaData={{
                     idMateria: locationState?.idMateria || clase?.idMateria || '',
-                    idFicha: locationState?.ficha_id || ficha?.id || 0,
+                    idFicha: idFichaParaClase,
                     idJornada: ficha?.jornada?.id?.toString() || '',
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
                     programa_nombre: locationState?.programa_nombre || ficha?.asignacion?.programa?.nombrePrograma,
@@ -1591,7 +1595,7 @@ const ClaseDetallePage: React.FC = () => {
                   actividades={actividadesAsignadas}
                   loading={loadingActividades}
                   modo="asignadas"
-                  idFicha={ficha?.id}
+                  idFicha={idFichaParaClase || undefined}
                   onVerAprendices={(act) => {
                     setActividadParaVerAprendices(act);
                     setModalAprendicesOpen(true);
@@ -1626,9 +1630,9 @@ const ClaseDetallePage: React.FC = () => {
               )}
 
               {/* Ver grupos Section */}
-              {activeMenu === 'ver-grupos' && ficha?.id && (
+              {activeMenu === 'ver-grupos' && idFichaParaClase > 0 && (
                 <VerGruposView
-                  idFicha={String(ficha.id)}
+                  idFicha={String(idFichaParaClase)}
                   fechaFinalClases={ficha?.asignacion?.fechaFinalClases}
                 />
               )}
@@ -1645,9 +1649,9 @@ const ClaseDetallePage: React.FC = () => {
               )}
 
               {/* Calificaciones Section */}
-              {activeMenu === 'calificaciones' && ficha?.id && (
+              {activeMenu === 'calificaciones' && idFichaParaClase > 0 && (
                 <CalificacionesFichaView
-                  idFicha={ficha.id}
+                  idFicha={idFichaParaClase}
                   idMateria={locationState?.idMateria || clase?.idMateria || ''}
                   idInstructor={clase?.instructor?.persona?.id}
                   instructorAsignado={
@@ -1664,7 +1668,7 @@ const ClaseDetallePage: React.FC = () => {
 
       {/* Modales de actividades */}
       <ModalAsignarActividad
-        open={modalAsignarActividadOpen && !!(ficha?.id)}
+        open={modalAsignarActividadOpen && idFichaParaClase > 0}
         onClose={() => {
           setModalAsignarActividadOpen(false);
           setActividadParaAsignar(null);
@@ -1677,7 +1681,7 @@ const ClaseDetallePage: React.FC = () => {
           setAssignSuccessCounter((c) => c + 1);
         }}
         onSuccess={showToast}
-        idFicha={ficha?.id ?? 0}
+        idFicha={idFichaParaClase}
         actividad={actividadParaAsignar}
         actividades={actividadesParaAsignar}
       />
@@ -1736,7 +1740,7 @@ const ClaseDetallePage: React.FC = () => {
         }}
         onSuccess={showToast}
         actividad={actividadParaVerAprendices}
-        idFicha={ficha?.id ?? 0}
+        idFicha={idFichaParaClase}
         tituloActividad={actividadParaVerAprendices?.tituloActividad}
       />
       <ModalAmpliarActividad
@@ -1746,7 +1750,7 @@ const ClaseDetallePage: React.FC = () => {
           setActividadParaAmpliar(null);
         }}
         actividad={actividadParaAmpliar}
-        idFicha={ficha?.id ?? 0}
+        idFicha={idFichaParaClase}
         onSave={() => fetchActividades()}
         onSuccess={showToast}
       />
