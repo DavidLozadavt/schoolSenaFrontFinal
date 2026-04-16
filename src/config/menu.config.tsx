@@ -200,16 +200,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title: 'Informe de Pago',
         path: '/informeInstructor',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      },
-      {
-        title: 'GC',
-        path: '/gcInstructor',
-        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      },
-      {
-        title: 'GF',
-        path: '/gfInstructor',
-        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       }
     ]
   },

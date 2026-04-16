@@ -49,6 +49,20 @@ const InformePagoGeneral: React.FC = () => {
     if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1)
   }
 
+  const goToStep = (index: number) => {
+    if (index === currentStep) return
+
+    // Si se intenta avanzar a un paso superior, validar el paso actual
+    if (index > currentStep) {
+      if (currentStep === 0) {
+        const validation = contratoRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+    }
+
+    setCurrentStep(index)
+  }
+
   const goPrev = () => {
     if (currentStep > 0) setCurrentStep(currentStep - 1)
   }
@@ -84,7 +98,7 @@ const InformePagoGeneral: React.FC = () => {
             return (
               <button
                 key={step.number}
-                onClick={() => setCurrentStep(index)}
+                onClick={() => goToStep(index)}
                 className="relative z-10 flex flex-col items-center gap-2 group flex-1"
               >
                 {/* Círculo */}
@@ -190,7 +204,7 @@ const InformePagoGeneral: React.FC = () => {
           {STEPS.map((_, index) => (
             <button
               key={index}
-              onClick={() => setCurrentStep(index)}
+              onClick={() => goToStep(index)}
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 index === currentStep
                   ? 'bg-blue-600 w-6'

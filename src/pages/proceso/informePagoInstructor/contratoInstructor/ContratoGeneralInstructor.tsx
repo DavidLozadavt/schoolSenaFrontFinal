@@ -1,6 +1,7 @@
 import axios from 'axios';
-import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useState, useImperativeHandle, forwardRef, useMemo } from 'react';
 import { enqueueSnackbar } from 'notistack';
+import { actividadesInciales } from './actividadesInciales';
 
 interface CentroFormacion {
   rutaFotoUrl: string;
@@ -62,12 +63,11 @@ const FORMA_PAGO_STYLES: Record<Contrato['formaDePago'], string> = {
   NORMAL: 'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400'
 };
 
-const ContratoGeneralInstructor = forwardRef<
-  {
-    validate: () => { isValid: boolean; errors: string[] };
-  },
-  {}
->((props, ref) => {
+export interface ContratoGeneralInstructorRef {
+  validate: () => { isValid: boolean; errors: string[] };
+}
+
+const ContratoGeneralInstructor = forwardRef<ContratoGeneralInstructorRef, {}>((props, ref) => {
   const [contrato, setContrato] = useState<Contrato | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -79,11 +79,21 @@ const ContratoGeneralInstructor = forwardRef<
   const [actividades, setActividades] = useState<ActividadContrato[]>([]);
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [showActividadesModal, setShowActividadesModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const [editingActividad, setEditingActividad] = useState<ActividadContrato | null>(null);
   const [savingActividad, setSavingActividad] = useState(false);
 
   //Para el conteo de actividades:
   const [totalActividades, setTotalActividades] = useState<number | null>(null);
+
+  const baseActividadIds = useMemo(() => {
+    return [...actividades]
+      .sort((a, b) => a.id - b.id)
+      .slice(0, 6)
+      .map((a) => a.id);
+  }, [actividades]);
 
   //Acordeon del formulario de actividades
   const [openForm, setOpenForm] = useState(true);
@@ -156,11 +166,14 @@ const ContratoGeneralInstructor = forwardRef<
       if (!form.formaDePago) {
         errors.push('La forma de pago es obligatoria');
       }
-      if (!form.ciudadExpedicionId) {
-        errors.push('La ciudad de expedición es obligatoria');
+      if (!form.descripcionFormaPago.trim()) {
+        errors.push('La descripción de la forma de pago es obligatoria');
       }
       if (!form.siif) {
         errors.push('El SIIF es obligatorio');
+      }
+      if (!form.ciudadExpedicionId) {
+        errors.push('La ciudad de expedición del documento es obligatoria');
       }
       if (!totalActividades || totalActividades < 6) {
         errors.push(
@@ -169,7 +182,8 @@ const ContratoGeneralInstructor = forwardRef<
       }
 
       if (errors.length > 0) {
-        errors.forEach((error) => enqueueSnackbar(error, { variant: 'error' }));
+        setMissingFields(errors);
+        setShowMissingFieldsModal(true);
       }
 
       return {
@@ -185,6 +199,10 @@ const ContratoGeneralInstructor = forwardRef<
     try {
       const response = await axios.get(`actividades-contrato?idContrato=${contrato.id}`);
       setActividades(response.data.actividades || []);
+      setTotalActividades((response.data.actividades || []).length);
+      if (response.data.actividades.length == 0) {
+        setShowHelpModal(true);
+      }
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Error al cargar las actividades.';
       enqueueSnackbar(msg, { variant: 'error' });
@@ -329,6 +347,29 @@ const ContratoGeneralInstructor = forwardRef<
     }
   };
 
+  const handleRegistrarBase = async () => {
+    if (!contrato) return;
+    setSavingActividad(true);
+    try {
+      const baseActivities = actividadesInciales.map((act) => ({
+        obligaciones: act.obligaciones,
+        accionesRealizadas: act.accionesRealizadas,
+        evidencias: act.evidencias,
+        idContrato: contrato.id
+      }));
+
+      await Promise.all(baseActivities.map((act) => axios.post('actividades-contrato', act)));
+
+      await loadActividades();
+      enqueueSnackbar('6 actividades base generadas con éxito.', { variant: 'success' });
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Error al generar las actividades base.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setSavingActividad(false);
+    }
+  };
+
   const ciudadesFiltradas =
     ciudadSearch.trim().length >= 2
       ? ciudades
@@ -463,6 +504,57 @@ const ContratoGeneralInstructor = forwardRef<
             </div>
           )}
         </div>
+        {/* Modal: Campos faltantes */}
+        {showMissingFieldsModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+            <div className="bg-white dark:bg-coal-500 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-coal-300 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-500/10 flex items-center justify-center">
+                    <i className="ki-outline ki-information-4 text-yellow-600 dark:text-yellow-400 text-lg" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                      Campos faltantes
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Completa los siguientes campos antes de continuar
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMissingFieldsModal(false)}
+                  className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 flex items-center justify-center transition-colors"
+                >
+                  <i className="ki-outline ki-cross text-gray-500 dark:text-gray-400 text-lg" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <ul className="space-y-2">
+                  {missingFields.map((m, idx) => (
+                    <li
+                      key={idx}
+                      className="text-sm text-gray-700 dark:text-gray-200 flex items-start gap-3"
+                    >
+                      <i className="ki-outline ki-circle-small text-yellow-500 mt-1" />
+                      <span>{m}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 dark:border-coal-300 flex justify-end gap-3 bg-gray-50 dark:bg-coal-400/50 rounded-b-2xl">
+                <button
+                  onClick={() => setShowMissingFieldsModal(false)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-300 border border-gray-200 dark:border-coal-300 rounded-lg transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Sección supervisor ── */}
         <div className="px-5 py-4 border-b border-gray-100 dark:border-coal-300">
@@ -965,14 +1057,21 @@ const ContratoGeneralInstructor = forwardRef<
                     <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : actividades.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-200 dark:border-coal-300">
+                  <div className="text-center py-12 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-200 dark:border-coal-300 flex flex-col items-center">
                     <i className="ki-outline ki-file-deleted text-4xl text-gray-300 dark:text-gray-600 mb-3" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       No hay actividades registradas
                     </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Crea tu primera actividad usando el formulario de arriba
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-5">
+                      Para este contrato se requieren 6 actividades base.
                     </p>
+                    <button
+                      onClick={() => setShowHelpModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-all"
+                    >
+                      <i className="ki-outline ki-information text-base" />
+                      Ver ayuda y generar actividades
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1007,13 +1106,15 @@ const ContratoGeneralInstructor = forwardRef<
                             >
                               <i className="ki-outline ki-pencil text-blue-600 dark:text-blue-400 text-sm" />
                             </button>
-                            <button
-                              onClick={() => handleDeleteActividad(actividad.id)}
-                              className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center transition-colors"
-                              title="Eliminar"
-                            >
-                              <i className="ki-outline ki-trash text-red-600 dark:text-red-400 text-sm" />
-                            </button>
+                            {!baseActividadIds.includes(actividad.id) && (
+                              <button
+                                onClick={() => handleDeleteActividad(actividad.id)}
+                                className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                                title="Eliminar"
+                              >
+                                <i className="ki-outline ki-trash text-red-600 dark:text-red-400 text-sm" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -1048,6 +1149,64 @@ const ContratoGeneralInstructor = forwardRef<
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ayuda */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-coal-500 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-coal-300 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i className="ki-outline ki-information text-blue-500" />
+                Básico - 6 Actividades Requeridas
+              </h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 flex items-center justify-center transition-colors"
+                disabled={savingActividad}
+              >
+                <i className="ki-outline ki-cross text-gray-500 dark:text-gray-400 text-lg" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Aquí se crean 6 actividades base predefinidas que se registrarán para tu contrato.
+                Como instructor, es fundamental que estas actividades formen parte de tu plan de
+                trabajo. Puedes generarlas automáticamente aquí y luego editarlas en caso de
+                requerir precisiones, pero no podrán eliminarse.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-coal-300 flex justify-end gap-3 bg-gray-50 dark:bg-coal-400/50 rounded-b-2xl">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                disabled={savingActividad}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-300 border border-gray-200 dark:border-coal-300 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  await handleRegistrarBase();
+                  setShowHelpModal(false);
+                }}
+                disabled={savingActividad}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-all disabled:opacity-50"
+              >
+                {savingActividad ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <i className="ki-outline ki-check text-base" />
+                    Generar las 6 Actividades Base
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
