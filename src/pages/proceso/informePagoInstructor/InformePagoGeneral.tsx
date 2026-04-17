@@ -35,12 +35,21 @@ const STEPS = [
 const InformePagoGeneral: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
+  const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
 
   const goNext = () => {
     // Validar el paso actual antes de avanzar
     if (currentStep === 0) {
       // Validar paso del Contrato
       const validation = contratoRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
+    if (currentStep === 1) {
+      // Validar paso del RMI
+      const validation = rmiRef.current?.validate();
       if (!validation?.isValid) {
         return; // No avanzar si la validación falla
       }
@@ -56,6 +65,11 @@ const InformePagoGeneral: React.FC = () => {
     if (index > currentStep) {
       if (currentStep === 0) {
         const validation = contratoRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+
+      if (currentStep === 1) {
+        const validation = rmiRef.current?.validate();
         if (!validation?.isValid) return
       }
     }
@@ -177,7 +191,7 @@ const InformePagoGeneral: React.FC = () => {
         {/* Contenido */}
         <div>
           {currentStep === 0 && <ContratoGeneralInstructor ref={contratoRef} />}
-          {currentStep === 1 && <RmiInstructor />}
+          {currentStep === 1 && <RmiInstructor ref={rmiRef} />}
           {currentStep === 2 && <InformeGeneralInstructor />}
           {currentStep === 3 && <PagoGeneralInstructor />}
         </div>

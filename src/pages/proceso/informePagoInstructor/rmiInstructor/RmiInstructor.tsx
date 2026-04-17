@@ -1,6 +1,6 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import RmiModal from '../../../gestion-rmi/RmiModal';
 import { Instructor } from '../../../gestion-rmi/interfaceInstructor';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
@@ -34,14 +34,16 @@ interface ContratoRmi {
   periodos: Periodo[];
 }
 
-const RmiInstructor: React.FC = () => {
-  const authContext = useContext(AuthContext);
-  if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
+const RmiInstructor = forwardRef<{ validate: () => { isValid: boolean; errors: string[] } }>(
+  (_, ref) => {
+    const authContext = useContext(AuthContext);
+    if (!authContext) throw new Error('AuthContext debe usarse dentro de AuthProvider');
 
-  const [anioGestion, setAnioGestion] = useState<number>(new Date().getFullYear());
-  const [aniosContrato, setAniosContrato] = useState<number[]>([]);
-  const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
-  const [loadingRmi, setLoadingRmi] = useState(false);
+    const [anioGestion, setAnioGestion] = useState<number>(new Date().getFullYear());
+    const [aniosContrato, setAniosContrato] = useState<number[]>([]);
+    const [dataRmi, setDataRmi] = useState<ContratoRmi[]>([]);
+    const [loadingRmi, setLoadingRmi] = useState(false);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
   // Estados para el Modal
   const [rmiModalOpen, setRmiModalOpen] = useState(false);
@@ -57,14 +59,62 @@ const RmiInstructor: React.FC = () => {
     fechaMinima: string;
     fechaMaxima: string;
   } | null>(null);
-  // Agregar estado para actividades
-  const [actividadesRmi, setActividadesRmi] = useState<any[]>([]);
-  const [selectedIdRmi, setSelectedIdRmi] = useState<number>(0);
+    // Agregar estado para actividades
+    const [actividadesRmi, setActividadesRmi] = useState<any[]>([]);
+    const [selectedIdRmi, setSelectedIdRmi] = useState<number>(0);
 
-  const periodoActual = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
+    const periodoActual = useMemo(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }, []);
+
+    // Exponer método de validación a través del ref
+    useImperativeHandle(ref, () => ({
+      validate: () => {
+        setValidationError(null);
+
+        if (!anioGestion) {
+          setValidationError('Debe seleccionar un año para continuar');
+          return { isValid: false, errors: ['Debe seleccionar un año'] };
+        }
+
+        if (dataRmi.length === 0) {
+          setValidationError('No hay datos de RMI disponibles para el año seleccionado');
+          return { isValid: false, errors: ['No hay datos de RMI disponibles'] };
+        }
+
+        // Validar que el período actual esté ACEPTADO
+        const periodoActualStr = periodoActual;
+        let findCurrentPeriod = false;
+        let periodStatus = '';
+
+        for (const contrato of dataRmi) {
+          const currentPeriod = contrato.periodos.find((p) => p.periodo === periodoActualStr);
+          if (currentPeriod) {
+            findCurrentPeriod = true;
+            periodStatus = currentPeriod.estadoRmi;
+            break;
+          }
+        }
+
+        if (!findCurrentPeriod) {
+          setValidationError('No existe un período actual en los datos de RMI');
+          return { isValid: false, errors: ['No existe un período actual'] };
+        }
+
+        if (periodStatus !== 'ACEPTADO') {
+          setValidationError(
+            `El período actual (${periodoActualStr}) debe estar en estado "ACEPTADO" para continuar. Estado actual: ${periodStatus}`
+          );
+          return {
+            isValid: false,
+            errors: [`El período ${periodoActualStr} debe estar ACEPTADO. Estado actual: ${periodStatus}`]
+          };
+        }
+
+        return { isValid: true, errors: [] };
+      }
+    }), [dataRmi, anioGestion, periodoActual]);
 
   const dataRmiFiltrada = useMemo(() => {
     return dataRmi.map((contrato) => ({
@@ -318,8 +368,54 @@ const RmiInstructor: React.FC = () => {
         onRefresh={fetchFichas}
         readOnlyAsociacion={true}
       />
+
+      {/* Modal de validación - Período no aceptado */}
+      {validationError && (
+        <Modal
+          open={!!validationError}
+          onClose={() => setValidationError(null)}
+          className="mx-4 sm:mx-auto max-w-md w-full"
+        >
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>No puede continuar</ModalTitle>
+              <button
+                type="button"
+                onClick={() => setValidationError(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <i className="ki-outline ki-information text-red-600 dark:text-red-400 text-lg" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-white mb-1">
+                    Validación requerida
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {validationError}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setValidationError(null)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                  Entendido
+                </button>
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
     </div>
   );
-};
+  }
+);
 
 export default RmiInstructor;
