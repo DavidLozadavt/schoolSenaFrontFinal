@@ -14,6 +14,7 @@ interface DetalleRmi {
   fechaInicial: string;
   fechaFinal: string | null;
   estadoHorario: string;
+  numeroPlanilla: string | null;
 }
 
 interface Periodo {
@@ -52,6 +53,7 @@ const InformeGeneralInstructor: React.FC = () => {
   const [plazoModalParams, setPlazoModalParams] = useState<{
     idContrato: number;
     idRmi: number;
+    idsHorarioMateria: number[];
   } | null>(null);
   const [nPlanillaInput, setnPlanillaInput] = useState('');
   // Carga los años disponibles
@@ -206,9 +208,12 @@ const InformeGeneralInstructor: React.FC = () => {
                       <>
                         <button
                           onClick={() => {
+                            const existingPlanilla = periodo.detalles.find((d) => d.numeroPlanilla)?.numeroPlanilla || '';
+                            setnPlanillaInput(existingPlanilla);
                             setPlazoModalParams({
                               idContrato: contrato.idContrato,
-                              idRmi: periodo.idRmi
+                              idRmi: periodo.idRmi,
+                              idsHorarioMateria: periodo.detalles.map((d) => d.idHorarioMateria)
                             });
                           }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 font-medium text-green-700 dark:text-green-400 dark:bg-white/5 rounded-lg transition-all"
@@ -312,18 +317,59 @@ const InformeGeneralInstructor: React.FC = () => {
                   Cancelar
                 </button>
                 <button
-                  disabled={!nPlanillaInput.trim()}
+                  disabled={!nPlanillaInput.trim() || loadingRmi}
                   onClick={async () => {
-                    await handleDescargarPdf(
-                      plazoModalParams.idContrato,
-                      plazoModalParams.idRmi,
-                      nPlanillaInput.trim()
-                    );
-                    setPlazoModalParams(null);
+                    try {
+                      setLoadingRmi(true);
+                      // Guardar el número de planilla masivamente
+                      await axios.post('detalle_rmi/numero_planilla', {
+                        numeroPlanilla: nPlanillaInput.trim(),
+                        idRmi: plazoModalParams.idRmi,
+                        idsHorarioMateria: plazoModalParams.idsHorarioMateria
+                      });
+
+                      // Descargar el PDF
+                      await handleDescargarPdf(
+                        plazoModalParams.idContrato,
+                        plazoModalParams.idRmi,
+                        nPlanillaInput.trim()
+                      );
+
+                      // Actualizar estado local para reflejar el cambio sin recargar
+                      setDataRmi((prev) =>
+                        prev.map((c) => {
+                          if (c.idContrato === plazoModalParams.idContrato) {
+                            return {
+                              ...c,
+                              periodos: c.periodos.map((p) => {
+                                if (p.idRmi === plazoModalParams.idRmi) {
+                                  return {
+                                    ...p,
+                                    detalles: p.detalles.map((d) => ({
+                                      ...d,
+                                      numeroPlanilla: nPlanillaInput.trim()
+                                    }))
+                                  };
+                                }
+                                return p;
+                              })
+                            };
+                          }
+                          return c;
+                        })
+                      );
+
+                      setPlazoModalParams(null);
+                    } catch (error) {
+                      console.error('Error al guardar planilla o descargar PDF:', error);
+                    } finally {
+                      setLoadingRmi(false);
+                    }
                   }}
                   className="px-4 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
                 >
-                  <i className="ki-outline ki-document text-sm mr-1" /> Descargar PDF
+                  <i className="ki-outline ki-document text-sm mr-1" />
+                  {loadingRmi ? 'Procesando...' : 'Descargar PDF'}
                 </button>
               </div>
             </ModalBody>
