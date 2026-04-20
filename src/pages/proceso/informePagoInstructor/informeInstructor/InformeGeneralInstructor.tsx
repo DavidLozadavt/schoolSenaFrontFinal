@@ -57,9 +57,9 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
     idContrato: number;
     idRmi: number;
     idsHorarioMateria: number[];
+    urlInformeUrl?: string;
   } | null>(null);
   const [nPlanillaInput, setnPlanillaInput] = useState('');
-  const [uploadingInforme, setUploadingInforme] = useState<number | null>(null);
   const [selectedReportFile, setSelectedReportFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -171,7 +171,6 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
   };
 
   const handleUploadInforme = async (periodo: Periodo, file: File) => {
-    setUploadingInforme(periodo.idRmi);
     try {
       const formData = new FormData();
       formData.append('urlInforme', file);
@@ -180,11 +179,8 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
         formData.append('idsHorarioMateria[]', String(d.idHorarioMateria));
       });
       await axios.post('detalle_rmi/archivo_informe_instructor', formData);
-      await loadRmi();
     } catch (error) {
       console.error('Error al subir el informe:', error);
-    } finally {
-      setUploadingInforme(null);
     }
   };
 
@@ -297,7 +293,8 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
                             setPlazoModalParams({
                               idContrato: contrato.idContrato,
                               idRmi: periodo.idRmi,
-                              idsHorarioMateria: periodo.detalles.map((d) => d.idHorarioMateria)
+                              idsHorarioMateria: periodo.detalles.map((d) => d.idHorarioMateria),
+                              urlInformeUrl: periodo.detalles.find((d) => d.urlInformeUrl)?.urlInformeUrl || undefined
                             });
                             setSelectedReportFile(null); // Reset file selection
                           }}
@@ -324,45 +321,7 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
                       <i className="ki-outline ki-credit-cart text-sm" /> Comisiones
                     </button>
 
-                        {/* Botón de subir informe */}
-                        <div className="flex items-center gap-2">
-                          {periodo.detalles.some((d) => d.urlInformeUrl) ? (
-                            <a
-                              href={periodo.detalles.find((d) => d.urlInformeUrl)?.urlInformeUrl ?? undefined}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium ml-2"
-                            >
-                              <i className="ki-outline ki-document text-sm" /> Ver Informe Subido
-                            </a>
-                          ) : (
-                            <span className="text-xs text-gray-400 ml-2">Sin informe subido</span>
-                          )}
 
-                          <label
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer transition-all ${
-                              uploadingInforme === periodo.idRmi
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-white/5 dark:text-blue-400'
-                            }`}
-                          >
-                            <i className="ki-outline ki-cloud-add text-sm" />
-                            {uploadingInforme === periodo.idRmi
-                              ? 'Subiendo...'
-                              : periodo.detalles.some((d) => d.urlInformeUrl)
-                                ? 'Cambiar Informe'
-                                : 'Subir Informe'}
-                            <input
-                              type="file"
-                              className="hidden"
-                              disabled={uploadingInforme === periodo.idRmi}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleUploadInforme(periodo, file);
-                              }}
-                            />
-                          </label>
-                        </div>
                       </>
                     )}
                   </div>
@@ -438,7 +397,7 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
               {/* Opción de subir informe */}
               <div className="pt-2">
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Subir informe firmado
+                  {plazoModalParams.urlInformeUrl ? 'Cambiar informe' : 'Subir informe'}
                 </label>
                 <div className="flex flex-col gap-2">
                   <label className="flex items-center justify-center gap-2 px-3 py-4 border-2 border-dashed border-gray-200 dark:border-coal-300 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-coal-400 transition-all">
@@ -465,6 +424,19 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
                   )}
                 </div>
               </div>
+
+              {plazoModalParams.urlInformeUrl && (
+                <div className="pt-2">
+                  <a
+                    href={plazoModalParams.urlInformeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-white/5 dark:text-blue-400 rounded-lg transition-all text-xs font-medium border border-blue-200 dark:border-blue-500/30"
+                  >
+                    <i className="ki-outline ki-document text-sm" /> Ver Informe Actual
+                  </a>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2">
                 <button
@@ -517,7 +489,7 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
                   className="px-4 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
                 >
                   <i className="ki-outline ki-document text-sm mr-1" />
-                  {loadingRmi ? 'Procesando...' : 'Descargar PDF'}
+                  {loadingRmi ? 'Procesando...' : 'Guardar y Descargar'}
                 </button>
               </div>
             </ModalBody>
