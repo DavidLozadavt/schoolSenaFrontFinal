@@ -36,6 +36,7 @@ const InformePagoGeneral: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
+  const informeRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
 
   const goNext = () => {
     // Validar el paso actual antes de avanzar
@@ -50,6 +51,14 @@ const InformePagoGeneral: React.FC = () => {
     if (currentStep === 1) {
       // Validar paso del RMI
       const validation = rmiRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
+    if (currentStep === 2) {
+      // Validar paso de Informes
+      const validation = informeRef.current?.validate();
       if (!validation?.isValid) {
         return; // No avanzar si la validación falla
       }
@@ -70,6 +79,11 @@ const InformePagoGeneral: React.FC = () => {
 
       if (currentStep === 1) {
         const validation = rmiRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+
+      if (currentStep === 2) {
+        const validation = informeRef.current?.validate();
         if (!validation?.isValid) return
       }
     }
@@ -192,7 +206,7 @@ const InformePagoGeneral: React.FC = () => {
         <div>
           {currentStep === 0 && <ContratoGeneralInstructor ref={contratoRef} />}
           {currentStep === 1 && <RmiInstructor ref={rmiRef} />}
-          {currentStep === 2 && <InformeGeneralInstructor />}
+          {currentStep === 2 && <InformeGeneralInstructor ref={informeRef} />}
           {currentStep === 3 && <PagoGeneralInstructor />}
         </div>
       </div>

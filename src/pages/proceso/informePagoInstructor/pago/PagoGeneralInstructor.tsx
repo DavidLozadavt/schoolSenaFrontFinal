@@ -19,6 +19,7 @@ interface Periodo {
   periodo: string;
   idRmi: number;
   estadoRmi: string;
+  estadoInforme: string;
   horasAsignadas: number;
   detalles: DetalleRmi[];
 }
