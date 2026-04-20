@@ -7,6 +7,7 @@ import withReactContent from 'sweetalert2-react-content';
 
 interface DetalleRmi {
   idDetalleRmi: number;
+  idHorarioMateria: number;
   estadoDetalle: string;
   archivoPago: string | null;
   archivoPagoUrl: string | null;
@@ -18,6 +19,7 @@ interface Periodo {
   periodo: string;
   idRmi: number;
   estadoRmi: string;
+  estadoInforme: string;
   horasAsignadas: number;
   detalles: DetalleRmi[];
 }
@@ -101,12 +103,15 @@ const PagoGeneralInstructor: React.FC = () => {
     setDataRmi(res.data);
   };
 
-  const handleUploadArchivoPeriodo = async (idRmi: number, file: File) => {
-    setUploadingRmi(idRmi);
+  const handleUploadArchivoPeriodo = async (periodo: Periodo, file: File) => {
+    setUploadingRmi(periodo.idRmi);
     try {
       const formData = new FormData();
       formData.append('archivoPago', file);
-      formData.append('idRmi', String(idRmi));
+      formData.append('idRmi', String(periodo.idRmi));
+      periodo.detalles.forEach((d) => {
+        formData.append('idsHorarioMateria[]', String(d.idHorarioMateria));
+      });
       await axios.post('detalle_rmi/archivo_pago_periodo', formData);
       await recargarDatos();
     } catch {
@@ -173,6 +178,9 @@ const PagoGeneralInstructor: React.FC = () => {
       const uploadForm = new FormData();
       uploadForm.append('archivoPago', mergedBlob, fileName);
       uploadForm.append('idRmi', String(modalPeriodo.idRmi));
+      modalPeriodo.detalles.forEach((d) => {
+        uploadForm.append('idsHorarioMateria[]', String(d.idHorarioMateria));
+      });
       await axios.post('detalle_rmi/archivo_pago_periodo', uploadForm);
       await recargarDatos();
       closeMergeModal();
@@ -343,7 +351,7 @@ const PagoGeneralInstructor: React.FC = () => {
                               disabled={isUploading}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) handleUploadArchivoPeriodo(periodo.idRmi, file);
+                                if (file) handleUploadArchivoPeriodo(periodo, file);
                               }}
                             />
                           </label>

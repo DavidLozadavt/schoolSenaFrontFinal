@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
@@ -34,9 +34,61 @@ const STEPS = [
 
 const InformePagoGeneral: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
+  const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
+  const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
+  const informeRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
 
   const goNext = () => {
+    // Validar el paso actual antes de avanzar
+    if (currentStep === 0) {
+      // Validar paso del Contrato
+      const validation = contratoRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
+    if (currentStep === 1) {
+      // Validar paso del RMI
+      const validation = rmiRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
+    if (currentStep === 2) {
+      // Validar paso de Informes
+      const validation = informeRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
     if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1)
+  }
+
+  const goToStep = (index: number) => {
+    if (index === currentStep) return
+
+    // Si se intenta avanzar a un paso superior, validar el paso actual
+    if (index > currentStep) {
+      if (currentStep === 0) {
+        const validation = contratoRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+
+      if (currentStep === 1) {
+        const validation = rmiRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+
+      if (currentStep === 2) {
+        const validation = informeRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+    }
+
+    setCurrentStep(index)
   }
 
   const goPrev = () => {
@@ -74,7 +126,7 @@ const InformePagoGeneral: React.FC = () => {
             return (
               <button
                 key={step.number}
-                onClick={() => setCurrentStep(index)}
+                onClick={() => goToStep(index)}
                 className="relative z-10 flex flex-col items-center gap-2 group flex-1"
               >
                 {/* Círculo */}
@@ -152,9 +204,9 @@ const InformePagoGeneral: React.FC = () => {
 
         {/* Contenido */}
         <div>
-          {currentStep === 0 && <ContratoGeneralInstructor />}
-          {currentStep === 1 && <RmiInstructor />}
-          {currentStep === 2 && <InformeGeneralInstructor />}
+          {currentStep === 0 && <ContratoGeneralInstructor ref={contratoRef} />}
+          {currentStep === 1 && <RmiInstructor ref={rmiRef} />}
+          {currentStep === 2 && <InformeGeneralInstructor ref={informeRef} />}
           {currentStep === 3 && <PagoGeneralInstructor />}
         </div>
       </div>
@@ -180,7 +232,7 @@ const InformePagoGeneral: React.FC = () => {
           {STEPS.map((_, index) => (
             <button
               key={index}
-              onClick={() => setCurrentStep(index)}
+              onClick={() => goToStep(index)}
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 index === currentStep
                   ? 'bg-blue-600 w-6'
