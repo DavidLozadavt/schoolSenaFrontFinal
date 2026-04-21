@@ -30,6 +30,7 @@ interface InstructorRmi {
   idInstructor: number;
   instructorNombre: string;
   identificacion: string;
+  emailInstructor: string;
   contratos: ContratoRmi[];
 }
 
@@ -56,9 +57,11 @@ const GCGeneral: React.FC = () => {
     periodo: string;
     detalles: DetalleRmi[];
     instructorNombre: string;
+    emailInstructor: string;
   } | null>(null);
-  const [modalAccion, setModalAccion] = useState<'view' | 'aceptar' | 'rechazar'>('view');
+  const [modalAccion, setModalAccion] = useState<'view' | 'aceptar' | 'rechazar' | 'revertir'>('view');
   const [procesando, setProcesando] = useState(false);
+  const [motivoRechazo, setMotivoRechazo] = useState<string>('');
 
   const getCurrentPeriodo = () => {
     const now = new Date();
@@ -80,6 +83,7 @@ const GCGeneral: React.FC = () => {
             idInstructor: item.instructorId,
             instructorNombre: item.instructorNombre,
             identificacion: item.identificacion,
+            emailInstructor: item.emailInstructor,
             contratos: []
           });
         }
@@ -149,7 +153,8 @@ const GCGeneral: React.FC = () => {
     try {
       await axios.post('detalle_rmi/aceptar_informe', {
         idRmi: selectedPeriodo.idRmi,
-        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria)
+        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        email: selectedPeriodo.emailInstructor
       });
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'ACEPTADO');
       setSelectedPeriodo(null);
@@ -162,19 +167,44 @@ const GCGeneral: React.FC = () => {
   };
 
   const handleRechazarInforme = async () => {
-    if (!selectedPeriodo) return;
+    if (!selectedPeriodo || !motivoRechazo.trim()) {
+      alert('Debe ingresar un motivo para el rechazo');
+      return;
+    }
     setProcesando(true);
     try {
       await axios.post('detalle_rmi/rechazar_informe', {
         idRmi: selectedPeriodo.idRmi,
-        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria)
+        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        email: selectedPeriodo.emailInstructor,
+        motivo: motivoRechazo
       });
       // Backend pone PENDIENTE al rechazar
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'PENDIENTE');
+      setMotivoRechazo('');
       setSelectedPeriodo(null);
     } catch (error) {
       console.error('Error al rechazar:', error);
       alert('Error al rechazar el informe');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleRevertirInforme = async () => {
+    if (!selectedPeriodo) return;
+    setProcesando(true);
+    try {
+      await axios.post('detalle_rmi/revertir_informe', {
+        idRmi: selectedPeriodo.idRmi,
+        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        email: selectedPeriodo.emailInstructor
+      });
+      actualizarDetallesLocales(selectedPeriodo.idRmi, 'PENDIENTE');
+      setSelectedPeriodo(null);
+    } catch (error) {
+      console.error('Error al revertir:', error);
+      alert('Error al revertir el informe');
     } finally {
       setProcesando(false);
     }
@@ -346,24 +376,23 @@ const GCGeneral: React.FC = () => {
                                 {estadoVisual}
                               </span>
 
-                              {/* Solo mostrar botón de acción si hay pendientes */}
-                              {tienePendientes && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedPeriodo({
-                                      idRmi: periodo.idRmi,
-                                      idContrato: contrato.idContrato,
-                                      periodo: periodo.periodo,
-                                      detalles: periodo.detalles,
-                                      instructorNombre: instructor.instructorNombre
-                                    });
-                                    setModalAccion('view');
-                                  }}
-                                  className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg transition-all"
-                                >
-                                  Revisar
-                                </button>
-                              )}
+                              {/* Mostrar botón de revisión siempre */}
+                              <button
+                                onClick={() => {
+                                  setSelectedPeriodo({
+                                    idRmi: periodo.idRmi,
+                                    idContrato: contrato.idContrato,
+                                    periodo: periodo.periodo,
+                                    detalles: periodo.detalles,
+                                    instructorNombre: instructor.instructorNombre,
+                                    emailInstructor: instructor.emailInstructor
+                                  });
+                                  setModalAccion('view');
+                                }}
+                                className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg transition-all"
+                              >
+                                Revisar
+                              </button>
                             </div>
                           </div>
                         );
@@ -448,74 +477,132 @@ const GCGeneral: React.FC = () => {
 
               {/* Acciones */}
               <div className="pt-1">
-                {modalAccion === 'view' && (
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setSelectedPeriodo(null)}
-                      className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 hover:bg-gray-200 dark:hover:bg-coal-400 rounded-lg transition-all"
-                    >
-                      Cerrar
-                    </button>
-                    <button
-                      onClick={() => setModalAccion('rechazar')}
-                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all"
-                    >
-                      Rechazar
-                    </button>
-                    <button
-                      onClick={() => setModalAccion('aceptar')}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all"
-                    >
-                      Aceptar
-                    </button>
-                  </div>
-                )}
+                {(() => {
+                  const estadoVisual = getEstadoFromDetalles(selectedPeriodo.detalles);
+                  return (
+                    <>
+                      {modalAccion === 'view' && (
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setSelectedPeriodo(null)}
+                            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 hover:bg-gray-200 dark:hover:bg-coal-400 rounded-lg transition-all"
+                          >
+                            Cerrar
+                          </button>
+                          {estadoVisual === 'PENDIENTE' && (
+                            <>
+                              <button
+                                onClick={() => setModalAccion('rechazar')}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all"
+                              >
+                                Rechazar
+                              </button>
+                              <button
+                                onClick={() => setModalAccion('aceptar')}
+                                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all"
+                              >
+                                Aceptar
+                              </button>
+                            </>
+                          )}
+                          {estadoVisual === 'ACEPTADO' && (
+                            <button
+                              onClick={() => setModalAccion('revertir')}
+                              className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-all"
+                            >
+                              Revertir a Pendiente
+                            </button>
+                          )}
+                        </div>
+                      )}
 
-                {modalAccion === 'aceptar' && (
-                  <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 p-3 rounded-lg">
-                    <p className="text-sm text-green-800 dark:text-green-400 font-medium mb-3">
-                      ¿Confirma que desea aceptar este informe?
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setModalAccion('view')}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 rounded-lg"
-                      >
-                        Atrás
-                      </button>
-                      <button
-                        onClick={handleAceptarInforme}
-                        disabled={procesando}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-all"
-                      >
-                        {procesando ? 'Procesando...' : 'Confirmar'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                      {modalAccion === 'aceptar' && (
+                        <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 p-3 rounded-lg">
+                          <p className="text-sm text-green-800 dark:text-green-400 font-medium mb-3">
+                            ¿Confirma que desea aceptar este informe?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setModalAccion('view')}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 rounded-lg"
+                            >
+                              Atrás
+                            </button>
+                            <button
+                              onClick={handleAceptarInforme}
+                              disabled={procesando}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-all"
+                            >
+                              {procesando ? 'Procesando...' : 'Confirmar'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
-                {modalAccion === 'rechazar' && (
-                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-3 rounded-lg">
-                    <p className="text-sm text-red-800 dark:text-red-400 font-medium mb-3">
-                      ¿Confirma que desea rechazar este informe?
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setModalAccion('view')}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 rounded-lg"
-                      >
-                        Atrás
-                      </button>
-                      <button
-                        onClick={handleRechazarInforme}
-                        disabled={procesando}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-all"
-                      >
-                        {procesando ? 'Procesando...' : 'Confirmar'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                      {modalAccion === 'rechazar' && (
+                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-3 rounded-lg space-y-3">
+                          <p className="text-sm text-red-800 dark:text-red-400 font-medium">
+                            Motivo del rechazo
+                          </p>
+                          <textarea
+                            value={motivoRechazo}
+                            onChange={(e) => setMotivoRechazo(e.target.value)}
+                            placeholder="Ingrese el motivo por el cual se rechaza este informe..."
+                            className="w-full px-3 py-2 text-sm border border-red-300 dark:border-red-400 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                            rows={3}
+                          />
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            El instructor recibirá un correo con el motivo del rechazo
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setModalAccion('view');
+                                setMotivoRechazo('');
+                              }}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 rounded-lg"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleRechazarInforme}
+                              disabled={procesando || !motivoRechazo.trim()}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-all"
+                            >
+                              {procesando ? 'Procesando...' : 'Rechazar'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {modalAccion === 'revertir' && (
+                        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3 rounded-lg">
+                          <p className="text-sm text-amber-800 dark:text-amber-400 font-medium mb-3">
+                            ¿Confirma que desea revertir este informe a pendiente?
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">
+                            El estado del informe cambiará de ACEPTADO a PENDIENTE
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setModalAccion('view')}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-coal-300 rounded-lg"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleRevertirInforme}
+                              disabled={procesando}
+                              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg transition-all"
+                            >
+                              {procesando ? 'Procesando...' : 'Revertir'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </ModalBody>
           </ModalContent>
