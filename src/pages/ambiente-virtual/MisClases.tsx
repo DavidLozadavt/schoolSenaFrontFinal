@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
 
@@ -66,7 +65,7 @@ const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
     : 'PENDIENTE') as Sesion['estado'],
   numeroSesion: toNum(s.numeroSesion),
   idDia: toNum(s.idDia),
-  idHorarioMateria: toNum(s.idHorarioMateria)
+  idHorarioMateria: toNum(s.idHorarioMateria ?? s.id_horario_materia)
 });
 
 const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
@@ -226,7 +225,6 @@ const formatearHora = (horaStr: string): string => {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -383,10 +381,6 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
       });
   }, [materiasFiltradas, filtro]);
 
-  const handleVerDetalle = (idHorarioMateria: number) => {
-    navigate(`/ambiente-virtual/clase/${idHorarioMateria}`);
-  };
-
   // ─── Estados de carga / error / vacío ──────────────────────────────────────
 
   if (loading) {
@@ -512,10 +506,9 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                         <div
                           key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
                           className={clsx(
-                            'border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-md',
+                            'border-2 rounded-lg p-2',
                             obtenerColorEstado(sesion.estado)
                           )}
-                          onClick={() => handleVerDetalle(sesion.idHorarioMateria)}
                         >
                           <div className="flex flex-col items-start gap-1">
                             <div className="flex items-center gap-1 w-full">

@@ -17,12 +17,23 @@ interface ActividadCuestionario {
   preguntas?: Pregunta[];
 }
 
+interface MaterialApoyoItem {
+  id: number;
+  titulo?: string | null;
+  urlDocumento?: string | null;
+  urlDocumentoUrl?: string | null;
+  urlAdicional?: string | null;
+}
+
 interface ActividadAprendiz {
   idCalificacionActividad: number;
   idActividad: number;
   tituloActividad?: string;
   tipoActividad?: string | null;
   preguntas?: Pregunta[];
+  pathDocumentoActividad?: string | null;
+  documentoActividadUrl?: string | null;
+  materialesApoyo?: MaterialApoyoItem[];
 }
 
 interface ModalResponderCuestionarioProps {
@@ -40,6 +51,17 @@ const getDocumentUrl = (path: string | undefined): string | null => {
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
   const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
   return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+const getActividadDocumentoUrl = (a: ActividadAprendiz): string | null => {
+  const raw = a.documentoActividadUrl || a.pathDocumentoActividad;
+  return raw ? getDocumentUrl(raw) : null;
+};
+
+const getFileName = (path?: string | null): string => {
+  if (!path) return 'Documento';
+  const parts = path.split('/');
+  return parts[parts.length - 1] || 'Documento';
 };
 
 const shuffleArray = <T,>(arr: T[]): T[] => {
@@ -209,6 +231,75 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
           )}
         </ModalHeader>
         <ModalBody className="flex-1 overflow-y-auto py-6">
+          {actividad && (
+            <div className="px-6 pb-4 mb-4 space-y-4 border-b border-gray-100 dark:border-gray-700/50">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  Material de apoyo
+                </p>
+                {actividad.materialesApoyo && actividad.materialesApoyo.length > 0 ? (
+                  <ul className="space-y-2">
+                    {actividad.materialesApoyo.map((m) => (
+                      <li
+                        key={m.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-coal-300"
+                      >
+                        <span className="text-gray-800 dark:text-gray-200 truncate min-w-0">
+                          {m.titulo || 'Material'}
+                        </span>
+                        <span className="flex gap-2 shrink-0">
+                          {(m.urlDocumentoUrl || m.urlDocumento) && (
+                            <a
+                              href={getDocumentUrl(m.urlDocumentoUrl || m.urlDocumento || '') ?? '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+                            >
+                              Documento
+                            </a>
+                          )}
+                          {m.urlAdicional && (
+                            <a
+                              href={m.urlAdicional.startsWith('http') ? m.urlAdicional : `https://${m.urlAdicional}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+                            >
+                              Enlace
+                            </a>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">No hay material de apoyo</p>
+                )}
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  Documento de la actividad
+                </p>
+                {getActividadDocumentoUrl(actividad) ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-coal-300">
+                    <span className="text-sm text-gray-800 dark:text-gray-200 truncate min-w-0">
+                      {getFileName(actividad.pathDocumentoActividad || actividad.documentoActividadUrl)}
+                    </span>
+                    <a
+                      href={getActividadDocumentoUrl(actividad) ?? '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400 shrink-0"
+                    >
+                      Abrir
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">No hay documento de la actividad adjunto</p>
+                )}
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />

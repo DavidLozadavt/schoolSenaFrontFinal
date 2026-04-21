@@ -8,6 +8,261 @@ import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearC
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
+/** YYYY-MM-DD en calendario local (no usar toISOString() para claves: desfasa el día en UTC). */
+const formatYmdLocal = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/**
+ * idDía en BD (1=lun … 7=dom) → valor de Date.getDay() (0=dom … 6=sáb).
+ * El API a veces envía string ("6"); sin Number() la comparación con getDay() falla y el calendario queda sin colores.
+ */
+const idDiaHorarioAGetDay = (idDia: unknown): number | null => {
+  const n = Number(idDia);
+  if (!Number.isFinite(n) || n < 1 || n > 7) return null;
+  return n === 7 ? 0 : n;
+};
+
+/** Parse YYYY-MM-DD en hora local (misma regla que en el calendario). */
+const parseYmdLocal = (dateString: string | undefined | null): Date | null => {
+  if (!dateString) return null;
+  const parts = dateString.split('T')[0].split('-');
+  if (parts.length !== 3) return null;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const d = new Date(year, month, day);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/** Texto tipo "Jueves" / "jue" / letra de calendario (L M X J V S D) → Date.getDay() (0–6). */
+const diaSemanaTextoAGetDay = (diaSemana?: string): number | null => {
+  if (!diaSemana?.trim()) return null;
+  const t = diaSemana
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (t.length === 1) {
+    const una: Record<string, number> = { d: 0, l: 1, m: 2, x: 3, j: 4, v: 5, s: 6 };
+    const u = una[t];
+    if (u !== undefined) return u;
+  }
+  if (t.includes('domingo') || t.startsWith('dom')) return 0;
+  if (t.includes('lunes') || t.startsWith('lun')) return 1;
+  if (t.includes('martes') || t.startsWith('mar')) return 2;
+  if (t.includes('miercoles') || t.includes('miércoles') || t.startsWith('mie') || t === 'mi') return 3;
+  if (t.includes('jueves') || t.startsWith('jue') || t === 'ju') return 4;
+  if (t.includes('viernes') || t.startsWith('vie')) return 5;
+  if (t.includes('sabado') || t.includes('sábado') || t.startsWith('sab')) return 6;
+  return null;
+};
+
+/**
+ * Día de la semana de la clase para pintar el calendario (0–6).
+ * Orden: idDia BD → texto dia_semana → cualquier fila horario → idDia de la fila horario → 1.ª sesión → fechaInicial.
+ */
+/** Lee propiedades aunque el backend/PDO envíe otro casing (id_dia, iddia…). */
+const getProp = (obj: unknown, ...names: string[]): unknown => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  const o = obj as Record<string, unknown>;
+  const keys = Object.keys(o);
+  for (const name of names) {
+    const hit = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+    if (hit !== undefined && o[hit] !== undefined && o[hit] !== null) return o[hit];
+  }
+  return undefined;
+};
+
+/** Texto para tooltips del calendario: el API puede usar camelCase o snake_case. */
+const strFromRow = (r: Record<string, unknown>, ...names: string[]): string => {
+  const v = getProp(r, ...names);
+  return v === undefined || v === null ? '' : String(v);
+};
+
+/** Modo del día de la semana (0–6) más frecuente en sesiones con fecha. */
+const inferirGetDayDesdeSesiones = (
+  sesiones: Array<{ fechaSesion?: string }> | undefined
+): number | null => {
+  if (!sesiones?.length) return null;
+  const counts = new Map<number, number>();
+  for (const s of sesiones) {
+    const d = parseYmdLocal(s.fechaSesion);
+    if (!d) continue;
+    const wd = d.getDay();
+    counts.set(wd, (counts.get(wd) || 0) + 1);
+  }
+  let best: number | null = null;
+  let n = 0;
+  counts.forEach((c, wd) => {
+    if (c > n) {
+      n = c;
+      best = wd;
+    }
+  });
+  return best;
+};
+
+const resolverGetDayClaseCalendario = (opts: {
+  idDia?: unknown;
+  diaSemana?: string;
+  fechaInicio?: string;
+  filaHorario?: { idDia?: unknown; dia_semana?: string };
+  filasHorario?: Array<{ idDia?: unknown; dia_semana?: string }>;
+  primeraSesionFecha?: string;
+  sesionesParaInferir?: Array<{ fechaSesion?: string }>;
+}): number | null => {
+  const a = idDiaHorarioAGetDay(opts.idDia);
+  if (a !== null) return a;
+  const b = diaSemanaTextoAGetDay(opts.diaSemana);
+  if (b !== null) return b;
+  if (opts.filasHorario?.length) {
+    for (const fc of opts.filasHorario) {
+      const idd = getProp(fc, 'idDia', 'id_dia', 'iddia');
+      const ds = getProp(fc, 'dia_semana', 'diaSemana');
+      const d =
+        idDiaHorarioAGetDay(idd) ?? diaSemanaTextoAGetDay(ds != null ? String(ds) : undefined);
+      if (d !== null) return d;
+    }
+  }
+  const fid = getProp(opts.filaHorario, 'idDia', 'id_dia', 'iddia');
+  const fds = getProp(opts.filaHorario, 'dia_semana', 'diaSemana');
+  const c =
+    idDiaHorarioAGetDay(fid) ??
+    diaSemanaTextoAGetDay(fds != null ? String(fds) : undefined);
+  if (c !== null) return c;
+  const d1 = parseYmdLocal(opts.primeraSesionFecha);
+  if (d1) return d1.getDay();
+  const inf = inferirGetDayDesdeSesiones(opts.sesionesParaInferir);
+  if (inf !== null) return inf;
+  const d2 = parseYmdLocal(opts.fechaInicio);
+  if (d2) return d2.getDay();
+  return null;
+};
+
+/** Unifica forma del objeto `clase` (Laravel/PDO pueden mandar id_dia, iddia, etc.). */
+const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const idDiaRaw = getProp(o, 'idDia', 'id_dia', 'iddia');
+  const idDiaNum = idDiaRaw !== undefined ? Number(idDiaRaw) : NaN;
+  const diaSem = getProp(o, 'dia_semana', 'diaSemana');
+  const sesComp =
+    getProp(o, 'sesiones_completadas', 'sesionesCompletadas') ?? o.sesiones_completadas;
+  const idHmRaw = getProp(o, 'idHorarioMateria', 'id_horario_materia', 'idhorariomateria');
+  const idHmNum = idHmRaw !== undefined ? Number(idHmRaw) : NaN;
+  return {
+    ...(o as Clase),
+    idDia: Number.isFinite(idDiaNum) && idDiaNum >= 1 && idDiaNum <= 7 ? idDiaNum : (o as Clase).idDia,
+    dia_semana: (diaSem != null ? String(diaSem) : (o as Clase).dia_semana) as string,
+    fechaInicial: String(getProp(o, 'fechaInicial', 'fecha_inicial') ?? o.fechaInicial ?? ''),
+    fechaFinal: String(getProp(o, 'fechaFinal', 'fecha_final') ?? o.fechaFinal ?? ''),
+    sesiones_completadas: Array.isArray(sesComp) ? (sesComp as Clase['sesiones_completadas']) : [],
+    ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {})
+  };
+};
+
+/** Normaliza filas de horario para idDia / dia_semana con cualquier casing. */
+const normalizarFilaFechaClaseApi = (raw: unknown): FechaClase | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const idD = getProp(r, 'idDia', 'id_dia', 'iddia');
+  const idn = idD !== undefined ? Number(idD) : NaN;
+  const ds = getProp(r, 'dia_semana', 'diaSemana');
+  const idHmRaw = getProp(r, 'idHorarioMateria', 'id_horario_materia') ?? r.idHorarioMateria;
+  const idHmNum = Number(idHmRaw);
+  const fallbackIdDia = Number(getProp(r, 'idDia', 'id_dia') ?? 0);
+  const fechaInicial = String(getProp(r, 'fechaInicial', 'fecha_inicial') ?? r.fechaInicial ?? '');
+  const fechaFinalRaw = getProp(r, 'fechaFinal', 'fecha_final') ?? r.fechaFinal;
+  const fechaFinal =
+    fechaFinalRaw === null || fechaFinalRaw === undefined ? null : String(fechaFinalRaw);
+
+  return {
+    ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {}),
+    idDia: Number.isFinite(idn) ? idn : fallbackIdDia,
+    dia_semana: ds != null ? String(ds) : String(getProp(r, 'dia_semana', 'diaSemana') ?? ''),
+    fechaInicial,
+    fechaFinal,
+    ficha_codigo: strFromRow(r, 'ficha_codigo', 'fichaCodigo'),
+    materia_nombre: strFromRow(r, 'materia_nombre', 'materiaNombre', 'nombreMateria'),
+    programa_nombre: strFromRow(r, 'programa_nombre', 'programaNombre', 'nombrePrograma'),
+    horaInicial: strFromRow(r, 'horaInicial', 'hora_inicial'),
+    horaFinal: strFromRow(r, 'horaFinal', 'hora_final'),
+    jornada_nombre: strFromRow(r, 'jornada_nombre', 'jornadaNombre', 'nombreJornada')
+  };
+};
+
+/** Una fila de clase para tooltip por día (puede haber varias el mismo día). */
+interface ClaseTooltipDia {
+  idHorarioMateria: number;
+  ficha_codigo: string;
+  materia_nombre: string;
+  programa_nombre: string;
+  horaInicial: string;
+  horaFinal: string;
+  jornada_nombre: string;
+}
+
+/** Misma ficha + materia + franja horaria → un solo bloque en tooltip (evita duplicados por varios idHorarioMateria en BD). */
+const claveFranjaTooltipDia = (row: ClaseTooltipDia): string =>
+  `${String(row.ficha_codigo || '')
+    .trim()
+    .toLowerCase()}|${String(row.materia_nombre || '')
+    .trim()
+    .toLowerCase()}|${(row.horaInicial || '').substring(0, 5)}|${(row.horaFinal || '').substring(0, 5)}`;
+
+/** Resumen de la clase actual (fallback si el API no trae fila para esa fecha). */
+type ResumenClaseCalendario = {
+  ficha_codigo?: string;
+  materia_nombre?: string;
+  programa_nombre?: string;
+  horaInicial?: string;
+  horaFinal?: string;
+  idHorarioMateria?: number;
+  jornada_nombre?: string;
+};
+
+/** Panel del tooltip del calendario: claro blanco/azul; en oscuro alineado al tema (coal). */
+const CLASE_CALENDARIO_TOOLTIP_SURFACE =
+  '!rounded-lg !max-w-[min(100vw-2rem,24rem)] !p-0 !text-left !bg-white !text-slate-900 !border !border-blue-200 !shadow-lg !overflow-hidden dark:!bg-coal-600 dark:!text-white dark:!border-gray-500/50';
+
+/** Padding del contenido (va dentro del panel con overflow oculto en el borde). */
+const CLASE_CALENDARIO_TOOLTIP_INNER_PAD = 'p-3';
+
+function clasesBadgeEstadoCalendario(etiqueta: string): string {
+  if (etiqueta === 'Tu clase en curso') {
+    return 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200';
+  }
+  if (etiqueta === 'En curso') {
+    return 'bg-blue-100 text-blue-900 dark:bg-blue-500/35 dark:text-blue-50';
+  }
+  if (etiqueta === 'Pendiente') {
+    return 'bg-amber-50 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100';
+  }
+  if (etiqueta === 'En espera') {
+    return 'bg-white text-gray-700 border border-gray-200 dark:bg-transparent dark:text-gray-300 dark:border-gray-600';
+  }
+  if (etiqueta === 'Próximo') {
+    return 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200';
+  }
+  if (etiqueta === 'Completada' || etiqueta === 'Sesión ya vista') {
+    return 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100';
+  }
+  if (etiqueta === 'Pasada' || etiqueta === 'Clase pasada' || etiqueta === 'Día pasado') {
+    return 'bg-slate-100 text-slate-700 dark:bg-white/12 dark:text-gray-200';
+  }
+  return 'bg-blue-50 text-blue-900 dark:bg-white/12 dark:text-gray-200';
+}
+
+/** Sesiones por idHorarioMateria (misma respuesta que `obtenerSesionesCompletadas` por bloque). */
+type SesionesPorHorarioMap = Record<
+  string,
+  Array<{ fechaSesion: string; numeroSesion?: number; id?: number }>
+>;
+
 // Componente de Calendario
 const CalendarComponent: React.FC<{
   fechaInicio: string;
@@ -17,9 +272,13 @@ const CalendarComponent: React.FC<{
   idDia?: number;
   idHorarioMateria?: number;
   sesionesCompletadas?: Array<{ fechaSesion: string; numeroSesion?: number }>;
+  /** Todas las sesiones registradas por horario (varias materias el mismo día). */
+  sesionesCompletadasPorHorario?: SesionesPorHorarioMap;
+  /** Instructor: varias franjas/día en tooltip. Aprendiz: solo esta materia/horario. */
+  modoCalendario?: 'instructor' | 'aprendiz';
   horaInicial?: string;
   horaFinal?: string;
-  onDateClick?: (fecha: Date, idHorarioMateria: number) => void;
+  resumenClaseActual?: ResumenClaseCalendario;
 }> = ({
   fechaInicio,
   fechaFin,
@@ -28,12 +287,45 @@ const CalendarComponent: React.FC<{
   idDia,
   idHorarioMateria,
   sesionesCompletadas = [],
+  sesionesCompletadasPorHorario = {},
+  modoCalendario = 'instructor',
   horaInicial,
   horaFinal,
-  onDateClick
+  resumenClaseActual
 }) => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    /** Aprendiz: solo esta clase; instructor: todas las franjas del API. */
+    const todasLasFechasCalendario = useMemo(() => {
+      if (modoCalendario === 'aprendiz' && idHorarioMateria != null) {
+        const id = Number(idHorarioMateria);
+        return todasLasFechasClase.filter((fc) => Number(fc.idHorarioMateria) === id);
+      }
+      return todasLasFechasClase;
+    }, [modoCalendario, todasLasFechasClase, idHorarioMateria]);
+
+    const sesionesCompletadasPorHorarioEfectivo = useMemo(() => {
+      if (modoCalendario !== 'aprendiz' || idHorarioMateria == null) {
+        return sesionesCompletadasPorHorario;
+      }
+      const m = sesionesCompletadasPorHorario || {};
+      const id = Number(idHorarioMateria);
+      const arr = m[id] ?? m[String(id)];
+      if (Array.isArray(arr) && arr.length > 0) {
+        return { [id]: arr } as SesionesPorHorarioMap;
+      }
+      return {} as SesionesPorHorarioMap;
+    }, [modoCalendario, idHorarioMateria, sesionesCompletadasPorHorario]);
+
+    const getSesionesParaHorario = useCallback(
+      (rowId: number | undefined): Array<{ fechaSesion: string; numeroSesion?: number }> => {
+        if (rowId == null) return [];
+        const m = sesionesCompletadasPorHorarioEfectivo || {};
+        const fromMap = m[rowId] ?? m[String(rowId)];
+        if (Array.isArray(fromMap) && fromMap.length > 0) return fromMap;
+        if (rowId === idHorarioMateria && sesionesCompletadas.length > 0) return sesionesCompletadas;
+        return [];
+      },
+      [sesionesCompletadasPorHorarioEfectivo, idHorarioMateria, sesionesCompletadas]
+    );
 
     // Función para parsear fechas sin problemas de zona horaria
     const parseDate = (dateString: string): Date | null => {
@@ -60,65 +352,48 @@ const CalendarComponent: React.FC<{
     const inicio = fechaInicio ? parseDate(fechaInicio) : null;
     const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
-    /**
-     * Convierte idDia del backend al formato de JavaScript getDay()
-     * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
-     * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
-     * 
-     * @param idDia ID del día desde el backend (1-7)
-     * @returns Número del día para JavaScript getDay()
-     */
-    const convertirIdDiaANumeroJS = (idDia: number): number => {
-      // Convertir formato backend (1-7) a formato JavaScript (0-6)
-      // Domingo es 7 en backend pero 0 en JavaScript
-      return idDia === 7 ? 0 : idDia;
-    };
-
-    // Mapa de fechas a idHorarioMateria para navegación
-    const mapaFechasHorarios = useMemo(() => {
-      const mapa = new Map<string, number>();
-
-      if (todasLasFechasClase && todasLasFechasClase.length > 0) {
-        todasLasFechasClase.forEach((fechaClase) => {
-          if (fechaClase.fechaInicial && fechaClase.idHorarioMateria) {
-            const fechaIni = parseDate(fechaClase.fechaInicial);
-            if (fechaIni) {
-              fechaIni.setHours(0, 0, 0, 0);
-              const fechaFin = fechaClase.fechaFinal ? parseDate(fechaClase.fechaFinal) : fechaIni;
-              if (fechaFin) {
-                fechaFin.setHours(0, 0, 0, 0);
-                if (fechaIni.getTime() === fechaFin.getTime()) {
-                  const fechaStr = fechaIni.toISOString().split('T')[0];
-                  mapa.set(fechaStr, fechaClase.idHorarioMateria);
-                } else {
-                  if (fechaClase.idDia) {
-                    const diaNumero = convertirIdDiaANumeroJS(fechaClase.idDia);
-                    const fechaActual = new Date(fechaIni);
-                    while (fechaActual <= fechaFin) {
-                      if (fechaActual.getDay() === diaNumero) {
-                        const fechaStr = fechaActual.toISOString().split('T')[0];
-                        mapa.set(fechaStr, fechaClase.idHorarioMateria);
-                      }
-                      fechaActual.setDate(fechaActual.getDate() + 1);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-
-      return mapa;
-    }, [todasLasFechasClase]);
-
     // Calcular todas las fechas de clase usando las fechas del backend y sesiones completadas
     const fechasClase = useMemo(() => {
       const fechas: Date[] = [];
 
-      // Si tenemos todas las fechas del backend, usarlas directamente
-      if (todasLasFechasClase && todasLasFechasClase.length > 0) {
-        todasLasFechasClase.forEach((fechaClase) => {
+      const primeraSesionFecha = sesionesCompletadas.find((s) => s.fechaSesion)?.fechaSesion;
+      const diaClaseJsResuelto = resolverGetDayClaseCalendario({
+        idDia,
+        diaSemana,
+        fechaInicio,
+        filasHorario: todasLasFechasCalendario,
+        filaHorario: todasLasFechasCalendario[0],
+        primeraSesionFecha,
+        sesionesParaInferir: sesionesCompletadas
+      });
+
+      /** Rango real del horario: la clase a veces trae fechaFinal corta; horarioMateria puede ir más lejos. */
+      let minRango: Date | null = null;
+      let maxRango: Date | null = null;
+      const bumpMin = (d: Date | null | undefined) => {
+        if (!d || isNaN(d.getTime())) return;
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        if (!minRango || x.getTime() < minRango.getTime()) minRango = x;
+      };
+      const bumpMax = (d: Date | null | undefined) => {
+        if (!d || isNaN(d.getTime())) return;
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        if (!maxRango || x.getTime() > maxRango.getTime()) maxRango = x;
+      };
+
+      bumpMin(parseDate(fechaInicio));
+      bumpMax(parseDate(fechaFinParaUsar));
+      todasLasFechasCalendario.forEach((fc) => {
+        if (fc.fechaInicial) bumpMin(parseDate(fc.fechaInicial));
+        if (fc.fechaFinal) bumpMax(parseDate(fc.fechaFinal));
+        else if (fc.fechaInicial) bumpMax(parseDate(fc.fechaInicial));
+      });
+
+      // Si tenemos todas las fechas del backend, usarlas directamente (aprendiz: ya filtradas a esta materia)
+      if (todasLasFechasCalendario && todasLasFechasCalendario.length > 0) {
+        todasLasFechasCalendario.forEach((fechaClase) => {
           if (fechaClase.fechaInicial) {
             const fechaIni = parseDate(fechaClase.fechaInicial);
             if (fechaIni) {
@@ -132,11 +407,12 @@ const CalendarComponent: React.FC<{
                   fechas.push(new Date(fechaIni));
                 } else {
                   // Si hay rango, agregar todas las fechas en el rango que coincidan con el día
-                  if (fechaClase.idDia) {
-                    const diaNumero = convertirIdDiaANumeroJS(fechaClase.idDia);
+                  const diaJs =
+                    idDiaHorarioAGetDay(fechaClase.idDia) ?? diaSemanaTextoAGetDay(fechaClase.dia_semana);
+                  if (diaJs !== null) {
                     const fechaActual = new Date(fechaIni);
                     while (fechaActual <= fechaFin) {
-                      if (fechaActual.getDay() === diaNumero) {
+                      if (fechaActual.getDay() === diaJs) {
                         fechas.push(new Date(fechaActual));
                       }
                       fechaActual.setDate(fechaActual.getDate() + 1);
@@ -149,33 +425,25 @@ const CalendarComponent: React.FC<{
         });
       }
 
-      // SIEMPRE calcular fechas basándose en fechaInicio, fechaFin e idDia como respaldo
-      // Esto asegura que el calendario siempre muestre las fechas aunque todasLasFechasClase esté vacío
-      // IMPORTANTE: Este cálculo debe ejecutarse SIEMPRE, incluso si todasLasFechasClase tiene datos
-      // porque puede que todasLasFechasClase no tenga todas las fechas individuales
-      if (fechaInicio && fechaFinParaUsar && idDia !== undefined && idDia !== null) {
-        const inicio = parseDate(fechaInicio);
-        const fin = parseDate(fechaFinParaUsar);
-        if (inicio && fin && !isNaN(inicio.getTime()) && !isNaN(fin.getTime())) {
+      // SIEMPRE: una ocurrencia por semana en [minRango, maxRango] con idDia (misma lógica que el backend)
+      // Usa el rango unificado (clase + filas horarioMateria) para no cortar en abril si el horario sigue en mayo+.
+      if (minRango && maxRango && diaClaseJsResuelto !== null) {
+        const inicio = new Date(minRango);
+        const fin = new Date(maxRango);
+        if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime())) {
           inicio.setHours(0, 0, 0, 0);
           fin.setHours(0, 0, 0, 0);
-          const diaNumero = convertirIdDiaANumeroJS(idDia);
 
-          // Asegurarse de que el día número sea válido (0-6)
-          if (diaNumero >= 0 && diaNumero <= 6) {
+          if (diaClaseJsResuelto >= 0 && diaClaseJsResuelto <= 6) {
             const fechaActual = new Date(inicio);
-
-            // Calcular todas las fechas en el rango que coincidan con el día de la semana
-            // Usar un contador de seguridad para evitar bucles infinitos
             let contador = 0;
-            const maxIteraciones = 10000; // Máximo de días a calcular (aproximadamente 27 años)
+            const maxIteraciones = 10000;
 
             while (fechaActual <= fin && contador < maxIteraciones) {
-              if (fechaActual.getDay() === diaNumero) {
+              if (fechaActual.getDay() === diaClaseJsResuelto) {
                 const fechaClase = new Date(fechaActual);
                 fechaClase.setHours(0, 0, 0, 0);
-                // Verificar que no esté duplicada
-                const existe = fechas.some(f => {
+                const existe = fechas.some((f) => {
                   const fDate = new Date(f);
                   fDate.setHours(0, 0, 0, 0);
                   return fDate.getTime() === fechaClase.getTime();
@@ -191,14 +459,32 @@ const CalendarComponent: React.FC<{
         }
       }
 
-      // Agregar también las fechas de sesiones completadas
+      // Sesiones ya dictadas: mismo rango extendido (coherente con sesiones en BD fuera del fechaFinal “corto” de clase)
+      const cursoIni = minRango ? new Date(minRango) : null;
+      const cursoFin = maxRango ? new Date(maxRango) : null;
+      if (cursoIni) cursoIni.setHours(0, 0, 0, 0);
+      if (cursoFin) cursoFin.setHours(0, 0, 0, 0);
+
       sesionesCompletadas.forEach((sesion) => {
         if (sesion.fechaSesion) {
           const fechaSesion = parseDate(sesion.fechaSesion);
           if (fechaSesion) {
             fechaSesion.setHours(0, 0, 0, 0);
-            // Verificar que no esté duplicada
-            const existe = fechas.some(f => f.getTime() === fechaSesion.getTime());
+            if (cursoIni && cursoFin) {
+              if (
+                fechaSesion.getTime() < cursoIni.getTime() ||
+                fechaSesion.getTime() > cursoFin.getTime()
+              ) {
+                return;
+              }
+            }
+            if (
+              diaClaseJsResuelto !== null &&
+              fechaSesion.getDay() !== diaClaseJsResuelto
+            ) {
+              return;
+            }
+            const existe = fechas.some((f) => f.getTime() === fechaSesion.getTime());
             if (!existe) {
               fechas.push(new Date(fechaSesion));
             }
@@ -212,8 +498,177 @@ const CalendarComponent: React.FC<{
       );
 
       return fechasUnicas.sort((a, b) => a.getTime() - b.getTime());
-    }, [todasLasFechasClase, fechaInicio, fechaFinParaUsar, idDia, sesionesCompletadas, convertirIdDiaANumeroJS]);
+    }, [todasLasFechasCalendario, fechaInicio, fechaFinParaUsar, idDia, diaSemana, sesionesCompletadas]);
 
+    const formatHora12Tooltip = (timeString: string, jornadaNombre: string): string => {
+      if (!timeString) return '—';
+      const time = timeString.substring(0, 5);
+      const [hoursStr, minutes] = time.split(':');
+      let hour24 = parseInt(hoursStr, 10);
+      if (isNaN(hour24)) return timeString;
+      const lowerJ = (jornadaNombre || '').toLowerCase();
+      const esTardeONoche =
+        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+      if (esTardeONoche && hour24 < 12) hour24 += 12;
+      const esPM = hour24 >= 12;
+      let hour12 = hour24 % 12;
+      if (hour12 === 0) hour12 = 12;
+      return `${hour12}:${minutes || '00'} ${esPM ? 'p. m.' : 'a. m.'}`;
+    };
+
+    /** Instructor: varias franjas ese día. Aprendiz: solo esta materia (una fila por día). */
+    const clasesPorDiaCalendario = useMemo(() => {
+      const map = new Map<string, ClaseTooltipDia[]>();
+
+      const pickMejorFranjaDuplicada = (
+        a: ClaseTooltipDia,
+        b: ClaseTooltipDia,
+        ymd: string,
+        preferId: number | undefined
+      ): ClaseTooltipDia => {
+        if (preferId != null) {
+          if (a.idHorarioMateria === preferId) return a;
+          if (b.idHorarioMateria === preferId) return b;
+        }
+        const sesA = getSesionesParaHorario(a.idHorarioMateria).some(
+          (s) => s.fechaSesion?.split('T')[0] === ymd
+        );
+        const sesB = getSesionesParaHorario(b.idHorarioMateria).some(
+          (s) => s.fechaSesion?.split('T')[0] === ymd
+        );
+        if (sesA !== sesB) return sesA ? a : b;
+        return a.idHorarioMateria <= b.idHorarioMateria ? a : b;
+      };
+
+      const agregar = (ymd: string, row: ClaseTooltipDia) => {
+        if (!map.has(ymd)) map.set(ymd, []);
+        const list = map.get(ymd)!;
+        const k = claveFranjaTooltipDia(row);
+        const dupIdx = list.findIndex((x) => claveFranjaTooltipDia(x) === k);
+        if (dupIdx >= 0) {
+          list[dupIdx] = pickMejorFranjaDuplicada(
+            list[dupIdx],
+            row,
+            ymd,
+            resumenClaseActual?.idHorarioMateria
+          );
+          return;
+        }
+        if (!list.some((x) => x.idHorarioMateria === row.idHorarioMateria)) {
+          list.push(row);
+        }
+      };
+
+      todasLasFechasCalendario.forEach((fc) => {
+        if (!fc.fechaInicial || !fc.idHorarioMateria) return;
+        const fechaIni = parseDate(fc.fechaInicial);
+        if (!fechaIni) return;
+        fechaIni.setHours(0, 0, 0, 0);
+        const fechaFinFc = fc.fechaFinal ? parseDate(fc.fechaFinal) : fechaIni;
+        if (!fechaFinFc) return;
+        fechaFinFc.setHours(0, 0, 0, 0);
+
+        const row: ClaseTooltipDia = {
+          idHorarioMateria: fc.idHorarioMateria,
+          ficha_codigo: fc.ficha_codigo || '',
+          materia_nombre: fc.materia_nombre || '',
+          programa_nombre: fc.programa_nombre || '',
+          horaInicial: fc.horaInicial || '',
+          horaFinal: fc.horaFinal || '',
+          jornada_nombre: fc.jornada_nombre || ''
+        };
+
+        if (fechaIni.getTime() === fechaFinFc.getTime()) {
+          agregar(formatYmdLocal(fechaIni), row);
+        } else {
+          const diaJs = idDiaHorarioAGetDay(fc.idDia) ?? diaSemanaTextoAGetDay(fc.dia_semana);
+          if (diaJs !== null) {
+            const cur = new Date(fechaIni);
+            while (cur <= fechaFinFc) {
+              if (cur.getDay() === diaJs) {
+                agregar(formatYmdLocal(cur), row);
+              }
+              cur.setDate(cur.getDate() + 1);
+            }
+          }
+        }
+      });
+
+      if (resumenClaseActual?.idHorarioMateria) {
+        const fb: ClaseTooltipDia = {
+          idHorarioMateria: resumenClaseActual.idHorarioMateria,
+          ficha_codigo: resumenClaseActual.ficha_codigo || '',
+          materia_nombre: resumenClaseActual.materia_nombre || '',
+          programa_nombre: resumenClaseActual.programa_nombre || '',
+          horaInicial: resumenClaseActual.horaInicial || '',
+          horaFinal: resumenClaseActual.horaFinal || '',
+          jornada_nombre: resumenClaseActual.jornada_nombre || ''
+        };
+        fechasClase.forEach((d) => {
+          const ymd = formatYmdLocal(new Date(d));
+          const list = map.get(ymd);
+          if (!list?.some((x) => x.idHorarioMateria === fb.idHorarioMateria)) {
+            agregar(ymd, fb);
+          }
+        });
+      }
+
+      map.forEach((list) => {
+        list.sort((a, b) => (a.horaInicial || '').localeCompare(b.horaInicial || ''));
+      });
+
+      return map;
+    }, [todasLasFechasCalendario, fechasClase, resumenClaseActual, getSesionesParaHorario]);
+
+    const etiquetaEstadoTooltip = (diaCalendario: Date, row: ClaseTooltipDia): string => {
+      const ahora = new Date();
+      const hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      hoy0.setHours(0, 0, 0, 0);
+      const d0 = new Date(diaCalendario.getFullYear(), diaCalendario.getMonth(), diaCalendario.getDate());
+      d0.setHours(0, 0, 0, 0);
+      const ymd = formatYmdLocal(d0);
+
+      const sesionesRow = getSesionesParaHorario(row.idHorarioMateria);
+      const sesionRegistrada = sesionesRow.some((s) => s.fechaSesion?.split('T')[0] === ymd);
+
+      let [hIni, mIni] = (row.horaInicial || '0:0').substring(0, 5).split(':').map(Number);
+      let [hFin, mFin] = (row.horaFinal || '0:0').substring(0, 5).split(':').map(Number);
+      const lowerJ = (row.jornada_nombre || '').toLowerCase();
+      const esTardeONoche =
+        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+      if (esTardeONoche && hIni < 12) hIni += 12;
+      if (esTardeONoche && hFin < 12) hFin += 12;
+      const hi = new Date(ahora);
+      hi.setHours(hIni, mIni || 0, 0, 0);
+      const hf = new Date(ahora);
+      hf.setHours(hFin, mFin || 0, 0, 0);
+      if (hf.getTime() < hi.getTime()) hf.setDate(hf.getDate() + 1);
+
+      if (d0.getTime() < hoy0.getTime()) {
+        if (sesionRegistrada) {
+          return modoCalendario === 'aprendiz' ? 'Sesión ya vista' : 'Completada';
+        }
+        return modoCalendario === 'aprendiz' ? 'Clase pasada' : 'Pasada';
+      }
+      if (d0.getTime() > hoy0.getTime()) {
+        return modoCalendario === 'aprendiz' ? 'En espera' : 'Pendiente';
+      }
+
+      // Mismo día: una fila en sesionMateria no implica clase terminada (puede crearse al iniciar/asistencia).
+      if (ahora.getTime() < hi.getTime()) {
+        return modoCalendario === 'aprendiz' ? 'Próximo' : 'Pendiente';
+      }
+      if (ahora.getTime() >= hi.getTime() && ahora.getTime() <= hf.getTime()) {
+        return modoCalendario === 'aprendiz' ? 'Tu clase en curso' : 'En curso';
+      }
+      if (ahora.getTime() > hf.getTime()) {
+        if (sesionRegistrada) {
+          return modoCalendario === 'aprendiz' ? 'Sesión ya vista' : 'Completada';
+        }
+        return modoCalendario === 'aprendiz' ? 'Clase pasada' : 'Pasada';
+      }
+      return modoCalendario === 'aprendiz' ? 'En espera' : 'Pendiente';
+    };
 
     // Abreviaciones de días para el calendario (solo para visualización del header)
     // Usar Intl.DateTimeFormat para obtener las abreviaciones del navegador
@@ -251,7 +706,6 @@ const CalendarComponent: React.FC<{
 
       // Verificar si esta fecha es una fecha de clase usando comparación de strings
       let esFechaClase = false;
-      let fechaEncontrada: Date | null = null;
 
       for (const fecha of fechasClase) {
         const fechaClase = new Date(fecha);
@@ -261,18 +715,18 @@ const CalendarComponent: React.FC<{
         // Comparar tanto por timestamp como por string para mayor seguridad
         if (fechaClaseStr === dateStr || fechaClase.getTime() === date.getTime()) {
           esFechaClase = true;
-          fechaEncontrada = fechaClase;
           break;
         }
       }
-
 
       if (!esFechaClase) {
         return 'normal';
       }
 
-      // Si es una fecha de clase, determinar el estado basándose en la fecha actual
-      const hoyTime = hoy.getTime();
+      // Hoy local actual (no la capturada al montar el componente)
+      const hoyLocal = new Date();
+      hoyLocal.setHours(0, 0, 0, 0);
+      const hoyTime = hoyLocal.getTime();
       const dateTime = date.getTime();
 
       if (dateTime === hoyTime) {
@@ -283,7 +737,6 @@ const CalendarComponent: React.FC<{
         return 'proxima';
       }
 
-      // Si la fecha es menor que hoy, es pasada (sin importar si está completada o no)
       if (dateTime < hoyTime) {
         return 'pasada';
       }
@@ -291,10 +744,18 @@ const CalendarComponent: React.FC<{
       return 'normal';
     };
 
-    // Verificar si una fecha tiene sesión completada
+    // Sesiones registradas en BD para el mapa efectivo (instructor: todas las franjas; aprendiz: solo este horario)
     const tieneSesionCompletada = (fecha: Date): boolean => {
-      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-      return sesionesCompletadas.some(sesion => {
+      const fechaStr = formatYmdLocal(fecha);
+      for (const list of Object.values(sesionesCompletadasPorHorarioEfectivo || {})) {
+        if (
+          Array.isArray(list) &&
+          list.some((sesion) => sesion.fechaSesion?.split('T')[0] === fechaStr)
+        ) {
+          return true;
+        }
+      }
+      return sesionesCompletadas.some((sesion) => {
         if (!sesion.fechaSesion) return false;
         const sesionFecha = sesion.fechaSesion.split('T')[0];
         return sesionFecha === fechaStr;
@@ -347,37 +808,6 @@ const CalendarComponent: React.FC<{
       return 'pendiente';
     };
 
-    // Manejar clic en una fecha del calendario - navegar directamente al detalle
-    const handleDateClick = (day: number) => {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      date.setHours(0, 0, 0, 0);
-
-      // Verificar si es una fecha de clase
-      const esFechaClase = fechasClase.some(fecha => {
-        const fechaClase = new Date(fecha);
-        fechaClase.setHours(0, 0, 0, 0);
-        return fechaClase.getTime() === date.getTime();
-      });
-
-      if (esFechaClase) {
-        // Obtener el idHorarioMateria de la fecha clickeada
-        const fechaStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const idHorario = mapaFechasHorarios.get(fechaStr);
-
-        // Si encontramos el idHorarioMateria, navegar al detalle
-        if (idHorario) {
-          if (onDateClick) {
-            onDateClick(date, idHorario);
-          }
-        } else {
-          // Si no encontramos el idHorarioMateria, usar el actual como fallback
-          if (idHorarioMateria && onDateClick) {
-            onDateClick(date, idHorarioMateria);
-          }
-        }
-      }
-    };
-
     const days = getDaysInMonth(currentMonth);
     // Usar Intl.DateTimeFormat para obtener el nombre del mes (sin datos hardcodeados)
     const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(currentMonth);
@@ -419,7 +849,7 @@ const CalendarComponent: React.FC<{
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 overflow-visible">
           {days.map((day, index) => {
             if (day === null) {
               return <div key={index} className="h-8"></div>;
@@ -427,39 +857,153 @@ const CalendarComponent: React.FC<{
             const status = getDateStatus(day);
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
             const esFechaClase = status !== 'normal';
+            const ymdKey = formatYmdLocal(date);
+            const bloquesDia = clasesPorDiaCalendario.get(ymdKey) || [];
+
+            /** Colores fijos (inline) para que no dependan de Tailwind/CSS del tema. */
+            const layoutCal = 'h-8 w-full flex items-center justify-center text-sm rounded transition-colors';
+            const estiloCal: React.CSSProperties | undefined =
+              status === 'hoy'
+                ? {
+                    backgroundColor: '#fed7aa',
+                    color: '#9a3412',
+                    fontWeight: 600
+                  }
+                : status === 'proxima'
+                  ? { backgroundColor: '#dbeafe', color: '#1e3a8a' }
+                  : status === 'pasada'
+                    ? { backgroundColor: '#dcfce7', color: '#166534' }
+                    : undefined;
+
+            const baseClass =
+              status === 'normal'
+                ? `${layoutCal} text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800`
+                : `${layoutCal} cursor-default`;
+
+            const celda = (
+              <div className={baseClass} style={estiloCal}>
+                {day}
+              </div>
+            );
+
+            if (esFechaClase && bloquesDia.length > 0) {
+              return (
+                <DefaultTooltip
+                  key={index}
+                  placement="top"
+                  slotProps={{
+                    popper: {
+                      modifiers: [
+                        { name: 'offset', options: { offset: [0, 10] } },
+                        {
+                          name: 'preventOverflow',
+                          options: { padding: 12, altBoundary: true }
+                        },
+                        {
+                          name: 'flip',
+                          options: {
+                            padding: 12,
+                            fallbackPlacements: ['bottom', 'top', 'left', 'right']
+                          }
+                        }
+                      ]
+                    }
+                  }}
+                  enterDelay={200}
+                  leaveDelay={0}
+                  onOpen={() => {
+                    requestAnimationFrame(() => {
+                      const el = document.querySelector(
+                        `[data-cal-dia-tooltip-scroll="${ymdKey}"]`
+                      ) as HTMLElement | null;
+                      if (el) el.scrollTop = 0;
+                    });
+                  }}
+                  classes={{ tooltip: CLASE_CALENDARIO_TOOLTIP_SURFACE }}
+                  title={
+                    <div
+                      data-cal-dia-tooltip-scroll={ymdKey}
+                      className={[
+                        CLASE_CALENDARIO_TOOLTIP_INNER_PAD,
+                        'max-w-[min(100vw-2rem,22rem)] max-h-[min(65vh,21rem)] overflow-y-auto overscroll-contain space-y-2 text-left normal-case font-sans',
+                        '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]'
+                      ].join(' ')}
+                    >
+                      {bloquesDia.map((row) => {
+                        const estadoEtiqueta = etiquetaEstadoTooltip(date, row);
+                        return (
+                        <div
+                          key={claveFranjaTooltipDia(row)}
+                          className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
+                        >
+                          <p className="font-semibold leading-snug text-blue-900 dark:text-white">
+                            {row.ficha_codigo ? `${row.ficha_codigo} — ` : ''}
+                            {row.materia_nombre || 'Clase'}
+                          </p>
+                          {row.programa_nombre ? (
+                            <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
+                              {row.programa_nombre}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
+                            {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
+                            {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
+                          </p>
+                          <p
+                            className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${clasesBadgeEstadoCalendario(estadoEtiqueta)}`}
+                          >
+                            {estadoEtiqueta}
+                          </p>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  }
+                >
+                  {celda}
+                </DefaultTooltip>
+              );
+            }
 
             return (
-              <div
-                key={index}
-                onClick={() => esFechaClase && handleDateClick(day)}
-                className={`h-8 flex items-center justify-center text-sm rounded transition-all ${status === 'hoy'
-                  ? 'bg-orange-200 text-orange-900 dark:bg-orange-500 dark:text-white font-semibold cursor-pointer hover:bg-orange-300 dark:hover:bg-orange-600'
-                  : status === 'proxima'
-                    ? 'bg-blue-100 text-blue-900 dark:bg-blue-400 dark:text-white cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500'
-                    : status === 'pasada'
-                      ? 'bg-green-100 text-green-900 dark:bg-green-400 dark:text-white cursor-pointer hover:bg-green-200 dark:hover:bg-green-500'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                title={esFechaClase ? 'Click para ver detalle de la clase' : ''}
-              >
+              <div key={index} className={baseClass}>
                 {day}
               </div>
             );
           })}
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
-            <span className="text-gray-700 dark:text-gray-300">Hoy - Día de clase</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
-            <span className="text-gray-700 dark:text-gray-300">Próximas clases</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
-            <span className="text-gray-700 dark:text-gray-300">Clases pasadas</span>
-          </div>
+          {modoCalendario === 'aprendiz' ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
+                <span className="text-gray-700 dark:text-gray-300">Verde — clases ya pasadas</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
+                <span className="text-gray-700 dark:text-gray-300">Naranja — hoy</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
+                <span className="text-gray-700 dark:text-gray-300">Azul — próximos días con clase</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
+                <span className="text-gray-700 dark:text-gray-300">Hoy — día de clase</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
+                <span className="text-gray-700 dark:text-gray-300">Próximas clases</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
+                <span className="text-gray-700 dark:text-gray-300">Clases pasadas</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -511,6 +1055,12 @@ interface FechaClase {
   fechaFinal: string | null;
   dia_semana: string;
   idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
+  ficha_codigo?: string;
+  materia_nombre?: string;
+  programa_nombre?: string;
+  horaInicial?: string;
+  horaFinal?: string;
+  jornada_nombre?: string;
 }
 
 interface Ficha {
@@ -566,10 +1116,25 @@ const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as any;
+  const locationState = location.state as {
+    returnTo?: string;
+    activeMenu?: MenuOption;
+    ficha_id?: number;
+    /** Desde Mis clases (aprendiz) vs historial RAPs (instructor). */
+    vistaCalendario?: 'aprendiz' | 'instructor';
+    [key: string]: unknown;
+  } | null | undefined;
+
+  const modoCalendario: 'instructor' | 'aprendiz' = useMemo(() => {
+    const v = locationState?.vistaCalendario;
+    if (v === 'aprendiz' || v === 'instructor') return v;
+    return 'instructor';
+  }, [locationState?.vistaCalendario]);
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [clase, setClase] = useState<Clase | null>(null);
   const [todasLasFechasClase, setTodasLasFechasClase] = useState<FechaClase[]>([]);
+  const [sesionesCompletadasPorHorario, setSesionesCompletadasPorHorario] =
+    useState<SesionesPorHorarioMap>({});
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEstudiante, setSearchEstudiante] = useState('');
@@ -620,20 +1185,6 @@ const ClaseDetallePage: React.FC = () => {
     [locationState?.ficha_id, ficha?.id]
   );
 
-  /**
-   * Convierte idDia del backend al formato de JavaScript getDay()
-   * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
-   * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
-   * 
-   * @param idDia ID del día desde el backend (1-7)
-   * @returns Número del día para JavaScript getDay()
-   */
-  const convertirIdDiaANumeroJS = (idDia: number): number => {
-    // Convertir formato backend (1-7) a formato JavaScript (0-6)
-    // Domingo es 7 en backend pero 0 en JavaScript
-    return idDia === 7 ? 0 : idDia;
-  };
-
   // Estado local para el estado de la clase (se actualiza en tiempo real)
   const [estadoClaseLocal, setEstadoClaseLocal] = useState<'pasada' | 'pendiente' | 'en_curso'>('pendiente');
 
@@ -675,8 +1226,8 @@ const ClaseDetallePage: React.FC = () => {
     }
 
     // Verificar si hoy es un día de clase
-    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
-    if (ahora.getDay() !== diaNumero) {
+    const diaJs = idDiaHorarioAGetDay(clase.idDia);
+    if (diaJs === null || ahora.getDay() !== diaJs) {
       return 'pendiente';
     }
 
@@ -760,11 +1311,19 @@ const ClaseDetallePage: React.FC = () => {
           if (fichaData) {
             setFicha(fichaData);
             if (claseData) {
-              setClase(claseData);
+              const norm = normalizarClaseDetalleApi(claseData);
+              setClase(norm ?? (claseData as Clase));
             }
             // Obtener todas las fechas de clase para el calendario
-            const fechasClase = response.data?.data?.todasLasFechasClase || [];
-            setTodasLasFechasClase(fechasClase);
+            const rawFechas = response.data?.data?.todasLasFechasClase || [];
+            const fechasNorm = (Array.isArray(rawFechas) ? rawFechas : [])
+              .map((row: unknown) => normalizarFilaFechaClaseApi(row))
+              .filter((x): x is FechaClase => x != null);
+            setTodasLasFechasClase(fechasNorm);
+            const porH = response.data?.data?.sesionesCompletadasPorHorario;
+            setSesionesCompletadasPorHorario(
+              porH && typeof porH === 'object' ? (porH as SesionesPorHorarioMap) : {}
+            );
           } else {
             throw new Error('Ficha no encontrada en la respuesta');
           }
@@ -894,7 +1453,8 @@ const ClaseDetallePage: React.FC = () => {
   const calcularProximaFechaClase = (): string | null => {
     if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.idDia) return null;
 
-    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+    const diaNumero = idDiaHorarioAGetDay(clase.idDia);
+    if (diaNumero === null) return null;
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -1033,19 +1593,30 @@ const ClaseDetallePage: React.FC = () => {
     // 1. Hoy debe estar dentro del rango general del curso
     if (hoy.getTime() < fechaInicio.getTime() || hoy.getTime() > fechaFin.getTime()) return false;
 
-    // 2. Hoy debe ser un día programado de clase
-    const esDiaDeClase = todasLasFechasClase.some(f => {
+    // 2. Hoy debe ser un día programado de ESTA clase (mismo idHorarioMateria si hay varias franjas en el listado)
+    const fechasParaAsistencia =
+      clase?.idHorarioMateria != null
+        ? todasLasFechasClase.filter(
+            (f) => Number(f.idHorarioMateria) === Number(clase.idHorarioMateria)
+          )
+        : todasLasFechasClase;
+    const listaDiasClase =
+      fechasParaAsistencia.length > 0 ? fechasParaAsistencia : todasLasFechasClase;
+
+    const esDiaDeClase = listaDiasClase.some(f => {
       if (!f.fechaInicial) return false;
       const dIni = parseDate(f.fechaInicial); dIni.setHours(0, 0, 0, 0);
       const dFin = f.fechaFinal ? parseDate(f.fechaFinal) : new Date(dIni); dFin.setHours(0, 0, 0, 0);
       if (dIni.getTime() === dFin.getTime()) return dIni.getTime() === hoy.getTime();
       // Usar idDia directamente del backend (viene de la BD, sin mapeo hardcodeado)
-      if (!f.idDia) return false;
-      const diaNumero = convertirIdDiaANumeroJS(f.idDia);
-      return diaNumero !== undefined
-        && dIni.getTime() <= hoy.getTime()
-        && hoy.getTime() <= dFin.getTime()
-        && ahora.getDay() === diaNumero;
+      if (f.idDia == null || Number.isNaN(Number(f.idDia))) return false;
+      const diaNumero = idDiaHorarioAGetDay(f.idDia);
+      return (
+        diaNumero !== null &&
+        dIni.getTime() <= hoy.getTime() &&
+        hoy.getTime() <= dFin.getTime() &&
+        ahora.getDay() === diaNumero
+      );
     });
     if (!esDiaDeClase) return false;
 
@@ -1219,13 +1790,28 @@ const ClaseDetallePage: React.FC = () => {
 
   const emailInstructor = instructorClase?.persona?.email || 'N/A';
 
+  /**
+   * Volver al listado de clases (Mis clases) por defecto.
+   * Solo Historial RAPs envía `returnTo` si el usuario abrió el detalle desde ahí.
+   * (Ambiente virtual instructor ≠ aula virtual estudiante; rutas bajo /ambiente-virtual/.)
+   */
+  const rutaVolver = (() => {
+    const r = locationState?.returnTo;
+    if (typeof r === 'string' && r.startsWith('/ambiente-virtual/')) {
+      return r;
+    }
+    return '/ambiente-virtual/mis-clases';
+  })();
+
   return (
     <Container>
       {/* Header con Info Cards */}
       <div className="mb-6">
         <button
-          onClick={() => navigate('/ambiente-virtual/historial-raps')}
+          type="button"
+          onClick={() => navigate(rutaVolver)}
           className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
+          title="Volver al listado de clases"
         >
           <KeenIcon icon="left" className="text-sm" />
         </button>
@@ -1418,10 +2004,13 @@ const ClaseDetallePage: React.FC = () => {
           <div className="card h-full flex flex-col">
             <div className="card-body p-4 flex flex-col h-full">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                Calendario de Clases
+                {modoCalendario === 'aprendiz'
+                  ? 'Calendario de tus clases'
+                  : 'Calendario de clases'}
               </h2>
               {clase?.fechaInicial ? (
                 <CalendarComponent
+                  key={`cal-${clase.idHorarioMateria}-${clase.fechaInicial}`}
                   fechaInicio={clase.fechaInicial}
                   fechaFin={clase.fechaFinal || clase.fechaInicial}
                   diaSemana={clase.dia_semana}
@@ -1429,13 +2018,19 @@ const ClaseDetallePage: React.FC = () => {
                   idDia={clase.idDia}
                   idHorarioMateria={clase.idHorarioMateria}
                   sesionesCompletadas={clase.sesiones_completadas || []}
+                  sesionesCompletadasPorHorario={sesionesCompletadasPorHorario}
+                  modoCalendario={modoCalendario}
                   horaInicial={clase.horaInicial}
                   horaFinal={clase.horaFinal}
-                  onDateClick={(fecha, idHorarioMateria) => {
-                    // Navegar directamente al detalle de la clase
-                    if (idHorarioMateria) {
-                      navigate(`/ambiente-virtual/clase/${idHorarioMateria}`);
-                    }
+                  resumenClaseActual={{
+                    ficha_codigo: ficha.codigo,
+                    materia_nombre: clase.materia_nombre,
+                    programa_nombre:
+                      clase.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || '',
+                    horaInicial: clase.horaInicial,
+                    horaFinal: clase.horaFinal,
+                    idHorarioMateria: clase.idHorarioMateria,
+                    jornada_nombre: ficha.jornada?.nombreJornada || ''
                   }}
                 />
               ) : (
@@ -1533,7 +2128,13 @@ const ClaseDetallePage: React.FC = () => {
                     idFicha: idFichaParaClase,
                     idJornada: ficha?.jornada?.id?.toString() || '',
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
-                    programa_nombre: locationState?.programa_nombre || ficha?.asignacion?.programa?.nombrePrograma,
+                    programa_nombre:
+                      (typeof locationState?.programa_nombre === 'string'
+                        ? locationState.programa_nombre
+                        : undefined) ??
+                      (typeof ficha?.asignacion?.programa?.nombrePrograma === 'string'
+                        ? ficha.asignacion.programa.nombrePrograma
+                        : undefined),
                     // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
                     estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
                     idHorarioMateria: id ? parseInt(id) : undefined

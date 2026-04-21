@@ -130,6 +130,20 @@ const getDocumentUrl = (url?: string | null): string | null => {
   return base + '/storage/' + url;
 };
 
+/** Documento oficial adjunto a la actividad (instructor), distinto del material de apoyo y de la entrega del estudiante. */
+const getActividadDocumentoUrl = (
+  act: Pick<ActividadAprendiz, 'documentoActividadUrl' | 'pathDocumentoActividad'>
+): string | null => getDocumentUrl(act.documentoActividadUrl || act.pathDocumentoActividad);
+
+const actividadTieneDocumentoOficial = (
+  act: Pick<ActividadAprendiz, 'documentoActividadUrl' | 'pathDocumentoActividad'>
+): boolean => !!getActividadDocumentoUrl(act);
+
+const esPdfPorRuta = (path?: string | null, url?: string | null): boolean => {
+  const s = (path || url || '').toLowerCase();
+  return s.includes('.pdf');
+};
+
 const estadoBadgeMap: Record<
   Exclude<EstadoActividad, 'TODOS'>,
   { label: string; chip: string; line: string; score: string }
@@ -420,6 +434,42 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-coal-300 px-3 py-2.5 text-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400">No hay material de apoyo</p>
+              </div>
+            )}
+          </div>
+
+          {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
+          <div>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Documento de la actividad</p>
+            {actividadTieneDocumentoOficial(actividad) ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <KeenIcon
+                    icon={esPdfPorRuta(actividad.pathDocumentoActividad, actividad.documentoActividadUrl) ? 'file-pdf' : 'document'}
+                    className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4"
+                  />
+                  <span className="text-xs text-gray-900 dark:text-white truncate">
+                    {getFileName(actividad.pathDocumentoActividad || actividad.documentoActividadUrl)}
+                  </span>
+                </div>
+                <a
+                  href={getActividadDocumentoUrl(actividad) ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const url = getActividadDocumentoUrl(actividad);
+                    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary shrink-0"
+                  title="Abrir documento"
+                >
+                  <KeenIcon icon="exit-up-right" className="w-4 h-4" />
+                </a>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-coal-300 px-3 py-2.5 text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400">No hay documento de la actividad adjunto</p>
               </div>
             )}
           </div>
@@ -956,6 +1006,53 @@ const ActividadesAprendiz: React.FC = () => {
                               ) : (
                                 <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                                   No hay material de apoyo
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                              Documento de la actividad
+                            </p>
+                            <div className="space-y-2">
+                              {actividadTieneDocumentoOficial(actividad) ? (
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <KeenIcon
+                                      icon={
+                                        esPdfPorRuta(actividad.pathDocumentoActividad, actividad.documentoActividadUrl)
+                                          ? 'file-pdf'
+                                          : 'document'
+                                      }
+                                      className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4"
+                                    />
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                        {getFileName(actividad.pathDocumentoActividad || actividad.documentoActividadUrl)}
+                                      </p>
+                                      <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                        Adjunto del instructor
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={getActividadDocumentoUrl(actividad) ?? '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      const url = getActividadDocumentoUrl(actividad);
+                                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="btn btn-sm btn-primary shrink-0 text-xs"
+                                  >
+                                    Abrir documento
+                                  </a>
+                                </div>
+                              ) : (
+                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                  No hay documento de la actividad adjunto
                                 </div>
                               )}
                             </div>

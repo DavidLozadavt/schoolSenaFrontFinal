@@ -60,11 +60,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
             title: 'Historial Raps',
             path: '/ambiente-virtual/historial-raps',
             requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-          },
-          {
-            title: 'Detalle Clase',
-            path: '/ambiente-virtual/clase/:id',
-            requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR_HIDDEN']
           }
         ]
       }

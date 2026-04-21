@@ -3,13 +3,7 @@ import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
-import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle
-} from '@/partials/toolbar';
+import { Toolbar, ToolbarDescription, ToolbarHeading } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 
 const getDocumentUrl = (url?: string | null): string | null => {
@@ -119,6 +113,7 @@ interface ReporteAsistenciasProps {
 const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => {
   const { currentLayout } = useLayout();
   const [loading, setLoading] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [areas, setAreas] = useState<AreaData[]>([]);
   const [registros, setRegistros] = useState<RegistroDetallado[]>([]);
   const [resumen, setResumen] = useState<ResumenData>({
@@ -133,19 +128,27 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
   const fetchAsistencias = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorCarga(null);
       const response = await axios.get('asistencias-por-area');
       const data = response.data?.data || {};
-      
+
       setAreas(data.areas || []);
       setRegistros(data.registros || []);
-      setResumen(data.resumen || {
-        asistenciaGeneral: 0,
-        totalAsistencias: 0,
-        totalInasistencias: 0,
-        totalRegistros: 0
-      });
-    } catch (error) {
-      // Error silencioso: no interrumpir la experiencia del usuario
+      setResumen(
+        data.resumen || {
+          asistenciaGeneral: 0,
+          totalAsistencias: 0,
+          totalInasistencias: 0,
+          totalRegistros: 0
+        }
+      );
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string; error?: string } } };
+      const mensaje =
+        ax?.response?.data?.message ||
+        ax?.response?.data?.error ||
+        'No se pudo cargar el reporte. Verifica tu sesión o intenta más tarde.';
+      setErrorCarga(mensaje);
       setAreas([]);
       setRegistros([]);
       setResumen({
@@ -247,6 +250,14 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
             </div>
           ) : (
             <>
+              {errorCarga && (
+                <div
+                  className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200"
+                  role="alert"
+                >
+                  {errorCarga}
+                </div>
+              )}
               {/* Tabs de filtro por área */}
               <div className="flex flex-wrap gap-2 mb-5 border-b border-gray-200 dark:border-gray-700 pb-3">
                 {areasUnicas.map((area) => {
