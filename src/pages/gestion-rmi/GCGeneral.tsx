@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
+import { enqueueSnackbar } from 'notistack';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/components/modal';
 
@@ -159,8 +160,7 @@ const GCGeneral: React.FC = () => {
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'ACEPTADO');
       setSelectedPeriodo(null);
     } catch (error) {
-      console.error('Error al aceptar:', error);
-      alert('Error al aceptar el informe');
+      enqueueSnackbar('Error al aceptar el informe', { variant: 'error' });
     } finally {
       setProcesando(false);
     }
@@ -168,7 +168,7 @@ const GCGeneral: React.FC = () => {
 
   const handleRechazarInforme = async () => {
     if (!selectedPeriodo || !motivoRechazo.trim()) {
-      alert('Debe ingresar un motivo para el rechazo');
+      enqueueSnackbar('Debe ingresar un motivo para el rechazo', { variant: 'warning' });
       return;
     }
     setProcesando(true);
@@ -184,8 +184,7 @@ const GCGeneral: React.FC = () => {
       setMotivoRechazo('');
       setSelectedPeriodo(null);
     } catch (error) {
-      console.error('Error al rechazar:', error);
-      alert('Error al rechazar el informe');
+      enqueueSnackbar('Error al rechazar el informe', { variant: 'error' });
     } finally {
       setProcesando(false);
     }
@@ -203,10 +202,36 @@ const GCGeneral: React.FC = () => {
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'PENDIENTE');
       setSelectedPeriodo(null);
     } catch (error) {
-      console.error('Error al revertir:', error);
-      alert('Error al revertir el informe');
+      enqueueSnackbar('Error al revertir el informe', { variant: 'error' });
     } finally {
       setProcesando(false);
+    }
+  };
+
+  const handleUploadInforme = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedPeriodo) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('urlInforme', file);
+    formData.append('idRmi', String(selectedPeriodo.idRmi));
+    selectedPeriodo.detalles.forEach(d => {
+      formData.append('idsHorarioMateria[]', String(d.idHorarioMateria));
+    });
+
+    setProcesando(true);
+    try {
+      await axios.post('detalle_rmi/archivo_informe_instructor', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      enqueueSnackbar('Informe actualizado exitosamente', { variant: 'success' });
+      await loadData();
+      setSelectedPeriodo(null);
+    } catch (error) {
+      enqueueSnackbar('Error al subir el informe', { variant: 'error' });
+    } finally {
+      setProcesando(false);
+      e.target.value = '';
     }
   };
 
@@ -242,7 +267,7 @@ const GCGeneral: React.FC = () => {
     <div className="p-5 w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-          Gestión de Informes RMI - Administrativo
+          Gestión de Informes instructores
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Revisión y aceptación de informes de instructores
@@ -445,32 +470,51 @@ const GCGeneral: React.FC = () => {
               {/* Informe adjunto */}
               {(() => {
                 const url = getUrlInforme(selectedPeriodo.detalles);
-                return url ? (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-lg transition-all"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <i className="ki-outline ki-document text-blue-600 dark:text-blue-400" />
+                return (
+                  <div className="space-y-3">
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-lg transition-all"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                          <i className="ki-outline ki-document text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                            Ver informe adjunto
+                          </p>
+                          <p className="text-xs text-blue-500 dark:text-blue-500 truncate">{url}</p>
+                        </div>
+                        <i className="ki-outline ki-exit-right-corner text-blue-400 text-sm" />
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg">
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-coal-300 flex items-center justify-center flex-shrink-0">
+                          <i className="ki-outline ki-document text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                          El instructor aún no ha adjuntado un informe
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Botón para cambiar o subir el informe */}
+                    <div className="flex justify-end">
+                      <label className={`cursor-pointer px-4 py-2 text-sm font-medium rounded-lg transition-all ${procesando ? 'opacity-50 pointer-events-none' : ''} text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 flex items-center`}>
+                        <i className="ki-outline ki-cloud-add text-lg mr-2" />
+                        {procesando ? 'Procesando...' : (url ? 'Cambiar informe' : 'Subir informe')}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={handleUploadInforme}
+                          disabled={procesando}
+                        />
+                      </label>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                        Ver informe adjunto
-                      </p>
-                      <p className="text-xs text-blue-500 dark:text-blue-500 truncate">{url}</p>
-                    </div>
-                    <i className="ki-outline ki-exit-right-corner text-blue-400 text-sm" />
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-coal-300 flex items-center justify-center flex-shrink-0">
-                      <i className="ki-outline ki-document text-gray-400" />
-                    </div>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">
-                      El instructor aún no ha adjuntado un informe
-                    </p>
                   </div>
                 );
               })()}
