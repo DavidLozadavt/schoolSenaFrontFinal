@@ -4,6 +4,7 @@ import { enqueueSnackbar } from 'notistack';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { getAuth } from '@/auth/_helpers';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/components/modal';
+import Swal from 'sweetalert2';
 
 interface DetalleRmi {
   idDetalleRmi: number;
@@ -216,9 +217,10 @@ const GCGeneral: React.FC = () => {
     }
   };
 
-  const handleGenerarInformeCoordinador = () => {
+  const handleGenerarInformeCoordinador = async () => {
     if (!selectedPeriodo) return;
-    const { idRmi, idContrato, detalles } = selectedPeriodo;
+
+    const { idRmi, idContrato, detalles, instructorNombre } = selectedPeriodo;
     const nPlanilla = getNumeroPlanilla(detalles) ?? '';
     const baseUrl = axios.defaults.baseURL ?? '';
     const token = getAuth() ?? '';
@@ -228,7 +230,87 @@ const GCGeneral: React.FC = () => {
       nPlanilla,
       token: String(token)
     });
-    window.open(`${baseUrl}get_informe_by_coordinador_rmi?${params.toString()}`, '_blank');
+
+    const downloadUrl = `${baseUrl}get_informe_by_coordinador_rmi?${params.toString()}`;
+
+    // Estilos para el tema dark/light
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    const result = await Swal.fire({
+      title: '¿Generar informe firmado?',
+      text: '¿Desea reemplazar el informe actual por el nuevo informe firmado que se va a generar?',
+      icon: 'question',
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Sí, reemplazar y descargar',
+      denyButtonText: 'Solo descargar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      background,
+      color,
+      customClass: {
+        confirmButton:
+          'px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg mx-1',
+        denyButton:
+          'px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg mx-1',
+        cancelButton:
+          'px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 dark:text-gray-200 dark:bg-coal-300 dark:hover:bg-coal-400 rounded-lg mx-1'
+      },
+      buttonsStyling: false
+    });
+
+    if (result.isConfirmed) {
+      setProcesando(true);
+      try {
+        // 1. Obtener el blob del informe generado
+        const response = await axios.get(`get_informe_by_coordinador_rmi?${params.toString()}`, {
+          responseType: 'blob'
+        });
+
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const fileName = `Informe_${instructorNombre}_${selectedPeriodo.periodo}.pdf`;
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+
+        // 2. Subir el archivo al servidor (reutilizando lógica de handleUploadInforme)
+        const formData = new FormData();
+        formData.append('urlInforme', file);
+        formData.append('idRmi', String(idRmi));
+        detalles.forEach((d) => {
+          formData.append('idsHorarioMateria[]', String(d.idHorarioMateria));
+        });
+
+        await axios.post('detalle_rmi/archivo_informe_instructor', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        // 3. Disparar descarga local
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        enqueueSnackbar('Informe generado, actualizado y descargado exitosamente', {
+          variant: 'success'
+        });
+        await loadData();
+        setSelectedPeriodo(null);
+      } catch (error) {
+        console.error('Error al procesar el informe firmado:', error);
+        enqueueSnackbar('Error al procesar el informe firmado', { variant: 'error' });
+      } finally {
+        setProcesando(false);
+      }
+    } else if (result.isDenied) {
+      // Solo descarga habitual
+      window.open(downloadUrl, '_blank');
+    }
   };
 
   const handleUploadInforme = async (e: React.ChangeEvent<HTMLInputElement>) => {
