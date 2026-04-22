@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import { AuthContext } from '@/auth/providers/JWTProvider';
+import { getAuth } from '@/auth/_helpers';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/components/modal';
 
 interface DetalleRmi {
@@ -37,9 +38,9 @@ interface InstructorRmi {
 
 const getEstadoFromDetalles = (detalles: DetalleRmi[]): string => {
   if (!detalles.length) return 'SIN_DETALLES';
-  const estados = detalles.map(d => d.estadoInforme);
-  if (estados.every(e => e === 'ACEPTADO')) return 'ACEPTADO';
-  if (estados.some(e => e === 'PENDIENTE')) return 'PENDIENTE';
+  const estados = detalles.map((d) => d.estadoInforme);
+  if (estados.every((e) => e === 'ACEPTADO')) return 'ACEPTADO';
+  if (estados.some((e) => e === 'PENDIENTE')) return 'PENDIENTE';
   return 'PENDIENTE';
 };
 
@@ -60,7 +61,9 @@ const GCGeneral: React.FC = () => {
     instructorNombre: string;
     emailInstructor: string;
   } | null>(null);
-  const [modalAccion, setModalAccion] = useState<'view' | 'aceptar' | 'rechazar' | 'revertir'>('view');
+  const [modalAccion, setModalAccion] = useState<'view' | 'aceptar' | 'rechazar' | 'revertir'>(
+    'view'
+  );
   const [procesando, setProcesando] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState<string>('');
 
@@ -90,7 +93,7 @@ const GCGeneral: React.FC = () => {
         }
 
         const instructor = instructoresMap.get(item.instructorId)!;
-        let contrato = instructor.contratos.find(c => c.idContrato === item.idContrato);
+        let contrato = instructor.contratos.find((c) => c.idContrato === item.idContrato);
 
         if (!contrato) {
           contrato = {
@@ -117,7 +120,7 @@ const GCGeneral: React.FC = () => {
       if (!filteredPeriodo) {
         const periodoActual = getCurrentPeriodo();
         setFilteredPeriodo(
-          periodosOrdenados.includes(periodoActual) ? periodoActual : periodosOrdenados[0] ?? ''
+          periodosOrdenados.includes(periodoActual) ? periodoActual : (periodosOrdenados[0] ?? '')
         );
       }
 
@@ -130,17 +133,22 @@ const GCGeneral: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const actualizarDetallesLocales = (idRmi: number, nuevoEstado: string) => {
-    setInstructores(prev =>
-      prev.map(instructor => ({
+    setInstructores((prev) =>
+      prev.map((instructor) => ({
         ...instructor,
-        contratos: instructor.contratos.map(contrato => ({
+        contratos: instructor.contratos.map((contrato) => ({
           ...contrato,
-          periodos: contrato.periodos.map(periodo =>
+          periodos: contrato.periodos.map((periodo) =>
             periodo.idRmi === idRmi
-              ? { ...periodo, detalles: periodo.detalles.map(d => ({ ...d, estadoInforme: nuevoEstado })) }
+              ? {
+                  ...periodo,
+                  detalles: periodo.detalles.map((d) => ({ ...d, estadoInforme: nuevoEstado }))
+                }
               : periodo
           )
         }))
@@ -154,7 +162,7 @@ const GCGeneral: React.FC = () => {
     try {
       await axios.post('detalle_rmi/aceptar_informe', {
         idRmi: selectedPeriodo.idRmi,
-        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        idsHorarioMateria: selectedPeriodo.detalles.map((d) => d.idHorarioMateria),
         email: selectedPeriodo.emailInstructor
       });
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'ACEPTADO');
@@ -175,7 +183,7 @@ const GCGeneral: React.FC = () => {
     try {
       await axios.post('detalle_rmi/rechazar_informe', {
         idRmi: selectedPeriodo.idRmi,
-        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        idsHorarioMateria: selectedPeriodo.detalles.map((d) => d.idHorarioMateria),
         email: selectedPeriodo.emailInstructor,
         motivo: motivoRechazo
       });
@@ -196,7 +204,7 @@ const GCGeneral: React.FC = () => {
     try {
       await axios.post('detalle_rmi/revertir_informe', {
         idRmi: selectedPeriodo.idRmi,
-        idsHorarioMateria: selectedPeriodo.detalles.map(d => d.idHorarioMateria),
+        idsHorarioMateria: selectedPeriodo.detalles.map((d) => d.idHorarioMateria),
         email: selectedPeriodo.emailInstructor
       });
       actualizarDetallesLocales(selectedPeriodo.idRmi, 'PENDIENTE');
@@ -208,14 +216,29 @@ const GCGeneral: React.FC = () => {
     }
   };
 
+  const handleGenerarInformeCoordinador = () => {
+    if (!selectedPeriodo) return;
+    const { idRmi, idContrato, detalles } = selectedPeriodo;
+    const nPlanilla = getNumeroPlanilla(detalles) ?? '';
+    const baseUrl = axios.defaults.baseURL ?? '';
+    const token = getAuth() ?? '';
+    const params = new URLSearchParams({
+      idRmi: String(idRmi),
+      idContrato: String(idContrato),
+      nPlanilla,
+      token: String(token)
+    });
+    window.open(`${baseUrl}get_informe_by_coordinador_rmi?${params.toString()}`, '_blank');
+  };
+
   const handleUploadInforme = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !selectedPeriodo) return;
-    
+
     const file = e.target.files[0];
     const formData = new FormData();
     formData.append('urlInforme', file);
     formData.append('idRmi', String(selectedPeriodo.idRmi));
-    selectedPeriodo.detalles.forEach(d => {
+    selectedPeriodo.detalles.forEach((d) => {
       formData.append('idsHorarioMateria[]', String(d.idHorarioMateria));
     });
 
@@ -237,31 +260,34 @@ const GCGeneral: React.FC = () => {
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
-      case 'ACEPTADO': return 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400';
-      case 'PENDIENTE': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400';
+      case 'ACEPTADO':
+        return 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400';
+      case 'PENDIENTE':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400';
     }
   };
 
   const instructoresFiltrados = instructores
-    .filter(i => filteredInstructor === '' || i.identificacion === filteredInstructor)
-    .map(instructor => ({
+    .filter((i) => filteredInstructor === '' || i.identificacion === filteredInstructor)
+    .map((instructor) => ({
       ...instructor,
       contratos: instructor.contratos
-        .map(contrato => ({
+        .map((contrato) => ({
           ...contrato,
-          periodos: contrato.periodos.filter(p => p.periodo === filteredPeriodo)
+          periodos: contrato.periodos.filter((p) => p.periodo === filteredPeriodo)
         }))
-        .filter(c => c.periodos.length > 0)
+        .filter((c) => c.periodos.length > 0)
     }))
-    .filter(i => i.contratos.length > 0);
+    .filter((i) => i.contratos.length > 0);
 
   // El informe es compartido entre todos los detalles del período
   const getUrlInforme = (detalles: DetalleRmi[]): string | null =>
-    detalles.find(d => d.urlInforme)?.urlInforme ?? null;
+    detalles.find((d) => d.urlInforme)?.urlInforme ?? null;
 
   const getNumeroPlanilla = (detalles: DetalleRmi[]): string | null =>
-    detalles.find(d => d.numeroPlanilla)?.numeroPlanilla ?? null;
+    detalles.find((d) => d.numeroPlanilla)?.numeroPlanilla ?? null;
 
   return (
     <div className="p-5 w-full">
@@ -287,7 +313,7 @@ const GCGeneral: React.FC = () => {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-coal-300 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos los instructores</option>
-              {instructores.map(instructor => (
+              {instructores.map((instructor) => (
                 <option key={instructor.identificacion} value={instructor.identificacion}>
                   {instructor.instructorNombre} - {instructor.identificacion}
                 </option>
@@ -304,8 +330,10 @@ const GCGeneral: React.FC = () => {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-coal-300 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Seleccione un período</option>
-              {periodosDisponibles.map(periodo => (
-                <option key={periodo} value={periodo}>{periodo}</option>
+              {periodosDisponibles.map((periodo) => (
+                <option key={periodo} value={periodo}>
+                  {periodo}
+                </option>
               ))}
             </select>
           </div>
@@ -350,15 +378,21 @@ const GCGeneral: React.FC = () => {
 
               <div className="p-4 space-y-3">
                 {instructor.contratos.map((contrato) => (
-                  <div key={contrato.idContrato} className="bg-gray-50 dark:bg-coal-400 rounded-lg p-4">
+                  <div
+                    key={contrato.idContrato}
+                    className="bg-gray-50 dark:bg-coal-400 rounded-lg p-4"
+                  >
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
-                      Contrato #{contrato.idContrato} • {contrato.fechaContratacion} — {contrato.fechaFinal ?? 'Vigente'}
+                      Contrato #{contrato.idContrato} • {contrato.fechaContratacion} —{' '}
+                      {contrato.fechaFinal ?? 'Vigente'}
                     </p>
 
                     <div className="space-y-2">
                       {contrato.periodos.map((periodo) => {
                         const estadoVisual = getEstadoFromDetalles(periodo.detalles);
-                        const tienePendientes = periodo.detalles.some(d => d.estadoInforme === 'PENDIENTE');
+                        const tienePendientes = periodo.detalles.some(
+                          (d) => d.estadoInforme === 'PENDIENTE'
+                        );
                         const urlInforme = getUrlInforme(periodo.detalles);
                         const numeroPlanilla = getNumeroPlanilla(periodo.detalles);
 
@@ -375,7 +409,10 @@ const GCGeneral: React.FC = () => {
                               <div className="flex items-center gap-3 mt-1">
                                 {numeroPlanilla && (
                                   <span className="text-xs text-gray-400 dark:text-gray-500">
-                                    Planilla: <span className="font-medium text-gray-600 dark:text-gray-300">{numeroPlanilla}</span>
+                                    Planilla:{' '}
+                                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                                      {numeroPlanilla}
+                                    </span>
                                   </span>
                                 )}
                                 {urlInforme ? (
@@ -384,7 +421,7 @@ const GCGeneral: React.FC = () => {
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                                    onClick={e => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     <i className="ki-outline ki-document text-xs" /> Ver informe
                                   </a>
@@ -397,7 +434,9 @@ const GCGeneral: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${getEstadoBadge(estadoVisual)}`}>
+                              <span
+                                className={`text-xs font-medium px-2 py-1 rounded-full ${getEstadoBadge(estadoVisual)}`}
+                              >
                                 {estadoVisual}
                               </span>
 
@@ -462,7 +501,10 @@ const GCGeneral: React.FC = () => {
                 </p>
                 {getNumeroPlanilla(selectedPeriodo.detalles) && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    No. Planilla: <span className="font-medium text-gray-700 dark:text-gray-200">{getNumeroPlanilla(selectedPeriodo.detalles)}</span>
+                    No. Planilla:{' '}
+                    <span className="font-medium text-gray-700 dark:text-gray-200">
+                      {getNumeroPlanilla(selectedPeriodo.detalles)}
+                    </span>
                   </p>
                 )}
               </div>
@@ -501,14 +543,34 @@ const GCGeneral: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Botón para cambiar o subir el informe */}
-                    <div className="flex justify-end">
-                      <label className={`cursor-pointer px-4 py-2 text-sm font-medium rounded-lg transition-all ${procesando ? 'opacity-50 pointer-events-none' : ''} text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 flex items-center`}>
-                        <i className="ki-outline ki-cloud-add text-lg mr-2" />
-                        {procesando ? 'Procesando...' : (url ? 'Cambiar informe' : 'Subir informe')}
+                    {/* Acciones sobre el archivo */}
+                    <div className="flex justify-end gap-2">
+                      {/* Generar informe con firma del coordinador */}
+                      <button
+                        onClick={handleGenerarInformeCoordinador}
+                        disabled={procesando}
+                        title="Genera el PDF del informe con la firma del coordinador"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                          procesando
+                            ? 'opacity-50 pointer-events-none'
+                            : 'text-violet-700 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-400 dark:hover:bg-violet-500/20'
+                        }`}
+                      >
+                        <i className="ki-outline ki-security-user text-base" />
+                        Generar informe firmado
+                      </button>
+
+                      {/* Cambiar / subir informe */}
+                      <label
+                        className={`cursor-pointer px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 leading-none ${procesando ? 'opacity-50 pointer-events-none' : 'text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20'}`}
+                      >
+                        <i className="ki-outline ki-cloud-add text-base" />
+                        <span className="flex-1 text-center">
+                          {procesando ? 'Procesando...' : url ? 'Cambiar informe' : 'Subir informe'}
+                        </span>
                         <input
                           type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
+                          accept=".pdf"
                           className="hidden"
                           onChange={handleUploadInforme}
                           disabled={procesando}
