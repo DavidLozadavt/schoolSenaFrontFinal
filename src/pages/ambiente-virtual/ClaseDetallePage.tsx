@@ -2223,7 +2223,8 @@ const ClaseDetallePage: React.FC = () => {
                         : undefined),
                     // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
                     estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
-                    idHorarioMateria: id ? parseInt(id) : undefined
+                    idHorarioMateria: id ? parseInt(id) : undefined,
+                    ficha_codigo: ficha?.codigo
                   }}
                 />
               )}

@@ -105,6 +105,7 @@ interface StudentListProps {
     idGrado?: string | number;
     estadoClase?: string;
     idHorarioMateria?: number;
+    ficha_codigo?: string;
   };
 }
 
@@ -436,7 +437,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
               Estudiantes de la Clase
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Ficha: {materiaData.idFicha} | {materiaData.programa_nombre || materiaData.idPrograma}
+              Ficha: {materiaData.ficha_codigo || materiaData.idFicha} | {materiaData.programa_nombre || materiaData.idPrograma}
             </p>
           </div>
           <div className="text-right">
