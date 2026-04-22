@@ -704,6 +704,16 @@ const CalendarComponent: React.FC<{
       // Formatear la fecha para comparación (YYYY-MM-DD)
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+      const hoyLocal = new Date();
+      hoyLocal.setHours(0, 0, 0, 0);
+      const hoyTime = hoyLocal.getTime();
+      const dateTime = date.getTime();
+
+      // Naranja = día actual en el calendario (aunque no haya clase ese día).
+      if (dateTime === hoyTime) {
+        return 'hoy';
+      }
+
       // Verificar si esta fecha es una fecha de clase usando comparación de strings
       let esFechaClase = false;
 
@@ -721,16 +731,6 @@ const CalendarComponent: React.FC<{
 
       if (!esFechaClase) {
         return 'normal';
-      }
-
-      // Hoy local actual (no la capturada al montar el componente)
-      const hoyLocal = new Date();
-      hoyLocal.setHours(0, 0, 0, 0);
-      const hoyTime = hoyLocal.getTime();
-      const dateTime = date.getTime();
-
-      if (dateTime === hoyTime) {
-        return 'hoy';
       }
 
       if (dateTime > hoyTime) {
@@ -886,6 +886,91 @@ const CalendarComponent: React.FC<{
               </div>
             );
 
+            if (status === 'hoy') {
+              return (
+                <DefaultTooltip
+                  key={index}
+                  placement="top"
+                  slotProps={{
+                    popper: {
+                      modifiers: [
+                        { name: 'offset', options: { offset: [0, 10] } },
+                        {
+                          name: 'preventOverflow',
+                          options: { padding: 12, altBoundary: true }
+                        },
+                        {
+                          name: 'flip',
+                          options: {
+                            padding: 12,
+                            fallbackPlacements: ['bottom', 'top', 'left', 'right']
+                          }
+                        }
+                      ]
+                    }
+                  }}
+                  enterDelay={200}
+                  leaveDelay={0}
+                  onOpen={() => {
+                    requestAnimationFrame(() => {
+                      const el = document.querySelector(
+                        `[data-cal-dia-tooltip-scroll="${ymdKey}"]`
+                      ) as HTMLElement | null;
+                      if (el) el.scrollTop = 0;
+                    });
+                  }}
+                  classes={{ tooltip: CLASE_CALENDARIO_TOOLTIP_SURFACE }}
+                  title={
+                    <div
+                      data-cal-dia-tooltip-scroll={ymdKey}
+                      className={[
+                        CLASE_CALENDARIO_TOOLTIP_INNER_PAD,
+                        'max-w-[min(100vw-2rem,22rem)] max-h-[min(65vh,21rem)] overflow-y-auto overscroll-contain space-y-2 text-left normal-case font-sans',
+                        '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]'
+                      ].join(' ')}
+                    >
+                      {bloquesDia.length > 0 ? (
+                        bloquesDia.map((row) => {
+                          const estadoEtiqueta = etiquetaEstadoTooltip(date, row);
+                          return (
+                            <div
+                              key={claveFranjaTooltipDia(row)}
+                              className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
+                            >
+                              <p className="font-semibold leading-snug text-blue-900 dark:text-white">
+                                {row.ficha_codigo ? `${row.ficha_codigo} — ` : ''}
+                                {row.materia_nombre || 'Clase'}
+                              </p>
+                              {row.programa_nombre ? (
+                                <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
+                                  {row.programa_nombre}
+                                </p>
+                              ) : null}
+                              <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
+                                {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
+                                {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
+                              </p>
+                              <p
+                                className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${clasesBadgeEstadoCalendario(estadoEtiqueta)}`}
+                              >
+                                {estadoEtiqueta}
+                              </p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-800 dark:text-gray-200">
+                          No hay clase el día de hoy.
+                        </p>
+                      )}
+                    </div>
+                  }
+                >
+                  {celda}
+                </DefaultTooltip>
+              );
+            }
+
             if (esFechaClase && bloquesDia.length > 0) {
               return (
                 <DefaultTooltip
@@ -992,7 +1077,7 @@ const CalendarComponent: React.FC<{
             <>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
-                <span className="text-gray-700 dark:text-gray-300">Hoy — día de clase</span>
+                <span className="text-gray-700 dark:text-gray-300">Hoy — día actual</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
@@ -1810,10 +1895,11 @@ const ClaseDetallePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(rutaVolver)}
-          className="mb-3 flex items-center gap-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors"
+          className="mb-3 inline-flex items-center gap-2 text-gray-700 hover:text-gray-900 dark:text-white dark:hover:text-white transition-colors"
           title="Volver al listado de clases"
         >
-          <KeenIcon icon="left" className="text-sm" />
+          <KeenIcon icon="left" className="text-lg font-bold text-current" />
+          <span className="text-sm font-bold text-current">Volver</span>
         </button>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {/* Header Left */}
@@ -2137,7 +2223,8 @@ const ClaseDetallePage: React.FC = () => {
                         : undefined),
                     // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
                     estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
-                    idHorarioMateria: id ? parseInt(id) : undefined
+                    idHorarioMateria: id ? parseInt(id) : undefined,
+                    ficha_codigo: ficha?.codigo
                   }}
                 />
               )}
