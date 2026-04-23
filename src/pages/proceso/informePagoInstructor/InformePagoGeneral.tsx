@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
+import GCInstructor from './GC/GCInstructor'
 import PagoGeneralInstructor from './pago/PagoGeneralInstructor'
 
 const STEPS = [
@@ -25,6 +26,12 @@ const STEPS = [
   },
   {
     number: 4,
+    title: 'GC',
+    description: 'Gestión de coordinación',
+    icon: 'ki-shield-tick',
+  },
+  {
+    number: 5,
     title: 'Pago',
     description: 'Archivo de pago',
     icon: 'ki-wallet',
@@ -37,6 +44,7 @@ const InformePagoGeneral: React.FC = () => {
   const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const informeRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
+  const gcRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
 
   const goNext = () => {
     // Validar el paso actual antes de avanzar
@@ -64,6 +72,14 @@ const InformePagoGeneral: React.FC = () => {
       }
     }
 
+    if (currentStep === 3) {
+      // Validar paso de GC
+      const validation = gcRef.current?.validate();
+      if (!validation?.isValid) {
+        return; // No avanzar si la validación falla
+      }
+    }
+
     if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1)
   }
 
@@ -84,6 +100,11 @@ const InformePagoGeneral: React.FC = () => {
 
       if (currentStep === 2) {
         const validation = informeRef.current?.validate();
+        if (!validation?.isValid) return
+      }
+
+      if (currentStep === 3) {
+        const validation = gcRef.current?.validate();
         if (!validation?.isValid) return
       }
     }
@@ -207,7 +228,8 @@ const InformePagoGeneral: React.FC = () => {
           {currentStep === 0 && <ContratoGeneralInstructor ref={contratoRef} />}
           {currentStep === 1 && <RmiInstructor ref={rmiRef} />}
           {currentStep === 2 && <InformeGeneralInstructor ref={informeRef} />}
-          {currentStep === 3 && <PagoGeneralInstructor />}
+          {currentStep === 3 && <GCInstructor ref={gcRef} />}
+          {currentStep === 4 && <PagoGeneralInstructor />}
         </div>
       </div>
 

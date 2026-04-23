@@ -184,14 +184,15 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
     }
   };
 
-  const handleDescargarPdf = async (idContrato: number, idRmi: number, nPlanilla: string) => {
+  const handleDescargarPdf = async (idContrato: number, idRmi: number, nPlanilla: string): Promise<Blob | null> => {
     try {
       const res = await axios.get('get_informe_by_instructor_rmi', {
         params: { idContrato, idRmi, nPlanilla },
         responseType: 'blob'
       });
 
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `RMI_${idContrato}_${idRmi}.pdf`);
@@ -199,7 +200,11 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {}
+
+      return blob;
+    } catch {
+      return null;
+    }
   };
 
   return (
@@ -450,32 +455,45 @@ const InformeGeneralInstructor = forwardRef<{ validate: () => { isValid: boolean
                   onClick={async () => {
                     try {
                       setLoadingRmi(true);
-                      // Guardar el número de planilla masivamente
+
+                      // 1. Guardar el número de planilla
                       await axios.post('detalle_rmi/numero_planilla', {
                         numeroPlanilla: nPlanillaInput.trim(),
                         idRmi: plazoModalParams.idRmi,
                         idsHorarioMateria: plazoModalParams.idsHorarioMateria
                       });
 
-                      // Descargar el PDF
-                      await handleDescargarPdf(
+                      // 2. Descargar el PDF y obtener el blob generado
+                      const pdfBlob = await handleDescargarPdf(
                         plazoModalParams.idContrato,
                         plazoModalParams.idRmi,
                         nPlanillaInput.trim()
                       );
 
-                      // Si hay un archivo seleccionado, subirlo
-                      if (selectedReportFile) {
-                        const rmiPeriodo = dataRmiFiltrada
-                          .flatMap((c) => c.periodos)
-                          .find((p) => p.idRmi === plazoModalParams.idRmi);
+                      // 3. Subir automáticamente el PDF generado como informe del instructor
+                      const rmiPeriodo = dataRmiFiltrada
+                        .flatMap((c) => c.periodos)
+                        .find((p) => p.idRmi === plazoModalParams.idRmi);
 
-                        if (rmiPeriodo) {
-                          await handleUploadInforme(rmiPeriodo, selectedReportFile);
+                      if (rmiPeriodo) {
+                        // Si el instructor subió un archivo manual, ese tiene prioridad;
+                        // de lo contrario se sube el PDF que acabamos de generar
+                        const fileToUpload = selectedReportFile
+                          ? selectedReportFile
+                          : pdfBlob
+                          ? new File(
+                              [pdfBlob],
+                              `RMI_${plazoModalParams.idContrato}_${plazoModalParams.idRmi}.pdf`,
+                              { type: 'application/pdf' }
+                            )
+                          : null;
+
+                        if (fileToUpload) {
+                          await handleUploadInforme(rmiPeriodo, fileToUpload);
                         }
                       }
 
-                      // Actualizar estado local para reflejar el cambio sin recargar
+                      // 4. Actualizar estado local
                       await loadRmi();
 
                       setPlazoModalParams(null);
