@@ -93,7 +93,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   const getCompetencia = async () => {
     setLoadingData(true);
     try {
-      const res = await axios.get(`materias/${competenciaId}`);
+      const res = await axios.get(`materias/${competenciaId}`, {params: {idPrograma: programId}});
       const data = res.data.data;
 
       formik.setValues({
@@ -126,6 +126,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         idGradoPrograma: idGradoPrograma,
         creditos: values.horas ? values.horas / 48 : 0,
         idMateriaPadre: idMateriaPadre || null,
+        idPrograma: programId,
         ...(!competenciaId && { idPrograma: programId })
       };
 
