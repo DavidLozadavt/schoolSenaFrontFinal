@@ -1240,6 +1240,10 @@ const ClaseDetallePage: React.FC = () => {
   // Actividades
   const [actividadesDisponibles, setActividadesDisponibles] = useState<Actividad[]>([]);
   const [actividadesAsignadas, setActividadesAsignadas] = useState<Actividad[]>([]);
+  /** Por id actividad: total/aprendices con calificación (asignación parcial permitida) */
+  const [coberturaActividades, setCoberturaActividades] = useState<
+    Record<number, { total: number; asignados: number; faltan: number; entregaron?: number; pendientesEntrega?: number }>
+  >({});
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
   const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
@@ -1439,20 +1443,75 @@ const ClaseDetallePage: React.FC = () => {
     if (!idFichaParaClase) return;
     setLoadingActividades(true);
     try {
-      const [disponiblesRes, asignadasRes] = await Promise.allSettled([
-        axios.get('actividades').catch(() => ({ data: [] })),
-        axios.get(`planeacionactividades/ficha/${idFichaParaClase}`).catch(() => ({ data: [] }))
+      const idMateriaFiltro = Number(locationState?.idMateria || clase?.idMateria || 0) || undefined;
+      const rawProg = ficha?.asignacion?.programa?.id;
+      const idProgramaFiltro =
+        rawProg !== undefined && rawProg !== null && String(rawProg) !== ''
+          ? Number(rawProg)
+          : undefined;
+      const params: Record<string, string> = {};
+      if (idMateriaFiltro) params.id_materia_clase = String(idMateriaFiltro);
+      if (idProgramaFiltro != null && !Number.isNaN(idProgramaFiltro)) {
+        params.id_programa = String(idProgramaFiltro);
+      }
+
+      const planeacionQs = new URLSearchParams();
+      const idHorarioRuta = id ? parseInt(String(id), 10) : NaN;
+      if (Number.isFinite(idHorarioRuta) && idHorarioRuta > 0) {
+        planeacionQs.set('id_horario_materia', String(idHorarioRuta));
+      }
+      if (idMateriaFiltro) {
+        planeacionQs.set('id_materia_clase', String(idMateriaFiltro));
+      }
+      const planeacionUrl = `planeacionactividades/ficha/${idFichaParaClase}${
+        planeacionQs.toString() ? `?${planeacionQs.toString()}` : ''
+      }`;
+
+      const [disponiblesRes, asignadasRes, coberturaRes] = await Promise.allSettled([
+        axios.get('actividades', { params }).catch(() => ({ data: [] })),
+        axios.get(planeacionUrl).catch(() => ({ data: [] })),
+        axios.get(`fichas/${idFichaParaClase}/asignacion-actividades/cobertura`).catch(() => ({ data: null }))
       ]);
       const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
       const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
       setActividadesDisponibles(disp);
       setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
+
+      if (coberturaRes.status === 'fulfilled' && coberturaRes.value?.data) {
+        const d = coberturaRes.value.data;
+        const por = d.porActividad as
+          | Record<string, { total: number; asignados: number; faltan: number; entregaron?: number; pendientesEntrega?: number }>
+          | undefined;
+        if (por && typeof por === 'object') {
+          const next: Record<
+            number,
+            { total: number; asignados: number; faltan: number; entregaron?: number; pendientesEntrega?: number }
+          > = {};
+          Object.keys(por).forEach((k) => {
+            const v = por[k];
+            if (v && typeof v.asignados === 'number') {
+              next[Number(k)] = {
+                total: v.total ?? d.totalEnFicha ?? 0,
+                asignados: v.asignados,
+                faltan: v.faltan ?? Math.max(0, (v.total ?? 0) - v.asignados),
+                ...(typeof v.entregaron === 'number' ? { entregaron: v.entregaron } : {}),
+                ...(typeof v.pendientesEntrega === 'number' ? { pendientesEntrega: v.pendientesEntrega } : {})
+              };
+            }
+          });
+          setCoberturaActividades(next);
+        } else {
+          setCoberturaActividades({});
+        }
+      } else {
+        setCoberturaActividades({});
+      }
     } catch (e) {
       console.warn('Error cargando actividades:', e);
     } finally {
       setLoadingActividades(false);
     }
-  }, [idFichaParaClase]);
+  }, [id, idFichaParaClase, locationState?.idMateria, clase?.idMateria, ficha?.asignacion?.programa?.id]);
 
   useEffect(() => {
     if ((activeMenu === 'agregar-actividades' || activeMenu === 'actividades-asignadas') && idFichaParaClase > 0) {
@@ -2129,83 +2188,83 @@ const ClaseDetallePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Menu Lateral */}
-        <div className="lg:col-span-3">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">MENÚ</h2>
-              <div className="space-y-1.5">
+      {/* Bottom Section: columna de menú más estrecha (2/12); items-start evita que la tarjeta del menú se estire a la altura del panel */}
+      <div className="grid grid-cols-1 min-w-0 lg:grid-cols-12 gap-3 sm:gap-4 lg:items-start">
+        {/* Menú lateral interno — compacto, altura según contenido (hasta Juicios evaluativos) */}
+        <div className="min-w-0 lg:col-span-2">
+          <div className="card min-w-0 self-start w-full">
+            <div className="card-body p-3.5 sm:p-4">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5">MENÚ</h2>
+              <div className="space-y-1">
                 <button
                   onClick={() => setActiveMenu('estudiantes')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'estudiantes'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'estudiantes'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="users" className={`text-base ${activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Estudiantes</span>
+                  <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Estudiantes</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('agregar-actividades')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'agregar-actividades'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'agregar-actividades'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="plus-circle" className={`text-base ${activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Agregar Actividades</span>
+                  <KeenIcon icon="plus-circle" className={`text-base shrink-0 ${activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Crear actividad</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('actividades-asignadas')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'actividades-asignadas'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'actividades-asignadas'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="check-squared" className={`text-base ${activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Actividades Asignadas</span>
+                  <KeenIcon icon="check-squared" className={`text-base shrink-0 ${activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Calificar actividad</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('ver-grupos')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'ver-grupos'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'ver-grupos'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="users" className={`text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Ver grupos</span>
+                  <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Ver grupos</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('calificaciones')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'calificaciones'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'calificaciones'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="chart-line" className={`text-base ${activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Calificaciones</span>
+                  <KeenIcon icon="chart-line" className={`shrink-0 text-base ${activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Calificaciones</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('juicios-evaluativos')}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
-                  <KeenIcon icon="chart-simple" className={`text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Juicios Evaluativos</span>
+                  <KeenIcon icon="chart-simple" className={`shrink-0 text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Juicios evaluativos</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="lg:col-span-9">
-          <div className="card">
-            <div className="card-body">
+        {/* Contenido principal: min-w-0 evita que tablas empujen scroll horizontal a la página */}
+        <div className="min-w-0 lg:col-span-10">
+          <div className="card min-w-0">
+            <div className="card-body min-w-0 p-4 sm:p-5">
               {/* Estudiantes Section */}
               {activeMenu === 'estudiantes' && (
                 <StudentListByMateria
@@ -2243,11 +2302,6 @@ const ClaseDetallePage: React.FC = () => {
                     setCuestionarioParaEditar(null);
                     setModalCrearCuestionarioOpen(true);
                   }}
-                  onAsignarActividad={(act) => {
-                    setActividadParaAsignar(act);
-                    setActividadesParaAsignar(null);
-                    setModalAsignarActividadOpen(true);
-                  }}
                   onAsignarActividades={(acts) => {
                     setActividadesParaAsignar(acts);
                     setActividadParaAsignar(null);
@@ -2273,7 +2327,8 @@ const ClaseDetallePage: React.FC = () => {
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
                   resetSelectionKey={assignSuccessCounter}
-                  idsActividadesAsignadas={idsActividadesAsignadas}
+                  coberturaActividades={coberturaActividades}
+                  idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
                 />
               )}
 
@@ -2283,6 +2338,7 @@ const ClaseDetallePage: React.FC = () => {
                   actividades={actividadesAsignadas}
                   loading={loadingActividades}
                   modo="asignadas"
+                  coberturaActividades={coberturaActividades}
                   idFicha={idFichaParaClase || undefined}
                   onVerAprendices={(act) => {
                     setActividadParaVerAprendices(act);

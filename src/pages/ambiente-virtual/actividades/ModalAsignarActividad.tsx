@@ -1,14 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
-import { KeenIcon } from '@/components';
+import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
+
+const AVATAR_DEFAULT = '/media/avatars/blank.png';
+
+const getDocumentUrl = (path: string | undefined): string | null => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+const getFotoUrl = (rutaFoto: string | null | undefined): string => {
+  if (!rutaFoto) return AVATAR_DEFAULT;
+  const url = getDocumentUrl(rutaFoto);
+  return url || AVATAR_DEFAULT;
+};
 
 interface Aprendiz {
   id: number;
   idMatriculaAcademica: number;
   idMateria?: number;
   nombre: string;
+  /** Misma ruta de storage que otras pantallas; opcional. */
+  rutaFoto?: string | null;
 }
 
 interface Grupo {
@@ -51,6 +70,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => {
     if (open && idFicha) {
@@ -220,190 +240,252 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         : `${gruposSeleccionados.length} grupo(s) seleccionado(s)`;
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-lg">
-        <ModalHeader>
-          <ModalTitle>Asignar actividad</ModalTitle>
-        </ModalHeader>
-        <ModalBody>
-          {actividadesAAsignar.length > 0 && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-              {actividadesAAsignar.length === 1 ? (
-                <>Actividad: <span className="font-semibold">{actividadesAAsignar[0].tituloActividad}</span></>
-              ) : (
-                <><span className="font-semibold">{actividadesAAsignar.length} actividades</span> seleccionadas</>
-              )}
-            </p>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs">
-                {error}
-              </div>
-            )}
-
-            {/* Listar estudiantes */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Listar estudiantes
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={textoEstudiantes}
-                  className="input flex-1 text-sm bg-gray-50 dark:bg-coal-400 cursor-pointer"
-                  onClick={() => {
-                    setMostrarPickerGrupos(false);
-                    setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarPickerGrupos(false);
-                    setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                >
-                  <KeenIcon icon="users" className="text-lg" />
-                </button>
-              </div>
-              {mostrarPickerEstudiantes && (
-                <div className="mt-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700 max-h-40 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={toggleTodosEstudiantes}
-                    className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-2"
-                  >
-                    {aprendicesSeleccionados.length === aprendices.length ? 'Quitar todos' : 'Seleccionar todos'}
-                  </button>
-                  <div className="space-y-1">
-                    {aprendices.map((a) => (
-                      <label key={a.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={aprendicesSeleccionados.includes(a.id)}
-                          onChange={() => toggleAprendiz(a.id)}
-                        />
-                        <span className="text-xs">{a.nombre}</span>
-                      </label>
-                    ))}
-                  </div>
+    <>
+      <Modal open={open} onClose={onClose} zIndex={110}>
+        <div className="flex min-h-[100dvh] w-full items-center justify-center p-3 sm:px-5 sm:py-10 box-border pointer-events-none">
+          <div
+            className="pointer-events-auto w-full max-w-2xl sm:max-w-3xl md:max-w-4xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-0 max-h-[min(94dvh,960px)]">
+            <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
+              <ModalTitle>Asignar actividad</ModalTitle>
+              <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose} title="Cerrar">
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="!flex !min-h-0 !flex-1 !flex-col !gap-0 !overflow-y-auto [scrollbar-gutter:stable] !p-0">
+              {loading && (
+                <div className="flex justify-center py-10">
+                  <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-b-transparent border-primary" />
                 </div>
               )}
-            </div>
+              {!loading && (
+                <div className="px-5 py-4 sm:px-6 sm:py-5">
+                  {actividadesAAsignar.length > 0 && (
+                    <div className="mb-5 rounded-lg border border-gray-100 bg-gray-50/80 px-3.5 py-2.5 dark:border-gray-600/50 dark:bg-coal-500/20">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                        {actividadesAAsignar.length === 1 ? (
+                          <>
+                            <span className="font-medium text-gray-500 dark:text-gray-400">Actividad: </span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{actividadesAAsignar[0].tituloActividad}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-primary">{actividadesAAsignar.length} actividades</span> seleccionadas
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
 
-            {/* Listar grupos */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Listar grupos
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={textoGrupos}
-                  className="input flex-1 text-sm bg-gray-50 dark:bg-coal-400 cursor-pointer"
-                  onClick={() => {
-                    setMostrarPickerEstudiantes(false);
-                    setMostrarPickerGrupos(!mostrarPickerGrupos);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarPickerEstudiantes(false);
-                    setMostrarPickerGrupos(!mostrarPickerGrupos);
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                >
-                  <KeenIcon icon="users" className="text-lg" />
-                </button>
-              </div>
-              {mostrarPickerGrupos && (
-                <div className="mt-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700 max-h-40 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={toggleTodosGrupos}
-                    className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-2"
-                  >
-                    {gruposSeleccionados.length === grupos.length ? 'Quitar todos' : 'Seleccionar todos'}
-                  </button>
-                  <div className="space-y-1">
-                    {grupos.map((g) => (
-                      <label key={g.id} className="flex items-center gap-2 cursor-pointer">
+                  <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-7">
+                    {error && (
+                      <div className="rounded-lg border border-red-200 bg-red-50/90 p-3 text-xs text-red-700 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-200">
+                        {error}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar estudiantes</label>
+                      <div className="flex gap-2.5">
                         <input
-                          type="checkbox"
-                          checked={gruposSeleccionados.includes(g.id)}
-                          onChange={() => toggleGrupo(g.id)}
+                          type="text"
+                          readOnly
+                          value={textoEstudiantes}
+                          className="input !min-h-[2.75rem] flex-1 cursor-pointer text-sm"
+                          onClick={() => {
+                            setMostrarPickerGrupos(false);
+                            setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
+                          }}
                         />
-                        <span className="text-xs">
-                          {g.nombreGrupo} ({g.integrantesActuales ?? 0}/{g.cantidadParticipantes})
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMostrarPickerGrupos(false);
+                            setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
+                          }}
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                        >
+                          <KeenIcon icon="users" className="text-lg" />
+                        </button>
+                      </div>
+                      {mostrarPickerEstudiantes && (
+                        <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-inner dark:border-gray-600 dark:bg-coal-500/20">
+                          <div className="max-h-[min(52dvh,20rem)] overflow-y-auto p-1 sm:max-h-[min(50dvh,22rem)]">
+                            <div className="sticky top-0 z-10 -mx-1 -mt-1 mb-2 flex justify-end border-b border-gray-100 bg-white/95 px-2 py-2 dark:border-gray-600 dark:bg-coal-400/95">
+                              <button
+                                type="button"
+                                onClick={toggleTodosEstudiantes}
+                                className="text-xs font-medium text-primary hover:underline"
+                              >
+                                {aprendicesSeleccionados.length === aprendices.length ? 'Quitar todos' : 'Seleccionar todos'}
+                              </button>
+                            </div>
+                            <ul className="m-0 list-none space-y-0.5 p-1.5 pr-0.5">
+                              {aprendices.map((a) => {
+                                const idInput = `asig-apr-${a.id}`;
+                                return (
+                                  <li key={a.id} className="group">
+                                    <div className="flex items-center gap-3 rounded-lg py-1.5 pl-1.5 pr-2 transition-colors hover:bg-gray-50/90 dark:hover:bg-white/5">
+                                      <input
+                                        id={idInput}
+                                        type="checkbox"
+                                        className="h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-500"
+                                        checked={aprendicesSeleccionados.includes(a.id)}
+                                        onChange={() => toggleAprendiz(a.id)}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="shrink-0 focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded-full"
+                                        onClick={() =>
+                                          setZoomFoto({ src: getFotoUrl(a.rutaFoto), alt: a.nombre || 'Aprendiz' })
+                                        }
+                                        title="Ver foto"
+                                      >
+                                        <img
+                                          src={getFotoUrl(a.rutaFoto)}
+                                          alt=""
+                                          className="h-10 w-10 sm:h-11 sm:w-11 cursor-zoom-in rounded-full border-2 border-gray-100 object-cover transition-opacity hover:opacity-90 dark:border-gray-600"
+                                        />
+                                      </button>
+                                      <label htmlFor={idInput} className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug text-gray-800 dark:text-gray-100">
+                                        {a.nombre}
+                                      </label>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar grupos</label>
+                      <div className="flex gap-2.5">
+                        <input
+                          type="text"
+                          readOnly
+                          value={textoGrupos}
+                          className="input !min-h-[2.75rem] flex-1 cursor-pointer text-sm"
+                          onClick={() => {
+                            setMostrarPickerEstudiantes(false);
+                            setMostrarPickerGrupos(!mostrarPickerGrupos);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMostrarPickerEstudiantes(false);
+                            setMostrarPickerGrupos(!mostrarPickerGrupos);
+                          }}
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                        >
+                          <KeenIcon icon="users" className="text-lg" />
+                        </button>
+                      </div>
+                      {mostrarPickerGrupos && (
+                        <div className="mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
+                          <div className="mb-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={toggleTodosGrupos}
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              {gruposSeleccionados.length === grupos.length ? 'Quitar todos' : 'Seleccionar todos'}
+                            </button>
+                          </div>
+                          <ul className="m-0 list-none space-y-1.5 p-0">
+                            {grupos.map((g) => (
+                              <li key={g.id}>
+                                <label className="flex cursor-pointer items-center gap-3 rounded-md px-1.5 py-1.5 hover:bg-gray-50/90 dark:hover:bg-white/5">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-primary dark:border-gray-500"
+                                    checked={gruposSeleccionados.includes(g.id)}
+                                    onChange={() => toggleGrupo(g.id)}
+                                  />
+                                  <span className="text-sm text-gray-800 dark:text-gray-200">
+                                    {g.nombreGrupo}{' '}
+                                    <span className="text-xs text-gray-500">
+                                      ({g.integrantesActuales ?? 0}/{g.cantidadParticipantes})
+                                    </span>
+                                  </span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora inicial</label>
+                        <input
+                          type="datetime-local"
+                          value={fechaInicial}
+                          onChange={(e) => setFechaInicial(e.target.value)}
+                          className="input w-full !min-h-[2.6rem] text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora límite</label>
+                        <input
+                          type="datetime-local"
+                          value={fechaFinal}
+                          onChange={(e) => setFechaFinal(e.target.value)}
+                          className="input w-full !min-h-[2.6rem] text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col-reverse gap-2.5 border-t border-gray-100 pt-1 dark:border-gray-600/50 sm:flex-row sm:justify-end sm:gap-3 sm:pt-0">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-full min-w-[8rem] rounded-lg border border-transparent bg-gray-200/90 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-600 dark:text-gray-100 sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-500"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving || loading}
+                        className="inline-flex w-full min-w-[8rem] items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-white sm:w-auto disabled:opacity-50"
+                      >
+                        {saving ? (
+                          <>
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            Asignando...
+                          </>
+                        ) : (
+                          <>
+                            <KeenIcon icon="check" className="text-sm" />
+                            Asignar actividad
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
-            </div>
-
-            {/* Fechas y hora límite */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha y hora inicial
-                </label>
-                <input
-                  type="datetime-local"
-                  value={fechaInicial}
-                  onChange={(e) => setFechaInicial(e.target.value)}
-                  className="input w-full text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha y hora límite
-                </label>
-                <input
-                  type="datetime-local"
-                  value={fechaFinal}
-                  onChange={(e) => setFechaFinal(e.target.value)}
-                  className="input w-full text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-500"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saving || loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium disabled:opacity-50"
-              >
-                {saving ? (
-                  <>
-                    <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                    Asignando...
-                  </>
-                ) : (
-                  <>
-                    <KeenIcon icon="check" className="text-sm" />
-                    Asignar actividad
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+            </ModalBody>
+          </ModalContent>
+        </div>
+      </div>
+      </Modal>
+      {zoomFoto && (
+        <ImageZoomModal
+          open={!!zoomFoto}
+          onClose={() => setZoomFoto(null)}
+          src={zoomFoto.src}
+          alt={zoomFoto.alt}
+          title={zoomFoto.alt}
+        />
+      )}
+    </>
   );
 };
 

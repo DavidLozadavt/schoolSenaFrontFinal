@@ -219,9 +219,9 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
     const headers = ['Aprendiz', 'Identificacion', 'Ficha', 'Competencia', 'RAP', 'Porcentaje', 'Nota Parcial', 'Estado RAP', 'Evaluador', 'Acciones'];
 
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center uppercase tracking-tight">Calificaciones generales</h2>
+        <div className="min-w-0 max-w-full space-y-4 animate-fade-in">
+            <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white text-center uppercase tracking-tight">Calificaciones generales</h2>
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="relative w-full sm:max-w-md">
@@ -247,12 +247,24 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full min-w-[1200px]">
+            <div className="w-full min-w-0 max-w-full overflow-x-auto md:overflow-x-visible">
+                <table className="w-full min-w-0 table-fixed border-collapse">
+                    <colgroup>
+                        <col style={{ width: '11%' }} />
+                        <col style={{ width: '8%' }} />
+                        <col style={{ width: '6%' }} />
+                        <col style={{ width: '17%' }} />
+                        <col style={{ width: '17%' }} />
+                        <col style={{ width: '7%' }} />
+                        <col style={{ width: '7%' }} />
+                        <col style={{ width: '8%' }} />
+                        <col style={{ width: '9%' }} />
+                        <col style={{ width: '10%' }} />
+                    </colgroup>
                     <thead>
                         <tr className="border-b border-gray-200 dark:border-gray-700">
                             {headers.map((h) => (
-                                <th key={h} className={`py-4 px-4 text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase ${['Porcentaje', 'Nota Parcial', 'Estado RAP', 'Evaluador', 'Acciones'].includes(h) ? 'text-center' : 'text-left'}`}>
+                                <th key={h} className={`py-2.5 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase ${['Porcentaje', 'Nota Parcial', 'Estado RAP', 'Evaluador', 'Acciones'].includes(h) ? 'text-center' : 'text-left'}`}>
                                     {h}
                                 </th>
                             ))}
@@ -261,8 +273,8 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {paginatedStudents.map((student) => (
                             <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors">
-                                <td className="py-5 px-4">
-                                    <div className="flex flex-col items-center gap-2 max-w-[130px]">
+                                <td className="py-3 px-1.5 sm:px-2 align-middle min-w-0 max-w-0">
+                                    <div className="flex min-w-0 w-full max-w-full flex-col items-center gap-1.5">
                                         <div className="relative">
                                             <img
                                                 src={getStudentPhoto(student)}
@@ -272,63 +284,66 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                                             />
                                             <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-coal-200 rounded-full"></div>
                                         </div>
-                                        <span className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight text-center truncate w-full">
+                                        <span className="w-full min-w-0 text-[9px] sm:text-[10px] font-bold text-gray-900 dark:text-white uppercase leading-tight text-center line-clamp-2 break-words">
                                             {getFullName(student)}
                                         </span>
                                     </div>
                                 </td>
-                                <td className="py-5 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                    {student.matricula?.person?.identificacion || 'N/A'}
+                                <td className="py-3 px-1.5 sm:px-2 text-[10px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 align-middle min-w-0 max-w-0">
+                                    <span className="block truncate" title={student.matricula?.person?.identificacion || 'N/A'}>
+                                        {student.matricula?.person?.identificacion || 'N/A'}
+                                    </span>
                                 </td>
-                                <td className="py-5 px-4 text-[11px] font-bold text-gray-800 dark:text-gray-200 uppercase">
-                                    {student.ficha?.codigo || 'N/A'}
+                                <td className="py-3 px-1.5 sm:px-2 text-[9px] sm:text-[10px] font-bold text-gray-800 dark:text-gray-200 uppercase align-middle min-w-0 max-w-0">
+                                    <span className="block truncate" title={student.ficha?.codigo || 'N/A'}>
+                                        {student.ficha?.codigo || 'N/A'}
+                                    </span>
                                 </td>
-                                <td className="py-5 px-4 max-w-[220px]">
-                                    <div className="flex flex-col gap-1.5">
-                                        <span className={`text-[11px] font-bold text-gray-800 dark:text-gray-200 uppercase leading-relaxed ${expandedCompetencies[student.id] ? '' : 'line-clamp-2'}`}>
+                                <td className="py-3 px-1.5 sm:px-2 align-middle min-w-0 max-w-0">
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <span className={`min-w-0 break-words text-[9px] sm:text-[10px] font-bold text-gray-800 dark:text-gray-200 uppercase leading-relaxed ${expandedCompetencies[student.id] ? '' : 'line-clamp-2'}`}>
                                             {student.materia?.nombreMateria || 'N/A'}
                                         </span>
                                         {(student.materia?.nombreMateria?.length || 0) > 40 && (
                                             <button
                                                 onClick={() => toggleCompetency(student.id)}
-                                                className="self-start text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-tighter decoration-dotted underline underline-offset-2"
+                                                className="self-start text-[9px] sm:text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-tighter decoration-dotted underline underline-offset-2"
                                             >
                                                 {expandedCompetencies[student.id] ? 'Ver menos' : 'Ver más'}
                                             </button>
                                         )}
                                     </div>
                                 </td>
-                                <td className="py-5 px-4 max-w-[220px]">
-                                    <div className="flex flex-col gap-1.5">
-                                        <span className={`text-[10px] text-gray-600 dark:text-gray-400 uppercase font-medium leading-relaxed ${expandedRAPs[student.id] ? '' : 'line-clamp-2'}`}>
+                                <td className="py-3 px-1.5 sm:px-2 align-middle min-w-0 max-w-0">
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <span className={`min-w-0 break-words text-[9px] sm:text-[10px] text-gray-600 dark:text-gray-400 uppercase font-medium leading-relaxed ${expandedRAPs[student.id] ? '' : 'line-clamp-2'}`}>
                                             {student.materia?.descripcion || 'SIN DESCRIPCIÓN'}
                                         </span>
                                         {(student.materia?.descripcion?.length || 0) > 40 && (
                                             <button
                                                 onClick={() => toggleRAP(student.id)}
-                                                className="self-start text-[9px] font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 uppercase tracking-tight"
+                                                className="self-start text-[8px] sm:text-[9px] font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 uppercase tracking-tight"
                                             >
                                                 {expandedRAPs[student.id] ? 'Ver menos' : 'Ver más'}
                                             </button>
                                         )}
                                     </div>
                                 </td>
-                                {/* Instructor mapping to Evaluador column below */}
-                                <td className="py-5 px-4 text-center">
-                                    <div className="inline-flex items-center justify-center min-w-[50px] h-9 px-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 shadow-sm">
-                                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                                <td className="py-3 px-1 sm:px-1.5 text-center align-middle min-w-0">
+                                    <div className="mx-auto inline-flex max-w-full items-center justify-center min-h-[1.9rem] min-w-0 px-1 sm:px-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 shadow-sm">
+                                        <span className="text-[10px] sm:text-xs font-bold tabular-nums text-blue-700 dark:text-blue-300">
                                             {student.porcentaje_avance !== undefined && student.porcentaje_avance !== null ? `${student.porcentaje_avance}%` : '0%'}
                                         </span>
                                     </div>
                                 </td>
-                                <td className="py-5 px-4 text-center">
-                                    <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg border shadow-sm ${
+                                <td className="py-3 px-1 sm:px-1.5 text-center align-middle min-w-0">
+                                    <div className={`mx-auto inline-flex min-w-0 max-w-full items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg border shadow-sm ${
                                         student.notaParcial === null || student.notaParcial === undefined ? 'bg-gray-50 dark:bg-coal-300 border-gray-100 dark:border-coal-100' :
                                         student.notaParcial <= 3.5 ? 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' :
                                         student.notaParcial < 4.0 ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800' :
                                         'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
                                     }`}>
-                                        <span className={`text-xs font-bold ${
+                                        <span className={`text-[10px] sm:text-xs font-bold tabular-nums ${
                                             student.notaParcial === null || student.notaParcial === undefined ? 'text-gray-900 dark:text-white' :
                                             student.notaParcial <= 3.5 ? 'text-red-700 dark:text-red-400' :
                                             student.notaParcial < 4.0 ? 'text-yellow-700 dark:text-yellow-400' :
@@ -338,28 +353,29 @@ const CalificacionesFichaView: React.FC<CalificacionesFichaViewProps> = ({ idFic
                                         </span>
                                     </div>
                                 </td>
-                                <td className="py-5 px-4 text-center">
-                                    <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${student.estado === 'APROBADO'
+                                <td className="py-3 px-1 sm:px-1.5 text-center align-middle min-w-0">
+                                    <span className={`inline-flex max-w-full truncate px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-bold uppercase tracking-wide border ${student.estado === 'APROBADO'
                                         ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800'
                                         : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'
-                                        }`}>
+                                        }`} title={student.estado || 'SIN EVALUAR'}>
                                         {student.estado || 'SIN EVALUAR'}
                                     </span>
                                 </td>
-                                <td className="py-5 px-4 text-center">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase leading-tight">
+                                <td className="py-3 px-1 sm:px-1.5 text-center align-middle min-w-0 max-w-0">
+                                    <div className="flex min-w-0 max-w-full flex-col items-center gap-0.5">
+                                        <span className="w-full min-w-0 truncate text-[8px] sm:text-[9px] font-bold text-gray-700 dark:text-gray-300 uppercase leading-tight" title={student.estado === 'APROBADO' ? (instructorAsignado || '') : ''}>
                                             {student.estado === 'APROBADO' ? (instructorAsignado || '') : ''}
                                         </span>
                                     </div>
                                 </td>
-                                <td className="py-5 px-4 text-center">
+                                <td className="py-3 px-1 sm:px-1.5 text-center align-middle min-w-0">
                                     <button
+                                        type="button"
                                         onClick={() => handleOpenActivities(student)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-coal-300 hover:bg-gray-200 dark:hover:bg-coal-400 rounded-lg text-[10px] font-bold text-gray-700 dark:text-white uppercase transition-colors border border-gray-200 dark:border-coal-100 shadow-sm"
+                                        className="inline-flex w-full min-w-0 max-w-full items-center justify-center gap-0.5 sm:gap-1 rounded-lg border border-gray-200 bg-gray-100 px-1.5 py-1 text-[8px] sm:text-[9px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-200 dark:border-coal-100 dark:bg-coal-300 dark:text-white dark:hover:bg-coal-400 uppercase"
                                     >
-                                        <KeenIcon icon="book" className="text-sm" />
-                                        ACTIVIDADES
+                                        <KeenIcon icon="book" className="shrink-0 text-xs sm:text-sm" />
+                                        <span className="min-w-0 text-[7px] leading-tight sm:text-[8px]">ACTIVIDADES</span>
                                     </button>
                                 </td>
                             </tr>
