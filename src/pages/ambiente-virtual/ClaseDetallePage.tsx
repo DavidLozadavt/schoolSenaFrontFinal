@@ -1195,7 +1195,7 @@ interface Estudiante {
   estado?: string;
 }
 
-type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos' | 'calificaciones';
+type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos' | 'calificaciones' | 'material-apoyo';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -2256,6 +2256,16 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="chart-simple" className={`shrink-0 text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span className="whitespace-nowrap">Juicios evaluativos</span>
                 </button>
+                <button
+                  onClick={() => setActiveMenu('material-apoyo')}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'material-apoyo'
+                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                    }`}
+                >
+                  <KeenIcon icon="document" className={`shrink-0 text-base ${activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className="whitespace-nowrap">Material de apoyo</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2388,6 +2398,17 @@ const ClaseDetallePage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay juicios evaluativos</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Los juicios evaluativos aparecerán aquí cuando estén disponibles
+                  </p>
+                </div>
+              )}
+
+              {/* Material de apoyo Section */}
+              {activeMenu === 'material-apoyo' && (
+                <div className="text-center py-12">
+                  <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Material de apoyo</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Esta sección quedará disponible para gestionar recursos y archivos de apoyo
                   </p>
                 </div>
               )}
