@@ -4,7 +4,18 @@ import axios from 'axios';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
-import { ModalCrearActividad, ModalVerActividad, ModalMaterialApoyo, ModalCrearCuestionario, ModalAsignarActividad, ModalAprendices, ModalAmpliarActividad, ListaActividades, type Actividad } from './actividades';
+import {
+  ModalCrearActividad,
+  ModalVerActividad,
+  ModalMaterialApoyo,
+  ModalCrearCuestionario,
+  ModalAsignarActividad,
+  ModalAprendices,
+  ModalAmpliarActividad,
+  ListaActividades,
+  MaterialApoyoFichaView,
+  type Actividad
+} from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 
@@ -2402,13 +2413,25 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Material de apoyo Section */}
-              {activeMenu === 'material-apoyo' && (
-                <div className="text-center py-12">
+              {/* Material de apoyo general por ficha */}
+              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && (
+                <MaterialApoyoFichaView
+                  idFicha={idFichaParaClase}
+                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  fichaCodigo={ficha?.codigo}
+                  programaNombre={
+                    (typeof locationState?.programa_nombre === 'string' ? locationState.programa_nombre : undefined) ??
+                    clase?.programa_nombre ??
+                    ficha?.asignacion?.programa?.nombrePrograma
+                  }
+                />
+              )}
+              {activeMenu === 'material-apoyo' && idFichaParaClase <= 0 && (
+                <div className="text-center py-12 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
                   <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Material de apoyo</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Esta sección quedará disponible para gestionar recursos y archivos de apoyo
+                  <p className="text-xs text-gray-500 dark:text-gray-400 px-4">
+                    No hay ficha cargada para esta clase. Vuelve a entrar desde el detalle de la ficha o recarga la página.
                   </p>
                 </div>
               )}
@@ -2473,6 +2496,7 @@ const ClaseDetallePage: React.FC = () => {
         }}
         onSuccess={showToast}
         actividad={actividadMaterialApoyo}
+        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
       />
       <ModalVerActividad
         open={modalVerActividadOpen}
