@@ -1,6 +1,7 @@
 export { default as ModalCrearActividad } from './ModalCrearActividad';
 export { default as ModalVerActividad } from './ModalVerActividad';
 export { default as ModalMaterialApoyo } from './ModalMaterialApoyo';
+export { default as MaterialApoyoFichaView } from './MaterialApoyoFichaView';
 export { default as ModalCrearCuestionario } from './ModalCrearCuestionario';
 export { default as ModalAsignarActividad } from './ModalAsignarActividad';
 export { default as ModalAprendices } from './ModalAprendices';
