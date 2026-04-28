@@ -1,6 +1,13 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  forwardRef,
+  useImperativeHandle
+} from 'react';
 import { enqueueSnackbar } from 'notistack';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 
@@ -35,7 +42,7 @@ interface ContratoRmi {
 }
 
 interface GCInstructorRef {
-  validate: () => { isValid: boolean; errors: string[] }
+  validate: () => { isValid: boolean; errors: string[] };
 }
 
 const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
@@ -95,46 +102,54 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
     loadData();
   }, [anioGestion]);
 
-  useImperativeHandle(ref, () => ({
-    validate: () => {
-      setValidationError(null);
-      
-      // Buscar el periodo actual en todos los contratos
-      let currentPeriodData: Periodo | null = null;
-      for (const contrato of dataRmi) {
-        const p = contrato.periodos.find(p => p.periodo === periodoActual);
-        if (p) {
-          currentPeriodData = p;
-          break;
-        }
-      }
+  useImperativeHandle(
+    ref,
+    () => ({
+      validate: () => {
+        setValidationError(null);
 
-      // Si no hay periodo actual registrado aún, permitimos pasar (tal vez está en un mes sin contrato)
-      if (!currentPeriodData) {
+        // Buscar el periodo actual en todos los contratos
+        let currentPeriodData: Periodo | null = null;
+        for (const contrato of dataRmi) {
+          const p = contrato.periodos.find((p) => p.periodo === periodoActual);
+          if (p) {
+            currentPeriodData = p;
+            break;
+          }
+        }
+
+        // Si no hay periodo actual registrado aún, permitimos pasar (tal vez está en un mes sin contrato)
+        if (!currentPeriodData) {
+          return { isValid: true, errors: [] };
+        }
+
+        // 1. El informe debe estar ACEPTADO
+        if (currentPeriodData.estadoInforme !== 'ACEPTADO') {
+          setValidationError(
+            `El informe del periodo actual (${periodoActual}) debe estar ACEPTADO antes de proceder con la gestión de coordinación.`
+          );
+          return { isValid: false, errors: ['Informe no aceptado'] };
+        }
+
+        // 2. Debe existir un registro de GC
+        if (!currentPeriodData.gc) {
+          setValidationError('Debe iniciar el proceso de GC para el periodo actual.');
+          return { isValid: false, errors: ['GC no iniciado'] };
+        }
+
+        // 3. El estado del GC debe ser ACEPTADO
+        if (currentPeriodData.gc.estado !== 'ACEPTADO') {
+          setValidationError(
+            `El proceso de GC del periodo actual (${periodoActual}) está en estado: ${currentPeriodData.gc.estado}. Debe estar ACEPTADO para continuar al siguiente paso.`
+          );
+          return { isValid: false, errors: ['GC no aceptado'] };
+        }
+
         return { isValid: true, errors: [] };
       }
-
-      // 1. El informe debe estar ACEPTADO
-      if (currentPeriodData.estadoInforme !== 'ACEPTADO') {
-        setValidationError(`El informe del periodo actual (${periodoActual}) debe estar ACEPTADO antes de proceder con la gestión de coordinación.`);
-        return { isValid: false, errors: ['Informe no aceptado'] };
-      }
-
-      // 2. Debe existir un registro de GC
-      if (!currentPeriodData.gc) {
-        setValidationError('Debe iniciar el proceso de GC para el periodo actual.');
-        return { isValid: false, errors: ['GC no iniciado'] };
-      }
-
-      // 3. El estado del GC debe ser ACEPTADO
-      if (currentPeriodData.gc.estado !== 'ACEPTADO') {
-        setValidationError(`El proceso de GC del periodo actual (${periodoActual}) está en estado: ${currentPeriodData.gc.estado}. Debe estar ACEPTADO para continuar al siguiente paso.`);
-        return { isValid: false, errors: ['GC no aceptado'] };
-      }
-
-      return { isValid: true, errors: [] };
-    }
-  }), [dataRmi, periodoActual]);
+    }),
+    [dataRmi, periodoActual]
+  );
 
   const handleCrearGC = async (idContrato: number, idRmi: number) => {
     try {
@@ -174,12 +189,12 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
         formData.append('archivo', file);
         formData.append('idGC', String(docsModal.gc.id));
         formData.append('nombreDocumento', file.name);
-        
+
         await axios.post('gc/documento/subir', formData);
       }
-      
+
       enqueueSnackbar(`${files.length} documento(s) subido(s) con éxito`, { variant: 'success' });
-      
+
       // Recargar documentos
       const res = await axios.get(`gc/documentos/${docsModal.gc.id}`);
       setDocumentos(res.data);
@@ -197,10 +212,39 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
     try {
       await axios.delete(`gc/documento/eliminar/${id}`);
       enqueueSnackbar('Documento eliminado', { variant: 'success' });
-      setDocumentos(prev => prev.filter(d => d.id !== id));
+      setDocumentos((prev) => prev.filter((d) => d.id !== id));
       await loadData();
     } catch {
       enqueueSnackbar('Error al eliminar documento', { variant: 'error' });
+    }
+  };
+
+  const handleDescargarZip = async (idGC: number) => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`gc/descargar-zip/${idGC}`, {
+        responseType: 'blob'
+      });
+
+      // Leer el nombre del archivo desde el header
+      const contentDisposition = res.headers['content-disposition'];
+      const fileName = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '').trim()
+        : 'GC_Documentos.zip';
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url); // liberar memoria
+      enqueueSnackbar('ZIP descargado con éxito', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Error al descargar el archivo ZIP', { variant: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -212,8 +256,14 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
           onChange={(e) => setAnioGestion(Number(e.target.value))}
           className="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value={0} disabled>Seleccione un año</option>
-          {aniosContrato.map(y => <option key={y} value={y}>{y}</option>)}
+          <option value={0} disabled>
+            Seleccione un año
+          </option>
+          {aniosContrato.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -226,25 +276,39 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
           No hay datos para el año seleccionado
         </div>
       ) : (
-        dataRmi.map(contrato => (
-          <div key={contrato.idContrato} className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden">
+        dataRmi.map((contrato) => (
+          <div
+            key={contrato.idContrato}
+            className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 mb-4 overflow-hidden"
+          >
             <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 bg-gray-50/50 dark:bg-coal-500/50">
-              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Contrato #{contrato.idContrato}</p>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Contrato #{contrato.idContrato}
+              </p>
             </div>
             <div className="p-4 space-y-3">
               {contrato.periodos
-                .filter(p => p.periodo <= periodoActual)
+                .filter((p) => p.periodo <= periodoActual)
                 .sort((a, b) => b.periodo.localeCompare(a.periodo))
-                .map(periodo => (
-                  <div key={periodo.periodo} className="border border-gray-100 dark:border-coal-300 rounded-lg p-3">
+                .map((periodo) => (
+                  <div
+                    key={periodo.periodo}
+                    className="border border-gray-100 dark:border-coal-300 rounded-lg p-3"
+                  >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Periodo: {periodo.periodo}</span>
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Periodo: {periodo.periodo}
+                      </span>
                       {periodo.gc ? (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          periodo.gc.estado === 'ACEPTADO' ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400' :
-                          periodo.gc.estado === 'RECHAZADO' ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400' :
-                          'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
-                        }`}>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            periodo.gc.estado === 'ACEPTADO'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                              : periodo.gc.estado === 'RECHAZADO'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
+                          }`}
+                        >
                           GC: {periodo.gc.estado}
                         </span>
                       ) : (
@@ -256,21 +320,32 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
 
                     <div className="flex gap-2 flex-wrap">
                       {periodo.estadoInforme === 'ACEPTADO' ? (
-                        !periodo.gc ? (
-                          <button
-                            onClick={() => handleCrearGC(contrato.idContrato, periodo.idRmi)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 font-medium text-white rounded-lg transition-all shadow-sm"
-                          >
-                            <i className="ki-outline ki-plus text-sm" /> Iniciar GC
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleVerDocumentos(periodo.gc!, periodo.periodo)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all"
-                          >
-                            <i className="ki-outline ki-file-up text-sm" /> Gestionar Documentos
-                          </button>
-                        )
+                        <>
+                          {!periodo.gc ? (
+                            <button
+                              onClick={() => handleCrearGC(contrato.idContrato, periodo.idRmi)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 font-medium text-white rounded-lg transition-all shadow-sm"
+                            >
+                              <i className="ki-outline ki-plus text-sm" /> Iniciar GC
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleVerDocumentos(periodo.gc!, periodo.periodo)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-medium text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-file-up text-sm" /> Gestionar Documentos
+                            </button>
+                          )}
+                          {periodo.gc && periodo.gc.estado === 'ACEPTADO' && (
+                            <button
+                              onClick={() => handleDescargarZip(periodo.gc!.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 font-medium text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
+                              title="Descargar todos los documentos en un .zip"
+                            >
+                              <i className="ki-outline ki-cloud-download text-sm" /> Descargar ZIP
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <p className="text-[10px] text-gray-400 italic">
                           * El informe del RMI debe estar ACEPTADO para iniciar el GC
@@ -278,7 +353,7 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
                       )}
                     </div>
                   </div>
-              ))}
+                ))}
             </div>
           </div>
         ))
@@ -286,16 +361,26 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
 
       {/* Modal de Documentos */}
       {docsModal && (
-        <Modal open={true} onClose={() => setDocsModal(null)} className="mx-4 sm:mx-auto max-w-2xl w-full">
+        <Modal
+          open={true}
+          onClose={() => setDocsModal(null)}
+          className="mx-4 sm:mx-auto max-w-2xl w-full"
+        >
           <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full shadow-2xl">
             <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
               <div>
                 <ModalTitle>Documentos GC — {docsModal.periodo}</ModalTitle>
                 <p className="text-xs text-gray-400 mt-1">
-                  Estado actual: <span className="font-semibold text-blue-600 dark:text-blue-400">{docsModal.gc.estado}</span>
+                  Estado actual:{' '}
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {docsModal.gc.estado}
+                  </span>
                 </p>
               </div>
-              <button onClick={() => setDocsModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <button
+                onClick={() => setDocsModal(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
                 <i className="ki-outline ki-cross text-lg" />
               </button>
             </ModalHeader>
@@ -304,21 +389,27 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
               {docsModal.gc.estado !== 'ACEPTADO' && (
                 <div className="relative">
                   <label className="flex flex-col items-center justify-center gap-3 px-3 py-8 border-2 border-dashed border-gray-200 dark:border-coal-300 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-coal-400 transition-all group">
-                    <div className={`w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center transition-transform group-hover:scale-110`}>
-                      <i className={`ki-outline ${uploading ? 'ki-arrows-circle animate-spin' : 'ki-cloud-add'} text-2xl text-blue-600 dark:text-blue-400`} />
+                    <div
+                      className={`w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center transition-transform group-hover:scale-110`}
+                    >
+                      <i
+                        className={`ki-outline ${uploading ? 'ki-arrows-circle animate-spin' : 'ki-cloud-add'} text-2xl text-blue-600 dark:text-blue-400`}
+                      />
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                         {uploading ? 'Subiendo archivo...' : 'Haga clic para subir documento'}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">Formatos admitidos: PDF, JPG, PNG</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Formatos admitidos: PDF, JPG, PNG
+                      </p>
                     </div>
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      onChange={handleUploadFiles} 
-                      disabled={uploading} 
-                      accept=".pdf,.jpg,.jpeg,.png" 
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadFiles}
+                      disabled={uploading}
+                      accept=".pdf,.jpg,.jpeg,.png"
                       multiple
                     />
                   </label>
@@ -327,7 +418,9 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
 
               {/* List of documents */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1">Documentos Subidos</h4>
+                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1">
+                  Documentos Subidos
+                </h4>
                 {loadingDocs ? (
                   <div className="flex justify-center py-10">
                     <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -335,18 +428,27 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
                 ) : documentos.length === 0 ? (
                   <div className="text-center py-10 bg-gray-50/50 dark:bg-coal-400/20 rounded-xl border border-dashed border-gray-100 dark:border-coal-300">
                     <i className="ki-outline ki-file-slash text-3xl text-gray-300 dark:text-coal-200 mb-2" />
-                    <p className="text-sm text-gray-400 italic">Aún no se han cargado documentos para este periodo.</p>
+                    <p className="text-sm text-gray-400 italic">
+                      Aún no se han cargado documentos para este periodo.
+                    </p>
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {documentos.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border border-gray-100 dark:border-coal-300 rounded-xl bg-white dark:bg-coal-500 hover:shadow-md transition-shadow group">
+                    {documentos.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3 border border-gray-100 dark:border-coal-300 rounded-xl bg-white dark:bg-coal-500 hover:shadow-md transition-shadow group"
+                      >
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
-                            doc.estado === 'ACEPTADO' ? 'bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400' :
-                            doc.estado === 'RECHAZADO' ? 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                            'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
-                          }`}>
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                              doc.estado === 'ACEPTADO'
+                                ? 'bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400'
+                                : doc.estado === 'RECHAZADO'
+                                  ? 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                                  : 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
+                            }`}
+                          >
                             <i className="ki-outline ki-document text-xl" />
                           </div>
                           <div>
@@ -354,32 +456,38 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
                               {doc.nombreDocumento || `Documento #${doc.id}`}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                                doc.estado === 'ACEPTADO' ? 'text-green-600' :
-                                doc.estado === 'RECHAZADO' ? 'text-red-600' :
-                                'text-blue-600'
-                                }`}>{doc.estado}</span>
-                                {doc.observacion && (
-                                  <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-coal-400 px-1.5 py-0.5 rounded">
-                                    Obs: {doc.observacion}
-                                  </span>
-                                )}
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider ${
+                                  doc.estado === 'ACEPTADO'
+                                    ? 'text-green-600'
+                                    : doc.estado === 'RECHAZADO'
+                                      ? 'text-red-600'
+                                      : 'text-blue-600'
+                                }`}
+                              >
+                                {doc.estado}
+                              </span>
+                              {doc.observacion && (
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-coal-400 px-1.5 py-0.5 rounded">
+                                  Obs: {doc.observacion}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <a 
-                            href={doc.urlDocumentoUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
+                          <a
+                            href={doc.urlDocumentoUrl}
+                            target="_blank"
+                            rel="noreferrer"
                             className="p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
                             title="Ver documento"
                           >
                             <i className="ki-outline ki-eye text-lg" />
                           </a>
                           {doc.estado !== 'ACEPTADO' && (
-                            <button 
-                              onClick={() => handleEliminarDocumento(doc.id)} 
+                            <button
+                              onClick={() => handleEliminarDocumento(doc.id)}
                               className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                               title="Eliminar documento"
                             >
@@ -399,11 +507,20 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
 
       {/* Modal de Validación */}
       {validationError && (
-        <Modal open={!!validationError} onClose={() => setValidationError(null)} className="mx-4 sm:mx-auto max-w-md w-full">
+        <Modal
+          open={!!validationError}
+          onClose={() => setValidationError(null)}
+          className="mx-4 sm:mx-auto max-w-md w-full"
+        >
           <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full shadow-2xl overflow-hidden">
             <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center bg-red-50/50 dark:bg-red-500/5">
-              <ModalTitle className="text-red-700 dark:text-red-400">Validación Requerida</ModalTitle>
-              <button onClick={() => setValidationError(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <ModalTitle className="text-red-700 dark:text-red-400">
+                Validación Requerida
+              </ModalTitle>
+              <button
+                onClick={() => setValidationError(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
                 <i className="ki-outline ki-cross text-lg" />
               </button>
             </ModalHeader>
@@ -413,13 +530,17 @@ const GCInstructor = forwardRef<GCInstructorRef>((_, ref) => {
                   <i className="ki-outline ki-information text-red-600 dark:text-red-400 text-2xl" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-2">Paso bloqueado</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{validationError}</p>
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-2">
+                    Paso bloqueado
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {validationError}
+                  </p>
                 </div>
               </div>
               <div className="mt-8 flex justify-end">
-                <button 
-                  onClick={() => setValidationError(null)} 
+                <button
+                  onClick={() => setValidationError(null)}
                   className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-lg shadow-blue-500/20"
                 >
                   Entendido
