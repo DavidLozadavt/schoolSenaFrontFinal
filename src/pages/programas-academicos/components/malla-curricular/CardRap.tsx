@@ -437,8 +437,8 @@ export const CardRap = ({
                       )}
                     </div>
 
-                    {/* Botón para asignar 2º Profe (Solo si es compartido y falta el secundario) */}
-                    {instructoresAsignados.length > 0 && 
+                    {/* Botón para asignar 2º Profe (Solo si es compartido, falta el secundario y ES UN RAP, no la competencia padre) */}
+                    {materia.idMateriaPadre != null && instructoresAsignados.length > 0 && 
                      horarios.some(h => h.asignacionSesion?.some((as: any) => as.tipoAsignacion === 'HORARIO COMPARTIDO' && as.idContrato === null)) && (
                       <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
                         <div className="relative">
