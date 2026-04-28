@@ -103,7 +103,8 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       fechaInicio: '',
       fechaFin: '',
       observacion: '',
-      horarios: [] as HorarioDia[]
+      horarios: [] as HorarioDia[],
+      esCompartido: false
     },
     validationSchema: HorarioSchema,
     onSubmit: async (values) => {
@@ -280,7 +281,8 @@ const toggleDia = (index: number) => {
         idDia: h.idDia,
         horaInicio: h.horaInicio,
         horaFin: h.horaFin
-      }))
+      })),
+      esCompartido: values.esCompartido
     };
 
     setGuardando(true);
@@ -456,6 +458,22 @@ const toggleDia = (index: number) => {
                     readOnly
                     className="input w-full p-2 border rounded-md bg-gray-100 dark:bg-coal-500 text-gray-500 cursor-not-allowed"
                   />
+                </div>
+              </div>
+
+              {/* Horario compartido */}
+              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    name="esCompartido"
+                    checked={values.esCompartido}
+                    onChange={handleChange}
+                  />
+                </label>
+                <div>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">Es Horario Compartido</span>
+                  <p className="text-[10px] text-blue-600 dark:text-blue-500">Al marcar esta opción, se habilitará la asignación de múltiples instructores para este horario.</p>
                 </div>
               </div>
 
