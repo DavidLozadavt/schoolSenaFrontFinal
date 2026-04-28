@@ -13,6 +13,7 @@ import {
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
+import AsignacionSesionModal from './AsignacionSesionModal';
 
 interface CalendarioProps {
   isOpen: boolean;
@@ -67,6 +68,20 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [asignacionSesionModal, setAsignacionSesionModal] = useState<boolean>(false);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
+  const [horarioAsignacionSesion, setHorarioAsignacionSesion] = useState<any>(null);
+  const [idMateriaAsignacion, setIdMateriaAsignacion] = useState<number | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  // Efecto para el carrusel de fotos en los tooltips
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => {
+      setCarouselIndex(prev => (prev === 0 ? 1 : 0));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   const format12h = (timeStr?: any) => {
     if (!timeStr || typeof timeStr !== 'string') return '';
@@ -179,7 +194,18 @@ export const Calendario: React.FC<CalendarioProps> = ({
       };
 
       return [
-        ...asignados.filter(filterFn).map(h => ({ ...h, type: 'asignados' })),
+        ...asignados.filter(filterFn).map(h => {
+          const assignments = h.asignacion_sesion || h.asignacionSesion || [];
+          const activeAsignacion = assignments.find((asig: any) => {
+            const start = parseDate(asig.fechaInicio);
+            const end = parseDate(asig.fechaFin);
+            if (!start || !end) return false;
+            start.setHours(0, 0, 0, 0);
+            end.setHours(0, 0, 0, 0);
+            return compareDate >= start && compareDate <= end;
+          });
+          return { ...h, type: 'asignados', activeAsignacion };
+        }),
         ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' }))
       ];
     };
@@ -398,47 +424,116 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
                         return (
                           <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-                            <div className="flex items-center justify-between">
-                              {format12h(hIni)} - {format12h(hFin)}
-                              {!modoRmi && (
-                                <button
-                                  onClick={() => handleEliminarHorario(ev.id)}
-                                  className="rounded-md text-red-500 hover:text-red-600 transition"
-                                  title="Eliminar"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                            <div className="flex flex-col items-center justify-center">
+                              <div>{format12h(hIni)} - {format12h(hFin)}</div>
+                              {ev.activeAsignacion && (
+                                <div className="text-[7px] text-primary-active mt-0.5 uppercase">
+                                  {ev.activeAsignacion.tipoAsignacion}
+                                </div>
                               )}
                             </div>
-                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-52 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
-                              {instructor && (
-                                <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500">
-                                  {(instructor.rutaFotoUrl || instructor.rutaFoto) ? (
+                            {!modoRmi && (
+                                <div className='w-full flex justify-between items-center mb-1'>
+                                  {!ev.activeAsignacion && (
+                                  <div className='rounded-full bg-blue-500/5 w-6 h-6 flex items-center justify-center'>
+                                  <button
+                                    onClick={() => {
+                                      setFechaSeleccionada(date.toISOString().split('T')[0]);
+                                      setHorarioAsignacionSesion(ev);
+                                      setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
+                                      setAsignacionSesionModal(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-700 transition"
+                                    title="Agregar asignación"
+                                    >
+                                    <Plus size={14} />
+                                  </button>
+                                  </div>)}
+
+                                  <div className='rounded-full bg-red-500/5 w-6 h-6 flex items-center justify-center'>
+                                  <button
+                                    onClick={() => handleEliminarHorario(ev.id)}
+                                    className="text-red-500 hover:text-red-600 transition"
+                                    title="Eliminar"
+                                    >
+                                    <Trash2 size={14} />
+                                  </button>
+                                  </div>
+                                </div>
+                              )}
+                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-60 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
+                              <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500 border-b dark:border-gray-600">
+                                {/* Carrusel de Fotos */}
+                                <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: (!ev.activeAsignacion || carouselIndex === 0) ? 1 : 0 }}>
+                                  {(instructor?.rutaFotoUrl || instructor?.rutaFoto) ? (
                                     <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
                                   )}
+                                  <div className="absolute top-0 left-0 bg-gray-800/60 text-white text-[7px] px-2 py-0.5 font-black rounded-br-lg">TITULAR</div>
                                 </div>
-                              )}
-                              <div className="p-3 text-left">
-                                <p>{ev.estado || 'SIN ESTADO'}</p>
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex items-center gap-2 text-primary">
-                                    <Clock size={12} className="shrink-0" />
-                                    <span className="text-[10px] uppercase font-black tracking-wider">{format12h(hIni)} - {format12h(hFin)}</span>
+
+                                {ev.activeAsignacion && (
+                                  <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: carouselIndex === 1 ? 1 : 0 }}>
+                                    {(ev.activeAsignacion.contrato?.persona?.rutaFotoUrl || ev.activeAsignacion.contrato?.persona?.rutaFoto) ? (
+                                      <img src={ev.activeAsignacion.contrato.persona.rutaFotoUrl || ev.activeAsignacion.contrato.persona.rutaFoto} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
+                                    )}
+                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.activeAsignacion.tipoAsignacion}</div>
                                   </div>
-                                  <div className="flex flex-col gap-1">
-                                    <p className="text-4xs text-gray-400 font-bold uppercase">Materia / RAP</p>
+                                )}
+                                
+                                {/* Indicador de carrusel */}
+                                {ev.activeAsignacion && (
+                                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 0 ? 'bg-white scale-125' : 'bg-white/40'}`} />
+                                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 1 ? 'bg-white scale-125' : 'bg-white/40'}`} />
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="p-3 text-left">
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {ev.estado || 'SIN ESTADO'}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-primary">
+                                    <Clock size={10} className="shrink-0" />
+                                    <span className="text-[9px] uppercase font-black tracking-wider">{format12h(hIni)} - {format12h(hFin)}</span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="flex flex-col gap-0.5">
+                                    <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Materia / RAP</p>
                                     <p className="text-[10px] font-black leading-tight dark:text-white uppercase line-clamp-2">{materiaNombre}</p>
                                   </div>
-                                  <div className="flex flex-col gap-1">
-                                    <p className="text-4xs text-gray-400 font-bold uppercase">Instructor</p>
-                                    <div className="flex items-center gap-2 dark:text-white">
-                                      <User size={12} className="text-gray-400 shrink-0" />
-                                      <span className="text-[11px] font-bold leading-tight truncate">
-                                        {instructor ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}` : <span className="text-orange-500 uppercase tracking-tighter">Sin asignar</span>}
-                                      </span>
+
+                                  <div className="space-y-2">
+                                    {/* INSTRUCTOR PRINCIPAL */}
+                                    <div className="flex flex-col gap-0.5">
+                                      <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Instructores</p>
+                                      <div className="flex items-center gap-2 dark:text-white">
+                                        <User size={12} className="text-gray-400 shrink-0" />
+                                        <span className="text-[10px] font-bold leading-tight truncate">
+                                          {instructor ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}` : <span className="text-orange-500 uppercase">Sin asignar</span>}
+                                        </span>
+                                      </div>
                                     </div>
+
+
+                                    {/* INSTRUCTOR SECUNDARIO */}
+                                    {ev.activeAsignacion &&
+                                      <div className="flex flex-col gap-0.5">
+                                      <div className="flex items-center gap-2 dark:text-white">
+                                        <User size={12} className="text-gray-400 shrink-0" />
+                                        <span className="text-[10px] font-bold leading-tight truncate">
+                                          {ev.activeAsignacion.contrato?.persona?.nombre1 || ''} {ev.activeAsignacion.contrato?.persona?.apellido1 || ''} <span className="text-orange-500 uppercase ml-2">({ev.activeAsignacion.tipoAsignacion})</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                    }
                                   </div>
                                 </div>
                               </div>
@@ -477,6 +572,16 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </div>
         )}
       </ModalContent>
+
+      {asignacionSesionModal && (
+        <AsignacionSesionModal
+          isOpen={asignacionSesionModal}
+          onClose={() => setAsignacionSesionModal(false)}
+          idMateria={materia.idMateria || materia.id}
+          horario={horarioAsignacionSesion}
+          fechaSeleccionada={fechaSeleccionada}
+        />
+      )}
     </div>
   );
 };
