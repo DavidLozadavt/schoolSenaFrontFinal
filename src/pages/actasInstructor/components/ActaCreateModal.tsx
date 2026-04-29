@@ -1,0 +1,567 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
+import { Acta, Apprentice } from '../types';
+
+interface ActaCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  idContrato: number | undefined;
+  availableFichas: any[];
+  ciudades: any[];
+  onSuccess: () => void;
+  actaToEdit?: Acta | null;
+}
+
+const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
+  isOpen,
+  onClose,
+  idContrato,
+  availableFichas,
+  ciudades,
+  onSuccess,
+  actaToEdit = null
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aprendicesFicha, setAprendicesFicha] = useState<Apprentice[]>([]);
+  const [loadingAprendices, setLoadingAprendices] = useState(false);
+
+  const initialFormState = {
+    nombre: '',
+    fecha: new Date().toISOString().split('T')[0],
+    horaInicio: '07:00',
+    horaFin: '12:00',
+    tipoActa: 'NORMAL',
+    observacion: '',
+    lugar: '',
+    direccion: '',
+    idCiudad: '',
+    idFicha: '',
+    agenda: [{ punto: '' }],
+    objetivos: [{ objetivo: '' }],
+    novedades: [] as { idmatriculaAcademica: string; observacion: string }[]
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  const fetchAprendices = async (idFicha: string) => {
+    setLoadingAprendices(true);
+    try {
+      const response = await axios.get(`actas/ficha/${idFicha}/aprendices`);
+      setAprendicesFicha(response.data);
+    } catch (error) {
+      console.error('Error fetching aprendices:', error);
+    } finally {
+      setLoadingAprendices(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      if (actaToEdit) {
+        const fechaFormateada = actaToEdit.fecha
+        ? actaToEdit.fecha.split('T')[0]
+        : new Date().toISOString().split('T')[0];
+        setFormData({
+          nombre: actaToEdit.nombre || '',
+          fecha: fechaFormateada,
+          horaInicio: actaToEdit.horaInicio ? actaToEdit.horaInicio.substring(0, 5) : '07:00',
+          horaFin: actaToEdit.horaFin ? actaToEdit.horaFin.substring(0, 5) : '12:00',
+          tipoActa: actaToEdit.tipoActa || 'NORMAL',
+          observacion: actaToEdit.observacion || '',
+          lugar: actaToEdit.lugar || '',
+          direccion: actaToEdit.direccion || '',
+          idCiudad: actaToEdit.idCiudad?.toString() || '',
+          idFicha: actaToEdit.idFicha?.toString() || '',
+          agenda: actaToEdit.agenda && actaToEdit.agenda.length > 0 
+            ? actaToEdit.agenda.map(a => ({ punto: a.punto })) 
+            : [{ punto: '' }],
+          objetivos: actaToEdit.objetivos && actaToEdit.objetivos.length > 0 
+            ? actaToEdit.objetivos.map(o => ({ objetivo: o.objetivo })) 
+            : [{ objetivo: '' }],
+          novedades: actaToEdit.novedades && actaToEdit.novedades.length > 0 
+            ? actaToEdit.novedades.map(n => ({ 
+                idmatriculaAcademica: n.idmatriculaAcademica.toString(), 
+                observacion: n.observacion 
+              })) 
+            : []
+        });
+      } else {
+        setFormData(initialFormState);
+      }
+    }
+  }, [isOpen, actaToEdit]);
+
+  useEffect(() => {
+    if (formData.idFicha) {
+      fetchAprendices(formData.idFicha);
+    } else {
+      setAprendicesFicha([]);
+    }
+  }, [formData.idFicha]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Agenda handlers
+  const handleAgendaChange = (index: number, value: string) => {
+    const newAgenda = [...formData.agenda];
+    newAgenda[index].punto = value;
+    setFormData(prev => ({ ...prev, agenda: newAgenda }));
+  };
+
+  const addAgendaItem = () => {
+    setFormData(prev => ({ ...prev, agenda: [...prev.agenda, { punto: '' }] }));
+  };
+
+  const removeAgendaItem = (index: number) => {
+    if (formData.agenda.length > 1) {
+      const newAgenda = formData.agenda.filter((_, i) => i !== index);
+      setFormData(prev => ({ ...prev, agenda: newAgenda }));
+    }
+  };
+
+  // Objetivos handlers
+  const handleObjectiveChange = (index: number, value: string) => {
+    const newObjectives = [...formData.objetivos];
+    newObjectives[index].objetivo = value;
+    setFormData(prev => ({ ...prev, objetivos: newObjectives }));
+  };
+
+  const addObjectiveItem = () => {
+    setFormData(prev => ({ ...prev, objetivos: [...prev.objetivos, { objetivo: '' }] }));
+  };
+
+  const removeObjectiveItem = (index: number) => {
+    if (formData.objetivos.length > 1) {
+      const newObjectives = formData.objetivos.filter((_, i) => i !== index);
+      setFormData(prev => ({ ...prev, objetivos: newObjectives }));
+    }
+  };
+
+  // Novedades handlers
+  const addNovedad = () => {
+    setFormData(prev => ({
+      ...prev,
+      novedades: [...prev.novedades, { idmatriculaAcademica: '', observacion: '' }]
+    }));
+  };
+
+  const handleNovedadChange = (index: number, field: string, value: string) => {
+    const newNovedades = [...formData.novedades];
+    (newNovedades[index] as any)[field] = value;
+    setFormData(prev => ({ ...prev, novedades: newNovedades }));
+  };
+
+  const removeNovedad = (index: number) => {
+    const newNovedades = formData.novedades.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, novedades: newNovedades }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!idContrato) return;
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        ...formData,
+        idContrato,
+        idCiudad: parseInt(formData.idCiudad),
+        idFicha: parseInt(formData.idFicha),
+        agenda: formData.agenda.filter(i => i.punto.trim() !== ''),
+        objetivos: formData.objetivos.filter(i => i.objetivo.trim() !== ''),
+        novedades: formData.novedades.filter(n => n.idmatriculaAcademica !== '')
+      };
+
+      if (actaToEdit) {
+        await axios.put(`actas/${actaToEdit.id}`, payload);
+      } else {
+        await axios.post('actas', payload);
+      }
+      
+      onSuccess();
+      onClose();
+      // Reset form handled by useEffect on next open
+    } catch (error) {
+      console.error('Error al guardar acta:', error);
+      alert('Error al guardar el acta. Por favor, intente de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const isEdit = !!actaToEdit;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      className="mx-4 sm:mx-auto max-w-2xl w-full"
+    >
+      <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full overflow-hidden shadow-2xl border-none">
+        <ModalHeader className="bg-gray-50 dark:bg-coal-400/50 border-b border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl ${isEdit ? 'bg-orange-100 dark:bg-orange-500/10' : 'bg-blue-100 dark:bg-blue-500/10'} flex items-center justify-center`}>
+              <i className={`ki-outline ${isEdit ? 'ki-notepad-edit' : 'ki-plus'} ${isEdit ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'} text-xl`} />
+            </div>
+            <div>
+              <ModalTitle className="text-lg font-bold text-gray-800 dark:text-white">
+                {isEdit ? 'Editar Acta' : 'Nueva Acta'}
+              </ModalTitle>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {isEdit ? 'Modifique los datos del acta seleccionada' : 'Registre una nueva acta en el sistema'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 transition-colors"
+          >
+            <i className="ki-outline ki-cross text-lg" />
+          </button>
+        </ModalHeader>
+
+        <form onSubmit={handleSubmit}>
+          <ModalBody className="p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+            {/* Datos Básicos */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
+                <i className="ki-outline ki-information-2 text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Datos Básicos</h3>
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Nombre del Acta</label>
+                <input
+                  name="nombre"
+                  type="text"
+                  required
+                  placeholder="Ej: Acta de Seguimiento Etapa Productiva"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  value={formData.nombre}
+                  onChange={handleInputChange}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Fecha</label>
+                  <input
+                    name="fecha"
+                    type="date"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.fecha}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Tipo de Acta</label>
+                  <select
+                    name="tipoActa"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.tipoActa}
+                    onChange={handleInputChange}
+                  >
+                    <option value="NORMAL">Normal</option>
+                    <option value="EQUIPO EJECUTOR">Equipo Ejecutor</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Hora Inicio</label>
+                  <input
+                    name="horaInicio"
+                    type="time"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.horaInicio}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Hora Fin</label>
+                  <input
+                    name="horaFin"
+                    type="time"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.horaFin}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Ubicación y Ficha */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
+                <i className="ki-outline ki-geolocation text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Ubicación y Ficha</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Ficha</label>
+                  <select
+                    name="idFicha"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.idFicha}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Seleccione una ficha</option>
+                    {availableFichas.map((f) => (
+                      <option key={f.idFicha} value={f.idFicha}>
+                        {f.codigoFicha} - {f.programaFormacion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Ciudad</label>
+                  <select
+                    name="idCiudad"
+                    required
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.idCiudad}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Seleccione una ciudad</option>
+                    {ciudades.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.descripcion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Lugar (Ambiente/Virtual)</label>
+                  <input
+                    name="lugar"
+                    type="text"
+                    placeholder="Ej: Ambiente 302"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.lugar}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 dark:text-gray-400">Dirección</label>
+                  <input
+                    name="direccion"
+                    type="text"
+                    placeholder="Ej: Calle 52 # 13-65"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    value={formData.direccion}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Agenda */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <i className="ki-outline ki-list text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Agenda / Puntos a tratar</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={addAgendaItem}
+                  className="p-1.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <i className="ki-outline ki-plus text-sm" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {formData.agenda.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Punto ${index + 1}`}
+                      className="flex-1 px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={item.punto}
+                      onChange={(e) => handleAgendaChange(index, e.target.value)}
+                    />
+                    {formData.agenda.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAgendaItem(index)}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                      >
+                        <i className="ki-outline ki-trash" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Objetivos */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <i className="ki-outline ki-target text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Objetivos</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={addObjectiveItem}
+                  className="p-1.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <i className="ki-outline ki-plus text-sm" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {formData.objetivos.map((obj, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Objetivo ${index + 1}`}
+                      className="flex-1 px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={obj.objetivo}
+                      onChange={(e) => handleObjectiveChange(index, e.target.value)}
+                    />
+                    {formData.objetivos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeObjectiveItem(index)}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                      >
+                        <i className="ki-outline ki-trash" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Novedades */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <i className="ki-outline ki-notification text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Novedades por Aprendiz</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={addNovedad}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <i className="ki-outline ki-plus" />
+                  Agregar Novedad
+                </button>
+              </div>
+              
+              {formData.novedades.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 dark:bg-coal-400/30 rounded-2xl border-2 border-dashed border-gray-200 dark:border-coal-300">
+                  <p className="text-xs text-gray-400">No hay novedades registradas para este acta.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {formData.novedades.map((novedad, index) => (
+                    <div key={index} className="p-4 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-2xl shadow-sm relative group">
+                      <button
+                        type="button"
+                        onClick={() => removeNovedad(index)}
+                        className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
+                      >
+                        <i className="ki-outline ki-cross" />
+                      </button>
+                      
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Aprendiz</label>
+                          <select
+                            required
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={novedad.idmatriculaAcademica}
+                            onChange={(e) => handleNovedadChange(index, 'idmatriculaAcademica', e.target.value)}
+                          >
+                            <option value="">Seleccione aprendiz</option>
+                            {aprendicesFicha.map(a => (
+                              <option key={a.id} value={a.id}>{a.nombre} - {a.identificacion}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Detalle de la Novedad</label>
+                          <textarea
+                            required
+                            rows={2}
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                            placeholder="Describa la novedad..."
+                            value={novedad.observacion}
+                            onChange={(e) => handleNovedadChange(index, 'observacion', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Observación General */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
+                <i className="ki-outline ki-message-text-2 text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Observaciones Generales</h3>
+              </div>
+              <textarea
+                name="observacion"
+                rows={4}
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                placeholder="Escriba los detalles generales del acta..."
+                value={formData.observacion}
+                onChange={handleInputChange}
+              />
+            </div>
+          </ModalBody>
+          <ModalHeader className="border-t border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-end gap-3 bg-gray-50 dark:bg-coal-400/30">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`px-8 py-2.5 ${isEdit ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-500/25' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'} text-white text-xs font-bold rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+            >
+              {isSubmitting ? (
+                <>
+                  <i className="ki-outline ki-loading animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <i className={`ki-outline ${isEdit ? 'ki-check-circle' : 'ki-plus-circle'}`} />
+                  {isEdit ? 'Guardar Cambios' : 'Crear Acta'}
+                </>
+              )}
+            </button>
+          </ModalHeader>
+        </form>
+      </ModalContent>
+    </Modal>
+  );
+};
+
+export default ActaCreateModal;

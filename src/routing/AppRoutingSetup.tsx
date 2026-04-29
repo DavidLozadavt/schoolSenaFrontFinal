@@ -123,6 +123,7 @@ import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
 import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
 import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoEntry';
 import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
+import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGeneral';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -243,6 +244,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
                 <InformePagoGeneral />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/actas"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+                <ActasInstructorGeneral />
               </ProtectedRoute>
             }
           />
