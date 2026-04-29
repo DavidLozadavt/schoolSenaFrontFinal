@@ -7,13 +7,14 @@ import StudentListByMateria from './ListaHorarioEstudiantes';
 import {
   ModalCrearActividad,
   ModalVerActividad,
-  ModalMaterialApoyo,
   ModalCrearCuestionario,
   ModalAsignarActividad,
   ModalAprendices,
   ModalAmpliarActividad,
+  ModalMaterialApoyo,
   ListaActividades,
   MaterialApoyoFichaView,
+  MaterialApoyoAprendiz,
   type Actividad
 } from './actividades';
 import { VerGruposView } from './grupos';
@@ -1265,12 +1266,12 @@ const ClaseDetallePage: React.FC = () => {
   const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
   const [modalVerActividadOpen, setModalVerActividadOpen] = useState(false);
   const [actividadVer, setActividadVer] = useState<Actividad | null>(null);
-  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
-  const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
   const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
   const [modalAmpliarOpen, setModalAmpliarOpen] = useState(false);
   const [actividadParaAmpliar, setActividadParaAmpliar] = useState<Actividad | null>(null);
+  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
+  const [actividadParaMaterialApoyo, setActividadParaMaterialApoyo] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
@@ -2332,10 +2333,6 @@ const ClaseDetallePage: React.FC = () => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
                   }}
-                  onMaterialApoyo={(act) => {
-                    setActividadMaterialApoyo(act);
-                    setModalMaterialApoyoOpen(true);
-                  }}
                   onEditar={(act) => {
                     if (act.tipoActividad === 'cuestionario' && act.id) {
                       setCuestionarioParaEditar({ id: act.id });
@@ -2347,8 +2344,11 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
-                  resetSelectionKey={assignSuccessCounter}
-                  coberturaActividades={coberturaActividades}
+                  resetSelectionKey={assignSuccessCounter}                  coberturaActividades={coberturaActividades}
+                  onMaterialApoyo={(act) => {
+                    setActividadParaMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
                   idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
                 />
               )}
@@ -2372,10 +2372,6 @@ const ClaseDetallePage: React.FC = () => {
                   onVer={(act) => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
-                  }}
-                  onMaterialApoyo={(act) => {
-                    setActividadMaterialApoyo(act);
-                    setModalMaterialApoyoOpen(true);
                   }}
                   onEditar={(act) => {
                     if (act.tipoActividad === 'cuestionario' && act.id) {
@@ -2413,8 +2409,28 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Material de apoyo general por ficha */}
-              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && (
+              {/* Material de apoyo RAP: instructor CRUD por ficha; aprendiz solo lectura en el RAP de la clase */}
+              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario === 'aprendiz' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Material de apoyo</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Recursos de consulta para este RAP (sin entrega ni calificación).
+                    </p>
+                  </div>
+                  <MaterialApoyoAprendiz
+                    idFicha={idFichaParaClase}
+                    idRap={
+                      Number(locationState?.idMateria ?? clase?.idMateria ?? 0) > 0
+                        ? Number(locationState?.idMateria ?? clase?.idMateria)
+                        : undefined
+                    }
+                    emptyMessage="No hay material de apoyo disponible para este RAP."
+                    hideGroupHeaders
+                  />
+                </div>
+              )}
+              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario !== 'aprendiz' && (
                 <MaterialApoyoFichaView
                   idFicha={idFichaParaClase}
                   idMateria={locationState?.idMateria || clase?.idMateria || ''}
@@ -2488,16 +2504,6 @@ const ClaseDetallePage: React.FC = () => {
         actividadEditar={actividadParaEditar}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
       />
-      <ModalMaterialApoyo
-        open={modalMaterialApoyoOpen}
-        onClose={() => {
-          setModalMaterialApoyoOpen(false);
-          setActividadMaterialApoyo(null);
-        }}
-        onSuccess={showToast}
-        actividad={actividadMaterialApoyo}
-        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
-      />
       <ModalVerActividad
         open={modalVerActividadOpen}
         onClose={() => {
@@ -2543,6 +2549,15 @@ const ClaseDetallePage: React.FC = () => {
         onSave={() => fetchActividades()}
         onSuccess={showToast}
       />
+      <ModalMaterialApoyo
+        open={modalMaterialApoyoOpen}
+        onClose={() => {
+          setModalMaterialApoyoOpen(false);
+          setActividadParaMaterialApoyo(null);
+        }}
+        onSuccess={showToast}
+        actividad={actividadParaMaterialApoyo}
+      />
       {zoomFoto && (
         <ImageZoomModal
           open={!!zoomFoto}
@@ -2562,3 +2577,10 @@ const ClaseDetallePage: React.FC = () => {
 };
 
 export default ClaseDetallePage;
+
+
+
+
+
+
+
