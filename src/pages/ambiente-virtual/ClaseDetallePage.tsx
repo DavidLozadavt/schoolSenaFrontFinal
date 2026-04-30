@@ -1286,6 +1286,22 @@ const ClaseDetallePage: React.FC = () => {
     [locationState?.ficha_id, ficha?.id]
   );
 
+  /** Texto de contexto RAP para Material de apoyo (sustituye al nombre del programa en el encabezado). */
+  const materialApoyoRapContexto = useMemo(() => {
+    const codigo = String(
+      clase?.codigoMateria ?? clase?.codigo_materia ?? (clase as { codigo?: string } | null)?.codigo ?? ''
+    ).trim();
+    const nombre = String(clase?.materia_nombre ?? '').trim();
+    if (!nombre && !codigo) return '';
+    if (codigo && nombre) return `${codigo} — ${nombre}`;
+    return nombre || codigo;
+  }, [clase]);
+
+  const materialApoyoIdRapContexto = useMemo(() => {
+    const n = Number(locationState?.idMateria ?? clase?.idMateria ?? 0);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [locationState?.idMateria, clase?.idMateria]);
+
   // Estado local para el estado de la clase (se actualiza en tiempo real)
   const [estadoClaseLocal, setEstadoClaseLocal] = useState<'pasada' | 'pendiente' | 'en_curso'>('pendiente');
 
@@ -2425,6 +2441,8 @@ const ClaseDetallePage: React.FC = () => {
                         ? Number(locationState?.idMateria ?? clase?.idMateria)
                         : undefined
                     }
+                    fichaCodigo={ficha?.codigo}
+                    rapContextLabel={materialApoyoRapContexto || undefined}
                     emptyMessage="No hay material de apoyo disponible para este RAP."
                     hideGroupHeaders
                   />
@@ -2435,11 +2453,8 @@ const ClaseDetallePage: React.FC = () => {
                   idFicha={idFichaParaClase}
                   idMateria={locationState?.idMateria || clase?.idMateria || ''}
                   fichaCodigo={ficha?.codigo}
-                  programaNombre={
-                    (typeof locationState?.programa_nombre === 'string' ? locationState.programa_nombre : undefined) ??
-                    clase?.programa_nombre ??
-                    ficha?.asignacion?.programa?.nombrePrograma
-                  }
+                  rapContextLabel={materialApoyoRapContexto || undefined}
+                  idRapContext={materialApoyoIdRapContexto}
                 />
               )}
               {activeMenu === 'material-apoyo' && idFichaParaClase <= 0 && (
