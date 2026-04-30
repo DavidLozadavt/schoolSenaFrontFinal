@@ -232,7 +232,6 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
               if (materiaData.idHorarioMateria && idHorarioMateriaBackend !== undefined && idHorarioMateriaBackend !== null) {
                 return Number(idHorarioMateriaBackend) === Number(materiaData.idHorarioMateria);
               }
-
               return true; // sin idHorarioMateria, cualquier sesión de hoy sirve
             });
 
