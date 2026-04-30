@@ -37,7 +37,8 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
       .max(Yup.ref('fechaFin'), 'La fecha de inicio no puede ser mayor a la fecha fin'),
     fechaFin: Yup.date()
       .required('La fecha de fin es requerida')
-      .min(Yup.ref('fechaInicio'), 'La fecha de fin no puede ser menor a la fecha inicio')
+      .min(Yup.ref('fechaInicio'), 'La fecha de fin no puede ser menor a la fecha inicio'),
+    observacion: Yup.string().max(255, 'La observación debe tener como máximo 255 caracteres').nullable()
   });
 
   // Configuración de Formik
@@ -46,7 +47,8 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
       tipoAsignacion: '' as '' | 'REEMPLAZO' | 'HORARIO_COMPARTIDO',
       idInstructor: null as number | null,
       fechaInicio: fechaSeleccionada,
-      fechaFin: fechaSeleccionada
+      fechaFin: fechaSeleccionada,
+      observacion: ''
     },
     enableReinitialize: true,
     validationSchema,
@@ -65,7 +67,8 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
           tipoAsignacion: '' as '' | 'REEMPLAZO' | 'HORARIO_COMPARTIDO',
           idInstructor: null,
           fechaInicio: fechaSeleccionada,
-          fechaFin: fechaSeleccionada
+          fechaFin: fechaSeleccionada,
+          observacion: ''
         }
       });
     }
@@ -98,7 +101,8 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
         tipoAsignacion: values.tipoAsignacion,
         idContrato: values.idInstructor,
         fechaInicio: values.fechaInicio,
-        fechaFin: values.fechaFin
+        fechaFin: values.fechaFin,
+        observacion: values.observacion
       };
 
       const res = await axios.post('asignacion-sesion', payload);
@@ -123,11 +127,22 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
     tipoAsignacionOptions.find((o) => o.value === formik.values.tipoAsignacion) ?? null;
 
   // Opciones para el Select de instructores
-  const instructorOptions = instructores.map((inst) => ({
-    value: inst.id,
-    label: `${inst.persona?.nombre1 || ''} ${inst.persona?.apellido1 || ''}`,
-    foto: inst.persona?.rutaFotoUrl || null
-  }));
+  const instructorOptions = instructores
+    .filter((inst) => {
+      // Evitar el instructor principal del horario
+      if (
+        inst.id == horario?.idContrato ||
+        inst.id == horario?.contrato?.id ||
+        inst.persona?.id == horario?.instructor?.id
+      ) return false;
+
+      return true;
+    })
+    .map((inst) => ({
+      value: inst.id,
+      label: `${inst.persona?.nombre1 || ''} ${inst.persona?.apellido1 || ''}`,
+      foto: inst.persona?.rutaFotoUrl || null
+    }));
 
   const selectedInstructorOption =
     instructorOptions.find((o) => o.value === formik.values.idInstructor) ?? null;
@@ -138,7 +153,7 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-95% overflow-hidden border border-gray-200 dark:border-gray-700">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400">
           <h3 className="text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest">
             Nueva Asignación
           </h3>
@@ -147,12 +162,12 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
             className="flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full hover:bg-danger hover:text-white hover:scale-110"
             aria-label="Cerrar modal"
           >
-            <KeenIcon icon="cross" className="text-lg" />
+            <KeenIcon icon="cross" className="text-md" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-6">
           {loadingInstructores ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -161,7 +176,7 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
               </p>
             </div>
           ) : (
-            <form onSubmit={formik.handleSubmit} className="space-y-6">
+            <form onSubmit={formik.handleSubmit} className="space-y-10">
               {/* Tipo de Asignación */}
               <div>
                 <label className="block text-xs font-black uppercase text-gray-700 dark:text-gray-300 mb-2 tracking-wider">
@@ -224,6 +239,25 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
                 {formik.touched.idInstructor && formik.errors.idInstructor ? (
                   <div className="text-danger text-xs mt-1 font-semibold">
                     {formik.errors.idInstructor as string}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Observacion */}
+              <div>
+                <label className="block text-xs font-black uppercase text-gray-700 dark:text-gray-300 mb-2 tracking-wider">
+                  Observación
+                </label>
+                <textarea
+                  name="observacion"
+                  value={formik.values.observacion}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className="w-full max-h-32 min-h-12 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-coal-400 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                />
+                {formik.touched.observacion && formik.errors.observacion ? (
+                  <div className="text-danger text-xs mt-1 font-semibold">
+                    {formik.errors.observacion as string}
                   </div>
                 ) : null}
               </div>

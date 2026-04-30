@@ -461,20 +461,30 @@ export const CardRap = ({
                                 </div>
                               ) : (
                                 <div className="p-1">
-                                  {instructores.map((inst) => (
-                                    <button
-                                      key={inst.id}
-                                      onClick={() => handleAsignarSegundoInstructor(inst)}
-                                      className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
-                                    >
-                                      <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
-                                        {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
-                                      </div>
-                                      <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
-                                        {inst.persona?.nombre1} {inst.persona?.apellido1}
-                                      </p>
-                                    </button>
-                                  ))}
+                                  {instructores
+                                    .filter((inst) => {
+                                      // Evitar el instructor principal del horario
+                                      if (horarios.some(h => 
+                                        h.idContrato == inst.id ||
+                                        h.contrato?.id == inst.id ||
+                                        h.instructor?.id == inst.persona?.id
+                                      )) return false;
+                                      return true;
+                                    })
+                                    .map((inst) => (
+                                      <button
+                                        key={inst.id}
+                                        onClick={() => handleAsignarSegundoInstructor(inst)}
+                                        className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
+                                          {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
+                                          {inst.persona?.nombre1} {inst.persona?.apellido1}
+                                        </p>
+                                      </button>
+                                    ))}
                                 </div>
                               )}
                             </div>
