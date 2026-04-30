@@ -100,7 +100,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
     const cargarHorarios = async () => {
       if (!isOpen) return;
-      
+
       setLoading(true);
       try {
         if (materia?.horarios && !Array.isArray(materia.horarios)) {
@@ -157,7 +157,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
     const a = horariosFicha.filter((h: any) => h.estado === 'ASIGNADO');
     const s = horariosFicha.filter((h: any) => h.estado === 'PENDIENTE');
-    
+
     return { asignados: a, sinAsignar: s };
   }, [horariosFicha]);
 
@@ -265,7 +265,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
     }
   };
 
-  const handleEliminarHorario = async(idHorario: number) => {
+  const handleEliminarHorario = async (idHorario: number) => {
     // En modo RMI no se permite eliminar horarios
     if (modoRmi) return;
     try {
@@ -340,7 +340,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-      <ModalContent className="w-full max-w-5xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+      <ModalContent className="w-full max-w-6xl h-[85vh] flex flex-col p-0 shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
 
         <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
           <div className="flex items-center gap-3">
@@ -395,13 +395,13 @@ export const Calendario: React.FC<CalendarioProps> = ({
           </div>
 
           <div className="bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            {viewMode === 'month' && (
+            {viewMode != 'day' && (
               <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/50">
-                {daysOfWeek.map(d => <div key={d} className="py-2 text-center text-[10px] font-black text-gray-400 uppercase">{d}</div>)}
+                {daysOfWeek.map(d => <div key={d} className="py-2 text-center text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase">{d}</div>)}
               </div>
             )}
 
-            <div className={viewMode === 'month' ? "grid grid-cols-7" : "divide-y divide-gray-100 dark:divide-gray-700"}>
+            <div className={viewMode === 'day' ? "divide-y divide-gray-100 dark:divide-gray-700" : "grid grid-cols-7"}>
               {(viewMode === 'month' ? daysInMonth : viewMode === 'week' ? daysInWeek : [currentDate]).map((date, i) => {
                 if (!date) return <div key={i} className="h-20 border-r border-b border-gray-50 dark:border-coal-300" />;
                 const events = getEventsForDate(date);
@@ -413,7 +413,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                 const isBottomRow = i >= 21;
 
                 return (
-                  <div key={i} className={`min-h-[80px] m-1 border-r border-b border-gray-100 dark:border-gray-700 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
+                  <div key={i} className={`min-h-[80px] m-1 border-r border-b border-gray-100 dark:border-gray-100 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
                     <span className={`text-xs font-semibold mb-1 inline-block h-5 w-5 rounded-full flex items-center justify-center transition-colors ${isToday ? 'bg-primary text-white' : 'text-gray-500 dark:text-gray-400'}`}>{date.getDate()}</span>
                     <div className="space-y-0.5 w-full">
                       {events.map((ev, idx) => {
@@ -423,7 +423,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                         const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
 
                         return (
-                          <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] text-[9px] font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
+                          <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] ${viewMode === 'day' ? 'text-sm' : 'text-[10px]'} font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
                             <div className="flex flex-col items-center justify-center">
                               <div>{format12h(hIni)} - {format12h(hFin)}</div>
                               {ev.activeAsignacion && (
@@ -433,35 +433,35 @@ export const Calendario: React.FC<CalendarioProps> = ({
                               )}
                             </div>
                             {!modoRmi && (
-                                <div className='w-full flex justify-between items-center mb-1'>
-                                  {!ev.activeAsignacion && (
+                              <div className='w-full flex justify-around items-center mb-1'>
+                                {!ev.activeAsignacion && ev.estado == 'ASIGNADO' && (
                                   <div className='rounded-full bg-blue-500/5 w-6 h-6 flex items-center justify-center'>
-                                  <button
-                                    onClick={() => {
-                                      setFechaSeleccionada(date.toISOString().split('T')[0]);
-                                      setHorarioAsignacionSesion(ev);
-                                      setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
-                                      setAsignacionSesionModal(true);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-700 transition"
-                                    title="Agregar asignación"
+                                    <button
+                                      onClick={() => {
+                                        setFechaSeleccionada(date.toISOString().split('T')[0]);
+                                        setHorarioAsignacionSesion(ev);
+                                        setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
+                                        setAsignacionSesionModal(true);
+                                      }}
+                                      className="text-blue-700 hover:text-blue-800 transition"
+                                      title="Agregar asignación"
                                     >
-                                    <Plus size={14} />
-                                  </button>
+                                      <Plus size={14} />
+                                    </button>
                                   </div>)}
 
-                                  <div className='rounded-full bg-red-500/5 w-6 h-6 flex items-center justify-center'>
+                                <div className='rounded-full bg-red-500/5 w-6 h-6 flex items-center justify-center'>
                                   <button
                                     onClick={() => handleEliminarHorario(ev.id)}
                                     className="text-red-500 hover:text-red-600 transition"
                                     title="Eliminar"
-                                    >
+                                  >
                                     <Trash2 size={14} />
                                   </button>
-                                  </div>
                                 </div>
-                              )}
-                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} w-60 p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
+                              </div>
+                            )}
+                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} ${viewMode === 'day' ? 'w-80' : 'w-60'} p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
                               <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500 border-b dark:border-gray-600">
                                 {/* Carrusel de Fotos */}
                                 <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: (!ev.activeAsignacion || carouselIndex === 0) ? 1 : 0 }}>
@@ -483,7 +483,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                     <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.activeAsignacion.tipoAsignacion}</div>
                                   </div>
                                 )}
-                                
+
                                 {/* Indicador de carrusel */}
                                 {ev.activeAsignacion && (
                                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
@@ -504,7 +504,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                   </div>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-3 px-1">
                                   <div className="flex flex-col gap-0.5">
                                     <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Materia / RAP</p>
                                     <p className="text-[10px] font-black leading-tight dark:text-white uppercase line-clamp-2">{materiaNombre}</p>
@@ -526,13 +526,16 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                     {/* INSTRUCTOR SECUNDARIO */}
                                     {ev.activeAsignacion &&
                                       <div className="flex flex-col gap-0.5">
-                                      <div className="flex items-center gap-2 dark:text-white">
-                                        <User size={12} className="text-gray-400 shrink-0" />
-                                        <span className="text-[10px] font-bold leading-tight truncate">
-                                          {ev.activeAsignacion.contrato?.persona?.nombre1 || ''} {ev.activeAsignacion.contrato?.persona?.apellido1 || ''} <span className="text-orange-500 uppercase ml-2">({ev.activeAsignacion.tipoAsignacion})</span>
-                                        </span>
+                                        <div className="flex items-center gap-2 dark:text-white">
+                                          <User size={12} className="text-gray-400 shrink-0" />
+                                          <span className="text-[10px] font-bold leading-tight truncate">
+                                            {ev.activeAsignacion.contrato?.persona?.nombre1 || ''} {ev.activeAsignacion.contrato?.persona?.apellido1 || ''} <span className="text-orange-500 uppercase ml-2">({ev.activeAsignacion.tipoAsignacion})</span>
+                                          </span>
+                                        </div>
+                                        {ev.activeAsignacion.observacion && (<p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">
+                                          <span className="font-bold text-primary">Observación: </span>
+                                          {ev.activeAsignacion.observacion}</p>)}
                                       </div>
-                                    </div>
                                     }
                                   </div>
                                 </div>
