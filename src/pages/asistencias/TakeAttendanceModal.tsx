@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Tooltip } from '@mui/material';
 
 interface Estudiante {
   idMatriculaAcademica: number;
@@ -111,9 +112,11 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
                 ${justifyingStudentId === estudiante.idMatriculaAcademica ? 'rounded-b-none border-b-transparent bg-gray-50' : ''}
               `}
               >
-                <span className="text-gray-700 font-medium truncate pr-4">
-                  {estudiante.nombre}
-                </span>
+                <Tooltip title={estudiante.nombre} placement="top" arrow>
+                  <span className="text-gray-700 font-medium truncate pr-4 cursor-pointer hover:text-blue-600 transition-colors">
+                    {estudiante.nombre}
+                  </span>
+                </Tooltip>
 
                 <div className="flex gap-1 sm:gap-2">
                   <button
