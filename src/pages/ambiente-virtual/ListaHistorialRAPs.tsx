@@ -19,6 +19,7 @@ interface SesionCompletada {
   fechaCorta: string;
   estado: string;
   observacion?: string | null;
+  evaluador_nombre?: string | null;
 }
 
 interface Clase {
@@ -1410,6 +1411,17 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 <i className="ki-outline ki-calendar text-sm"></i>
                 <span className="capitalize">{fechaMostrar}</span>
               </div>
+              {sesion.evaluador_nombre ? (
+                <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+                  <i className="ki-outline ki-user text-sm"></i>
+                  <span>Evaluado por: {sesion.evaluador_nombre}</span>
+                </div>
+              ) : clase.instructor_nombre ? (
+                <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+                  <i className="ki-outline ki-user text-sm"></i>
+                  <span>Calificado por: {clase.instructor_nombre}</span>
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="flex-shrink-0 pt-1">
