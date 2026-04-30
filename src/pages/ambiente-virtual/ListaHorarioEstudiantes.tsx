@@ -5,6 +5,7 @@ import TakeAttendanceModal from '../asistencias/TakeAttendanceModal';
 import AnotacionesDiciplinariasModal from '@/pages/anotaciones-disciplinarias/ModalAnotacionesDisciplinarias';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/components/modal';
 import { KeenIcon } from '@/components';
+import { Tooltip } from '@mui/material';
 
 // Interfaces TypeScript basadas en la respuesta del backend
 interface Persona {
@@ -497,9 +498,11 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                       e.currentTarget.src = '/media/avatars/blank.png';
                     }}
                   />
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 truncate">
-                    {fullName}
-                  </h4>
+                  <Tooltip title={fullName} placement="top" arrow>
+                    <h4 className="text-[11px] font-semibold text-gray-900 dark:text-white mb-1 truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      {fullName}
+                    </h4>
+                  </Tooltip>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate">
                     {email}
                   </p>
