@@ -10,6 +10,7 @@ import { User } from 'lucide-react';
 interface AsignacionSesionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   idMateria: number;
   horario: any;
   fechaSeleccionada: string; // formato YYYY-MM-DD
@@ -18,6 +19,7 @@ interface AsignacionSesionModalProps {
 export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
   idMateria,
   horario,
   fechaSeleccionada
@@ -107,6 +109,7 @@ export const AsignacionSesionModal: React.FC<AsignacionSesionModalProps> = ({
 
       const res = await axios.post('asignacion-sesion', payload);
       enqueueSnackbar(res.data.message || 'Asignación creada exitosamente', { variant: 'success' });
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.message || 'Error al crear la asignación', {
