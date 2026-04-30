@@ -56,25 +56,40 @@ export const CardRap = ({
     setHorarios(asignados);
     setHorariosSinAsignar(sinAsignar);
 
-    // Agrupar por instructores únicos
+    // Agrupar por instructores únicos y tipo de asignación
     const unicos: any[] = [];
-    const idsVistos = new Set();
+    const keysVistas = new Set();
 
     asignados.forEach((h: any) => {
-      // 1. Instructor principal
+      // Instructor principal
       const instructor = h.instructor || h.persona;
-      if (instructor && !idsVistos.has(instructor.id)) {
-        idsVistos.add(instructor.id);
-        unicos.push({ ...instructor, esPrincipal: true });
+      if (instructor) {
+        const key = `${instructor.id}-PRINCIPAL`;
+        if (!keysVistas.has(key)) {
+          keysVistas.add(key);
+          unicos.push({ 
+            ...instructor, 
+            esPrincipal: true, 
+            tipoAsignacion: 'HORARIO' 
+          });
+        }
       }
 
-      // 2. Instructores secundarios (Compartidos/Reemplazos)
+      // Instructores secundarios (Compartidos/Reemplazos)
       if (h.asignacionSesion && Array.isArray(h.asignacionSesion)) {
         h.asignacionSesion.forEach((asig: any) => {
           const instSec = asig.contrato?.persona;
-          if (instSec && !idsVistos.has(instSec.id)) {
-            idsVistos.add(instSec.id);
-            unicos.push({ ...instSec, esPrincipal: false, id_contrato: asig.idContrato });
+          if (instSec) {
+            const key = `${instSec.id}-${asig.tipoAsignacion}`;
+            if (!keysVistas.has(key)) {
+              keysVistas.add(key);
+              unicos.push({ 
+                ...instSec, 
+                esPrincipal: false, 
+                idContrato: asig.idContrato,
+                tipoAsignacion: asig.tipoAsignacion 
+              });
+            }
           }
         });
       }
@@ -166,7 +181,10 @@ export const CardRap = ({
       schedulesToUnassign = horarios.filter((h: any) => (h.instructor?.id || h.persona?.id) === instructor.id);
     } else {
       schedulesToUnassign = horarios.filter((h: any) => 
-        h.asignacionSesion?.some((asig: any) => asig.contrato?.persona?.id === instructor.id)
+        h.asignacionSesion?.some((asig: any) => 
+          asig.contrato?.persona?.id === instructor.id && 
+          asig.tipoAsignacion === instructor.tipoAsignacion
+        )
       );
     }
 
@@ -201,7 +219,8 @@ export const CardRap = ({
         } else {
           await axios.put('asignacion-sesion/desasignar', {
             horarios: schedulesToUnassign.map((h: any) => h.id),
-            idContrato: instructor.id_contrato || instructor.id // Necesitamos el ID del contrato
+            idContrato: instructor.idContrato || instructor.id,
+            tipoAsignacion: instructor.tipoAsignacion
           });
         }
 
@@ -417,19 +436,12 @@ export const CardRap = ({
                     {/* Nombre del Instructor */}
                     <div className="text-left">
                       {instructoresAsignados.length > 0 ? (
-                        <div>
+                        <div onClick={() => setShowInstructorsModal(true)}>
                           <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase">Instructor</p>
                           <p className="text-xs font-semibold text-gray-800 dark:text-white leading-tight">
-                            {instructoresAsignados.length === 1 ? (
+                            {instructoresAsignados.length === 1 &&
                               `${instructoresAsignados[0].nombre1 || ''} ${instructoresAsignados[0].apellido1 || ''}`
-                            ) : (
-                              <span
-                                className="text-primary cursor-pointer hover:underline"
-                                onClick={() => setShowInstructorsModal(true)}
-                              >
-                                +{instructoresAsignados.length}
-                              </span>
-                            )}
+                            }
                           </p>
                         </div>
                       ) : (
@@ -461,20 +473,30 @@ export const CardRap = ({
                                 </div>
                               ) : (
                                 <div className="p-1">
-                                  {instructores.map((inst) => (
-                                    <button
-                                      key={inst.id}
-                                      onClick={() => handleAsignarSegundoInstructor(inst)}
-                                      className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
-                                    >
-                                      <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
-                                        {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
-                                      </div>
-                                      <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
-                                        {inst.persona?.nombre1} {inst.persona?.apellido1}
-                                      </p>
-                                    </button>
-                                  ))}
+                                  {instructores
+                                    .filter((inst) => {
+                                      // Evitar el instructor principal del horario
+                                      if (horarios.some(h => 
+                                        h.idContrato == inst.id ||
+                                        h.contrato?.id == inst.id ||
+                                        h.instructor?.id == inst.persona?.id
+                                      )) return false;
+                                      return true;
+                                    })
+                                    .map((inst) => (
+                                      <button
+                                        key={inst.id}
+                                        onClick={() => handleAsignarSegundoInstructor(inst)}
+                                        className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
+                                          {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
+                                          {inst.persona?.nombre1} {inst.persona?.apellido1}
+                                        </p>
+                                      </button>
+                                    ))}
                                 </div>
                               )}
                             </div>
@@ -666,9 +688,9 @@ export const CardRap = ({
                         <i className="ki-outline ki-sms size-3.5"></i>
                         {inst.email || 'Sin correo registrado'}
                       </p>
-                      {materia.estado != 'FINALIZADO' && !inst.esPrincipal &&
-                        <p className='text-xs text-orange-400 dark:text-orange-400 font-medium mt-1'>HORARIO COMPARTIDO</p>
-                      }
+                      <p className={`text-[10px] font-bold mt-1 uppercase px-2 py-0.5 rounded-md w-fit ${inst.esPrincipal ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+                        {inst.tipoAsignacion || (inst.esPrincipal ? 'HORARIO' : 'SECUNDARIO')}
+                      </p>
                     </div>
 
                     {materia.estado != 'FINALIZADO' && <button
