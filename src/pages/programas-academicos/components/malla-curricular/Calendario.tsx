@@ -73,6 +73,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [horarioAsignacionSesion, setHorarioAsignacionSesion] = useState<any>(null);
   const [idMateriaAsignacion, setIdMateriaAsignacion] = useState<number | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Efecto para el carrusel de fotos en los tooltips
   useEffect(() => {
@@ -136,7 +137,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, idFicha]);
+  }, [isOpen, idFicha, refreshTrigger, materia]);
 
   // Resetear estado cuando se cierra el modal
   useEffect(() => {
@@ -580,6 +581,10 @@ export const Calendario: React.FC<CalendarioProps> = ({
         <AsignacionSesionModal
           isOpen={asignacionSesionModal}
           onClose={() => setAsignacionSesionModal(false)}
+          onSuccess={() => {
+            setRefreshTrigger(prev => prev + 1);
+            cargarRaps?.();
+          }}
           idMateria={materia.idMateria || materia.id}
           horario={horarioAsignacionSesion}
           fechaSeleccionada={fechaSeleccionada}
