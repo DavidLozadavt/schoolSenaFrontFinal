@@ -330,14 +330,14 @@ export const ProgramacionFichasPage = () => {
               className="hover:text-primary cursor-pointer"
               onClick={() => navigate('/gestion-academica/configuracion/programas')}
             >
-              Programas
+              Planeación
             </span>
             <span className="mx-2">/</span>
             <span
               className="hover:text-primary cursor-pointer"
               onClick={() => navigate('/gestion-academica/configuracion/programas')}
             >
-              Gestión de programas
+              Gestión de planeación
             </span>
             <span className="mx-2">/</span>
             <span className="text-gray-800 dark:text-white font-medium">

@@ -325,7 +325,7 @@ export const GestionProgramas = ({
       <div className="relative z-10 flex flex-col w-full h-full">
         <div className="w-full max-w-6xl mx-auto mb-6 text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
-            Gestión de Programas
+            Gestión de Planeación
           </h1>
           <p className="mt-1 text-xs font-medium tracking-widest text-gray-500 uppercase">
             Configuración Académica
