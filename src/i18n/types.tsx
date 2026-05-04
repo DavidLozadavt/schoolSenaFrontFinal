@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+ 
 import { type Direction } from '@mui/material';
 import { type Localization } from '@mui/material/locale';
 import { type MessageFormatElement } from 'react-intl';
