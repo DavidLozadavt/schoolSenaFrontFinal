@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+ 
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataGrid, DefaultTooltip, KeenIcon } from '@/components';
