@@ -61,37 +61,38 @@ export const CardRap = ({
     const keysVistas = new Set();
 
     asignados.forEach((h: any) => {
-      // Instructor principal
-      const instructor = h.instructor || h.persona;
-      if (instructor) {
-        const key = `${instructor.id}-PRINCIPAL`;
-        if (!keysVistas.has(key)) {
-          keysVistas.add(key);
-          unicos.push({ 
-            ...instructor, 
-            esPrincipal: true, 
-            tipoAsignacion: 'HORARIO' 
-          });
-        }
-      }
-
-      // Instructores secundarios (Compartidos/Reemplazos)
-      if (h.asignacionSesion && Array.isArray(h.asignacionSesion)) {
-        h.asignacionSesion.forEach((asig: any) => {
-          const instSec = asig.contrato?.persona;
-          if (instSec) {
-            const key = `${instSec.id}-${asig.tipoAsignacion}`;
-            if (!keysVistas.has(key)) {
-              keysVistas.add(key);
-              unicos.push({ 
-                ...instSec, 
-                esPrincipal: false, 
-                idContrato: asig.idContrato,
-                tipoAsignacion: asig.tipoAsignacion 
-              });
-            }
+      // 1. Prioridad: Verificar si este horario es una asignación especial (Compartido/Reemplazo)
+      // Buscamos si este horario tiene una asignación de sesión vinculada con contrato
+      const asigEspecial = h.asignacionSesion?.find((asig: any) => asig.idContrato !== null);
+      
+      if (asigEspecial) {
+        const instSec = asigEspecial.contrato?.persona;
+        if (instSec) {
+          const key = `${instSec.id}-${asigEspecial.tipoAsignacion}`;
+          if (!keysVistas.has(key)) {
+            keysVistas.add(key);
+            unicos.push({ 
+              ...instSec, 
+              esPrincipal: false, 
+              idContrato: asigEspecial.idContrato,
+              tipoAsignacion: asigEspecial.tipoAsignacion 
+            });
           }
-        });
+        }
+      } else {
+        // 2. Si no tiene asignación especial vinculada, es el instructor principal del horario
+        const instructor = h.instructor || h.persona;
+        if (instructor) {
+          const key = `${instructor.id}-PRINCIPAL`;
+          if (!keysVistas.has(key)) {
+            keysVistas.add(key);
+            unicos.push({ 
+              ...instructor, 
+              esPrincipal: true, 
+              tipoAsignacion: 'PRINCIPAL' 
+            });
+          }
+        }
       }
     });
 
