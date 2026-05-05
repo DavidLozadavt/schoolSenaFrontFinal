@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+ 
 import { useMemo } from 'react';
 import { toAbsoluteUrl } from '@/utils';
 import { Link } from 'react-router-dom';
