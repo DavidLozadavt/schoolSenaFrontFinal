@@ -194,7 +194,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
         return matchDay && compareDate >= start && compareDate <= end;
       };
 
-      return [
+      const rawEvents = [
         ...asignados.filter(filterFn).map(h => {
           const assignments = h.asignacion_sesion || h.asignacionSesion || [];
           const activeAsignacion = assignments.find((asig: any) => {
@@ -209,6 +209,48 @@ export const Calendario: React.FC<CalendarioProps> = ({
         }),
         ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' }))
       ];
+
+      // Agrupar eventos por slot (hora inicio, hora fin e idGradoMateria)
+      const grouped: any[] = [];
+      rawEvents.forEach(ev => {
+        const hIni = ev.horaInicial || ev.horaInicio;
+        const hFin = ev.horaFinal || ev.horaFin;
+        const key = `${hIni}-${hFin}-${ev.idGradoMateria}`;
+        
+        const existing = grouped.find(g => {
+          const gIni = g.horaInicial || g.horaInicio;
+          const gFin = g.horaFinal || g.horaFin;
+          return `${gIni}-${gFin}-${g.idGradoMateria}` === key;
+        });
+
+        if (existing) {
+          // Si ya existe este slot, agregamos el instructor y asignación extra
+          if (!existing.allInstructors) {
+            existing.allInstructors = [existing.instructor || existing.contrato?.persona];
+          }
+          const currentInstructor = ev.instructor || ev.contrato?.persona;
+          if (currentInstructor) {
+            existing.allInstructors.push(currentInstructor);
+          }
+          
+          if (!existing.allAssignments) {
+            existing.allAssignments = existing.activeAsignacion ? [existing.activeAsignacion] : [];
+          }
+          if (ev.activeAsignacion) {
+            existing.allAssignments.push(ev.activeAsignacion);
+          }
+          
+          // Marcar como compartido para visualización
+          existing.isSharedSlot = true;
+        } else {
+          ev.allInstructors = [ev.instructor || ev.contrato?.persona];
+          ev.allAssignments = ev.activeAsignacion ? [ev.activeAsignacion] : [];
+          ev.isSharedSlot = ev.activeAsignacion ? true : false;
+          grouped.push(ev);
+        }
+      });
+
+      return grouped;
     };
   }, [asignados, sinAsignar]);
 
@@ -426,16 +468,19 @@ export const Calendario: React.FC<CalendarioProps> = ({
                         return (
                           <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] ${viewMode === 'day' ? 'text-sm' : 'text-[10px]'} font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
                             <div className="flex flex-col items-center justify-center">
-                              <div>{format12h(hIni)} - {format12h(hFin)}</div>
-                              {ev.activeAsignacion && (
-                                <div className="text-[7px] text-primary-active mt-0.5 uppercase">
-                                  {ev.activeAsignacion.tipoAsignacion}
+                              <div className="flex items-center gap-1">
+                                {format12h(hIni)} - {format12h(hFin)}
+                                {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" title="Horario compartido" />}
+                              </div>
+                              {ev.isSharedSlot && (
+                                <div className="text-[7px] text-primary-active mt-0.5 uppercase font-black">
+                                  COMPARTIDO
                                 </div>
                               )}
                             </div>
                             {!modoRmi && (
                               <div className='w-full flex justify-around items-center mb-1'>
-                                {!ev.activeAsignacion && ev.estado == 'ASIGNADO' && (
+                                {!ev.isSharedSlot && ev.estado == 'ASIGNADO' && (
                                   <div className='rounded-full bg-blue-500/5 w-6 h-6 flex items-center justify-center'>
                                     <button
                                       onClick={() => {
@@ -465,7 +510,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
                             <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} ${viewMode === 'day' ? 'w-80' : 'w-60'} p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
                               <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500 border-b dark:border-gray-600">
                                 {/* Carrusel de Fotos */}
-                                <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: (!ev.activeAsignacion || carouselIndex === 0) ? 1 : 0 }}>
+                                {/* Instructor Principal / Titular */}
+                                <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: (!ev.isSharedSlot || carouselIndex === 0) ? 1 : 0 }}>
                                   {(instructor?.rutaFotoUrl || instructor?.rutaFoto) ? (
                                     <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
                                   ) : (
@@ -474,19 +520,20 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                   <div className="absolute top-0 left-0 bg-gray-800/60 text-white text-[7px] px-2 py-0.5 font-black rounded-br-lg">TITULAR</div>
                                 </div>
 
-                                {ev.activeAsignacion && (
+                                {/* Instructor Secundario / Compartido */}
+                                {ev.isSharedSlot && ev.allAssignments && ev.allAssignments.length > 0 && (
                                   <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: carouselIndex === 1 ? 1 : 0 }}>
-                                    {(ev.activeAsignacion.contrato?.persona?.rutaFotoUrl || ev.activeAsignacion.contrato?.persona?.rutaFoto) ? (
-                                      <img src={ev.activeAsignacion.contrato.persona.rutaFotoUrl || ev.activeAsignacion.contrato.persona.rutaFoto} alt="" className="w-full h-full object-cover" />
+                                    {(ev.allAssignments[0].contrato?.persona?.rutaFotoUrl || ev.allAssignments[0].contrato?.persona?.rutaFoto) ? (
+                                      <img src={ev.allAssignments[0].contrato.persona.rutaFotoUrl || ev.allAssignments[0].contrato.persona.rutaFoto} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
                                     )}
-                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.activeAsignacion.tipoAsignacion}</div>
+                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.allAssignments[0].tipoAsignacion}</div>
                                   </div>
                                 )}
 
                                 {/* Indicador de carrusel */}
-                                {ev.activeAsignacion && (
+                                {ev.isSharedSlot && (
                                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
                                     <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 0 ? 'bg-white scale-125' : 'bg-white/40'}`} />
                                     <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 1 ? 'bg-white scale-125' : 'bg-white/40'}`} />
@@ -524,20 +571,23 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                     </div>
 
 
-                                    {/* INSTRUCTOR SECUNDARIO */}
-                                    {ev.activeAsignacion &&
-                                      <div className="flex flex-col gap-0.5">
+                                    {/* INSTRUCTORES SECUNDARIOS / COMPARTIDOS */}
+                                    {ev.isSharedSlot && ev.allAssignments?.map((asig: any, aIdx: number) => (
+                                      <div key={aIdx} className="flex flex-col gap-0.5 border-t border-gray-100 dark:border-gray-700 pt-2 mt-1">
                                         <div className="flex items-center gap-2 dark:text-white">
                                           <User size={12} className="text-gray-400 shrink-0" />
                                           <span className="text-[10px] font-bold leading-tight truncate">
-                                            {ev.activeAsignacion.contrato?.persona?.nombre1 || ''} {ev.activeAsignacion.contrato?.persona?.apellido1 || ''} <span className="text-orange-500 uppercase ml-2">({ev.activeAsignacion.tipoAsignacion})</span>
+                                            {asig.contrato?.persona?.nombre1 || ''} {asig.contrato?.persona?.apellido1 || ''} 
+                                            <span className="text-primary uppercase ml-2 text-[8px]">({asig.tipoAsignacion})</span>
                                           </span>
                                         </div>
-                                        {ev.activeAsignacion.observacion && (<p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">
-                                          <span className="font-bold text-primary">Observación: </span>
-                                          {ev.activeAsignacion.observacion}</p>)}
+                                        {asig.observacion && (
+                                          <p className="text-[9px] text-gray-500 dark:text-gray-400 uppercase italic">
+                                            "{asig.observacion}"
+                                          </p>
+                                        )}
                                       </div>
-                                    }
+                                    ))}
                                   </div>
                                 </div>
                               </div>
