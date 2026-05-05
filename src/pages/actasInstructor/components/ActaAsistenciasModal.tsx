@@ -109,8 +109,8 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
       <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full overflow-hidden shadow-2xl border-none">
         <ModalHeader className="bg-gray-50 dark:bg-coal-400/50 border-b border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
-              <i className={`ki-outline ${isLocked ? 'ki-lock' : 'ki-users'} text-purple-600 dark:text-purple-400 text-xl`} />
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center">
+              <i className={`ki-outline ${isLocked ? 'ki-lock' : 'ki-users'} text-blue-600 dark:text-blue-400 text-xl`} />
             </div>
             <div>
               <ModalTitle className="text-lg font-bold text-gray-800 dark:text-white">
@@ -147,14 +147,14 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2 gap-2 sm:gap-0">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <i className="ki-outline ki-users text-purple-500" />
+                      <i className="ki-outline ki-users text-blue-500" />
                       <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                         Asistentes (Instructores/Asesores)
                       </h3>
                     </div>
                     <input
                       type="month"
-                      className="px-3 py-1.5 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500/20"
+                      className="px-3 py-1.5 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20"
                       value={periodo}
                       onChange={(e) => setPeriodo(e.target.value)}
                       title="Filtrar instructores por período"
@@ -164,7 +164,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                     <button
                       type="button"
                       onClick={addAsistencia}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-[10px] font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                     >
                       <i className="ki-outline ki-plus" />
                       Agregar Asistente
@@ -202,7 +202,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                             </label>
                             <select
                               required
-                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                               value={asistencia.idContrato}
                               onChange={(e) =>
                                 handleAsistenciaChange(index, 'idContrato', e.target.value)
@@ -227,7 +227,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                               type="text"
                               required
                               placeholder="Ej: CCYS"
-                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                               value={asistencia.dependencia}
                               onChange={(e) =>
                                 handleAsistenciaChange(index, 'dependencia', e.target.value)
@@ -240,7 +240,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                             </label>
                             <select
                               required
-                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20"
+                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                               value={asistencia.aprueba}
                               onChange={(e) =>
                                 handleAsistenciaChange(index, 'aprueba', e.target.value)
@@ -257,7 +257,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
                           </label>
                           <textarea
                             rows={2}
-                            className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 resize-none"
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                             placeholder="Observación opcional..."
                             value={asistencia.observacion}
                             onChange={(e) =>
@@ -284,7 +284,7 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-2.5 bg-purple-600 hover:bg-purple-700 shadow-purple-500/25 text-white text-xs font-bold rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 shadow-blue-500/25 text-white text-xs font-bold rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>

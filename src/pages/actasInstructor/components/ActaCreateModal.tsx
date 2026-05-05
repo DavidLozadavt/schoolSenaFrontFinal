@@ -273,10 +273,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         <ModalHeader className="bg-gray-50 dark:bg-coal-400/50 border-b border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div
-              className={`w-10 h-10 rounded-xl ${isLocked ? 'bg-green-100 dark:bg-green-500/10' : isEdit ? 'bg-orange-100 dark:bg-orange-500/10' : 'bg-blue-100 dark:bg-blue-500/10'} flex items-center justify-center`}
+              className={`w-10 h-10 rounded-xl ${isLocked ? 'bg-green-100 dark:bg-green-500/10' : isEdit ? 'bg-blue-100 dark:bg-blue-500/10' : 'bg-blue-100 dark:bg-blue-500/10'} flex items-center justify-center`}
             >
               <i
-                className={`ki-outline ${isLocked ? 'ki-lock' : isEdit ? 'ki-notepad-edit' : 'ki-plus'} ${isLocked ? 'text-green-600 dark:text-green-400' : isEdit ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'} text-xl`}
+                className={`ki-outline ${isLocked ? 'ki-lock' : isEdit ? 'ki-notepad-edit' : 'ki-plus'} ${isLocked ? 'text-green-600 dark:text-green-400' : isEdit ? 'text-blue-600 dark:text-blue-400' : 'text-blue-600 dark:text-blue-400'} text-xl`}
               />
             </div>
             <div>
@@ -770,7 +770,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`px-8 py-2.5 ${isEdit ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-500/25' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'} text-white text-xs font-bold rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+                className={`px-8 py-2.5 ${isEdit ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'} text-white text-xs font-bold rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
               >
                 {isSubmitting ? (
                   <>
