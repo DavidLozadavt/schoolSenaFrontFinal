@@ -39,6 +39,21 @@ const idDiaHorarioAGetDay = (idDia: unknown): number | null => {
   return n === 7 ? 0 : n;
 };
 
+/** Evita `{}` u otros valores en `location.state` / APIs donde los hijos esperan `string | number`. */
+const normalizeIdProp = (value: unknown): string | number => {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  return '';
+};
+
+/** idMateria numérico > 0, o undefined si no es válido. */
+const parsePositiveMateriaId = (value: unknown): number | undefined => {
+  const raw = normalizeIdProp(value);
+  if (raw === '') return undefined;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+};
+
 /** Parse YYYY-MM-DD en hora local (misma regla que en el calendario). */
 const parseYmdLocal = (dateString: string | undefined | null): Date | null => {
   if (!dateString) return null;
@@ -1347,17 +1362,14 @@ const ClaseDetallePage: React.FC = () => {
   }, [clase]);
 
   const materialApoyoIdRapContexto = useMemo(() => {
-    const n = Number(locationState?.idMateria ?? clase?.idMateria ?? 0);
-    return Number.isFinite(n) && n > 0 ? n : undefined;
+    return parsePositiveMateriaId(locationState?.idMateria ?? clase?.idMateria);
   }, [locationState?.idMateria, clase?.idMateria]);
 
   /** string | number para componentes que no aceptan unknown (state con index signature). */
-  const idMateriaClaseProp = useMemo((): string | number => {
-    const raw = locationState?.idMateria ?? clase?.idMateria;
-    if (raw === undefined || raw === null) return '';
-    if (typeof raw === 'number' || typeof raw === 'string') return raw;
-    return '';
-  }, [locationState?.idMateria, clase?.idMateria]);
+  const idMateriaClaseProp = useMemo(
+    (): string | number => normalizeIdProp(locationState?.idMateria ?? clase?.idMateria),
+    [locationState?.idMateria, clase?.idMateria]
+  );
 
   // Estado local para el estado de la clase (se actualiza en tiempo real)
   const [estadoClaseLocal, setEstadoClaseLocal] = useState<'pasada' | 'pendiente' | 'en_curso'>('pendiente');
@@ -1474,48 +1486,40 @@ const ClaseDetallePage: React.FC = () => {
       if (!id) return;
       try {
         setLoading(true);
-        // Intentar primero con el nuevo endpoint que usa idHorarioMateria
-        let response;
-        try {
-          response = await axios.get(`fichas/clase-horario/${id}`);
-          // El nuevo endpoint devuelve { message, data: { clase, ficha, apertura } }
-          const fichaData = response.data?.data?.ficha;
-          const claseData = response.data?.data?.clase;
+        const response = await axios.get(`fichas/clase-horario/${id}`);
+        const fichaData = response.data?.data?.ficha;
+        const claseData = response.data?.data?.clase;
 
-          if (fichaData) {
-            setFicha(fichaData);
-            if (claseData) {
-              const norm = normalizarClaseDetalleApi(claseData);
-              setClase(norm ?? (claseData as Clase));
-            }
-            // Obtener todas las fechas de clase para el calendario
-            const rawFechas = response.data?.data?.todasLasFechasClase || [];
-            const fechasNorm = (Array.isArray(rawFechas) ? rawFechas : [])
-              .map((row: unknown) => normalizarFilaFechaClaseApi(row))
-              .filter((x): x is FechaClase => x != null);
-            setTodasLasFechasClase(fechasNorm);
-            const porH = response.data?.data?.sesionesCompletadasPorHorario;
-            setSesionesCompletadasPorHorario(
-              porH && typeof porH === 'object' ? (porH as SesionesPorHorarioMap) : {}
-            );
-          } else {
-            throw new Error('Ficha no encontrada en la respuesta');
-          }
-        } catch (horarioError: any) {
-          // Si falla, intentar con el endpoint antiguo (por si acaso se pasa un ficha_id)
-          response = await axios.get(`fichas/${id}`);
-          const fichaData = response.data?.data?.ficha || response.data;
+        if (fichaData) {
           setFicha(fichaData);
-          setClase(null); // El endpoint antiguo no tiene datos de clase
+          if (claseData) {
+            const norm = normalizarClaseDetalleApi(claseData);
+            setClase(norm ?? (claseData as Clase));
+          } else {
+            setClase(null);
+          }
+          const rawFechas = response.data?.data?.todasLasFechasClase || [];
+          const fechasNorm = (Array.isArray(rawFechas) ? rawFechas : [])
+            .map((row: unknown) => normalizarFilaFechaClaseApi(row))
+            .filter((x): x is FechaClase => x != null);
+          setTodasLasFechasClase(fechasNorm);
+          const porH = response.data?.data?.sesionesCompletadasPorHorario;
+          setSesionesCompletadasPorHorario(
+            porH && typeof porH === 'object' ? (porH as SesionesPorHorarioMap) : {}
+          );
+        } else {
+          setFicha(null);
+          setClase(null);
+          setTodasLasFechasClase([]);
+          setSesionesCompletadasPorHorario({});
         }
 
-        // Aquí deberías hacer una llamada para obtener los estudiantes de la ficha
-        // Por ahora usamos un array vacío
         setEstudiantes([]);
-      } catch (error: any) {
-        // Error al cargar la ficha - se maneja silenciosamente
-        // Siempre establecer ficha como null en caso de error para mostrar el mensaje apropiado
+      } catch {
         setFicha(null);
+        setClase(null);
+        setTodasLasFechasClase([]);
+        setSesionesCompletadasPorHorario({});
       } finally {
         setLoading(false);
       }
@@ -1528,7 +1532,7 @@ const ClaseDetallePage: React.FC = () => {
     if (!idFichaParaClase) return;
     setLoadingActividades(true);
     try {
-      const idMateriaFiltro = Number(locationState?.idMateria || clase?.idMateria || 0) || undefined;
+      const idMateriaFiltro = parsePositiveMateriaId(locationState?.idMateria ?? clase?.idMateria);
       const rawProg = ficha?.asignacion?.programa?.id;
       const idProgramaFiltro =
         rawProg !== undefined && rawProg !== null && String(rawProg) !== ''
@@ -1598,8 +1602,8 @@ const ClaseDetallePage: React.FC = () => {
       } else {
         setCoberturaActividades({});
       }
-    } catch (e) {
-      console.warn('Error cargando actividades:', e);
+    } catch {
+      // Silencioso: el menú puede abrirse antes de tener ficha/contexto completo.
     } finally {
       setLoadingActividades(false);
     }
