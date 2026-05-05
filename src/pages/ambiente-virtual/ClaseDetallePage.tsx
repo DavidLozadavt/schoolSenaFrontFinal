@@ -1258,6 +1258,9 @@ const ClaseDetallePage: React.FC = () => {
     returnTo?: string;
     activeMenu?: MenuOption;
     ficha_id?: number;
+    /** RAP / materia de clase (navegación desde calendario u horario). */
+    idMateria?: number | string;
+    programa_nombre?: string;
     /** Desde Mis clases (aprendiz) vs historial RAPs (instructor). */
     vistaCalendario?: 'aprendiz' | 'instructor';
     [key: string]: unknown;
@@ -1346,6 +1349,14 @@ const ClaseDetallePage: React.FC = () => {
   const materialApoyoIdRapContexto = useMemo(() => {
     const n = Number(locationState?.idMateria ?? clase?.idMateria ?? 0);
     return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [locationState?.idMateria, clase?.idMateria]);
+
+  /** string | number para componentes que no aceptan unknown (state con index signature). */
+  const idMateriaClaseProp = useMemo((): string | number => {
+    const raw = locationState?.idMateria ?? clase?.idMateria;
+    if (raw === undefined || raw === null) return '';
+    if (typeof raw === 'number' || typeof raw === 'string') return raw;
+    return '';
   }, [locationState?.idMateria, clase?.idMateria]);
 
   // Estado local para el estado de la clase (se actualiza en tiempo real)
@@ -2411,7 +2422,7 @@ const ClaseDetallePage: React.FC = () => {
               {activeMenu === 'estudiantes' && (
                 <StudentListByMateria
                   materiaData={{
-                    idMateria: locationState?.idMateria || clase?.idMateria || '',
+                    idMateria: idMateriaClaseProp,
                     idFicha: idFichaParaClase,
                     idJornada: ficha?.jornada?.id?.toString() || '',
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
@@ -2555,7 +2566,7 @@ const ClaseDetallePage: React.FC = () => {
               {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario !== 'aprendiz' && (
                 <MaterialApoyoFichaView
                   idFicha={idFichaParaClase}
-                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  idMateria={idMateriaClaseProp}
                   fichaCodigo={ficha?.codigo}
                   rapContextLabel={materialApoyoRapContexto || undefined}
                   idRapContext={materialApoyoIdRapContexto}
@@ -2575,7 +2586,7 @@ const ClaseDetallePage: React.FC = () => {
               {activeMenu === 'calificaciones' && idFichaParaClase > 0 && (
                 <CalificacionesFichaView
                   idFicha={idFichaParaClase}
-                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  idMateria={idMateriaClaseProp}
                   idInstructor={clase?.instructor?.persona?.id}
                   instructorAsignado={
                     clase?.instructor?.persona
