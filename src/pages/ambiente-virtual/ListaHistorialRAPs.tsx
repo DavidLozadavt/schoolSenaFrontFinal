@@ -27,6 +27,11 @@ interface Clase {
   ficha_codigo: string;
   programa_nombre: string;
   materia_nombre: string;
+  /** Nombre de la competencia (padre en `materia` o la misma materia si no hay RAP). */
+  competencia_nombre: string;
+  /** Nombre del RAP (hijo); vacío si el horario es solo por competencia sin fila RAP. */
+  rap_nombre: string | null;
+  idMateriaPadre: number | null;
   jornada_nombre: string;
   jornada_tipo: string;
   dia_semana: string;
@@ -293,11 +298,30 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
 
     const idHorarioMateria = toNum(raw.idHorarioMateria);
 
+    const materiaNombre = String(raw.materia_nombre ?? '');
+    const competenciaRaw =
+      raw.competencia_nombre != null
+        ? String(raw.competencia_nombre).trim()
+        : raw.competenciaNombre != null
+          ? String(raw.competenciaNombre).trim()
+          : '';
+    const competencia_nombre =
+      competenciaRaw || materiaNombre || String(raw.programa_nombre ?? '');
+    const rapSource = raw.rap_nombre ?? raw.rapNombre;
+    const rapRaw =
+      rapSource != null && rapSource !== '' && String(rapSource).toLowerCase() !== 'null'
+        ? String(rapSource).trim()
+        : '';
+    const rap_nombre = rapRaw.length > 0 ? rapRaw : null;
+
     return {
       ficha_id: toNum(raw.ficha_id),
       ficha_codigo: String(raw.ficha_codigo ?? ''),
       programa_nombre: String(raw.programa_nombre ?? ''),
-      materia_nombre: String(raw.materia_nombre ?? ''),
+      materia_nombre: materiaNombre,
+      competencia_nombre,
+      rap_nombre,
+      idMateriaPadre: toNumOrNull(raw.idMateriaPadre),
       jornada_nombre: String(raw.jornada_nombre ?? ''),
       jornada_tipo: String(raw.jornada_tipo ?? ''),
       dia_semana: String(raw.dia_semana ?? ''),
@@ -1350,6 +1374,32 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   };
 
   /**
+   * Textos para la tarjeta: competencia (API/padre/seguimiento) y RAP.
+   * Si no hay `rap_nombre` pero `materia_nombre` trae todo junto tipo "código - …", separa en dos líneas.
+   */
+  const titulosCompetenciaYRap = (clase: Clase): { competencia: string; rap: string | null } => {
+    const materia = clase.materia_nombre.trim();
+    let competencia =
+      clase.competencia_nombre.trim() || materia || clase.programa_nombre.trim() || 'Sin nombre';
+    let rap = clase.rap_nombre?.trim() || null;
+
+    if (!rap && materia.includes(' - ')) {
+      const sep = ' - ';
+      const i = materia.indexOf(sep);
+      const tail = materia.slice(i + sep.length).trim();
+      const head = materia.slice(0, i).trim();
+      if (tail.length > 0 && head.length > 0) {
+        rap = tail;
+        if (clase.competencia_nombre.trim() === materia) {
+          competencia = head;
+        }
+      }
+    }
+
+    return { competencia, rap };
+  };
+
+  /**
    * Componente para renderizar una tarjeta de sesión completada
    * Cada sesión tiene su propia tarjeta independiente
    * Esto permite que en el futuro cada tarjeta pueda tener información específica
@@ -1364,6 +1414,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
   }> = ({ clase, sesion }) => {
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
+    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRap(clase);
 
     // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
     const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
@@ -1378,11 +1429,16 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
             <i className="ki-outline ki-check-circle text-lg text-green-600 dark:text-green-400"></i>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
-                {clase.materia_nombre || clase.programa_nombre || 'Sin nombre'}
+            <div className="mb-2 space-y-1">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white leading-snug">
+                {tituloCompetencia}
               </h3>
-              <div className="flex items-center gap-2">
+              {tituloRap ? (
+                <p className="text-xs font-normal text-gray-700 dark:text-gray-300 leading-snug">
+                  {tituloRap}
+                </p>
+              ) : null}
+              <div className="flex items-center gap-2 pt-0.5">
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
                   <i className="ki-outline ki-check text-xs"></i>
                   <span>Completado</span>
@@ -1444,8 +1500,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
     const horario = getHorario(clase);
     const numSesiones = getNumSesiones(clase);
     const proximaClase = showProximaFecha ? getProximaClasePendiente(clase) : null;
-    const sesionesCompletadas = clase.sesiones_completadas || [];
-    const esCompletada = status === 'COMPLETADO';
+    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRap(clase);
 
     return (
       <div
@@ -1458,11 +1513,16 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
           </div>
           <div className="flex-1 min-w-0">
             {/* Título y Badge en líneas separadas para mejor espaciado */}
-            <div className="mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
-                {clase.materia_nombre || clase.programa_nombre || 'Sin nombre'}
+            <div className="mb-2 space-y-1">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white leading-snug">
+                {tituloCompetencia}
               </h3>
-              <div className="flex items-center">{getStatusBadge(status, clase)}</div>
+              {tituloRap ? (
+                <p className="text-xs font-normal text-gray-700 dark:text-gray-300 leading-snug">
+                  {tituloRap}
+                </p>
+              ) : null}
+              <div className="flex items-center pt-0.5">{getStatusBadge(status, clase)}</div>
             </div>
             <div className="flex items-center gap-4 flex-wrap text-xs text-gray-600 dark:text-gray-400">
               <div className="flex items-center gap-1.5">
@@ -1487,6 +1547,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ searchTerm, evento, setEvento, id
                 <div className="flex items-center gap-1.5">
                   <i className="ki-outline ki-calendar-tick text-sm"></i>
                   <span>{proximaClase}</span>
+                </div>
+              )}
+              {clase.fechaFinal && (
+                <div className="flex items-center gap-1.5">
+                  <i className="ki-outline ki-calendar-search text-sm"></i>
+                  <span className="capitalize">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Final: </span>
+                    {formatearFechaSesion(clase.fechaFinal)}
+                  </span>
                 </div>
               )}
             </div>
