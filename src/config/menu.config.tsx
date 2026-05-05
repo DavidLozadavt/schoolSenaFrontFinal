@@ -11,7 +11,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_REGIONAL'], //Cambiar por CONFIGURACION_ACADEMICA
         children: [
           {
-            title: 'Programas',
+            title: 'Planeación',
             path: '/gestion-academica/configuracion/redes',
             requiredPermissions: ['GESTION_USUARIO']
           },
@@ -57,7 +57,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
         children: [
           {
-            title: 'Historial Raps',
+            title: 'Mis formaciones',
             path: '/ambiente-virtual/historial-raps',
             requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
           }

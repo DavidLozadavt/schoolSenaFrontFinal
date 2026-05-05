@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { KeenIcon } from '@/components';
+import { toAbsoluteUrl } from '@/utils';
 import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
@@ -25,6 +26,9 @@ const initialValues = {
   password: '',
   remember: false
 };
+
+const logoLightSrc = toAbsoluteUrl('/media/app/logoweb.png');
+const logoDarkSrc = toAbsoluteUrl('/media/app/logoweb-dark.png');
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -120,12 +124,19 @@ const Login = () => {
           noValidate
         >
 
-          <div className="text-center flex flex-col items-center gap-2">
-            <img
-              src="https://admin.virtualt.org/default/logoweb.png"
-              alt="Logo"
-              className={loading ? 'animate-pulse  h-14 object-contain' : 'h-14 object-contain'}
-            />
+          <div className="text-center flex flex-col items-center gap-3">
+            <div className={clsx(loading && 'animate-pulse')}>
+              <img
+                src={logoLightSrc}
+                alt="School"
+                className="h-20 sm:h-24 w-auto max-w-[min(100%,360px)] object-contain dark:hidden"
+              />
+              <img
+                src={logoDarkSrc}
+                alt="School"
+                className="hidden h-20 sm:h-24 w-auto max-w-[min(100%,360px)] object-contain dark:block"
+              />
+            </div>
             <h3 className="text-2xl font-semibold text-gray-900">
               Iniciar sesión
             </h3>
@@ -147,10 +158,10 @@ const Login = () => {
               data-no-uppercase
               className={clsx(
                 'w-full rounded-xl border px-4 py-3 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
-                'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
+                'focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25',
                 'hover:border-gray-400',
                 {
-                  'border-red-500 focus:ring-red-500/20':
+                  'border-red-500 focus:border-red-500 focus:ring-red-500/20':
                     formik.touched.email && formik.errors.email
                 }
               )}
@@ -175,10 +186,10 @@ const Login = () => {
                 data-no-uppercase
                 className={clsx(
                   'w-full rounded-xl border px-4 py-3 pr-12 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
-                  'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20',
+                  'focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25',
                   'hover:border-gray-400',
                   {
-                    'border-red-500 focus:ring-red-500/20':
+                    'border-red-500 focus:border-red-500 focus:ring-red-500/20':
                       formik.touched.password && formik.errors.password
                   }
                 )}
@@ -202,9 +213,9 @@ const Login = () => {
             type="submit"
             disabled={loading || formik.isSubmitting}
             className={clsx(
-              'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all',
-              'bg-orange-500 hover:bg-orange-700',
-              'focus:outline-none focus:ring-4 focus:ring-orange-500/30',
+              'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all shadow-sm',
+              'bg-[#1e6fd9] hover:bg-[#155ebf] active:bg-[#1256b0]',
+              'focus:outline-none focus:ring-4 focus:ring-[#1e6fd9]/35',
               'disabled:opacity-60 disabled:cursor-not-allowed'
             )}
           >
@@ -220,7 +231,7 @@ const Login = () => {
           <div className="flex items-center justify-center">
             <Link
               to="/auth/classic/reset-password"
-              className="text-xs text-gray-600 hover:text-primary font-medium"
+              className="text-xs text-gray-600 hover:text-[#1e6fd9] font-medium transition-colors"
             >
               ¿Olvidaste tu contraseña?
             </Link>

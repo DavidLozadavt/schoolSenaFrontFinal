@@ -24,10 +24,10 @@ const RedesProgramas: React.FC = () => {
       {/** titulo */}
       <div className="w-full max-w-6xl mx-auto mb-6 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
-          {esProgramas ? 'Programas' : 'Elige la red'}
+          {esProgramas ? 'Planeación' : 'Elige la red'}
         </h1>
         <p className="mt-1 text-xs font-medium tracking-widest text-gray-500 uppercase">
-          {esProgramas ? 'Elige una red para ver sus programas' : 'Configuración Sena'}
+          {esProgramas ? 'Elige una red para ver su planeación' : 'Configuración Sena'}
         </p>
       </div>
       <div className="flex items-center justify-between w-full max-w-5xl gap-4 px-2 mx-auto mb-8">
