@@ -6,18 +6,30 @@ interface ActaCardProps {
   onClick: (acta: Acta) => void;
   onDownloadPDF: (idActa: number) => void;
   onEdit?: (acta: Acta) => void;
+  onAsistencias?: (acta: Acta) => void;
+  onAprobar?: (acta: Acta) => void;
 }
 
-const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdit }) => {
+const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdit, onAsistencias, onAprobar }) => {
+  const isLocked = acta.asistencias && acta.asistencias.length > 0 && acta.asistencias.every(a => a.aprueba === 'SI');
+
   return (
     <div
-      className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+      className={`bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${isLocked ? 'opacity-90' : ''}`}
       onClick={() => onClick(acta)}
     >
       <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 flex justify-between items-center bg-gray-50 dark:bg-coal-400/50">
-        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-          {acta.tipoActa}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+            {acta.tipoActa}
+          </span>
+          {isLocked && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-[9px] font-bold text-green-600 dark:text-green-400 rounded-full border border-green-200 dark:border-green-500/30 uppercase tracking-tight">
+              <i className="ki-outline ki-lock text-[10px]" />
+              Finalizada
+            </span>
+          )}
+        </div>
         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
           ID #{acta.id}
         </span>
@@ -83,10 +95,36 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
                 e.stopPropagation();
                 onEdit(acta);
               }}
-              title='Editar Acta'
-              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
+              disabled={isLocked}
+              title={isLocked ? 'Acta finalizada - No se puede editar' : 'Editar Acta'}
+              className={`flex items-center justify-center flex-1 py-1.5 transition-all border border-transparent rounded-lg ${isLocked ? 'text-gray-400 bg-gray-100 dark:bg-coal-300 cursor-not-allowed opacity-50' : 'text-blue-600 bg-blue-50/50 dark:bg-blue-500/10 hover:border-blue-500 hover:scale-105'}`}
             >
               <i className="ki-outline ki-notepad-edit" />
+            </button>
+          )}
+          {onAsistencias && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAsistencias(acta);
+              }}
+              disabled={isLocked}
+              title={isLocked ? 'Acta finalizada - No se puede gestionar asistencias' : 'Gestionar Asistencias'}
+              className={`flex items-center justify-center flex-1 py-1.5 transition-all border border-transparent rounded-lg ${isLocked ? 'text-gray-400 bg-gray-100 dark:bg-coal-300 cursor-not-allowed opacity-50' : 'text-purple-600 bg-purple-50/50 dark:bg-purple-500/10 hover:border-purple-500 hover:scale-105'}`}
+            >
+              <i className="ki-outline ki-users" />
+            </button>
+          )}
+          {onAprobar && !isLocked && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAprobar(acta);
+              }}
+              title='Aprobar Asistencia'
+              className="flex items-center justify-center flex-1 py-1.5 text-green-600 transition-all border border-transparent bg-green-50/50 dark:bg-green-500/10 rounded-lg hover:border-green-500 hover:scale-105"
+            >
+              <i className="ki-outline ki-check-circle" />
             </button>
           )}
         </div>

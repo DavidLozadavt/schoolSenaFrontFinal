@@ -168,6 +168,52 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
                 <p className="text-xs text-gray-400 italic">No hay novedades registradas para este acta.</p>
               )}
             </div>
+
+            {/* Asistencias */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <i className="ki-outline ki-users text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Asistentes Registrados</h3>
+              </div>
+
+              {acta.asistencias && acta.asistencias.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {acta.asistencias.map((asistencia, idx) => (
+                    <div
+                      key={asistencia.id || idx}
+                      className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-coal-300 rounded-2xl p-4 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-50 dark:border-coal-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                            <i className="ki-outline ki-user text-lg" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200 block">
+                              {asistencia.contrato?.persona?.nombre1}{' '}
+                              {asistencia.contrato?.persona?.apellido1}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium">{asistencia.dependencia}</span>
+                          </div>
+                        </div>
+                        <div>
+                           <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${asistencia.aprueba === 'SI' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}`}>
+                             Aprueba: {asistencia.aprueba}
+                           </span>
+                        </div>
+                      </div>
+                      {asistencia.observacion && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed italic mt-2">
+                          "{asistencia.observacion}"
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">No hay asistentes registrados para este acta.</p>
+              )}
+            </div>
           </div>
         </ModalBody>
         <ModalHeader className="border-t border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-end">

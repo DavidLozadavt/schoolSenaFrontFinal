@@ -32,6 +32,25 @@ export interface Apprentice {
   identificacion: string;
 }
 
+export interface AsistenciaItem {
+  id?: number;
+  idActa?: number;
+  idContrato: number | string;
+  dependencia: string;
+  aprueba: 'SI' | 'NO';
+  observacion?: string;
+  contrato?: {
+    id: number;
+    numeroContrato: string;
+    persona?: {
+      nombre1: string;
+      nombre2?: string;
+      apellido1: string;
+      apellido2?: string;
+    };
+  };
+}
+
 export interface Acta {
   id: number;
   nombre: string;
@@ -56,4 +75,5 @@ export interface Acta {
   novedades?: Novedad[];
   agenda?: AgendaItem[];
   objetivos?: ObjetivoItem[];
+  asistencias?: AsistenciaItem[];
 }
