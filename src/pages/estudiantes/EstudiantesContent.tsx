@@ -334,6 +334,7 @@ const EstudiantesContent: React.FC = () => {
   
   // Calendario state
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -395,6 +396,14 @@ const EstudiantesContent: React.FC = () => {
     return map;
   }, [upcomingSessions]);
 
+  const weeklySessions = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + 7);
+    return upcomingSessions.filter(s => s.fechaObj >= today && s.fechaObj <= endOfWeek);
+  }, [upcomingSessions]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
@@ -442,79 +451,128 @@ const EstudiantesContent: React.FC = () => {
 
         {/* AGENDA / CLASES */}
         <div className="flex flex-col">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <KeenIcon icon="calendar-8" className="text-primary" /> Mi Calendario
             </h2>
-            <a href="/ambiente-virtual/mis-clases" className="text-sm font-bold text-primary hover:underline transition-all">Ver detalle</a>
+            <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
+              <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
+              <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-coal-400 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
-            {/* Controles del calendario */}
-            <div className="flex items-center justify-between mb-2">
-              <button onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                <KeenIcon icon="left" />
-              </button>
-              <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
-              <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                <KeenIcon icon="right" />
-              </button>
-            </div>
-            
-            {/* Grid del calendario */}
-            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
-              <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
-            </div>
-            
-            <div className="grid grid-cols-7 gap-1 flex-1">
-              {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
-              {daysArray.map(day => {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const daySessions = sessionsByDate[dateStr] || [];
-                const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+          <div className="bg-white dark:bg-coal-400 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col min-h-[300px]">
+            {calendarView === 'month' ? (
+              <>
+                {/* Controles del calendario */}
+                <div className="flex items-center justify-between mb-2">
+                  <button onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                    <KeenIcon icon="left" />
+                  </button>
+                  <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
+                  <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                    <KeenIcon icon="right" />
+                  </button>
+                </div>
                 
-                return (
-                  <div 
-                    key={day} 
-                    className={`relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer group ${
-                      isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : 
-                      "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-500 font-medium"
-                    } ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-coal-500/50 font-bold" : ""}`}
-                  >
-                    <span className="z-10">{day}</span>
+                {/* Grid del calendario */}
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
+                  <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                </div>
+                
+                <div className="grid grid-cols-7 gap-1 flex-1">
+                  {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
+                  {daysArray.map(day => {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const daySessions = sessionsByDate[dateStr] || [];
+                    const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
                     
-                    {daySessions.length > 0 && (
-                      <div className="absolute bottom-1.5 flex gap-1 z-10">
-                        {daySessions.slice(0, 3).map((_, i) => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Tooltip con información de clases al hacer hover */}
-                    {daySessions.length > 0 && (
-                      <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 dark:bg-black text-white text-left text-xs rounded-xl p-3 shadow-2xl pointer-events-none border border-gray-700">
-                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-gray-700"></div>
-                        <p className="font-bold border-b border-gray-700 pb-1.5 mb-1.5 uppercase text-[10px] text-gray-400">
-                          {day} de {monthNames[month]}
-                        </p>
-                        <div className="space-y-2">
-                          {daySessions.map(s => (
-                            <div key={s.id} className="bg-gray-800 rounded p-1.5">
-                              <p className="font-bold text-blue-300 line-clamp-1">{s.materia}</p>
-                              <div className="flex items-center gap-1.5 text-[10px] text-gray-300 mt-1">
-                                <span className="flex items-center gap-0.5"><KeenIcon icon="time" /> {s.horaInicial}</span>
-                                <span className="flex items-center gap-0.5 truncate"><KeenIcon icon="geolocation" /> {s.aula}</span>
-                              </div>
+                    return (
+                      <div 
+                        key={day} 
+                        className={`relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer group ${
+                          isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : 
+                          "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-500 font-medium"
+                        } ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-coal-500/50 font-bold" : ""}`}
+                      >
+                        <span className="z-10">{day}</span>
+                        
+                        {daySessions.length > 0 && (
+                          <div className="absolute bottom-1.5 flex gap-1 z-10">
+                            {daySessions.slice(0, 3).map((_, i) => (
+                              <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Tooltip con información de clases al hacer hover */}
+                        {daySessions.length > 0 && (
+                          <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 dark:bg-black text-white text-left text-xs rounded-xl p-3 shadow-2xl pointer-events-none border border-gray-700">
+                            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-gray-700"></div>
+                            <p className="font-bold border-b border-gray-700 pb-1.5 mb-1.5 uppercase text-[10px] text-gray-400">
+                              {day} de {monthNames[month]}
+                            </p>
+                            <div className="space-y-2">
+                              {daySessions.map(s => (
+                                <div key={s.id} className="bg-gray-800 rounded p-1.5">
+                                  <p className="font-bold text-blue-300 line-clamp-1">{s.materia}</p>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-gray-300 mt-1">
+                                    <span className="flex items-center gap-0.5"><KeenIcon icon="time" /> {s.horaInicial}</span>
+                                    <span className="flex items-center gap-0.5 truncate"><KeenIcon icon="geolocation" /> {s.aula}</span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Próximos 7 días</h3>
+                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">
+                    {weeklySessions.length} clases
+                  </span>
+                </div>
+                
+                {weeklySessions.length > 0 ? (
+                  <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] custom-scrollbar pr-2">
+                    {weeklySessions.map(session => {
+                      const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                      const isToday = session.fechaObj.toDateString() === new Date().toDateString();
+                      return (
+                        <div key={session.id} className="flex items-stretch gap-3 group">
+                          <div className="flex flex-col items-center justify-center w-12 shrink-0 bg-gray-50 dark:bg-coal-500/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">{dias[session.fechaObj.getDay()]}</span>
+                            <span className={`text-lg font-black leading-none ${isToday ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>{session.fechaObj.getDate()}</span>
+                          </div>
+                          
+                          <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 group-hover:border-primary/30 transition-colors shadow-sm">
+                            <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight mb-1">
+                              {session.materia}
+                            </h3>
+                            <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium">
+                              <span className="flex items-center gap-1"><KeenIcon icon="time" /> {session.horaInicial} - {session.horaFinal}</span>
+                              <span className="flex items-center gap-1 truncate"><KeenIcon icon="geolocation" /> {session.aula}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                    <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Semana libre</h3>
+                    <p className="text-xs text-gray-500 mt-1">No tienes clases programadas para los próximos 7 días.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
