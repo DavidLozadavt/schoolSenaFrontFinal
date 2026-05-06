@@ -139,6 +139,7 @@ const DropdownAcciones: React.FC<{
   onAmpliar?: (a: Actividad) => void;
   onQuitar?: (id: number) => void;
   onMaterialApoyo?: (a: Actividad) => void;
+  onMoverActividad?: (a: Actividad) => void;
   onEditar?: (a: Actividad) => void;
   onEliminar?: (a: Actividad) => void;
   puedeEliminar?: (a: Actividad) => boolean;
@@ -154,6 +155,9 @@ const DropdownAcciones: React.FC<{
   if (modo === 'asignadas' && idFicha && props.onAmpliar) items.push({ icon: 'calendar', label: 'Ampliar actividad', onClick: () => props.onAmpliar!(act) });
   if (modo === 'asignadas' && props.onQuitar && item.id != null) items.push({ icon: 'cross', label: 'Quitar', onClick: () => props.onQuitar!(item.id!) });
   if (props.onMaterialApoyo) items.push({ icon: 'folder', label: 'Material de apoyo', onClick: () => props.onMaterialApoyo!(act) });
+  if (idFicha && props.onMoverActividad && act.id != null) {
+    items.push({ icon: 'arrow-two-diagonals', label: 'Mover actividad', onClick: () => props.onMoverActividad!(act) });
+  }
   if (props.onEditar) items.push({ icon: 'pencil', label: 'Editar actividad', onClick: () => props.onEditar!(act) });
   if (props.onEliminar && (!props.puedeEliminar || props.puedeEliminar(act))) items.push({ icon: 'trash', label: 'Eliminar', onClick: () => props.onEliminar!(act) });
 
@@ -335,6 +339,8 @@ interface ListaActividadesProps {
   puedeEliminar?: (actividad: Actividad) => boolean;
   /** Ver aprendices asignados y calificar (solo en modo asignadas) */
   onVerAprendices?: (actividad: Actividad) => void;
+  /** Trasladar actividad a otro RAP de la misma ficha (requiere idFicha) */
+  onMoverActividad?: (actividad: Actividad) => void;
   /** Ampliar actividad (solo en modo asignadas) */
   onAmpliar?: (actividad: Actividad) => void;
   /** ID de ficha: modal de aprendices (asignadas) y detalle de cobertura al clic en estado (agregar). */
@@ -366,6 +372,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   onEliminar,
   puedeEliminar,
   onVerAprendices,
+  onMoverActividad,
   onAmpliar,
   idFicha,
   mostrarCrearCuestionario = true,
@@ -988,6 +995,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         onAmpliar={onAmpliar}
                         onQuitar={onQuitar}
                         onMaterialApoyo={onMaterialApoyo}
+                        onMoverActividad={onMoverActividad}
                         onEditar={onEditar}
                         onEliminar={onEliminar}
                         puedeEliminar={puedeEliminar}

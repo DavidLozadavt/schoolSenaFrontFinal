@@ -13,6 +13,7 @@ import {
   ModalAprendices,
   ModalAmpliarActividad,
   ModalMaterialApoyo,
+  ModalMoverActividadRap,
   ListaActividades,
   MaterialApoyoFichaView,
   MaterialApoyoAprendiz,
@@ -1337,6 +1338,8 @@ const ClaseDetallePage: React.FC = () => {
   const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
   const [actividadParaMaterialApoyo, setActividadParaMaterialApoyo] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
+  const [modalMoverRapOpen, setModalMoverRapOpen] = useState(false);
+  const [actividadParaMoverRap, setActividadParaMoverRap] = useState<Actividad | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1349,6 +1352,11 @@ const ClaseDetallePage: React.FC = () => {
     () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
     [locationState?.ficha_id, ficha?.id]
   );
+
+  const idHorarioMateriaRuta = useMemo(() => {
+    const n = id ? parseInt(String(id), 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [id]);
 
   /** Texto de contexto RAP para Material de apoyo (sustituye al nombre del programa en el encabezado). */
   const materialApoyoRapContexto = useMemo(() => {
@@ -2484,6 +2492,10 @@ const ClaseDetallePage: React.FC = () => {
                     setActividadParaMaterialApoyo(act);
                     setModalMaterialApoyoOpen(true);
                   }}
+                  onMoverActividad={(act) => {
+                    setActividadParaMoverRap(act);
+                    setModalMoverRapOpen(true);
+                  }}
                   idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
                 />
               )}
@@ -2520,6 +2532,10 @@ const ClaseDetallePage: React.FC = () => {
                   onAmpliar={(act) => {
                     setActividadParaAmpliar(act);
                     setModalAmpliarOpen(true);
+                  }}
+                  onMoverActividad={(act) => {
+                    setActividadParaMoverRap(act);
+                    setModalMoverRapOpen(true);
                   }}
                   mostrarCrearCuestionario={false}
                 />
@@ -2691,6 +2707,18 @@ const ClaseDetallePage: React.FC = () => {
         }}
         onSuccess={showToast}
         actividad={actividadParaMaterialApoyo}
+      />
+      <ModalMoverActividadRap
+        open={modalMoverRapOpen && idFichaParaClase > 0}
+        onClose={() => {
+          setModalMoverRapOpen(false);
+          setActividadParaMoverRap(null);
+        }}
+        actividad={actividadParaMoverRap}
+        idFicha={idFichaParaClase}
+        idHorarioMateria={idHorarioMateriaRuta}
+        onSave={() => fetchActividades()}
+        onSuccess={showToast}
       />
       {zoomFoto && (
         <ImageZoomModal
