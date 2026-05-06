@@ -9,6 +9,18 @@ export interface ObjetivoItem {
   objetivo: string;
 }
 
+export interface ConclusionItem {
+  id?: number;
+  conclusion: string;
+}
+
+export interface CompromisoItem {
+  id?: number;
+  actividad: string;
+  fecha: string;
+  responsable: string;
+}
+
 export interface Apprentice {
   id: number;
   nombre: string;
@@ -58,4 +70,6 @@ export interface Acta {
   agenda?: AgendaItem[];
   objetivos?: ObjetivoItem[];
   asistencias?: AsistenciaItem[];
+  conclusiones?: ConclusionItem[];
+  compromisos?: CompromisoItem[];
 }

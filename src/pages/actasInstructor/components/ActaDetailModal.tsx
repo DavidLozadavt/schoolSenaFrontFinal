@@ -117,6 +117,60 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
               )}
             </div>
 
+            {/* Conclusiones */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <i className="ki-outline ki-check-square text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Conclusiones</h3>
+              </div>
+              {acta.conclusiones && acta.conclusiones.length > 0 ? (
+                <div className="space-y-3">
+                  {acta.conclusiones.map((concl, idx) => (
+                    <div key={idx} className="bg-gray-50 dark:bg-coal-400/30 p-4 rounded-xl border border-gray-100 dark:border-coal-300">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed italic">
+                        "{concl.conclusion}"
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">No se registraron conclusiones.</p>
+              )}
+            </div>
+
+            {/* Compromisos */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <i className="ki-outline ki-calendar-tick text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Compromisos</h3>
+              </div>
+              {acta.compromisos && acta.compromisos.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {acta.compromisos.map((comp, idx) => (
+                    <div key={idx} className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-coal-300 rounded-2xl p-4 shadow-sm">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
+                            <i className="ki-outline ki-flag text-orange-500" />
+                          </div>
+                          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200">Actividad: {comp.actividad}</h4>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-1 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-md">
+                          Meta: {new Date(comp.fecha).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50 dark:border-coal-300">
+                        <i className="ki-outline ki-profile-circle text-gray-400" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Responsable: <span className="font-semibold text-gray-700 dark:text-gray-200">{comp.responsable}</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">No se registraron compromisos.</p>
+              )}
+            </div>
+
             {/* Observación General */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">

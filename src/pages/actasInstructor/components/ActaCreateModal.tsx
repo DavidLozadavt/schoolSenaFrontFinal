@@ -42,11 +42,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     idCiudad: '',
     idFicha: '',
     agenda: [{ punto: '' }],
-    objetivos: [{ objetivo: '' }]
+    objetivos: [{ objetivo: '' }],
+    conclusiones: [{ conclusion: '' }],
+    compromisos: [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }]
   });
 
   const [formData, setFormData] = useState(getInitialFormState());
-
 
   const filteredCiudades = ciudades.filter(
     (c) =>
@@ -94,7 +95,19 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
           objetivos:
             actaToEdit.objetivos && actaToEdit.objetivos.length > 0
               ? actaToEdit.objetivos.map((o) => ({ objetivo: o.objetivo }))
-              : [{ objetivo: '' }]
+              : [{ objetivo: '' }],
+          conclusiones:
+            actaToEdit.conclusiones && actaToEdit.conclusiones.length > 0
+              ? actaToEdit.conclusiones.map((c) => ({ conclusion: c.conclusion }))
+              : [{ conclusion: '' }],
+          compromisos:
+            actaToEdit.compromisos && actaToEdit.compromisos.length > 0
+              ? actaToEdit.compromisos.map((c) => ({
+                  actividad: c.actividad,
+                  fecha: c.fecha ? c.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
+                  responsable: c.responsable
+                }))
+              : [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }]
         });
         // Set the selected city label when editing
         if (actaToEdit.idCiudad) {
@@ -121,7 +134,6 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
       setIsFichaFocused(false);
     }
   }, [isOpen, actaToEdit, ciudades]);
-
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -166,6 +178,47 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     }
   };
 
+  // Conclusiones handlers
+  const handleConclusionChange = (index: number, value: string) => {
+    const newConclusions = [...formData.conclusiones];
+    newConclusions[index].conclusion = value;
+    setFormData((prev) => ({ ...prev, conclusiones: newConclusions }));
+  };
+
+  const addConclusionItem = () => {
+    setFormData((prev) => ({ ...prev, conclusiones: [...prev.conclusiones, { conclusion: '' }] }));
+  };
+
+  const removeConclusionItem = (index: number) => {
+    if (formData.conclusiones.length > 1) {
+      const newConclusions = formData.conclusiones.filter((_, i) => i !== index);
+      setFormData((prev) => ({ ...prev, conclusiones: newConclusions }));
+    }
+  };
+
+  // Compromisos handlers
+  const handleCompromisoChange = (index: number, field: string, value: string) => {
+    const newCompromisos = [...formData.compromisos];
+    (newCompromisos[index] as any)[field] = value;
+    setFormData((prev) => ({ ...prev, compromisos: newCompromisos }));
+  };
+
+  const addCompromisoItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      compromisos: [
+        ...prev.compromisos,
+        { actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }
+      ]
+    }));
+  };
+
+  const removeCompromisoItem = (index: number) => {
+    if (formData.compromisos.length > 1) {
+      const newCompromisos = formData.compromisos.filter((_, i) => i !== index);
+      setFormData((prev) => ({ ...prev, compromisos: newCompromisos }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,7 +248,9 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         idCiudad: parseInt(formData.idCiudad),
         idFicha: parseInt(formData.idFicha),
         agenda: formData.agenda.filter((i) => i.punto.trim() !== ''),
-        objetivos: formData.objetivos.filter((i) => i.objetivo.trim() !== '')
+        objetivos: formData.objetivos.filter((i) => i.objetivo.trim() !== ''),
+        conclusiones: formData.conclusiones.filter((i) => i.conclusion.trim() !== ''),
+        compromisos: formData.compromisos.filter((i) => i.actividad.trim() !== '')
       };
 
       if (actaToEdit) {
@@ -218,7 +273,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   if (!isOpen) return null;
 
   const isEdit = !!actaToEdit;
-  const isLocked = actaToEdit?.asistencias && actaToEdit.asistencias.length > 0 && actaToEdit.asistencias.every(a => a.aprueba === 'SI');
+  const isLocked =
+    actaToEdit?.asistencias &&
+    actaToEdit.asistencias.length > 0 &&
+    actaToEdit.asistencias.every((a) => a.aprueba === 'SI');
 
   return (
     <Modal open={true} onClose={onClose} className="mx-4 sm:mx-auto max-w-2xl w-full">
@@ -240,8 +298,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 {isLocked
                   ? 'Esta acta ha sido aceptada por todos los asistentes y no puede ser modificada.'
                   : isEdit
-                  ? 'Modifique los datos del acta seleccionada'
-                  : 'Registre una nueva acta en el sistema'}
+                    ? 'Modifique los datos del acta seleccionada'
+                    : 'Registre una nueva acta en el sistema'}
               </p>
             </div>
           </div>
@@ -260,9 +318,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                 <i className="ki-outline ki-warning text-amber-600 dark:text-amber-400 text-lg mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">Acta Bloqueada</h4>
+                  <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                    Acta Bloqueada
+                  </h4>
                   <p className="text-xs text-amber-700 dark:text-amber-400/80">
-                    No se pueden realizar cambios porque todos los asistentes ya han firmado/aprobado esta acta.
+                    No se pueden realizar cambios porque todos los asistentes ya han
+                    firmado/aprobado esta acta.
                   </p>
                 </div>
               </div>
@@ -435,36 +496,40 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                         onChange={(e) => setCiudadSearch(e.target.value)}
                         placeholder={ciudadSeleccionadaLabel || 'Buscar ciudad o departamento...'}
                         className={`w-full text-sm pl-9 pr-3 py-2 rounded-lg border ${
-                          errors.idCiudad ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'
+                          errors.idCiudad
+                            ? 'border-red-500'
+                            : 'border-gray-200 dark:border-coal-300'
                         } bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       />
 
                       {/* Dropdown de ciudades filtradas */}
                       {isCiudadFocused && !isLocked && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-                          {(ciudadSearch.trim() === '' ? ciudades : filteredCiudades).slice(0, 50).map((ciudad) => (
-                            <button
-                              key={ciudad.id}
-                              type="button"
-                              onClick={() => {
-                                setFormData({ ...formData, idCiudad: ciudad.id.toString() });
-                                setCiudadSeleccionadaLabel(
-                                  `${ciudad.descripcion}, ${ciudad.departamento?.descripcion || ''}`
-                                );
-                                setCiudadSearch('');
-                                setIsCiudadFocused(false);
-                                setErrors((prev) => ({ ...prev, idCiudad: undefined }));
-                              }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-500/20 border-b border-gray-100 dark:border-coal-300 last:border-b-0 text-sm text-gray-700 dark:text-gray-200 transition-colors"
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">{ciudad.descripcion}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {ciudad.departamento?.descripcion || ''}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
+                          {(ciudadSearch.trim() === '' ? ciudades : filteredCiudades)
+                            .slice(0, 50)
+                            .map((ciudad) => (
+                              <button
+                                key={ciudad.id}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({ ...formData, idCiudad: ciudad.id.toString() });
+                                  setCiudadSeleccionadaLabel(
+                                    `${ciudad.descripcion}, ${ciudad.departamento?.descripcion || ''}`
+                                  );
+                                  setCiudadSearch('');
+                                  setIsCiudadFocused(false);
+                                  setErrors((prev) => ({ ...prev, idCiudad: undefined }));
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-500/20 border-b border-gray-100 dark:border-coal-300 last:border-b-0 text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{ciudad.descripcion}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {ciudad.departamento?.descripcion || ''}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
                           {ciudadSearch.trim() !== '' && filteredCiudades.length === 0 && (
                             <div className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                               No se encontraron resultados
@@ -602,6 +667,128 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 </div>
               </div>
 
+              {/* Conclusiones */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
+                  <div className="flex items-center gap-2">
+                    <i className="ki-outline ki-check-square text-blue-500" />
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                      Conclusiones
+                    </h3>
+                  </div>
+                  {!isLocked && (
+                    <button
+                      type="button"
+                      onClick={addConclusionItem}
+                      className="p-1.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <i className="ki-outline ki-plus text-sm" />
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {formData.conclusiones.map((concl, index) => (
+                    <div key={index} className="flex gap-2">
+                      <textarea
+                        placeholder={`Conclusión ${index + 1}`}
+                        rows={2}
+                        className="flex-1 px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                        value={concl.conclusion}
+                        onChange={(e) => handleConclusionChange(index, e.target.value)}
+                      />
+                      {formData.conclusiones.length > 1 && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={() => removeConclusionItem(index)}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                        >
+                          <i className="ki-outline ki-trash" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Compromisos */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
+                  <div className="flex items-center gap-2">
+                    <i className="ki-outline ki-calendar-tick text-blue-500" />
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                      Compromisos
+                    </h3>
+                  </div>
+                  {!isLocked && (
+                    <button
+                      type="button"
+                      onClick={addCompromisoItem}
+                      className="p-1.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <i className="ki-outline ki-plus text-sm" />
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-4">
+                  {formData.compromisos.map((comp, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-gray-50 dark:bg-coal-400/50 rounded-xl border border-gray-100 dark:border-coal-300 space-y-3 relative group"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">
+                            Actividad / Desicisión
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Qué se debe hacer..."
+                            className="w-full px-3 py-1.5 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={comp.actividad}
+                            onChange={(e) =>
+                              handleCompromisoChange(index, 'actividad', e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">
+                            Responsable
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Responsable"
+                            className="w-full px-3 py-1.5 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={comp.responsable}
+                            onChange={(e) =>
+                              handleCompromisoChange(index, 'responsable', e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">
+                          Fecha Entrega
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-1.5 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                          value={comp.fecha}
+                          onChange={(e) => handleCompromisoChange(index, 'fecha', e.target.value)}
+                        />
+                      </div>
+                      {formData.compromisos.length > 1 && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={() => removeCompromisoItem(index)}
+                          className="absolute -top-2 -right-2 w-7 h-7 bg-white dark:bg-coal-300 text-red-500 rounded-full shadow-md flex items-center justify-center hover:bg-red-50 transition-colors border border-gray-100 dark:border-coal-200"
+                        >
+                          <i className="ki-outline ki-trash text-sm" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Observación General */}
               <div className="space-y-4 pt-2">
