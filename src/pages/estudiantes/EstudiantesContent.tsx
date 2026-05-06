@@ -343,7 +343,7 @@ const EstudiantesContent: React.FC = () => {
       try {
         const [resAsis, resActs, resClases] = await Promise.all([
           axios.get('mis-asistencias-generales').catch(() => ({ data: { data: {} } })),
-          axios.get('actividades-aprendiz').catch(() => ({ data: { data: [] } })),
+          axios.get('actividades-aprendiz', { params: { per_page: 1000 } }).catch(() => ({ data: { data: [] } })),
           axios.get('fichas/estudiante/clases').catch(() => ({ data: { data: [] } }))
         ]);
 
@@ -484,21 +484,21 @@ const EstudiantesContent: React.FC = () => {
             <a href="/ambiente-virtual/actividades" className="text-sm font-bold text-primary hover:underline transition-all">Ir a actividades</a>
           </div>
 
-          <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendientes</p>
+              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendiente</p>
               <p className="text-base font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
             </div>
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-danger uppercase mb-1 leading-none">Vencidas</p>
+              <p className="text-[9px] font-bold text-danger uppercase mb-1 leading-none">Sin entregar</p>
               <p className="text-base font-black text-danger leading-none">{vencidas}</p>
             </div>
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-warning uppercase mb-1 leading-none">Enviadas</p>
+              <p className="text-[9px] font-bold text-warning uppercase mb-1 leading-none">Por evaluar</p>
               <p className="text-base font-black text-warning leading-none">{presentadas}</p>
             </div>
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificadas</p>
+              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificado</p>
               <p className="text-base font-black text-success leading-none">{calificadas}</p>
             </div>
           </div>
