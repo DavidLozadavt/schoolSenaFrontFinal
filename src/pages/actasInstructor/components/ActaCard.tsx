@@ -67,16 +67,7 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
           </span>
         </div>
 
-        {acta.novedades && acta.novedades.length > 0 && (
-          <div className="pt-2 border-t border-gray-100 dark:border-coal-300 flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-              {acta.novedades.length} Novedades
-            </span>
-            <button className="text-xs text-blue-500 hover:text-blue-600 font-semibold flex items-center gap-1">
-              Ver detalles <i className="ki-outline ki-arrow-right text-[10px]" />
-            </button>
-          </div>
-        )}
+
         
         <div className="flex items-center gap-2 pt-2">
           <button

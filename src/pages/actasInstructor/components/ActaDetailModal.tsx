@@ -130,44 +130,6 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
               </div>
             </div>
 
-            {/* Novedades */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <i className="ki-outline ki-notification text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Novedades Registradas</h3>
-              </div>
-
-              {acta.novedades && acta.novedades.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {acta.novedades.map((novedad) => (
-                    <div
-                      key={novedad.id}
-                      className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-coal-300 rounded-2xl p-4 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-50 dark:border-coal-300">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600">
-                            <i className="ki-outline ki-user text-lg" />
-                          </div>
-                          <div>
-                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200 block">
-                              {novedad.matriculaAcademica?.matricula?.persona?.nombre1}{' '}
-                              {novedad.matriculaAcademica?.matricula?.persona?.apellido1}
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-medium">Aprendiz</span>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed italic">
-                        "{novedad.observacion}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400 italic">No hay novedades registradas para este acta.</p>
-              )}
-            </div>
 
             {/* Asistencias */}
             <div className="space-y-4">

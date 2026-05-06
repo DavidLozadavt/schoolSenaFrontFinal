@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
-import { Acta, Apprentice } from '../types';
+import { Acta } from '../types';
 
 interface ActaCreateModalProps {
   isOpen: boolean;
@@ -23,8 +23,6 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   actaToEdit = null
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingAprendices, setLoadingAprendices] = useState(false);
-  const [aprendicesFicha, setAprendicesFicha] = useState<Apprentice[]>([]);
   const [ciudadSearch, setCiudadSearch] = useState('');
   const [ciudadSeleccionadaLabel, setCiudadSeleccionadaLabel] = useState<string | null>(null);
   const [isCiudadFocused, setIsCiudadFocused] = useState(false);
@@ -44,23 +42,11 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     idCiudad: '',
     idFicha: '',
     agenda: [{ punto: '' }],
-    objetivos: [{ objetivo: '' }],
-    novedades: [] as { idmatriculaAcademica: string; observacion: string }[]
+    objetivos: [{ objetivo: '' }]
   });
 
   const [formData, setFormData] = useState(getInitialFormState());
 
-  const fetchAprendices = async (idFicha: string) => {
-    setLoadingAprendices(true);
-    try {
-      const response = await axios.get(`actas/ficha/${idFicha}/aprendices`);
-      setAprendicesFicha(response.data);
-    } catch (error) {
-      console.error('Error fetching aprendices:', error);
-    } finally {
-      setLoadingAprendices(false);
-    }
-  };
 
   const filteredCiudades = ciudades.filter(
     (c) =>
@@ -108,14 +94,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
           objetivos:
             actaToEdit.objetivos && actaToEdit.objetivos.length > 0
               ? actaToEdit.objetivos.map((o) => ({ objetivo: o.objetivo }))
-              : [{ objetivo: '' }],
-          novedades:
-            actaToEdit.novedades && actaToEdit.novedades.length > 0
-              ? actaToEdit.novedades.map((n) => ({
-                  idmatriculaAcademica: n.idmatriculaAcademica.toString(),
-                  observacion: n.observacion || ''
-                }))
-              : []
+              : [{ objetivo: '' }]
         });
         // Set the selected city label when editing
         if (actaToEdit.idCiudad) {
@@ -143,13 +122,6 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     }
   }, [isOpen, actaToEdit, ciudades]);
 
-  useEffect(() => {
-    if (formData.idFicha) {
-      fetchAprendices(formData.idFicha);
-    } else {
-      setAprendicesFicha([]);
-    }
-  }, [formData.idFicha]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -194,24 +166,6 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     }
   };
 
-  // Novedades handlers
-  const addNovedad = () => {
-    setFormData((prev) => ({
-      ...prev,
-      novedades: [...prev.novedades, { idmatriculaAcademica: '', observacion: '' }]
-    }));
-  };
-
-  const handleNovedadChange = (index: number, field: string, value: string) => {
-    const newNovedades = [...formData.novedades];
-    (newNovedades[index] as any)[field] = value;
-    setFormData((prev) => ({ ...prev, novedades: newNovedades }));
-  };
-
-  const removeNovedad = (index: number) => {
-    const newNovedades = formData.novedades.filter((_, i) => i !== index);
-    setFormData((prev) => ({ ...prev, novedades: newNovedades }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,8 +195,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         idCiudad: parseInt(formData.idCiudad),
         idFicha: parseInt(formData.idFicha),
         agenda: formData.agenda.filter((i) => i.punto.trim() !== ''),
-        objetivos: formData.objetivos.filter((i) => i.objetivo.trim() !== ''),
-        novedades: formData.novedades.filter((n) => n.idmatriculaAcademica !== '')
+        objetivos: formData.objetivos.filter((i) => i.objetivo.trim() !== '')
       };
 
       if (actaToEdit) {
@@ -649,95 +602,6 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 </div>
               </div>
 
-              {/* Novedades */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
-                  <div className="flex items-center gap-2">
-                    <i className="ki-outline ki-notification text-blue-500" />
-                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2">
-                      Novedades por Aprendiz
-                      {loadingAprendices && (
-                        <i className="ki-outline ki-loading animate-spin text-gray-400 text-sm" />
-                      )}
-                    </h3>
-                  </div>
-                  {!isLocked && (
-                    <button
-                      type="button"
-                      onClick={addNovedad}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                    >
-                      <i className="ki-outline ki-plus" />
-                      Agregar Novedad
-                    </button>
-                  )}
-                </div>
-
-                {formData.novedades.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 dark:bg-coal-400/30 rounded-2xl border-2 border-dashed border-gray-200 dark:border-coal-300">
-                    <p className="text-xs text-gray-400">
-                      No hay novedades registradas para este acta.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {formData.novedades.map((novedad, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-2xl shadow-sm relative group"
-                      >
-                        {!isLocked && (
-                          <button
-                            type="button"
-                            onClick={() => removeNovedad(index)}
-                            className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
-                          >
-                            <i className="ki-outline ki-cross" />
-                          </button>
-                        )}
-
-                        <div className="grid grid-cols-1 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                              Aprendiz
-                            </label>
-                            <select
-                              required
-                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                              value={novedad.idmatriculaAcademica}
-                              onChange={(e) =>
-                                handleNovedadChange(index, 'idmatriculaAcademica', e.target.value)
-                              }
-                            >
-                              <option value="">Seleccione aprendiz</option>
-                              {aprendicesFicha.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.nombre} - {a.identificacion}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                              Detalle de la Novedad
-                            </label>
-                            <textarea
-                              required
-                              rows={2}
-                              className="w-full px-3 py-2 bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
-                              placeholder="Describa la novedad..."
-                              value={novedad.observacion}
-                              onChange={(e) =>
-                                handleNovedadChange(index, 'observacion', e.target.value)
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               {/* Observación General */}
               <div className="space-y-4 pt-2">

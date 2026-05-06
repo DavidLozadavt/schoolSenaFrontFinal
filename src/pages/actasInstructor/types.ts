@@ -1,20 +1,3 @@
-export interface Novedad {
-  id?: number;
-  idacta?: number;
-  idmatriculaAcademica: number;
-  observacion: string;
-  matriculaAcademica?: {
-    id: number;
-    matricula?: {
-      persona?: {
-        nombre1: string;
-        nombre2?: string;
-        apellido1: string;
-        apellido2?: string;
-      };
-    };
-  };
-}
 
 export interface AgendaItem {
   id?: number;
@@ -72,7 +55,6 @@ export interface Acta {
     id: number;
     codigo: string;
   };
-  novedades?: Novedad[];
   agenda?: AgendaItem[];
   objetivos?: ObjetivoItem[];
   asistencias?: AsistenciaItem[];
