@@ -156,7 +156,7 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
                           <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200">Actividad: {comp.actividad}</h4>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-1 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-md">
-                          Meta: {new Date(comp.fecha).toLocaleDateString()}
+                          Fecha: {new Date(comp.fecha).toLocaleDateString()}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50 dark:border-coal-300">

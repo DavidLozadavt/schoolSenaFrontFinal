@@ -29,6 +29,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   const [fichaSearch, setFichaSearch] = useState('');
   const [isFichaFocused, setIsFichaFocused] = useState(false);
   const [errors, setErrors] = useState<{ idCiudad?: string; lugar?: string }>({});
+  const [currentStep, setCurrentStep] = useState(0);
 
   const getInitialFormState = () => ({
     nombre: '',
@@ -73,6 +74,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setCurrentStep(0);
       if (actaToEdit) {
         const fechaFormateada = actaToEdit.fecha
           ? actaToEdit.fecha.split('T')[0]
@@ -277,6 +279,15 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     actaToEdit?.asistencias &&
     actaToEdit.asistencias.length > 0 &&
     actaToEdit.asistencias.every((a) => a.aprueba === 'SI');
+  const steps = [
+    { title: 'Datos básicos', icon: 'ki-information-2' },
+    { title: 'Ubicación', icon: 'ki-geolocation' },
+    { title: 'Agenda y objetivos', icon: 'ki-list' },
+    { title: 'Conclusiones y compromisos', icon: 'ki-check-square' },
+    { title: 'Observaciones', icon: 'ki-message-text-2' }
+  ];
+  const isLastStep = currentStep === steps.length - 1;
+  const isFirstStep = currentStep === 0;
 
   return (
     <Modal open={true} onClose={onClose} className="mx-4 sm:mx-auto max-w-2xl w-full">
@@ -329,9 +340,54 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               </div>
             )}
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+              {steps.map((step, index) => {
+                const isActive = index === currentStep;
+                const isCompleted = index < currentStep;
+                return (
+                  <button
+                    key={step.title}
+                    type="button"
+                    onClick={() => setCurrentStep(index)}
+                    className={`px-3 py-2 rounded-xl border text-left transition-colors ${
+                      isActive
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20'
+                        : isCompleted
+                          ? 'border-green-300 bg-green-50 dark:bg-green-500/10'
+                          : 'border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                          isActive
+                            ? 'bg-blue-600 text-white'
+                            : isCompleted
+                              ? 'bg-green-600 text-white'
+                              : 'bg-gray-200 dark:bg-coal-300 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <i
+                        className={`ki-outline ${step.icon} ${
+                          isActive
+                            ? 'text-blue-600 dark:text-blue-300'
+                            : 'text-gray-400 dark:text-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] font-semibold text-gray-700 dark:text-gray-200">
+                      {step.title}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
             <fieldset disabled={isLocked} className="space-y-6">
               {/* Datos Básicos */}
-              <div className="space-y-4">
+              {currentStep === 0 && <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
                   <i className="ki-outline ki-information-2 text-blue-500" />
                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
@@ -413,10 +469,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Ubicación y Ficha */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 1 && <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
                   <i className="ki-outline ki-geolocation text-blue-500" />
                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
@@ -579,10 +635,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Agenda */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 2 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-list text-blue-500" />
@@ -622,10 +678,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* Objetivos */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 2 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-target text-blue-500" />
@@ -665,10 +721,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* Conclusiones */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 3 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-check-square text-blue-500" />
@@ -708,10 +764,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* Compromisos */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 3 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-calendar-tick text-blue-500" />
@@ -788,10 +844,10 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* Observación General */}
-              <div className="space-y-4 pt-2">
+              {currentStep === 4 && <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
                   <i className="ki-outline ki-message-text-2 text-blue-500" />
                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
@@ -806,10 +862,33 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                   value={formData.observacion}
                   onChange={handleInputChange}
                 />
-              </div>
+              </div>}
             </fieldset>
           </ModalBody>
-          <ModalHeader className="border-t border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-end gap-3 bg-gray-50 dark:bg-coal-400/30">
+          <ModalHeader className="border-t border-gray-100 dark:border-coal-300 px-6 py-4 flex flex-wrap justify-between gap-3 bg-gray-50 dark:bg-coal-400/30">
+            {!isLocked && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={isFirstStep}
+                  onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 bg-white dark:bg-coal-400 rounded-lg border border-gray-200 dark:border-coal-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                {!isLastStep && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))}
+                    className="px-4 py-2 text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/15 rounded-lg border border-blue-200 dark:border-blue-400/30"
+                  >
+                    Siguiente
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 ml-auto">
             <button
               type="button"
               onClick={onClose}
@@ -817,7 +896,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
             >
               {isLocked ? 'Cerrar' : 'Cancelar'}
             </button>
-            {!isLocked && (
+            {!isLocked && isLastStep && (
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -836,6 +915,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 )}
               </button>
             )}
+            </div>
           </ModalHeader>
         </form>
       </ModalContent>
