@@ -2,6 +2,11 @@ import { type TMenuConfig } from '@/components/menu';
 
 export const MENU_SIDEBAR: TMenuConfig = [
   {
+    title: 'Dashboard',
+    icon: 'home',
+    path: '/'
+  },
+  {
     title: 'Gestión Académica',
     icon: 'teacher',
     requiredPermissions: ['GESTION_USUARIO'], //Cambiar por GESTION_ACADEMICA
