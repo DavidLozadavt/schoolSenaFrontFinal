@@ -700,7 +700,7 @@ export const CardRap = ({
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button>: <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
+                    </button> : materia.estado == 'FINALIZADO' ? <p className="text-xs text-gray-500 dark:text-gray-400">RAP finalizado</p> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
                   </div>
                 ))}
               </div>
