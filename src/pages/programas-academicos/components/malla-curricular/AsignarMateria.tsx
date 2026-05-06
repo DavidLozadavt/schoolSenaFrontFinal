@@ -64,7 +64,14 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     }
   };
 
+  const isAlreadyAssigned = (materia: any) => {
+    return (materiasActuales || []).some(m => (m.idMateria || m.id) === materia.id);
+  };
+
   const toggleMateria = (materia: any) => {
+    // Si ya está asignada, no permitimos cambiar su estado (bloqueada)
+    if (isAlreadyAssigned(materia)) return;
+
     const yaSeleccionada = materiasSeleccionadas.some(m => (m.idMateria || m.id) === materia.id);
 
     if (yaSeleccionada) {
@@ -97,7 +104,9 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
 
   const handleConfirmar = () => {
     if (onMateriasSeleccionadas) {
-      onMateriasSeleccionadas({ idGradoPrograma: nivelId ?? 0, materias: materiasSeleccionadas });
+      // Filtrar para enviar SOLO las que son nuevas
+      const nuevasMaterias = materiasSeleccionadas.filter(m => !isAlreadyAssigned(m));
+      onMateriasSeleccionadas({ idGradoPrograma: nivelId ?? 0, materias: nuevasMaterias });
     }
     onClose();
   };
@@ -237,21 +246,28 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                   return itemsFiltered.map((materia) => {
                     const seleccionada = estaSeleccionada(materia);
 
+                    const yaAsignada = isAlreadyAssigned(materia);
+
                     return (
                       <div
                         key={materia.id}
-                        onClick={() => !materia.isCompleta && toggleMateria(materia)}
-                        className={`group flex flex-col p-3 border rounded-xl cursor-pointer transition-all duration-200 ${seleccionada
-                          ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
-                          : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
-                          } ${materia.isCompleta ? 'border-green-500 dark:border-green-500' : ''}`}
+                        onClick={() => !materia.isCompleta && !yaAsignada && toggleMateria(materia)}
+                        className={`group flex flex-col p-3 border rounded-xl transition-all duration-200 
+                          ${(seleccionada || yaAsignada)
+                            ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
+                            : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
+                          } 
+                          ${materia.isCompleta ? 'border-green-500 dark:border-green-500' : ''} 
+                          ${yaAsignada ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             
-                            { !materia.isCompleta && <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
-                            </div>}
+                            { !materia.isCompleta && !yaAsignada && (
+                              <div className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${seleccionada ? 'bg-primary' : 'bg-gray-200 dark:bg-coal-600'}`}>
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${seleccionada ? 'translate-x-4' : 'translate-x-1'}`} />
+                              </div>
+                            )}
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
