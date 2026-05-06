@@ -40,6 +40,8 @@ interface ActividadAprendiz {
   autor?: {
     nombreCompleto?: string | null;
     rutaFotoUrl?: string | null;
+    /** Ruta sin dominio si el backend la envía en crudo */
+    rutaFoto?: string | null;
   };
   materialesApoyo?: Array<{
     id: number;
@@ -139,6 +141,41 @@ const getDocumentUrl = (url?: string | null): string | null => {
   }
   const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
   return base + '/storage/' + url;
+};
+
+/**
+ * Foto del creador/instructor (`autor.rutaFotoUrl` desde backend). Misma regla que `ListaActividades` / vista instructor:
+ * no reescribe URLs absolutas quitando el host (eso rompe cuando el API y el SPA no comparten mismo origin).
+ */
+const getPerfilPublicUrl = (path?: string | null): string | null => {
+  if (!path || !String(path).trim()) return null;
+  const p = String(path).trim();
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = p.startsWith('/') ? p.slice(1) : p;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+/** Primera foto no vacía enviada en `autor` (camel/snake/API). Solo creador/instructor — no usar campos del aprendiz. */
+const pickAutorFotoParaMostrar = (autor?: ActividadAprendiz['autor']): string | null => {
+  if (!autor) return null;
+  const raw = autor as Record<string, unknown>;
+  const candidates = [
+    autor.rutaFotoUrl,
+    autor.rutaFoto,
+    raw.ruta_foto_url,
+    raw.ruta_foto,
+    raw.fotoPerfil,
+    raw.foto_perfil
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string') {
+      const t = c.trim();
+      if (t && t.toLowerCase() !== 'null') return t;
+    }
+  }
+  return null;
 };
 
 /** Documento oficial adjunto a la actividad (instructor), distinto del material de apoyo y de la entrega del estudiante. */
@@ -664,6 +701,48 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   );
 };
 
+/** Avatar del creador/asignador (solo campos `autor` del API actividades-aprendiz). */
+const AvatarCreadorActividad: React.FC<{
+  nombreCompleto: string;
+  autor?: ActividadAprendiz['autor'];
+  onZoom: (src: string, alt: string) => void;
+}> = ({ nombreCompleto, autor, onZoom }) => {
+  const [broken, setBroken] = useState(false);
+  const src = useMemo(() => getPerfilPublicUrl(pickAutorFotoParaMostrar(autor)), [autor]);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
+
+  if (!src || broken) {
+    return (
+      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white shrink-0">
+        <div className="w-10 h-10 rounded-full border-2 border-dashed border-primary flex items-center justify-center text-primary">
+          <KeenIcon icon="user" className="text-base" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onZoom(src, nombreCompleto)}
+      className="shrink-0 rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1"
+      title="Ampliar foto"
+      aria-label={`Foto de ${nombreCompleto}`}
+    >
+      <img
+        src={src}
+        alt={nombreCompleto}
+        referrerPolicy="no-referrer"
+        className="w-10 h-10 rounded-full object-cover border-2 border-primary/60 cursor-pointer hover:opacity-90 transition-opacity"
+        onError={() => setBroken(true)}
+      />
+    </button>
+  );
+};
+
 const ActividadesAprendiz: React.FC = () => {
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
   const [loading, setLoading] = useState(true);
@@ -772,9 +851,6 @@ const ActividadesAprendiz: React.FC = () => {
               const isExpanded = expanded === actividad.idCalificacionActividad;
               const score = actividad.calificacionNumerica ? Number(actividad.calificacionNumerica) : null;
               const nombreInstructor = actividad.autor?.nombreCompleto || 'Instructor sin nombre';
-              const fotoInstructor = actividad.autor?.rutaFotoUrl
-                ? getDocumentUrl(actividad.autor.rutaFotoUrl)
-                : null;
 
               return (
                 <div
@@ -788,25 +864,11 @@ const ActividadesAprendiz: React.FC = () => {
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <div className="flex items-center gap-3 mb-1.5">
-                          {fotoInstructor ? (
-                            <button
-                              type="button"
-                              onClick={() => setZoomFoto({ src: fotoInstructor, alt: nombreInstructor })}
-                              className="shrink-0 rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1"
-                            >
-                              <img
-                                src={fotoInstructor}
-                                alt={nombreInstructor}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-primary/60 cursor-pointer hover:opacity-90 transition-opacity"
-                              />
-                            </button>
-                          ) : (
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white">
-                              <div className="w-10 h-10 rounded-full border-2 border-dashed border-primary flex items-center justify-center text-primary">
-                                <KeenIcon icon="user" className="text-base" />
-                              </div>
-                            </div>
-                          )}
+                          <AvatarCreadorActividad
+                            nombreCompleto={nombreInstructor}
+                            autor={actividad.autor}
+                            onZoom={(srcZoom, alt) => setZoomFoto({ src: srcZoom, alt })}
+                          />
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                               {nombreInstructor}
