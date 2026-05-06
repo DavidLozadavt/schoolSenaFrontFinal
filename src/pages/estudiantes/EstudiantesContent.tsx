@@ -121,7 +121,7 @@ function transformGroupedToDashboard(groupedData: Record<string, any>): Dashboar
   let totalRegistros = 0;
 
   Object.entries(groupedData).forEach(([clave, materiaData]) => {
-    const resMateria = materiaData.resumen || { asistio:0, falto:0, totalSesiones:0 };
+    const resMateria = materiaData.resumen || { asistio: 0, falto: 0, totalSesiones: 0 };
     const areaNombre = materiaData.areaConocimiento || 'Sin Área';
 
     if (!areasMap[areaNombre]) {
@@ -173,7 +173,7 @@ function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSessio
   const allSessions: UpcomingSession[] = [];
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  
+
   const nextWeek = new Date(now);
   nextWeek.setDate(now.getDate() + 14); // Mostrar clases de los próximos 14 días para mayor seguridad
 
@@ -182,7 +182,7 @@ function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSessio
       if (!s.fecha) return;
       const [year, month, day] = s.fecha.split('T')[0].split('-').map(Number);
       const sDate = new Date(year, month - 1, day);
-      
+
       if (sDate >= now && sDate <= nextWeek && s.estado !== 'COMPLETADA') {
         allSessions.push({
           id: `${mat.idMateria}-${s.fecha}-${s.horaInicial}-${idx}`,
@@ -208,10 +208,10 @@ function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSessio
 }
 
 const ESTADO_CFG: Record<string, { label: string; color: string; icon: string }> = {
-  CALIFICADO:   { label: 'Calificado',   color: 'text-success bg-success/10', icon: 'check-circle' },
-  POR_EVALUAR:  { label: 'Por evaluar',  color: 'text-warning bg-warning/10', icon: 'time' },
-  PENDIENTE:    { label: 'Pendiente',    color: 'text-primary bg-primary/10', icon: 'information-2' },
-  SIN_ENTREGAR: { label: 'Vencida',      color: 'text-danger bg-danger/10', icon: 'cross-circle' },
+  CALIFICADO: { label: 'Calificado', color: 'text-success bg-success/10', icon: 'check-circle' },
+  POR_EVALUAR: { label: 'Por evaluar', color: 'text-warning bg-warning/10', icon: 'time' },
+  PENDIENTE: { label: 'Pendiente', color: 'text-primary bg-primary/10', icon: 'information-2' },
+  SIN_ENTREGAR: { label: 'Vencida', color: 'text-danger bg-danger/10', icon: 'cross-circle' },
 };
 
 // --- REELS MOCK DATA ---
@@ -228,7 +228,7 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
-  const duration = 5000; 
+  const duration = 5000;
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -239,7 +239,7 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
             setCurrentIndex(currentIndex + 1);
             return 0;
           } else {
-            onClose(); 
+            onClose();
             return 100;
           }
         }
@@ -285,24 +285,24 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
       <div className="absolute top-4 left-0 right-0 px-4 flex gap-1 z-20 max-w-[450px] mx-auto">
         {reels.map((r, i) => (
           <div key={r.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-white transition-all duration-75"
               style={{ width: i < currentIndex ? '100%' : i === currentIndex ? `${progress}%` : '0%' }}
             />
           </div>
         ))}
       </div>
-      
-      <div 
+
+      <div
         className="w-full sm:w-[450px] h-full sm:h-[90vh] bg-gray-900 relative flex flex-col justify-center sm:rounded-lg overflow-hidden"
         onClick={togglePlay}
       >
         <img src={currentReel.img} className="absolute inset-0 w-full h-full object-cover" alt={currentReel.title} />
-        
+
         <div className="absolute inset-y-0 left-0 w-1/3 z-10 cursor-w-resize" onClick={handlePrev}></div>
         <div className="absolute inset-y-0 right-0 w-1/3 z-10 cursor-e-resize" onClick={handleNext}></div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-        
+
         {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white">
@@ -324,13 +324,13 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
 // === MAIN DASHBOARD COMPONENT ===
 const EstudiantesContent: React.FC = () => {
   const { user, persona } = useAuthContext();
-  const userName = persona 
+  const userName = persona
     ? [persona.nombre1, persona.nombre2, persona.apellido1, persona.apellido2].filter(Boolean).join(' ')
-    : (user?.persona 
-        ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
-        : 'Aprendiz');
+    : (user?.persona
+      ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
+      : 'Aprendiz');
   const userFicha = user?.ficha?.codigo || 'Mi Ficha';
-  
+
   const [asistencia, setAsistencia] = useState<DashboardAsistencia | null>(null);
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
@@ -346,10 +346,10 @@ const EstudiantesContent: React.FC = () => {
           axios.get('actividades-aprendiz').catch(() => ({ data: { data: [] } })),
           axios.get('fichas/estudiante/clases').catch(() => ({ data: { data: [] } }))
         ]);
-        
+
         setAsistencia(transformGroupedToDashboard(resAsis.data?.data ?? {}));
         setActividades(Array.isArray(resActs.data?.data) ? resActs.data.data : []);
-        
+
         // Usar normalizador idéntico al de MisClases para garantizar que las sesiones se procesen bien
         const materiasNormalizadas = normalizarClases(resClases.data?.data ?? []);
         setUpcomingSessions(extractUpcomingSessions(materiasNormalizadas));
@@ -364,14 +364,14 @@ const EstudiantesContent: React.FC = () => {
   }, []);
 
   const pctGeneral = asistencia?.resumen.asistenciaGeneral ?? 0;
-  const pendientes  = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
-  const vencidas    = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' || a.fechaVencida).length;
+  const pendientes = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
+  const vencidas = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' || a.fechaVencida).length;
   const presentadas = actividades.filter((a) => a.estadoVisual === 'POR_EVALUAR').length;
   const calificadas = actividades.filter((a) => a.estadoVisual === 'CALIFICADO').length;
 
-  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE' || a.estadoVisual === 'SIN_ENTREGAR').sort((a,b) => {
-    if(!a.fechaFinal) return 1;
-    if(!b.fechaFinal) return -1;
+  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE').sort((a, b) => {
+    if (!a.fechaFinal) return 1;
+    if (!b.fechaFinal) return -1;
     return new Date(a.fechaFinal).getTime() - new Date(b.fechaFinal).getTime();
   }).slice(0, 5);
 
@@ -386,7 +386,7 @@ const EstudiantesContent: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto w-full p-4 md:p-8 flex flex-col gap-8 animate-fade-in">
-      
+
       {/* HEADER FLAT LAYOUT */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
@@ -419,7 +419,7 @@ const EstudiantesContent: React.FC = () => {
 
       {/* TWO COLUMNS LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
+
         {/* AGENDA / CLASES */}
         <div className="flex flex-col">
           <div className="flex items-center justify-between mb-4">
@@ -428,7 +428,7 @@ const EstudiantesContent: React.FC = () => {
             </h2>
             <a href="/ambiente-virtual/mis-clases" className="text-sm font-bold text-primary hover:underline transition-all">Ver calendario</a>
           </div>
-          
+
           <div className="bg-white dark:bg-coal-400 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4 min-h-[300px]">
             {upcomingSessions.length > 0 ? (
               <div className="flex flex-col gap-4 overflow-y-auto max-h-[400px] custom-scrollbar pr-2">
@@ -442,7 +442,7 @@ const EstudiantesContent: React.FC = () => {
                         {formatearFechaDia(session.fechaStr).split(',')[1]?.trim()}
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 bg-gray-50 dark:bg-coal-500/30 rounded-xl p-4 border border-gray-100 dark:border-gray-800 group-hover:border-primary/30 transition-colors">
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
@@ -452,7 +452,7 @@ const EstudiantesContent: React.FC = () => {
                           {session.estado}
                         </span>
                       </div>
-                      
+
                       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 font-medium">
                         <div className="flex items-center gap-1">
                           <KeenIcon icon="time" /> {session.horaInicial} - {session.horaFinal}
@@ -484,22 +484,22 @@ const EstudiantesContent: React.FC = () => {
             <a href="/ambiente-virtual/actividades" className="text-sm font-bold text-primary hover:underline transition-all">Ir a actividades</a>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 text-center">
-              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Pendientes</p>
-              <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendientes</p>
+              <p className="text-base font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 text-center">
-              <p className="text-[9px] font-bold text-danger uppercase mb-1">Vencidas</p>
-              <p className="text-lg font-black text-danger leading-none">{vencidas}</p>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-danger uppercase mb-1 leading-none">Vencidas</p>
+              <p className="text-base font-black text-danger leading-none">{vencidas}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 text-center">
-              <p className="text-[9px] font-bold text-warning uppercase mb-1">Enviadas</p>
-              <p className="text-lg font-black text-warning leading-none">{presentadas}</p>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-warning uppercase mb-1 leading-none">Enviadas</p>
+              <p className="text-base font-black text-warning leading-none">{presentadas}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 text-center">
-              <p className="text-[9px] font-bold text-success uppercase mb-1">Calificadas</p>
-              <p className="text-lg font-black text-success leading-none">{calificadas}</p>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificadas</p>
+              <p className="text-base font-black text-success leading-none">{calificadas}</p>
             </div>
           </div>
 
@@ -550,17 +550,17 @@ const EstudiantesContent: React.FC = () => {
             <KeenIcon icon="youtube" className="text-primary" /> Cápsulas SENA
           </h2>
         </div>
-        
+
         <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
           {MOCK_REELS.map((reel, idx) => (
-            <div 
-              key={reel.id} 
+            <div
+              key={reel.id}
               onClick={() => setPlayingReelIndex(idx)}
               className="relative w-36 sm:w-44 aspect-[9/16] rounded-2xl shrink-0 snap-start overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
             >
               <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-              
+
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
                   <KeenIcon icon="play" className="text-lg ml-1" />
@@ -578,10 +578,10 @@ const EstudiantesContent: React.FC = () => {
 
       {/* REELS VIEWER MODAL */}
       {playingReelIndex !== null && (
-        <ReelsViewer 
-          reels={MOCK_REELS} 
-          initialIndex={playingReelIndex} 
-          onClose={() => setPlayingReelIndex(null)} 
+        <ReelsViewer
+          reels={MOCK_REELS}
+          initialIndex={playingReelIndex}
+          onClose={() => setPlayingReelIndex(null)}
         />
       )}
 
