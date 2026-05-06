@@ -153,10 +153,15 @@ const DASHBOARD_CONFIG = [
   }
 ];
 const AppRoutingSetup = (): ReactElement => {
-  const { permissions } = useAuthContext();
+  const { permissions, roles } = useAuthContext();
 
   // Función lógica para seleccionar el dashboard
   const getActiveDashboard = () => {
+    // Prioridad para INSTRUCTOR SENA si tiene el rol
+    if (roles?.includes('INSTRUCTOR SENA')) {
+      return <ProfesoresPage />;
+    }
+
     const active = DASHBOARD_CONFIG.find((item) => permissions?.includes(item.permission));
 
     // Si hay coincidencia retornamos su componente, si no, el DefaultPage original

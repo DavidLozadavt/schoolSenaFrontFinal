@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '@/auth/useAuthContext';
+import { KeenIcon } from '@/components/keenicons';
 
+// --- Interfaces de Datos ---
 interface AreaAsistencia {
   idArea: number;
   nombreArea: string;
@@ -20,19 +22,9 @@ interface ResumenAsistencia {
   totalRegistros: number;
 }
 
-interface RegistroAsistencia {
-  id: number;
-  fecha: string;
-  nombreMateria: string;
-  asistio: boolean;
-  estaJustificada: boolean;
-  estado: string;
-}
-
 interface DashboardAsistencia {
   areas: AreaAsistencia[];
   resumen: ResumenAsistencia;
-  detalles: RegistroAsistencia[];
 }
 
 interface ActividadAprendiz {
@@ -41,18 +33,69 @@ interface ActividadAprendiz {
   estadoVisual: 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR';
   fechaFinal?: string | null;
   fechaVencida?: boolean;
-  calificacionNumerica?: string | null;
-  area?: { nombre?: string };
   materia?: { nombreMateria?: string };
 }
 
-const ESTADO_CFG: Record<string, { label: string; chip: string; hex: string }> = {
-  CALIFICADO:   { label: 'Calificado',   chip: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',   hex: '#16a34a' },
-  POR_EVALUAR:  { label: 'Por evaluar',  chip: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',   hex: '#d97706' },
-  PENDIENTE:    { label: 'Pendiente',    chip: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',           hex: '#9ca3af' },
-  SIN_ENTREGAR: { label: 'Sin entregar', chip: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',            hex: '#dc2626' },
+// --- Normalización de Clases (Igual que en MisClases.tsx) ---
+interface Sesion {
+  fecha: string;
+  horaInicial: string;
+  horaFinal: string;
+  estado: string;
+}
+
+interface MateriaNormalizada {
+  idMateria: number;
+  materia_nombre: string;
+  profesor_nombre: string;
+  aula_nombre: string;
+  sesiones: Sesion[];
+  sesiones_completadas: number;
+}
+
+const toNum = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  const n = parseInt(String(v), 10);
+  return isNaN(n) ? 0 : n;
 };
 
+const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
+  fecha: typeof s.fecha === 'string' ? s.fecha : '',
+  horaInicial: typeof s.horaInicial === 'string' ? s.horaInicial.substring(0, 5) : '',
+  horaFinal: typeof s.horaFinal === 'string' ? s.horaFinal.substring(0, 5) : '',
+  estado: typeof s.estado === 'string' ? s.estado : 'PENDIENTE',
+});
+
+const normalizarMateria = (raw: Record<string, unknown>): MateriaNormalizada => ({
+  idMateria: toNum(raw.idMateria),
+  materia_nombre: typeof raw.materia_nombre === 'string' ? raw.materia_nombre : '',
+  profesor_nombre: typeof raw.profesor_nombre === 'string' ? raw.profesor_nombre : '',
+  aula_nombre: typeof raw.aula_nombre === 'string' ? raw.aula_nombre : '',
+  sesiones_completadas: toNum(raw.sesiones_completadas),
+  sesiones: Array.isArray(raw.sesiones) ? (raw.sesiones as Record<string, unknown>[]).map(normalizarSesion) : [],
+});
+
+const normalizarClases = (data: unknown[]): MateriaNormalizada[] => {
+  if (!Array.isArray(data)) return [];
+  const mapa = new Map<number, MateriaNormalizada>();
+  for (const raw of data) {
+    if (!raw || typeof raw !== 'object') continue;
+    const materia = normalizarMateria(raw as Record<string, unknown>);
+    const existente = mapa.get(materia.idMateria);
+    if (!existente) {
+      mapa.set(materia.idMateria, materia);
+      continue;
+    }
+    if (materia.sesiones.length > existente.sesiones.length) {
+      mapa.set(materia.idMateria, materia);
+    } else if (materia.sesiones.length === existente.sesiones.length && materia.sesiones_completadas > existente.sesiones_completadas) {
+      mapa.set(materia.idMateria, materia);
+    }
+  }
+  return Array.from(mapa.values());
+};
+
+// --- Helpers de Fecha ---
 function fmtFecha(v?: string | null) {
   if (!v) return '—';
   try {
@@ -60,15 +103,25 @@ function fmtFecha(v?: string | null) {
   } catch { return v; }
 }
 
+const formatearFechaDia = (fechaStr: string): string => {
+  if (!fechaStr) return '';
+  try {
+    const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
+    const fecha = new Date(year, month - 1, day);
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return `${dias[fecha.getDay()]}, ${fecha.getDate()}`;
+  } catch { return fechaStr; }
+};
+
+// --- Transformaciones de Dashboard ---
 function transformGroupedToDashboard(groupedData: Record<string, any>): DashboardAsistencia {
   const areasMap: Record<string, AreaAsistencia> = {};
-  const detalles: RegistroAsistencia[] = [];
   let totalAsistencias = 0;
   let totalInasistencias = 0;
   let totalRegistros = 0;
 
   Object.entries(groupedData).forEach(([clave, materiaData]) => {
-    const resMateria = materiaData.resumen || { asistio:0, falto:0, totalSesiones:0 };
+    const resMateria = materiaData.resumen || { asistio: 0, falto: 0, totalSesiones: 0 };
     const areaNombre = materiaData.areaConocimiento || 'Sin Área';
 
     if (!areasMap[areaNombre]) {
@@ -82,7 +135,6 @@ function transformGroupedToDashboard(groupedData: Record<string, any>): Dashboar
         porcentaje: 0
       };
     }
-
     areasMap[areaNombre].asistencias += resMateria.asistio;
     areasMap[areaNombre].inasistencias += resMateria.falto;
     areasMap[areaNombre].total += resMateria.totalSesiones;
@@ -90,18 +142,6 @@ function transformGroupedToDashboard(groupedData: Record<string, any>): Dashboar
     totalAsistencias += resMateria.asistio;
     totalInasistencias += resMateria.falto;
     totalRegistros += resMateria.totalSesiones;
-
-    const sessionList = materiaData.asistencias || [];
-    sessionList.forEach((asist: any) => {
-      detalles.push({
-        id: asist.id,
-        fecha: asist.fechaSesion || '',
-        nombreMateria: materiaData.nombreMateria || 'Materia',
-        asistio: !!asist.asistio,
-        estaJustificada: asist.estado === 'Inasistencia Justificada',
-        estado: asist.estado || ''
-      });
-    });
   });
 
   const areas = Object.values(areasMap).map(area => ({
@@ -113,45 +153,207 @@ function transformGroupedToDashboard(groupedData: Record<string, any>): Dashboar
 
   return {
     areas,
-    resumen: {
-      asistenciaGeneral,
-      totalAsistencias,
-      totalInasistencias,
-      totalJustificadas: 0,
-      totalRegistros
-    },
-    detalles
+    resumen: { asistenciaGeneral, totalAsistencias, totalInasistencias, totalJustificadas: 0, totalRegistros }
   };
 }
 
+interface UpcomingSession {
+  id: string;
+  materia: string;
+  fechaStr: string;
+  fechaObj: Date;
+  horaInicial: string;
+  horaFinal: string;
+  estado: string;
+  profesor: string;
+  aula: string;
+}
+
+function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSession[] {
+  const allSessions: UpcomingSession[] = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const nextWeek = new Date(now);
+  nextWeek.setDate(now.getDate() + 14); // Mostrar clases de los próximos 14 días para mayor seguridad
+
+  materias.forEach(mat => {
+    mat.sesiones.forEach((s, idx) => {
+      if (!s.fecha) return;
+      const [year, month, day] = s.fecha.split('T')[0].split('-').map(Number);
+      const sDate = new Date(year, month - 1, day);
+
+      if (sDate >= now && sDate <= nextWeek && s.estado !== 'COMPLETADA') {
+        allSessions.push({
+          id: `${mat.idMateria}-${s.fecha}-${s.horaInicial}-${idx}`,
+          materia: mat.materia_nombre || 'Materia sin nombre',
+          fechaStr: s.fecha.split('T')[0],
+          fechaObj: sDate,
+          horaInicial: s.horaInicial,
+          horaFinal: s.horaFinal,
+          estado: s.estado,
+          profesor: mat.profesor_nombre,
+          aula: mat.aula_nombre
+        });
+      }
+    });
+  });
+
+  allSessions.sort((a, b) => {
+    if (a.fechaStr !== b.fechaStr) return a.fechaStr.localeCompare(b.fechaStr);
+    return a.horaInicial.localeCompare(b.horaInicial);
+  });
+
+  return allSessions;
+}
+
+const ESTADO_CFG: Record<string, { label: string; color: string; icon: string }> = {
+  CALIFICADO: { label: 'Calificado', color: 'text-success bg-success/10', icon: 'check-circle' },
+  POR_EVALUAR: { label: 'Por evaluar', color: 'text-warning bg-warning/10', icon: 'time' },
+  PENDIENTE: { label: 'Pendiente', color: 'text-primary bg-primary/10', icon: 'information-2' },
+  SIN_ENTREGAR: { label: 'Vencida', color: 'text-danger bg-danger/10', icon: 'cross-circle' },
+};
+
+// --- REELS MOCK DATA ---
+const MOCK_REELS = [
+  { id: 1, title: 'Tips para React', views: '1.2k', duration: '0:45', img: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=400&auto=format&fit=crop' },
+  { id: 2, title: '¿Qué es Tailwind?', views: '850', duration: '1:00', img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop' },
+  { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
+  { id: 4, title: 'Mejorar tu lógica', views: '3k', duration: '1:30', img: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=400&auto=format&fit=crop' },
+  { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
+];
+
+// === REELS VIEWER COMPONENT (Solo Visual) ===
+const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const duration = 5000;
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setProgress(p => {
+        if (p >= 100) {
+          if (currentIndex < reels.length - 1) {
+            setCurrentIndex(currentIndex + 1);
+            return 0;
+          } else {
+            onClose();
+            return 100;
+          }
+        }
+        return p + (100 / (duration / 50));
+      });
+    }, 50);
+    return () => clearInterval(interval);
+  }, [isPlaying, currentIndex, reels.length, onClose]);
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setProgress(0);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex < reels.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setProgress(0);
+      setIsPlaying(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPlaying(!isPlaying);
+  };
+
+  const currentReel = reels[currentIndex];
+
+  return (
+    <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center animate-fade-in" onClick={onClose}>
+      <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[110]" onClick={onClose}>
+        <KeenIcon icon="cross" className="text-3xl" />
+      </button>
+
+      <div className="absolute top-4 left-0 right-0 px-4 flex gap-1 z-20 max-w-[450px] mx-auto">
+        {reels.map((r, i) => (
+          <div key={r.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white transition-all duration-75"
+              style={{ width: i < currentIndex ? '100%' : i === currentIndex ? `${progress}%` : '0%' }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div
+        className="w-full sm:w-[450px] h-full sm:h-[90vh] bg-gray-900 relative flex flex-col justify-center sm:rounded-lg overflow-hidden"
+        onClick={togglePlay}
+      >
+        <img src={currentReel.img} className="absolute inset-0 w-full h-full object-cover" alt={currentReel.title} />
+
+        <div className="absolute inset-y-0 left-0 w-1/3 z-10 cursor-w-resize" onClick={handlePrev}></div>
+        <div className="absolute inset-y-0 right-0 w-1/3 z-10 cursor-e-resize" onClick={handleNext}></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+
+        {!isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white">
+              <KeenIcon icon="play" className="text-4xl ml-2" />
+            </div>
+          </div>
+        )}
+
+        <div className="absolute bottom-0 left-0 right-0 p-6 z-10 pointer-events-none">
+          <h3 className="text-white font-bold text-xl mb-1">{currentReel.title}</h3>
+          <p className="text-white/80 text-sm">Cápsulas formativas SENA</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// === MAIN DASHBOARD COMPONENT ===
 const EstudiantesContent: React.FC = () => {
   const { user, persona } = useAuthContext();
-  const userName = persona 
+  const userName = persona
     ? [persona.nombre1, persona.nombre2, persona.apellido1, persona.apellido2].filter(Boolean).join(' ')
-    : (user?.persona 
-        ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
-        : 'Aprendiz');
-  
+    : (user?.persona
+      ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
+      : 'Aprendiz');
+  const userFicha = user?.ficha?.codigo || 'Mi Ficha';
+
   const [asistencia, setAsistencia] = useState<DashboardAsistencia | null>(null);
-  const [groupedAsistencia, setGroupedAsistencia] = useState<Record<string, any>>({});
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
+  const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [resAsis, resActs] = await Promise.all([
-          axios.get('mis-asistencias-generales'),
-          axios.get('actividades-aprendiz')
+        const [resAsis, resActs, resClases] = await Promise.all([
+          axios.get('mis-asistencias-generales').catch(() => ({ data: { data: {} } })),
+          axios.get('actividades-aprendiz').catch(() => ({ data: { data: [] } })),
+          axios.get('fichas/estudiante/clases').catch(() => ({ data: { data: [] } }))
         ]);
-        
-        const rawAsis = resAsis.data?.data ?? {};
-        setGroupedAsistencia(rawAsis);
-        setAsistencia(transformGroupedToDashboard(rawAsis));
-        
-        const rawActs = resActs.data?.data ?? [];
-        setActividades(Array.isArray(rawActs) ? rawActs : []);
+
+        setAsistencia(transformGroupedToDashboard(resAsis.data?.data ?? {}));
+        setActividades(Array.isArray(resActs.data?.data) ? resActs.data.data : []);
+
+        // Usar normalizador idéntico al de MisClases para garantizar que las sesiones se procesen bien
+        const materiasNormalizadas = normalizarClases(resClases.data?.data ?? []);
+        setUpcomingSessions(extractUpcomingSessions(materiasNormalizadas));
+
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
       } finally {
@@ -161,170 +363,228 @@ const EstudiantesContent: React.FC = () => {
     fetchData();
   }, []);
 
-  const totalPresentes   = asistencia?.resumen.totalAsistencias ?? 0;
-  const totalAusentes      = asistencia?.resumen.totalInasistencias ?? 0;
-  const totalRegistros     = asistencia?.resumen.totalRegistros ?? 0;
-  const pctGeneral         = asistencia?.resumen.asistenciaGeneral ?? 0;
-
-  const pendientes  = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
-  const vencidas    = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' && a.fechaVencida).length;
+  const pctGeneral = asistencia?.resumen.asistenciaGeneral ?? 0;
+  const pendientes = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
+  const vencidas = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' || a.fechaVencida).length;
   const presentadas = actividades.filter((a) => a.estadoVisual === 'POR_EVALUAR').length;
   const calificadas = actividades.filter((a) => a.estadoVisual === 'CALIFICADO').length;
 
-  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE').sort((a,b) => {
-    if(!a.fechaFinal) return 1;
-    if(!b.fechaFinal) return -1;
+  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE').sort((a, b) => {
+    if (!a.fechaFinal) return 1;
+    if (!b.fechaFinal) return -1;
     return new Date(a.fechaFinal).getTime() - new Date(b.fechaFinal).getTime();
-  }).slice(0, 3);
+  }).slice(0, 5);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-        <p className="text-gray-500 font-medium">Cargando dashboard...</p>
+      <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500 text-sm font-medium">Cargando dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 lg:p-6 space-y-8">
-      {/* Bienvenida */}
-      <div className="flex flex-col gap-1 mb-2">
-        <h1 className="text-xl font-extrabold text-gray-800 dark:text-white tracking-tight">¡Hola, {userName}! 👋</h1>
-        <p className="text-sm text-gray-400 font-medium">Aquí tienes el resumen de tu proceso formativo hasta hoy.</p>
+    <div className="max-w-7xl mx-auto w-full p-4 md:p-8 flex flex-col gap-8 animate-fade-in">
+
+      {/* HEADER FLAT LAYOUT */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white">¡Hola, {userName}!</h1>
+          <p className="text-gray-500 text-sm font-medium mt-1">Ficha: {userFicha} • Formación SENA</p>
+        </div>
+
+        <div className="flex bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 gap-6 items-center">
+          <div className="flex items-center gap-3 pr-6 border-r border-gray-100 dark:border-gray-700">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary/10 text-primary">
+              <KeenIcon icon="chart-pie-simple" className="text-2xl" />
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Asistencia</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white">{pctGeneral}%</p>
+            </div>
+          </div>
+          <div className="flex gap-6 pr-2">
+            <div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Presente</p>
+              <p className="text-base font-black text-success leading-none">{asistencia?.resumen.totalAsistencias ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Faltas</p>
+              <p className="text-base font-black text-danger leading-none">{asistencia?.resumen.totalInasistencias ?? 0}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* KPIs Generales de Asistencia */}
-      <section className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-3 bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
-            <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Resumen General</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
-              <div className="text-center">
-                <p className="text-[10px] font-bold uppercase text-gray-400 mb-2">Total</p>
-                <p className="text-3xl font-black text-gray-800 dark:text-white leading-none">{totalRegistros}</p>
+      {/* TWO COLUMNS LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* AGENDA / CLASES */}
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <KeenIcon icon="calendar-8" className="text-primary" /> Agenda de Clases
+            </h2>
+            <a href="/ambiente-virtual/mis-clases" className="text-sm font-bold text-primary hover:underline transition-all">Ver calendario</a>
+          </div>
+
+          <div className="bg-white dark:bg-coal-400 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4 min-h-[300px]">
+            {upcomingSessions.length > 0 ? (
+              <div className="flex flex-col gap-4 overflow-y-auto max-h-[400px] custom-scrollbar pr-2">
+                {upcomingSessions.map(session => (
+                  <div key={session.id} className="flex items-stretch gap-4 group">
+                    <div className="flex flex-col items-center justify-start w-12 shrink-0">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">
+                        {formatearFechaDia(session.fechaStr).split(',')[0]}
+                      </div>
+                      <div className="text-lg font-black text-gray-900 dark:text-white leading-none">
+                        {formatearFechaDia(session.fechaStr).split(',')[1]?.trim()}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 bg-gray-50 dark:bg-coal-500/30 rounded-xl p-4 border border-gray-100 dark:border-gray-800 group-hover:border-primary/30 transition-colors">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
+                          {session.materia}
+                        </h3>
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase shrink-0">
+                          {session.estado}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 font-medium">
+                        <div className="flex items-center gap-1">
+                          <KeenIcon icon="time" /> {session.horaInicial} - {session.horaFinal}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <KeenIcon icon="geolocation" /> {session.aula}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="text-center text-blue-600">
-                <p className="text-[10px] font-bold uppercase opacity-70 mb-2 text-gray-400">Presentes</p>
-                <p className="text-3xl font-black leading-none">{totalPresentes}</p>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sin clases próximas</h3>
+                <p className="text-xs text-gray-500 mt-1">No tienes sesiones programadas para los próximos 7 días.</p>
               </div>
-              <div className="text-center text-red-500">
-                <p className="text-[10px] font-bold uppercase opacity-70 mb-2 text-gray-400">Faltas</p>
-                <p className="text-3xl font-black leading-none">{totalAusentes}</p>
-              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ACTIVIDADES */}
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <KeenIcon icon="notepad-edit" className="text-primary" /> Actividades
+            </h2>
+            <a href="/ambiente-virtual/actividades" className="text-sm font-bold text-primary hover:underline transition-all">Ir a actividades</a>
+          </div>
+
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendientes</p>
+              <p className="text-base font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
+            </div>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-danger uppercase mb-1 leading-none">Vencidas</p>
+              <p className="text-base font-black text-danger leading-none">{vencidas}</p>
+            </div>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-warning uppercase mb-1 leading-none">Enviadas</p>
+              <p className="text-base font-black text-warning leading-none">{presentadas}</p>
+            </div>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificadas</p>
+              <p className="text-base font-black text-success leading-none">{calificadas}</p>
             </div>
           </div>
 
-          <div className="lg:col-span-2 bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 flex items-center gap-8">
-             <div className="shrink-0">
-                <svg width="100" height="100" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-100 dark:text-gray-800" />
-                  <circle cx="50" cy="50" r="42" fill="none" stroke={pctGeneral >= 80 ? '#10b981' : '#f59e0b'} strokeWidth="8"
-                    strokeDasharray={`${(pctGeneral/100) * 264} 264`}
-                    strokeDashoffset="66" strokeLinecap="round" className="transition-all duration-1000" />
-                  <text x="50" y="55" textAnchor="middle" className="fill-gray-900 dark:fill-white font-black text-2xl">{pctGeneral}%</text>
-                </svg>
-             </div>
-             <div className="space-y-1">
-                <p className="text-xs font-black dark:text-white uppercase">Nivel de Asistencia</p>
-                <p className="text-[10px] text-gray-400 leading-tight">Mantenerte por arriba del 80% asegura que no pierdas competencias por inasistencia.</p>
-             </div>
+          <div className="bg-white dark:bg-coal-400 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4 min-h-[220px]">
+            {actAlerta.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {actAlerta.map(act => {
+                  const cfg = ESTADO_CFG[act.estadoVisual] || ESTADO_CFG['PENDIENTE'];
+                  const isVencida = act.estadoVisual === 'SIN_ENTREGAR' || act.fechaVencida;
+
+                  return (
+                    <div key={act.idCalificacionActividad} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:shadow-sm transition-shadow">
+                      <div className={`w-10 h-10 rounded-full flex shrink-0 items-center justify-center ${cfg.color}`}>
+                        <KeenIcon icon={cfg.icon} className="text-lg" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate mb-0.5">{act.tituloActividad}</h4>
+                        <div className="text-xs text-gray-500 truncate">{act.materia?.nombreMateria || 'General'}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
+                        <span className={`text-[10px] font-bold ${isVencida ? 'text-danger' : 'text-gray-400'}`}>
+                          {fmtFecha(act.fechaFinal)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                <KeenIcon icon="check-circle" className="text-4xl text-gray-300 mb-3" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">¡Estás al día!</h3>
+                <p className="text-xs text-gray-500 mt-1">No tienes actividades pendientes por entregar.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 📊 DESGLOSE POR MATERIA */}
-        <div className="space-y-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">📊 Desglose por Materia</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {Object.entries(groupedAsistencia).map(([key, data]: [string, any]) => {
-              const res = data.resumen || {};
-              const pct = res.porcentajeAsistencia || 0;
-              const color = pct >= 80 ? 'bg-green-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
-              
-              return (
-                <div key={key} className="bg-white dark:bg-coal-400 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1 pr-4">
-                      <h3 className="text-xs font-black text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight mb-1">{data.nombreMateria}</h3>
-                      <p className="text-[9px] text-gray-400 font-bold uppercase">{data.areaConocimiento}</p>
-                    </div>
-                    <span className="text-xs font-black text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-lg">{pct}%</span>
-                  </div>
-                  
-                  <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mb-5 overflow-hidden">
-                    <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
-                  </div>
+      </div>
 
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-[8px] font-bold text-gray-400 uppercase mb-0.5">Sesiones</p>
-                      <p className="text-xs font-black dark:text-white">{res.totalSesiones}</p>
-                    </div>
-                    <div className="text-blue-600">
-                      <p className="text-[8px] font-bold uppercase mb-0.5 opacity-60">Asistió</p>
-                      <p className="text-xs font-black">{res.asistio}</p>
-                    </div>
-                    <div className="text-red-500">
-                      <p className="text-[8px] font-bold uppercase mb-0.5 opacity-60">Faltó</p>
-                      <p className="text-xs font-black">{res.falto}</p>
-                    </div>
-                  </div>
+      {/* REELS SECTION */}
+      <div className="flex flex-col mt-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <KeenIcon icon="youtube" className="text-primary" /> Cápsulas SENA
+          </h2>
+        </div>
 
-                  {res.justificadas > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center text-[10px]">
-                      <span className="text-emerald-600 font-bold uppercase tracking-tighter">🛡 Justificadas</span>
-                      <span className="font-black text-emerald-600">{res.justificadas}</span>
-                    </div>
-                  )}
+        <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
+          {MOCK_REELS.map((reel, idx) => (
+            <div
+              key={reel.id}
+              onClick={() => setPlayingReelIndex(idx)}
+              className="relative w-36 sm:w-44 aspect-[9/16] rounded-2xl shrink-0 snap-start overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
+            >
+              <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
+                  <KeenIcon icon="play" className="text-lg ml-1" />
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+              </div>
 
-      {/* Actividades */}
-      <section className="space-y-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-        <h2 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider">Gestión de Actividades</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pendientes</p>
-              <p className="text-2xl font-black">{pendientes}</p>
-           </div>
-           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-red-500">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Vencidas</p>
-              <p className="text-2xl font-black">{vencidas}</p>
-           </div>
-           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-amber-500">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Por Evaluar</p>
-              <p className="text-2xl font-black">{presentadas}</p>
-           </div>
-           <div className="bg-white dark:bg-coal-400 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center text-green-500">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Calificadas</p>
-              <p className="text-2xl font-black">{calificadas}</p>
-           </div>
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <h4 className="text-white font-bold text-xs leading-tight mb-1">{reel.title}</h4>
+                <div className="text-white/70 text-[10px] font-semibold">{reel.duration}</div>
+              </div>
+            </div>
+          ))}
         </div>
+      </div>
 
-        {actAlerta.length > 0 && (
-          <div className="space-y-4">
-             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Próximos Vencimientos</p>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {actAlerta.map(act => (
-                  <a key={act.idCalificacionActividad} href="/ambiente-virtual/actividades" className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 hover:border-blue-500 transition-colors shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                       <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${ESTADO_CFG[act.estadoVisual]?.chip}`}>
-                         {ESTADO_CFG[act.estadoVisual]?.label}
-                       </span>
-                       <span className="text-[9px] font-bold text-gray-400">📅 {fmtFecha(act.fechaFinal)}</span>
-                    </div>
-                    <p className="text-xs font-black leading-tight line-clamp-2 mb-1">{act.tituloActividad}</p>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase truncate">{act.materia?.nombreMateria || 'General'}</p>
-                  </a>
-                ))}
-             </div>
-          </div>
-        )}
-      </section>
+      {/* REELS VIEWER MODAL */}
+      {playingReelIndex !== null && (
+        <ReelsViewer
+          reels={MOCK_REELS}
+          initialIndex={playingReelIndex}
+          onClose={() => setPlayingReelIndex(null)}
+        />
+      )}
+
     </div>
   );
 };

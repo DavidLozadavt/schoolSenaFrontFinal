@@ -474,7 +474,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                               </div>
                               {ev.isSharedSlot && (
                                 <div className="text-[7px] text-primary-active mt-0.5 uppercase font-black">
-                                  COMPARTIDO
+                                  {ev.allAssignments[0].tipoAsignacion}
                                 </div>
                               )}
                             </div>

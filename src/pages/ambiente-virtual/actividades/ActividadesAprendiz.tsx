@@ -30,6 +30,8 @@ interface ActividadAprendiz {
     id?: number;
     codigo?: string | null;
     nombreMateria?: string | null;
+    /** Algunos responses pueden enviar nombre en lugar de nombreMateria */
+    nombre?: string | null;
   };
   area?: {
     id?: number;
@@ -62,6 +64,15 @@ interface ActividadAprendiz {
     respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta: boolean }>;
   }>;
 }
+
+/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar área de conocimiento aquí. */
+const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
+  const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    return raw.trim();
+  }
+  return 'Sin materia asignada';
+};
 
 const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'TODOS', label: 'Todos' },
@@ -296,13 +307,13 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     }
   }, [validateFile]);
 
-  // Extraer información de proyecto y RAP (si está en la descripción o título)
+  // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
   const projectInfo = useMemo(() => {
-    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP' };
+    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin materia asignada' };
     const title = actividad.tituloActividad || '';
     return {
       proyecto: title || 'Sin proyecto',
-      rap: actividad.materia?.nombreMateria || actividad.area?.nombre || 'Sin RAP'
+      rap: etiquetaMateriaActividadAprendiz(actividad)
     };
   }, [actividad]);
   const maxChars = 500;
@@ -357,7 +368,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               Proyecto: {projectInfo.proyecto}
             </p>
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              RAP: {projectInfo.rap}
+              Materia: {projectInfo.rap}
             </p>
           </div>
 
@@ -829,7 +840,7 @@ const ActividadesAprendiz: React.FC = () => {
                               )}
                             </div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              {actividad.area?.nombre || 'Sin área'}
+                              {etiquetaMateriaActividadAprendiz(actividad)}
                             </p>
                           </div>
                         </div>

@@ -694,13 +694,13 @@ export const CardRap = ({
                       </p>
                     </div>
 
-                    {materia.estado != 'FINALIZADO' && <button
+                    {materia.estado != 'FINALIZADO' && (inst.esPrincipal || materia.idMateriaPadre != null) ? <button
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button>}
+                    </button> : materia.estado == 'FINALIZADO' ? <p className="text-xs text-gray-500 dark:text-gray-400">RAP finalizado</p> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
                   </div>
                 ))}
               </div>
