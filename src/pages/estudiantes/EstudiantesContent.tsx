@@ -169,13 +169,8 @@ interface UpcomingSession {
   aula: string;
 }
 
-function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSession[] {
+function extractAllSessions(materias: MateriaNormalizada[]): UpcomingSession[] {
   const allSessions: UpcomingSession[] = [];
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const nextWeek = new Date(now);
-  nextWeek.setDate(now.getDate() + 14); // Mostrar clases de los próximos 14 días para mayor seguridad
 
   materias.forEach(mat => {
     mat.sesiones.forEach((s, idx) => {
@@ -183,19 +178,17 @@ function extractUpcomingSessions(materias: MateriaNormalizada[]): UpcomingSessio
       const [year, month, day] = s.fecha.split('T')[0].split('-').map(Number);
       const sDate = new Date(year, month - 1, day);
 
-      if (sDate >= now && sDate <= nextWeek && s.estado !== 'COMPLETADA') {
-        allSessions.push({
-          id: `${mat.idMateria}-${s.fecha}-${s.horaInicial}-${idx}`,
-          materia: mat.materia_nombre || 'Materia sin nombre',
-          fechaStr: s.fecha.split('T')[0],
-          fechaObj: sDate,
-          horaInicial: s.horaInicial,
-          horaFinal: s.horaFinal,
-          estado: s.estado,
-          profesor: mat.profesor_nombre,
-          aula: mat.aula_nombre
-        });
-      }
+      allSessions.push({
+        id: `${mat.idMateria}-${s.fecha}-${s.horaInicial}-${idx}`,
+        materia: mat.materia_nombre || 'Materia sin nombre',
+        fechaStr: s.fecha.split('T')[0],
+        fechaObj: sDate,
+        horaInicial: s.horaInicial,
+        horaFinal: s.horaFinal,
+        estado: s.estado,
+        profesor: mat.profesor_nombre,
+        aula: mat.aula_nombre
+      });
     });
   });
 
@@ -329,13 +322,18 @@ const EstudiantesContent: React.FC = () => {
     : (user?.persona
       ? [user.persona.nombre1, user.persona.nombre2, user.persona.apellido1, user.persona.apellido2].filter(Boolean).join(' ')
       : 'Aprendiz');
-  const userFicha = user?.ficha?.codigo || 'Mi Ficha';
+  const matriculaActiva = persona?.matriculas?.find((m:any) => m.estado === 'ACTIVO' || m.estado === 'ACTIVA') || persona?.matriculas?.[0];
+  const fichaObj = user?.ficha || matriculaActiva?.ficha;
+  const userFicha = fichaObj?.codigo ? `Ficha ${fichaObj.codigo}` : '';
 
   const [asistencia, setAsistencia] = useState<DashboardAsistencia | null>(null);
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
+  
+  // Calendario state
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -352,7 +350,7 @@ const EstudiantesContent: React.FC = () => {
 
         // Usar normalizador idéntico al de MisClases para garantizar que las sesiones se procesen bien
         const materiasNormalizadas = normalizarClases(resClases.data?.data ?? []);
-        setUpcomingSessions(extractUpcomingSessions(materiasNormalizadas));
+        setUpcomingSessions(extractAllSessions(materiasNormalizadas));
 
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -365,7 +363,7 @@ const EstudiantesContent: React.FC = () => {
 
   const pctGeneral = asistencia?.resumen.asistenciaGeneral ?? 0;
   const pendientes = actividades.filter((a) => a.estadoVisual === 'PENDIENTE').length;
-  const vencidas = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR' || a.fechaVencida).length;
+  const vencidas = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR').length;
   const presentadas = actividades.filter((a) => a.estadoVisual === 'POR_EVALUAR').length;
   const calificadas = actividades.filter((a) => a.estadoVisual === 'CALIFICADO').length;
 
@@ -374,6 +372,28 @@ const EstudiantesContent: React.FC = () => {
     if (!b.fechaFinal) return -1;
     return new Date(a.fechaFinal).getTime() - new Date(b.fechaFinal).getTime();
   }).slice(0, 5);
+
+  // Funciones y variables del calendario
+  const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const startDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // Lunes = 0
+  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const blanks = Array.from({ length: startDay }, (_, i) => i);
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+  const sessionsByDate = React.useMemo(() => {
+    const map: Record<string, UpcomingSession[]> = {};
+    upcomingSessions.forEach(s => {
+      if (!map[s.fechaStr]) map[s.fechaStr] = [];
+      map[s.fechaStr].push(s);
+    });
+    return map;
+  }, [upcomingSessions]);
 
   if (loading) {
     return (
@@ -391,7 +411,7 @@ const EstudiantesContent: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white">¡Hola, {userName}!</h1>
-          <p className="text-gray-500 text-sm font-medium mt-1">Ficha: {userFicha} • Formación SENA</p>
+          <p className="text-gray-500 text-sm font-medium mt-1">{userFicha}</p>
         </div>
 
         <div className="flex bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 gap-6 items-center">
@@ -424,54 +444,77 @@ const EstudiantesContent: React.FC = () => {
         <div className="flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <KeenIcon icon="calendar-8" className="text-primary" /> Agenda de Clases
+              <KeenIcon icon="calendar-8" className="text-primary" /> Mi Calendario
             </h2>
-            <a href="/ambiente-virtual/mis-clases" className="text-sm font-bold text-primary hover:underline transition-all">Ver calendario</a>
+            <a href="/ambiente-virtual/mis-clases" className="text-sm font-bold text-primary hover:underline transition-all">Ver detalle</a>
           </div>
 
-          <div className="bg-white dark:bg-coal-400 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4 min-h-[300px]">
-            {upcomingSessions.length > 0 ? (
-              <div className="flex flex-col gap-4 overflow-y-auto max-h-[400px] custom-scrollbar pr-2">
-                {upcomingSessions.map(session => (
-                  <div key={session.id} className="flex items-stretch gap-4 group">
-                    <div className="flex flex-col items-center justify-start w-12 shrink-0">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">
-                        {formatearFechaDia(session.fechaStr).split(',')[0]}
+          <div className="bg-white dark:bg-coal-400 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
+            {/* Controles del calendario */}
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                <KeenIcon icon="left" />
+              </button>
+              <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
+              <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                <KeenIcon icon="right" />
+              </button>
+            </div>
+            
+            {/* Grid del calendario */}
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
+              <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1 flex-1">
+              {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
+              {daysArray.map(day => {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const daySessions = sessionsByDate[dateStr] || [];
+                const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+                
+                return (
+                  <div 
+                    key={day} 
+                    className={`relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer group ${
+                      isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : 
+                      "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-500 font-medium"
+                    } ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-coal-500/50 font-bold" : ""}`}
+                  >
+                    <span className="z-10">{day}</span>
+                    
+                    {daySessions.length > 0 && (
+                      <div className="absolute bottom-1.5 flex gap-1 z-10">
+                        {daySessions.slice(0, 3).map((_, i) => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />
+                        ))}
                       </div>
-                      <div className="text-lg font-black text-gray-900 dark:text-white leading-none">
-                        {formatearFechaDia(session.fechaStr).split(',')[1]?.trim()}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 bg-gray-50 dark:bg-coal-500/30 rounded-xl p-4 border border-gray-100 dark:border-gray-800 group-hover:border-primary/30 transition-colors">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                          {session.materia}
-                        </h3>
-                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase shrink-0">
-                          {session.estado}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 font-medium">
-                        <div className="flex items-center gap-1">
-                          <KeenIcon icon="time" /> {session.horaInicial} - {session.horaFinal}
+                    )}
+                    
+                    {/* Tooltip con información de clases al hacer hover */}
+                    {daySessions.length > 0 && (
+                      <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 dark:bg-black text-white text-left text-xs rounded-xl p-3 shadow-2xl pointer-events-none border border-gray-700">
+                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-gray-700"></div>
+                        <p className="font-bold border-b border-gray-700 pb-1.5 mb-1.5 uppercase text-[10px] text-gray-400">
+                          {day} de {monthNames[month]}
+                        </p>
+                        <div className="space-y-2">
+                          {daySessions.map(s => (
+                            <div key={s.id} className="bg-gray-800 rounded p-1.5">
+                              <p className="font-bold text-blue-300 line-clamp-1">{s.materia}</p>
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-300 mt-1">
+                                <span className="flex items-center gap-0.5"><KeenIcon icon="time" /> {s.horaInicial}</span>
+                                <span className="flex items-center gap-0.5 truncate"><KeenIcon icon="geolocation" /> {s.aula}</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <KeenIcon icon="geolocation" /> {session.aula}
-                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sin clases próximas</h3>
-                <p className="text-xs text-gray-500 mt-1">No tienes sesiones programadas para los próximos 7 días.</p>
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
         </div>
 
