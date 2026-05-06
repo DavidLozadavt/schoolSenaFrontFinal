@@ -7,6 +7,7 @@ export { default as ModalCrearCuestionario } from './ModalCrearCuestionario';
 export { default as ModalAsignarActividad } from './ModalAsignarActividad';
 export { default as ModalAprendices } from './ModalAprendices';
 export { default as ModalAmpliarActividad } from './ModalAmpliarActividad';
+export { default as ModalMoverActividadRap } from './ModalMoverActividadRap';
 export { default as ListaActividades } from './ListaActividades';
 export type { Actividad } from './ModalCrearActividad';
 export type { AprendizCalificacion } from './ModalAprendices';
