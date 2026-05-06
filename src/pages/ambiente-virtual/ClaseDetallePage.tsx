@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { useResponsive } from '@/hooks';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
 import {
   ModalCrearActividad,
   ModalVerActividad,
-  ModalMaterialApoyo,
   ModalCrearCuestionario,
   ModalAsignarActividad,
   ModalAprendices,
   ModalAmpliarActividad,
+  ModalMaterialApoyo,
   ListaActividades,
   MaterialApoyoFichaView,
+  MaterialApoyoAprendiz,
   type Actividad
 } from './actividades';
 import { VerGruposView } from './grupos';
@@ -35,6 +37,21 @@ const idDiaHorarioAGetDay = (idDia: unknown): number | null => {
   const n = Number(idDia);
   if (!Number.isFinite(n) || n < 1 || n > 7) return null;
   return n === 7 ? 0 : n;
+};
+
+/** Evita `{}` u otros valores en `location.state` / APIs donde los hijos esperan `string | number`. */
+const normalizeIdProp = (value: unknown): string | number => {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  return '';
+};
+
+/** idMateria numérico > 0, o undefined si no es válido. */
+const parsePositiveMateriaId = (value: unknown): number | undefined => {
+  const raw = normalizeIdProp(value);
+  if (raw === '') return undefined;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
 };
 
 /** Parse YYYY-MM-DD en hora local (misma regla que en el calendario). */
@@ -165,6 +182,13 @@ const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
     getProp(o, 'sesiones_completadas', 'sesionesCompletadas') ?? o.sesiones_completadas;
   const idHmRaw = getProp(o, 'idHorarioMateria', 'id_horario_materia', 'idhorariomateria');
   const idHmNum = idHmRaw !== undefined ? Number(idHmRaw) : NaN;
+  const rapRaw = getProp(o, 'rap_nombre', 'rapNombre');
+  const rapNorm =
+    rapRaw == null || rapRaw === '' || String(rapRaw).toLowerCase() === 'null'
+      ? null
+      : String(rapRaw).trim();
+  const idMatRaw = getProp(o, 'idMateria', 'id_materia');
+  const idMatNum = idMatRaw !== undefined ? Number(idMatRaw) : NaN;
   return {
     ...(o as Clase),
     idDia: Number.isFinite(idDiaNum) && idDiaNum >= 1 && idDiaNum <= 7 ? idDiaNum : (o as Clase).idDia,
@@ -172,8 +196,38 @@ const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
     fechaInicial: String(getProp(o, 'fechaInicial', 'fecha_inicial') ?? o.fechaInicial ?? ''),
     fechaFinal: String(getProp(o, 'fechaFinal', 'fecha_final') ?? o.fechaFinal ?? ''),
     sesiones_completadas: Array.isArray(sesComp) ? (sesComp as Clase['sesiones_completadas']) : [],
-    ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {})
+    ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {}),
+    competencia_nombre: strFromRow(o, 'competencia_nombre', 'competenciaNombre'),
+    rap_nombre: rapNorm,
+    ...(Number.isFinite(idMatNum) && idMatNum > 0 ? { idMateria: idMatNum } : {})
   };
+};
+
+/** Misma lógica que Historial RAPs: competencia (negrita) + RAP (pequeño) + fallback por “código - texto”. */
+const titulosCompetenciaYRapDetalle = (clase: Clase): { competencia: string; rap: string | null } => {
+  const materia = String(clase.materia_nombre ?? '').trim();
+  const compApi = String(clase.competencia_nombre ?? '').trim();
+  let competencia =
+    compApi || materia || String(clase.programa_nombre ?? '').trim() || 'Sin nombre';
+  let rap =
+    clase.rap_nombre != null && String(clase.rap_nombre).trim() !== ''
+      ? String(clase.rap_nombre).trim()
+      : null;
+
+  if (!rap && materia.includes(' - ')) {
+    const sep = ' - ';
+    const i = materia.indexOf(sep);
+    const tail = materia.slice(i + sep.length).trim();
+    const head = materia.slice(0, i).trim();
+    if (tail.length > 0 && head.length > 0) {
+      rap = tail;
+      if (compApi === materia) {
+        competencia = head;
+      }
+    }
+  }
+
+  return { competencia, rap };
 };
 
 /** Normaliza filas de horario para idDia / dia_semana con cualquier casing. */
@@ -1117,6 +1171,9 @@ interface SesionCompletada {
 
 interface Clase {
   materia_nombre?: string;
+  competencia_nombre?: string;
+  rap_nombre?: string | null;
+  idMateria?: number;
   programa_nombre?: string;
   fechaInicial?: string;
   fechaFinal?: string;
@@ -1216,6 +1273,9 @@ const ClaseDetallePage: React.FC = () => {
     returnTo?: string;
     activeMenu?: MenuOption;
     ficha_id?: number;
+    /** RAP / materia de clase (navegación desde calendario u horario). */
+    idMateria?: number | string;
+    programa_nombre?: string;
     /** Desde Mis clases (aprendiz) vs historial RAPs (instructor). */
     vistaCalendario?: 'aprendiz' | 'instructor';
     [key: string]: unknown;
@@ -1236,6 +1296,11 @@ const ClaseDetallePage: React.FC = () => {
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
+  const isDesktop = useResponsive('up', 'lg');
+  /** En desktop: colapsado = solo iconos; expandido = menú con texto. En móvil siempre se muestran etiquetas. */
+  const [menuClaseExpandido, setMenuClaseExpandido] = useState(false);
+  const mostrarEtiquetasMenu = !isDesktop || menuClaseExpandido;
+  const menuSoloIconos = isDesktop && !menuClaseExpandido;
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -1265,12 +1330,12 @@ const ClaseDetallePage: React.FC = () => {
   const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
   const [modalVerActividadOpen, setModalVerActividadOpen] = useState(false);
   const [actividadVer, setActividadVer] = useState<Actividad | null>(null);
-  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
-  const [actividadMaterialApoyo, setActividadMaterialApoyo] = useState<Actividad | null>(null);
   const [cuestionarioParaEditar, setCuestionarioParaEditar] = useState<{ id: number } | null>(null);
   const [modalAprendicesOpen, setModalAprendicesOpen] = useState(false);
   const [modalAmpliarOpen, setModalAmpliarOpen] = useState(false);
   const [actividadParaAmpliar, setActividadParaAmpliar] = useState<Actividad | null>(null);
+  const [modalMaterialApoyoOpen, setModalMaterialApoyoOpen] = useState(false);
+  const [actividadParaMaterialApoyo, setActividadParaMaterialApoyo] = useState<Actividad | null>(null);
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
@@ -1283,6 +1348,27 @@ const ClaseDetallePage: React.FC = () => {
   const idFichaParaClase = useMemo(
     () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
     [locationState?.ficha_id, ficha?.id]
+  );
+
+  /** Texto de contexto RAP para Material de apoyo (sustituye al nombre del programa en el encabezado). */
+  const materialApoyoRapContexto = useMemo(() => {
+    const codigo = String(
+      clase?.codigoMateria ?? clase?.codigo_materia ?? (clase as { codigo?: string } | null)?.codigo ?? ''
+    ).trim();
+    const nombre = String(clase?.materia_nombre ?? '').trim();
+    if (!nombre && !codigo) return '';
+    if (codigo && nombre) return `${codigo} — ${nombre}`;
+    return nombre || codigo;
+  }, [clase]);
+
+  const materialApoyoIdRapContexto = useMemo(() => {
+    return parsePositiveMateriaId(locationState?.idMateria ?? clase?.idMateria);
+  }, [locationState?.idMateria, clase?.idMateria]);
+
+  /** string | number para componentes que no aceptan unknown (state con index signature). */
+  const idMateriaClaseProp = useMemo(
+    (): string | number => normalizeIdProp(locationState?.idMateria ?? clase?.idMateria),
+    [locationState?.idMateria, clase?.idMateria]
   );
 
   // Estado local para el estado de la clase (se actualiza en tiempo real)
@@ -1400,48 +1486,40 @@ const ClaseDetallePage: React.FC = () => {
       if (!id) return;
       try {
         setLoading(true);
-        // Intentar primero con el nuevo endpoint que usa idHorarioMateria
-        let response;
-        try {
-          response = await axios.get(`fichas/clase-horario/${id}`);
-          // El nuevo endpoint devuelve { message, data: { clase, ficha, apertura } }
-          const fichaData = response.data?.data?.ficha;
-          const claseData = response.data?.data?.clase;
+        const response = await axios.get(`fichas/clase-horario/${id}`);
+        const fichaData = response.data?.data?.ficha;
+        const claseData = response.data?.data?.clase;
 
-          if (fichaData) {
-            setFicha(fichaData);
-            if (claseData) {
-              const norm = normalizarClaseDetalleApi(claseData);
-              setClase(norm ?? (claseData as Clase));
-            }
-            // Obtener todas las fechas de clase para el calendario
-            const rawFechas = response.data?.data?.todasLasFechasClase || [];
-            const fechasNorm = (Array.isArray(rawFechas) ? rawFechas : [])
-              .map((row: unknown) => normalizarFilaFechaClaseApi(row))
-              .filter((x): x is FechaClase => x != null);
-            setTodasLasFechasClase(fechasNorm);
-            const porH = response.data?.data?.sesionesCompletadasPorHorario;
-            setSesionesCompletadasPorHorario(
-              porH && typeof porH === 'object' ? (porH as SesionesPorHorarioMap) : {}
-            );
-          } else {
-            throw new Error('Ficha no encontrada en la respuesta');
-          }
-        } catch (horarioError: any) {
-          // Si falla, intentar con el endpoint antiguo (por si acaso se pasa un ficha_id)
-          response = await axios.get(`fichas/${id}`);
-          const fichaData = response.data?.data?.ficha || response.data;
+        if (fichaData) {
           setFicha(fichaData);
-          setClase(null); // El endpoint antiguo no tiene datos de clase
+          if (claseData) {
+            const norm = normalizarClaseDetalleApi(claseData);
+            setClase(norm ?? (claseData as Clase));
+          } else {
+            setClase(null);
+          }
+          const rawFechas = response.data?.data?.todasLasFechasClase || [];
+          const fechasNorm = (Array.isArray(rawFechas) ? rawFechas : [])
+            .map((row: unknown) => normalizarFilaFechaClaseApi(row))
+            .filter((x): x is FechaClase => x != null);
+          setTodasLasFechasClase(fechasNorm);
+          const porH = response.data?.data?.sesionesCompletadasPorHorario;
+          setSesionesCompletadasPorHorario(
+            porH && typeof porH === 'object' ? (porH as SesionesPorHorarioMap) : {}
+          );
+        } else {
+          setFicha(null);
+          setClase(null);
+          setTodasLasFechasClase([]);
+          setSesionesCompletadasPorHorario({});
         }
 
-        // Aquí deberías hacer una llamada para obtener los estudiantes de la ficha
-        // Por ahora usamos un array vacío
         setEstudiantes([]);
-      } catch (error: any) {
-        // Error al cargar la ficha - se maneja silenciosamente
-        // Siempre establecer ficha como null en caso de error para mostrar el mensaje apropiado
+      } catch {
         setFicha(null);
+        setClase(null);
+        setTodasLasFechasClase([]);
+        setSesionesCompletadasPorHorario({});
       } finally {
         setLoading(false);
       }
@@ -1454,7 +1532,7 @@ const ClaseDetallePage: React.FC = () => {
     if (!idFichaParaClase) return;
     setLoadingActividades(true);
     try {
-      const idMateriaFiltro = Number(locationState?.idMateria || clase?.idMateria || 0) || undefined;
+      const idMateriaFiltro = parsePositiveMateriaId(locationState?.idMateria ?? clase?.idMateria);
       const rawProg = ficha?.asignacion?.programa?.id;
       const idProgramaFiltro =
         rawProg !== undefined && rawProg !== null && String(rawProg) !== ''
@@ -1462,6 +1540,11 @@ const ClaseDetallePage: React.FC = () => {
           : undefined;
       const params: Record<string, string> = {};
       if (idMateriaFiltro) params.id_materia_clase = String(idMateriaFiltro);
+      // Filtro estricto para evitar mezclar actividades de otras materias/RAP.
+      if (idMateriaFiltro) {
+        params.idMateria = String(idMateriaFiltro);
+        params.idRap = String(idMateriaFiltro);
+      }
       if (idProgramaFiltro != null && !Number.isNaN(idProgramaFiltro)) {
         params.id_programa = String(idProgramaFiltro);
       }
@@ -1473,6 +1556,8 @@ const ClaseDetallePage: React.FC = () => {
       }
       if (idMateriaFiltro) {
         planeacionQs.set('id_materia_clase', String(idMateriaFiltro));
+        planeacionQs.set('idMateria', String(idMateriaFiltro));
+        planeacionQs.set('idRap', String(idMateriaFiltro));
       }
       const planeacionUrl = `planeacionactividades/ficha/${idFichaParaClase}${
         planeacionQs.toString() ? `?${planeacionQs.toString()}` : ''
@@ -1517,8 +1602,8 @@ const ClaseDetallePage: React.FC = () => {
       } else {
         setCoberturaActividades({});
       }
-    } catch (e) {
-      console.warn('Error cargando actividades:', e);
+    } catch {
+      // Silencioso: el menú puede abrirse antes de tener ficha/contexto completo.
     } finally {
       setLoadingActividades(false);
     }
@@ -1974,12 +2059,26 @@ const ClaseDetallePage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {/* Header Left */}
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-              {clase?.materia_nombre || 'Sin clase'}
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico'}
-            </p>
+            {(() => {
+              const tit = clase ? titulosCompetenciaYRapDetalle(clase) : { competencia: 'Sin clase', rap: null as string | null };
+              const programaTxt =
+                clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico';
+              return (
+                <>
+                  <h1 className="text-base font-bold text-gray-900 dark:text-white mb-0.5 leading-snug">
+                    {tit.competencia}
+                  </h1>
+                  {tit.rap ? (
+                    <p className="text-xs font-normal text-gray-700 dark:text-gray-300 mb-1 leading-snug">
+                      {tit.rap}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    {programaTxt}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           {/* Info Cards - Compactas */}
@@ -2199,83 +2298,120 @@ const ClaseDetallePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section: columna de menú más estrecha (2/12); items-start evita que la tarjeta del menú se estire a la altura del panel */}
+      {/* Bottom Section: menú colapsado (solo iconos, 1/12) o expandido (texto, 2/12) */}
       <div className="grid grid-cols-1 min-w-0 lg:grid-cols-12 gap-3 sm:gap-4 lg:items-start">
-        {/* Menú lateral interno — compacto, altura según contenido (hasta Juicios evaluativos) */}
-        <div className="min-w-0 lg:col-span-2">
+        <div
+          className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-2' : 'lg:col-span-1'}`}
+        >
           <div className="card min-w-0 self-start w-full">
-            <div className="card-body p-3.5 sm:p-4">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5">MENÚ</h2>
-              <div className="space-y-1">
+            <div className={`card-body ${menuSoloIconos ? 'p-2 sm:p-2.5' : 'p-3.5 sm:p-4'}`}>
+              {isDesktop ? (
                 <button
+                  type="button"
+                  onClick={() => setMenuClaseExpandido((v) => !v)}
+                  className={`w-full flex items-center rounded-lg py-1 text-left hover:bg-light/80 dark:hover:bg-coal-400/40 transition-colors ${mostrarEtiquetasMenu ? 'justify-between gap-2 mb-2.5 px-1 -mx-1' : 'justify-center mb-2'}`}
+                  aria-expanded={menuClaseExpandido}
+                  aria-controls="menu-clase-items"
+                  id="menu-clase-heading"
+                  title={menuClaseExpandido ? 'Ocultar etiquetas del menú' : 'Mostrar menú completo'}
+                >
+                  {mostrarEtiquetasMenu ? (
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">MENÚ</span>
+                  ) : null}
+                  <KeenIcon
+                    icon="down"
+                    className={`shrink-0 text-sm text-gray-500 dark:text-gray-400 transition-transform duration-200 ${menuClaseExpandido ? 'rotate-0' : '-rotate-90'}`}
+                  />
+                </button>
+              ) : (
+                <div className="mb-2.5 px-0.5" id="menu-clase-heading">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">MENÚ</span>
+                </div>
+              )}
+              <div id="menu-clase-items" className="space-y-1">
+                <button
+                  type="button"
+                  title="Estudiantes"
                   onClick={() => setActiveMenu('estudiantes')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'estudiantes'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'estudiantes'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Estudiantes</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Estudiantes</span>
                 </button>
                 <button
+                  type="button"
+                  title="Crear actividad"
                   onClick={() => setActiveMenu('agregar-actividades')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'agregar-actividades'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'agregar-actividades'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="plus-circle" className={`text-base shrink-0 ${activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Crear actividad</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Crear actividad</span>
                 </button>
                 <button
+                  type="button"
+                  title="Calificar actividad"
                   onClick={() => setActiveMenu('actividades-asignadas')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'actividades-asignadas'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'actividades-asignadas'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="check-squared" className={`text-base shrink-0 ${activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Calificar actividad</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Calificar actividad</span>
                 </button>
                 <button
+                  type="button"
+                  title="Ver grupos"
                   onClick={() => setActiveMenu('ver-grupos')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'ver-grupos'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'ver-grupos'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Ver grupos</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Ver grupos</span>
                 </button>
                 <button
+                  type="button"
+                  title="Calificaciones"
                   onClick={() => setActiveMenu('calificaciones')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'calificaciones'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'calificaciones'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="chart-line" className={`shrink-0 text-base ${activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Calificaciones</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Calificaciones</span>
                 </button>
                 <button
+                  type="button"
+                  title="Juicios evaluativos"
                   onClick={() => setActiveMenu('juicios-evaluativos')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'juicios-evaluativos'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'juicios-evaluativos'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="chart-simple" className={`shrink-0 text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Juicios evaluativos</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Juicios evaluativos</span>
                 </button>
                 <button
+                  type="button"
+                  title="Material de apoyo"
                   onClick={() => setActiveMenu('material-apoyo')}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors border border-transparent ${activeMenu === 'material-apoyo'
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'material-apoyo'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
                     }`}
                 >
                   <KeenIcon icon="document" className={`shrink-0 text-base ${activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className="whitespace-nowrap">Material de apoyo</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Material de apoyo</span>
                 </button>
               </div>
             </div>
@@ -2283,14 +2419,14 @@ const ClaseDetallePage: React.FC = () => {
         </div>
 
         {/* Contenido principal: min-w-0 evita que tablas empujen scroll horizontal a la página */}
-        <div className="min-w-0 lg:col-span-10">
+        <div className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-10' : 'lg:col-span-11'}`}>
           <div className="card min-w-0">
             <div className="card-body min-w-0 p-4 sm:p-5">
               {/* Estudiantes Section */}
               {activeMenu === 'estudiantes' && (
                 <StudentListByMateria
                   materiaData={{
-                    idMateria: locationState?.idMateria || clase?.idMateria || '',
+                    idMateria: idMateriaClaseProp,
                     idFicha: idFichaParaClase,
                     idJornada: ficha?.jornada?.id?.toString() || '',
                     idPrograma: ficha?.asignacion?.programa?.id?.toString() || '',
@@ -2332,10 +2468,6 @@ const ClaseDetallePage: React.FC = () => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
                   }}
-                  onMaterialApoyo={(act) => {
-                    setActividadMaterialApoyo(act);
-                    setModalMaterialApoyoOpen(true);
-                  }}
                   onEditar={(act) => {
                     if (act.tipoActividad === 'cuestionario' && act.id) {
                       setCuestionarioParaEditar({ id: act.id });
@@ -2347,8 +2479,11 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                   onEliminar={handleEliminarActividad}
                   puedeEliminar={(act) => act?.id != null && !idsActividadesAsignadas.has(act.id)}
-                  resetSelectionKey={assignSuccessCounter}
-                  coberturaActividades={coberturaActividades}
+                  resetSelectionKey={assignSuccessCounter}                  coberturaActividades={coberturaActividades}
+                  onMaterialApoyo={(act) => {
+                    setActividadParaMaterialApoyo(act);
+                    setModalMaterialApoyoOpen(true);
+                  }}
                   idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
                 />
               )}
@@ -2372,10 +2507,6 @@ const ClaseDetallePage: React.FC = () => {
                   onVer={(act) => {
                     setActividadVer(act);
                     setModalVerActividadOpen(true);
-                  }}
-                  onMaterialApoyo={(act) => {
-                    setActividadMaterialApoyo(act);
-                    setModalMaterialApoyoOpen(true);
                   }}
                   onEditar={(act) => {
                     if (act.tipoActividad === 'cuestionario' && act.id) {
@@ -2413,17 +2544,36 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Material de apoyo general por ficha */}
-              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && (
+              {/* Material de apoyo RAP: instructor CRUD por ficha; aprendiz solo lectura en el RAP de la clase */}
+              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario === 'aprendiz' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Material de apoyo</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Recursos de consulta para este RAP (sin entrega ni calificación).
+                    </p>
+                  </div>
+                  <MaterialApoyoAprendiz
+                    idFicha={idFichaParaClase}
+                    idRap={
+                      Number(locationState?.idMateria ?? clase?.idMateria ?? 0) > 0
+                        ? Number(locationState?.idMateria ?? clase?.idMateria)
+                        : undefined
+                    }
+                    fichaCodigo={ficha?.codigo}
+                    rapContextLabel={materialApoyoRapContexto || undefined}
+                    emptyMessage="No hay material de apoyo disponible para este RAP."
+                    hideGroupHeaders
+                  />
+                </div>
+              )}
+              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario !== 'aprendiz' && (
                 <MaterialApoyoFichaView
                   idFicha={idFichaParaClase}
-                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  idMateria={idMateriaClaseProp}
                   fichaCodigo={ficha?.codigo}
-                  programaNombre={
-                    (typeof locationState?.programa_nombre === 'string' ? locationState.programa_nombre : undefined) ??
-                    clase?.programa_nombre ??
-                    ficha?.asignacion?.programa?.nombrePrograma
-                  }
+                  rapContextLabel={materialApoyoRapContexto || undefined}
+                  idRapContext={materialApoyoIdRapContexto}
                 />
               )}
               {activeMenu === 'material-apoyo' && idFichaParaClase <= 0 && (
@@ -2440,7 +2590,7 @@ const ClaseDetallePage: React.FC = () => {
               {activeMenu === 'calificaciones' && idFichaParaClase > 0 && (
                 <CalificacionesFichaView
                   idFicha={idFichaParaClase}
-                  idMateria={locationState?.idMateria || clase?.idMateria || ''}
+                  idMateria={idMateriaClaseProp}
                   idInstructor={clase?.instructor?.persona?.id}
                   instructorAsignado={
                     clase?.instructor?.persona
@@ -2488,16 +2638,6 @@ const ClaseDetallePage: React.FC = () => {
         actividadEditar={actividadParaEditar}
         idMateria={Number(locationState?.idMateria || clase?.idMateria) || undefined}
       />
-      <ModalMaterialApoyo
-        open={modalMaterialApoyoOpen}
-        onClose={() => {
-          setModalMaterialApoyoOpen(false);
-          setActividadMaterialApoyo(null);
-        }}
-        onSuccess={showToast}
-        actividad={actividadMaterialApoyo}
-        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
-      />
       <ModalVerActividad
         open={modalVerActividadOpen}
         onClose={() => {
@@ -2543,6 +2683,15 @@ const ClaseDetallePage: React.FC = () => {
         onSave={() => fetchActividades()}
         onSuccess={showToast}
       />
+      <ModalMaterialApoyo
+        open={modalMaterialApoyoOpen}
+        onClose={() => {
+          setModalMaterialApoyoOpen(false);
+          setActividadParaMaterialApoyo(null);
+        }}
+        onSuccess={showToast}
+        actividad={actividadParaMaterialApoyo}
+      />
       {zoomFoto && (
         <ImageZoomModal
           open={!!zoomFoto}
@@ -2562,3 +2711,10 @@ const ClaseDetallePage: React.FC = () => {
 };
 
 export default ClaseDetallePage;
+
+
+
+
+
+
+

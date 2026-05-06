@@ -18,8 +18,6 @@ interface ModalMaterialApoyoProps {
   onClose: () => void;
   onSuccess?: (message: string) => void;
   actividad: Actividad | null;
-  /** Si viene, permite asociar a la actividad materiales ya creados en el apartado global de la ficha */
-  idFicha?: number;
 }
 
 const getDocumentUrl = (url?: string | null): string | null => {
@@ -53,13 +51,10 @@ const getDocumentUrl = (url?: string | null): string | null => {
 
 const ITEMS_PER_PAGE = 10;
 
-const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad, idFicha }) => {
+const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad }) => {
   const [materiales, setMateriales] = useState<MaterialApoyo[]>([]);
-  const [materialesFicha, setMaterialesFicha] = useState<MaterialApoyo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingFicha, setLoadingFicha] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [asociandoId, setAsociandoId] = useState<number | null>(null);
   const [crearOpen, setCrearOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -85,23 +80,6 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     }
   };
 
-  const fetchMaterialesFicha = async () => {
-    if (!idFicha) {
-      setMaterialesFicha([]);
-      return;
-    }
-    setLoadingFicha(true);
-    try {
-      const res = await axios.get<MaterialApoyo[]>(`fichas/${idFicha}/materiales-apoyo`);
-      setMaterialesFicha(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.warn('Error cargando material de ficha:', e);
-      setMaterialesFicha([]);
-    } finally {
-      setLoadingFicha(false);
-    }
-  };
-
   useEffect(() => {
     if (open && actividad?.id) {
       fetchMateriales();
@@ -109,14 +87,6 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       setCurrentPage(1);
     }
   }, [open, actividad?.id]);
-
-  useEffect(() => {
-    if (open && actividad?.id && idFicha) {
-      void fetchMaterialesFicha();
-    } else {
-      setMaterialesFicha([]);
-    }
-  }, [open, actividad?.id, idFicha]);
 
 
   useEffect(() => {
@@ -157,7 +127,6 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       });
       onSuccess?.(link.trim() ? 'Link agregado correctamente' : 'Material de apoyo agregado correctamente');
       fetchMateriales();
-      if (idFicha) void fetchMaterialesFicha();
       setCrearOpen(false);
       setTitulo('');
       setDescripcion('');
@@ -177,29 +146,8 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     try {
       await axios.delete(`actividades/${actividad.id}/materiales-apoyo/${mat.id}`);
       fetchMateriales();
-      if (idFicha) void fetchMaterialesFicha();
     } catch (e) {
       console.warn('Error eliminando material:', e);
-    }
-  };
-
-  const materialesFichaDisponibles = materialesFicha.filter((f) => !materiales.some((m) => m.id === f.id));
-
-  const handleAsociarDesdeFicha = async (idMaterial: number) => {
-    if (!actividad?.id || !idFicha) return;
-    setAsociandoId(idMaterial);
-    try {
-      await axios.post(`actividades/${actividad.id}/materiales-apoyo`, {
-        idMaterialApoyo: idMaterial,
-        idFicha
-      });
-      onSuccess?.('Material de la ficha asociado a la actividad');
-      await fetchMateriales();
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      alert(ax.response?.data?.error || 'No se pudo asociar el material');
-    } finally {
-      setAsociandoId(null);
     }
   };
 
@@ -301,42 +249,6 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
           ) : (
             /* Vista Lista Material de Apoyo */
             <>
-              {idFicha ? (
-                <div className="mb-5 rounded-xl border border-primary/25 bg-primary/5 dark:bg-primary/10 px-3 py-3 sm:px-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-primary mb-2">Material general de la ficha</p>
-                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">
-                    Reutilice un recurso ya creado en el menú &quot;Material de apoyo&quot; de la clase. No duplica el archivo: solo lo enlaza a esta actividad.
-                  </p>
-                  {loadingFicha ? (
-                    <div className="flex justify-center py-4">
-                      <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-b-transparent border-primary" />
-                    </div>
-                  ) : materialesFichaDisponibles.length === 0 ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 py-1">
-                      No hay materiales globales pendientes por asociar (o ya están vinculados a esta actividad).
-                    </p>
-                  ) : (
-                    <ul className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                      {materialesFichaDisponibles.map((mf) => (
-                        <li
-                          key={mf.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-gray-200/80 dark:border-gray-600 bg-white/80 dark:bg-coal-400/40 px-2 py-1.5"
-                        >
-                          <span className="text-xs font-medium text-gray-800 dark:text-gray-100 truncate min-w-0">{mf.titulo}</span>
-                          <button
-                            type="button"
-                            disabled={asociandoId === mf.id}
-                            onClick={() => handleAsociarDesdeFicha(mf.id)}
-                            className="btn btn-sm btn-light shrink-0 text-[10px] uppercase"
-                          >
-                            {asociandoId === mf.id ? '…' : 'Asociar'}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ) : null}
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed">
                   <thead>

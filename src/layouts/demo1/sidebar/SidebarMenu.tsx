@@ -67,7 +67,6 @@ const SidebarMenu = () => {
         }
         if (item.children) {
           const filteredChildren = item.children.filter((child) => {
-            // Don't show items with HIDDEN permission
             if (child.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
               return false;
             }
@@ -77,12 +76,11 @@ const SidebarMenu = () => {
             );
           });
 
-          // Always pass all children (including hidden ones) for route recognition
-          // but only render the filtered ones
           if (filteredChildren.length > 0) {
             return buildMenuItemRoot({ ...item, children: item.children }, index);
-          } else if (item.children.some((child) => child.requiredPermissions?.some((perm) => perm.includes('HIDDEN')))) {
-            // If only hidden children exist, still render the parent for route recognition
+          } else if (
+            item.children.some((child) => child.requiredPermissions?.some((perm) => perm.includes('HIDDEN')))
+          ) {
             return buildMenuItemRoot({ ...item, children: item.children }, index);
           } else {
             return null;
@@ -190,7 +188,6 @@ const SidebarMenu = () => {
       if (item.disabled) {
         return buildMenuItemChildDisabled(item, index, level);
       } else {
-        // Don't render items with HIDDEN permission, but they're still in the config for route recognition
         if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
           return null;
         }
@@ -365,19 +362,21 @@ const SidebarMenu = () => {
   const menuConfig = getMenuConfig('primary');
 
   return (
-    <Menu highlight={true} multipleExpand={false} className="flex flex-col grow gap-0.5">
-      <div className="relative">
-        <KeenIcon
-          icon="magnifier"
-          className="absolute left-0 ml-3 top-1/2 -translate-y-1/2 text-gray-500"
-        />
-        <input
-          type="text"
-          placeholder="Buscar menú"
-          className="pl-8 input input-sm"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-        />
+    <Menu highlight={true} multipleExpand={false} className="flex min-h-0 flex-col grow gap-0.5">
+      <div className="sticky top-0 z-[1] -mx-1 mb-2 shrink-0 bg-light px-1 pb-1 pt-0 dark:bg-coal-600">
+        <div className="relative">
+          <KeenIcon
+            icon="magnifier"
+            className="absolute left-0 ml-3 top-1/2 -translate-y-1/2 text-gray-500"
+          />
+          <input
+            type="text"
+            placeholder="Buscar menú"
+            className="pl-8 input input-sm"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
       </div>
 
       {menuConfig &&

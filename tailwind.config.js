@@ -616,8 +616,8 @@ module.exports = {
         demo1: {
           sidebar: {
             width: {
-              desktop: '280px',
-              desktopCollapse: '80px',
+              desktop: '260px',
+              desktopCollapse: '72px',
               mobile: '280px'
             }
           },
