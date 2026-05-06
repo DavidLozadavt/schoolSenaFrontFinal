@@ -28,7 +28,13 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   const [isCiudadFocused, setIsCiudadFocused] = useState(false);
   const [fichaSearch, setFichaSearch] = useState('');
   const [isFichaFocused, setIsFichaFocused] = useState(false);
-  const [errors, setErrors] = useState<{ idCiudad?: string; lugar?: string }>({});
+  const [errors, setErrors] = useState<{
+    nombre?: string;
+    direccion?: string;
+    idCiudad?: string;
+    lugar?: string;
+    idFicha?: string;
+  }>({});
   const [currentStep, setCurrentStep] = useState(0);
 
   const getInitialFormState = () => ({
@@ -142,6 +148,15 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'nombre' && errors.nombre) {
+      setErrors((prev) => ({ ...prev, nombre: undefined }));
+    }
+    if (name === 'lugar' && errors.lugar) {
+      setErrors((prev) => ({ ...prev, lugar: undefined }));
+    }
+    if (name === 'direccion' && errors.direccion) {
+      setErrors((prev) => ({ ...prev, direccion: undefined }));
+    }
   };
 
   // Agenda handlers
@@ -227,18 +242,42 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     if (!idContrato) return;
 
     // Validaciones
-    const newErrors: { idCiudad?: string; lugar?: string } = {};
+    const newErrors: {
+      nombre?: string;
+      direccion?: string;
+      idCiudad?: string;
+      lugar?: string;
+      idFicha?: string;
+    } = {};
+    if (!formData.nombre.trim()) {
+      newErrors.nombre = "El campo 'Nombre del Acta' es obligatorio.";
+    }
     if (!formData.lugar.trim()) {
       newErrors.lugar = "El campo 'Lugar' es obligatorio.";
+    }
+    if (!formData.direccion.trim()) {
+      newErrors.direccion = "El campo 'Dirección' es obligatorio.";
     }
     if (!formData.idCiudad) {
       newErrors.idCiudad = "El campo 'Ciudad' es obligatorio.";
     }
+    if (!formData.idFicha) {
+      newErrors.idFicha = "El campo 'Ficha' es obligatorio.";
+    }
 
     setErrors(newErrors);
 
-    // Si hay errores, no enviar el formulario
+    // Si hay errores, no enviar el formulario y navegar al paso correcto
     if (Object.keys(newErrors).length > 0) {
+      let targetStep = currentStep;
+
+      if (newErrors.nombre) {
+        targetStep = 0;
+      } else if (newErrors.idFicha || newErrors.idCiudad || newErrors.lugar || newErrors.direccion) {
+        targetStep = 1;
+      }
+
+      setCurrentStep(targetStep);
       return;
     }
 
@@ -266,7 +305,58 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
       // Reset form handled by useEffect on next open
     } catch (error) {
       console.error('Error al guardar acta:', error);
-      alert('Error al guardar el acta. Por favor, intente de nuevo.');
+      const axiosError = error as any;
+      const rawErrors =
+        axiosError?.response?.data?.errors || axiosError?.response?.data?.error || axiosError?.response?.data;
+      const backendText = JSON.stringify(rawErrors || '').toLowerCase();
+
+      // Mapeo de errores de backend a campos/pasos del formulario
+      const mappedErrors: {
+        nombre?: string;
+        direccion?: string;
+        idCiudad?: string;
+        lugar?: string;
+        idFicha?: string;
+      } = {};
+      let targetStep = currentStep;
+
+      if (backendText.includes('ciudad') || backendText.includes('idciudad')) {
+        mappedErrors.idCiudad = "Revise el campo 'Ciudad'.";
+        targetStep = 1;
+      }
+      if (backendText.includes('lugar')) {
+        mappedErrors.lugar = "Revise el campo 'Lugar'.";
+        targetStep = 1;
+      }
+      if (backendText.includes('direccion')) {
+        mappedErrors.direccion = "Revise el campo 'Dirección'.";
+        targetStep = 1;
+      }
+      if (backendText.includes('ficha') || backendText.includes('idficha')) {
+        mappedErrors.idFicha = "Revise el campo 'Ficha'.";
+        targetStep = 1;
+      }
+      if (backendText.includes('nombre')) {
+        mappedErrors.nombre = "Revise el campo 'Nombre del Acta'.";
+        targetStep = 0;
+      }
+      if (backendText.includes('nombre') || backendText.includes('fecha') || backendText.includes('hora')) {
+        targetStep = 0;
+      }
+      if (backendText.includes('agenda') || backendText.includes('objetivo')) {
+        targetStep = 2;
+      }
+      if (backendText.includes('conclusion') || backendText.includes('compromiso')) {
+        targetStep = 3;
+      }
+      if (backendText.includes('observacion')) {
+        targetStep = 4;
+      }
+
+      setCurrentStep(targetStep);
+      if (Object.keys(mappedErrors).length > 0) {
+        setErrors(mappedErrors);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -404,10 +494,18 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     type="text"
                     required
                     placeholder="Ej: Acta de Seguimiento Etapa Productiva"
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${
+                      errors.nombre ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'
+                    } rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                     value={formData.nombre}
                     onChange={handleInputChange}
                   />
+                  {errors.nombre && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <i className="ki-outline ki-warning text-xs" />
+                      {errors.nombre}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -498,7 +596,11 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                         }}
                         onChange={(e) => handleFichaSearchChange(e.target.value)}
                         placeholder={fichaSeleccionadaLabel || 'Buscar por código o programa...'}
-                        className="w-full text-sm pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full text-sm pl-9 pr-3 py-2 rounded-lg border ${
+                          errors.idFicha
+                            ? 'border-red-500'
+                            : 'border-gray-200 dark:border-coal-300'
+                        } bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       />
 
                       {/* Dropdown de fichas */}
@@ -513,6 +615,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                                   setFormData({ ...formData, idFicha: ficha.idFicha.toString() });
                                   setFichaSearch('');
                                   setIsFichaFocused(false);
+                                  setErrors((prev) => ({ ...prev, idFicha: undefined }));
                                 }}
                                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-500/20 border-b border-gray-100 dark:border-coal-300 last:border-b-0 text-sm text-gray-700 dark:text-gray-200 transition-colors"
                               >
@@ -533,6 +636,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                         </div>
                       )}
                     </div>
+                    {errors.idFicha && (
+                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <i className="ki-outline ki-warning text-xs" />
+                        {errors.idFicha}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
@@ -615,10 +724,18 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                       required
                       type="text"
                       placeholder="Ej: Ambiente 302"
-                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${
+                        errors.lugar ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'
+                      } rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       value={formData.lugar}
                       onChange={handleInputChange}
                     />
+                    {errors.lugar && (
+                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <i className="ki-outline ki-warning text-xs" />
+                        {errors.lugar}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
@@ -629,10 +746,18 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                       required
                       type="text"
                       placeholder="Ej: Calle 52 # 13-65"
-                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${
+                      errors.direccion ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'
+                    } rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       value={formData.direccion}
                       onChange={handleInputChange}
                     />
+                  {errors.direccion && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <i className="ki-outline ki-warning text-xs" />
+                      {errors.direccion}
+                    </p>
+                  )}
                   </div>
                 </div>
               </div>}
