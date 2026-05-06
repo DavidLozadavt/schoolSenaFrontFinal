@@ -1,12 +1,14 @@
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Acta } from './types';
 import ActaCard from './components/ActaCard';
 import ActaDetailModal from './components/ActaDetailModal';
 import ActaCreateModal from './components/ActaCreateModal';
 import ActaAsistenciasModal from './components/ActaAsistenciasModal';
 import ActaAprobarModal from './components/ActaAprobarModal';
+
+const ITEMS_PER_PAGE = 9;
 
 const ActasInstructorGeneral = () => {
   const authContext = useContext(AuthContext);
@@ -18,6 +20,10 @@ const ActasInstructorGeneral = () => {
   const [loadingAsistente, setLoadingAsistente] = useState(false);
   const [selectedActa, setSelectedActa] = useState<Acta | null>(null);
   const [activeTab, setActiveTab] = useState<'creadas' | 'asistente'>('creadas');
+  const [searchCreada, setSearchCreada] = useState('');
+  const [searchAsistente, setSearchAsistente] = useState('');
+  const [currentPageCreada, setCurrentPageCreada] = useState(1);
+  const [currentPageAsistente, setCurrentPageAsistente] = useState(1);
 
   // Estados para creación/edición
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -128,6 +134,107 @@ const ActasInstructorGeneral = () => {
     loadCiudades();
   }, [idContrato]);
 
+  const filterActasByTerm = (list: Acta[], term: string) => {
+    const normalizedTerm = term.trim().toLowerCase();
+    if (!normalizedTerm) return list;
+
+    return list.filter((acta) => {
+      const searchableValues = [
+        acta.id?.toString(),
+        acta.nombre,
+        acta.tipoActa,
+        acta.lugar,
+        acta.ficha?.codigo,
+        acta.ciudad?.descripcion,
+      ];
+
+      return searchableValues.some((value) =>
+        (value || '').toLowerCase().includes(normalizedTerm)
+      );
+    });
+  };
+
+  const filteredActasCreadas = useMemo(
+    () => filterActasByTerm(actas, searchCreada),
+    [actas, searchCreada]
+  );
+
+  const filteredActasAsistente = useMemo(
+    () => filterActasByTerm(actasAsistente, searchAsistente),
+    [actasAsistente, searchAsistente]
+  );
+
+  const totalPagesCreadas = Math.max(
+    1,
+    Math.ceil(filteredActasCreadas.length / ITEMS_PER_PAGE)
+  );
+  const totalPagesAsistente = Math.max(
+    1,
+    Math.ceil(filteredActasAsistente.length / ITEMS_PER_PAGE)
+  );
+
+  const paginatedActasCreadas = useMemo(() => {
+    const start = (currentPageCreada - 1) * ITEMS_PER_PAGE;
+    return filteredActasCreadas.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredActasCreadas, currentPageCreada]);
+
+  const paginatedActasAsistente = useMemo(() => {
+    const start = (currentPageAsistente - 1) * ITEMS_PER_PAGE;
+    return filteredActasAsistente.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredActasAsistente, currentPageAsistente]);
+
+  useEffect(() => {
+    setCurrentPageCreada(1);
+  }, [searchCreada]);
+
+  useEffect(() => {
+    if (currentPageCreada > totalPagesCreadas) {
+      setCurrentPageCreada(totalPagesCreadas);
+    }
+  }, [currentPageCreada, totalPagesCreadas]);
+
+  useEffect(() => {
+    setCurrentPageAsistente(1);
+  }, [searchAsistente]);
+
+  useEffect(() => {
+    if (currentPageAsistente > totalPagesAsistente) {
+      setCurrentPageAsistente(totalPagesAsistente);
+    }
+  }, [currentPageAsistente, totalPagesAsistente]);
+
+  const renderPagination = (
+    currentPage: number,
+    totalPages: number,
+    onPageChange: (page: number) => void
+  ) => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="mt-6 flex justify-center items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-coal-300 text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-400"
+        >
+          Anterior
+        </button>
+        <span className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+          Página {currentPage} de {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-coal-300 text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-400"
+        >
+          Siguiente
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="p-5 w-full">
       <div className="mb-6 flex justify-between items-center">
@@ -174,23 +281,49 @@ const ActasInstructorGeneral = () => {
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : actas.length === 0 ? (
-          <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
-            No hay actas registradas para este contrato.
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {actas.map((acta) => (
-              <ActaCard
-                key={acta.id}
-                acta={acta}
-                onClick={setSelectedActa}
-                onDownloadPDF={handleDownloadPDF}
-                onEdit={handleEdit}
-                onAsistencias={handleOpenAsistencias}
-              />
-            ))}
-          </div>
+          <>
+            <div className="mb-4">
+              <div className="relative w-full md:max-w-md">
+                <i className="ki-outline ki-magnifier text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm" />
+                <input
+                  type="text"
+                  value={searchCreada}
+                  onChange={(e) => setSearchCreada(e.target.value)}
+                  placeholder="Buscar por nombre, tipo, ficha, ciudad, lugar o ID..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-coal-500 border border-gray-200 dark:border-coal-300 rounded-xl text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {filteredActasCreadas.length === 0 ? (
+              <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
+                {actas.length === 0
+                  ? 'No hay actas registradas para este contrato.'
+                  : 'No se encontraron actas con esa búsqueda.'}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedActasCreadas.map((acta) => (
+                    <ActaCard
+                      key={acta.id}
+                      acta={acta}
+                      onClick={setSelectedActa}
+                      onDownloadPDF={handleDownloadPDF}
+                      onEdit={handleEdit}
+                      onAsistencias={handleOpenAsistencias}
+                    />
+                  ))}
+                </div>
+                {renderPagination(
+                  currentPageCreada,
+                  totalPagesCreadas,
+                  setCurrentPageCreada
+                )}
+              </>
+            )}
+          </>
         )
       )}
 
@@ -199,22 +332,48 @@ const ActasInstructorGeneral = () => {
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : actasAsistente.length === 0 ? (
-          <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
-            No eres asistente en ninguna acta actualmente.
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {actasAsistente.map((acta) => (
-              <ActaCard
-                key={acta.id}
-                acta={acta}
-                onClick={setSelectedActa}
-                onDownloadPDF={handleDownloadPDF}
-                onAprobar={handleOpenAprobar}
-              />
-            ))}
-          </div>
+          <>
+            <div className="mb-4">
+              <div className="relative w-full md:max-w-md">
+                <i className="ki-outline ki-magnifier text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm" />
+                <input
+                  type="text"
+                  value={searchAsistente}
+                  onChange={(e) => setSearchAsistente(e.target.value)}
+                  placeholder="Buscar por nombre, tipo, ficha, ciudad, lugar o ID..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-coal-500 border border-gray-200 dark:border-coal-300 rounded-xl text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {filteredActasAsistente.length === 0 ? (
+              <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
+                {actasAsistente.length === 0
+                  ? 'No eres asistente en ninguna acta actualmente.'
+                  : 'No se encontraron actas con esa búsqueda.'}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedActasAsistente.map((acta) => (
+                    <ActaCard
+                      key={acta.id}
+                      acta={acta}
+                      onClick={setSelectedActa}
+                      onDownloadPDF={handleDownloadPDF}
+                      onAprobar={handleOpenAprobar}
+                    />
+                  ))}
+                </div>
+                {renderPagination(
+                  currentPageAsistente,
+                  totalPagesAsistente,
+                  setCurrentPageAsistente
+                )}
+              </>
+            )}
+          </>
         )
       )}
 
