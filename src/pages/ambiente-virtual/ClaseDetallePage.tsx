@@ -1299,7 +1299,7 @@ const ClaseDetallePage: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
   const isDesktop = useResponsive('up', 'lg');
   /** En desktop: colapsado = solo iconos; expandido = menú con texto. En móvil siempre se muestran etiquetas. */
-  const [menuClaseExpandido, setMenuClaseExpandido] = useState(false);
+  const [menuClaseExpandido, setMenuClaseExpandido] = useState(true);
   const mostrarEtiquetasMenu = !isDesktop || menuClaseExpandido;
   const menuSoloIconos = isDesktop && !menuClaseExpandido;
   const itemsPerPage = 11;
