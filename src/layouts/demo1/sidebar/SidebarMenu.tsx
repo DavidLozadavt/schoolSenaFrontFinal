@@ -21,8 +21,13 @@ import { useAuthContext } from '@/auth';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
-  const { permissions } = useAuthContext();
+  const { permissions, activacion } = useAuthContext();
   const [searchText, setSearchText] = useState('');
+
+  // Usuarios pendientes de activación: no deben ver opciones de navegación.
+  if (activacion?.state_id === 18) {
+    return null;
+  }
 
   const linkPl = 'ps-[10px]';
   const linkPr = 'pe-[10px]';
