@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MallaCurricularProps } from '../../types';
-import { BookOpen, Calendar, Search } from 'lucide-react';
+import { BookOpen, Calendar, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 
 // Componentes separados
 import { CardTrimestre } from './CardTrimestre';
@@ -19,6 +19,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Estados para modal de RAPs - NUEVO
   const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
@@ -107,10 +108,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
       return;
     }
 
-    const success = await crearTrimestre(ficha);
-    if (success) {
-      await cargarTrimestres(ficha?.id);
-    }
+    await crearTrimestre(ficha);
   };
 
   // para abrir modal de RAPs
@@ -182,11 +180,25 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
               {/* Controles de Trimestres */}
               {ficha && (
                 <div className="flex w-full items-center gap-3 px-4 justify-between">
-                  <div>
+                  <div className='flex items-center'>
                     <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className="ml-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 transition-colors text-gray-600 dark:text-gray-400 flex items-center gap-2 group"
+                      title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
+                    >
+                      {sortOrder === 'asc' ? (
+                        <ArrowDownAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <ArrowUpAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                      )}
+                      <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                        {sortOrder === 'asc' ? 'Asc' : 'Desc'}
+                      </span>
+                    </button>
                   </div>
                   <button
                     onClick={handleAgregarTrimestre}
@@ -240,8 +252,10 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       :
                       (
                         trimestres.length > 0 ? (
-                          [...trimestres]
-                            .sort((a, b) => a.grado?.numeroGrado - b.grado?.numeroGrado)
+                        (sortOrder === 'asc' 
+                            ? [...trimestres].sort((a, b) => (a.grado?.numeroGrado || a.numeroGrado) - (b.grado?.numeroGrado || b.numeroGrado))
+                            : [...trimestres].sort((a, b) => (b.grado?.numeroGrado || b.numeroGrado) - (a.grado?.numeroGrado || a.numeroGrado))
+                          )
                             .map((trimestre, index) => (
                               <div
                                 key={trimestre.id || index}
