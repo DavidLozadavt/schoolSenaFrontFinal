@@ -260,6 +260,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 placeholder="Ingrese título del cuestionario"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
@@ -311,6 +312,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 placeholder="Ingrese descripción del cuestionario"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
+                data-preserve-case
                 rows={5}
               />
             </div>
@@ -358,6 +360,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                     placeholder="Ingrese el texto de la pregunta"
                     value={pregunta.titulo}
                     onChange={(e) => actualizarPregunta(pregunta.id, { titulo: e.target.value })}
+                    data-preserve-case
                   />
                 </div>
 

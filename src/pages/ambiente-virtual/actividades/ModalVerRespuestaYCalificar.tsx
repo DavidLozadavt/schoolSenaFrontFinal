@@ -13,6 +13,45 @@ const getDocumentUrl = (path: string | undefined): string | null => {
   return `${base.replace(/\/$/, '')}/${storagePath}`;
 };
 
+const getFileName = (path: string | undefined): string => {
+  const raw = String(path ?? '').split('?')[0].split('#')[0];
+  const base = raw.split('/').pop() || '';
+  try {
+    return decodeURIComponent(base) || 'archivo';
+  } catch {
+    return base || 'archivo';
+  }
+};
+
+const pickFileNameFromContentDisposition = (headerValue: string | null | undefined): string | null => {
+  const raw = String(headerValue ?? '').trim();
+  if (!raw) return null;
+  // filename*=UTF-8''...
+  const matchStar = raw.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (matchStar?.[1]) {
+    try {
+      return decodeURIComponent(matchStar[1]);
+    } catch {
+      return matchStar[1];
+    }
+  }
+  const match = raw.match(/filename\s*=\s*"([^"]+)"/i) || raw.match(/filename\s*=\s*([^;]+)/i);
+  if (!match?.[1]) return null;
+  return match[1].trim().replace(/^"|"$/g, '') || null;
+};
+
+const triggerBrowserDownload = (blob: Blob, fileName: string): void => {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName || 'archivo';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 interface ModalVerRespuestaYCalificarProps {
   open: boolean;
   onClose: () => void;
@@ -70,9 +109,24 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
 
   const docUrl = getDocumentUrl(aprendiz.archivo ?? undefined);
   const isPdf = (aprendiz.archivo || '').toLowerCase().endsWith('.pdf');
+  const fileName = getFileName(aprendiz.archivo ?? undefined);
   const requiereEvidencia = tipoActividad === 'con evidencia';
   const tieneEvidencia = !!(String(aprendiz.archivo ?? '').trim() || String(aprendiz.ComentarioEstudiante ?? '').trim());
   const puedeCalificar = !requiereEvidencia || tieneEvidencia;
+
+  const handleDownload = async () => {
+    try {
+      const resp = await axios.get(`calificacion-actividad/${aprendiz.idCalificacionActividad}/descargar-archivo`, {
+        responseType: 'blob',
+      });
+      const headerName = resp.headers?.['content-disposition'] ?? resp.headers?.['Content-Disposition'];
+      const resolvedName = pickFileNameFromContentDisposition(headerName) || fileName || 'entrega';
+      const blob = resp.data instanceof Blob ? resp.data : new Blob([resp.data]);
+      triggerBrowserDownload(blob, resolvedName);
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'No fue posible descargar el archivo');
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose} zIndex={120}>
@@ -98,22 +152,63 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Documento</label>
               <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-coal-500/30">
                 {isPdf ? (
-                  <iframe
-                    src={docUrl}
-                    title="Documento del aprendiz"
-                    className="w-full h-[400px] min-h-[300px]"
-                  />
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-600 px-4 py-2.5">
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate" title={fileName}>
+                        {fileName}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                        >
+                          <KeenIcon icon="eye" />
+                          Abrir
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleDownload}
+                          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                          title="Descargar archivo"
+                        >
+                          <KeenIcon icon="download" />
+                          Descargar
+                        </button>
+                      </div>
+                    </div>
+                    <iframe
+                      src={docUrl}
+                      title="Documento del aprendiz"
+                      className="w-full h-[400px] min-h-[300px]"
+                    />
+                  </div>
                 ) : (
                   <div className="p-4">
-                    <a
-                      href={docUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      <KeenIcon icon="download" />
-                      Abrir documento adjunto
-                    </a>
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate" title={fileName}>
+                      {fileName}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <a
+                        href={docUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        <KeenIcon icon="eye" />
+                        Abrir documento adjunto
+                      </a>
+                        <button
+                          type="button"
+                          onClick={handleDownload}
+                          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
+                          title="Descargar archivo"
+                        >
+                          <KeenIcon icon="download" />
+                          Descargar archivo
+                        </button>
+                    </div>
                   </div>
                 )}
               </div>

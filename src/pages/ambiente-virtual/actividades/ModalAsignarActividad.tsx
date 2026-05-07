@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
+import Select from 'react-select';
 import type { Actividad } from './ModalCrearActividad';
+import { compactReactSelectClassNames, compactReactSelectNoOptions, normalizeText } from '@/components/forms/compactReactSelect';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
@@ -26,6 +28,8 @@ interface Aprendiz {
   idMatriculaAcademica: number;
   idMateria?: number;
   nombre: string;
+  identificacion?: string | null;
+  nombreCompleto?: string | null;
   /** Misma ruta de storage que otras pantallas; opcional. */
   rutaFoto?: string | null;
 }
@@ -36,6 +40,14 @@ interface Grupo {
   cantidadParticipantes: number;
   integrantesActuales?: number;
 }
+
+type SelectOption = { value: string; label: string };
+
+const filterOptionNormalized = (haystack: Array<unknown>, rawInput: string): boolean => {
+  const q = normalizeText(rawInput);
+  if (!q) return true;
+  return haystack.some((v) => normalizeText(v).includes(q));
+};
 
 interface ModalAsignarActividadProps {
   open: boolean;
@@ -239,6 +251,30 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         ? 'Todos los grupos'
         : `${gruposSeleccionados.length} grupo(s) seleccionado(s)`;
 
+  const optionsAprendices: SelectOption[] = React.useMemo(() => {
+    return (aprendices || []).map((a) => ({
+      value: String(a.id),
+      label: (a.nombreCompleto || a.nombre || `Aprendiz ${a.id}`).trim()
+    }));
+  }, [aprendices]);
+
+  const optionsGrupos: SelectOption[] = React.useMemo(() => {
+    return (grupos || []).map((g) => ({
+      value: String(g.id),
+      label: `${g.nombreGrupo || `Grupo ${g.id}`} (${g.integrantesActuales ?? 0}/${g.cantidadParticipantes})`
+    }));
+  }, [grupos]);
+
+  const valueAprendices: SelectOption[] = React.useMemo(() => {
+    const set = new Set(aprendicesSeleccionados.map((n) => String(n)));
+    return optionsAprendices.filter((o) => set.has(o.value));
+  }, [aprendicesSeleccionados, optionsAprendices]);
+
+  const valueGrupos: SelectOption[] = React.useMemo(() => {
+    const set = new Set(gruposSeleccionados.map((n) => String(n)));
+    return optionsGrupos.filter((o) => set.has(o.value));
+  }, [gruposSeleccionados, optionsGrupos]);
+
   return (
     <>
       <Modal open={open} onClose={onClose} zIndex={110}>
@@ -288,26 +324,88 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar estudiantes</label>
-                      <div className="flex gap-2.5">
-                        <input
-                          type="text"
-                          readOnly
-                          value={textoEstudiantes}
-                          className="input !min-h-[2.75rem] flex-1 cursor-pointer text-sm"
-                          onClick={() => {
-                            setMostrarPickerGrupos(false);
-                            setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
-                          }}
-                        />
+                      <Select
+                        inputId="asignar-actividad-aprendices"
+                        isMulti
+                        isClearable
+                        isSearchable
+                        closeMenuOnSelect={false}
+                        options={optionsAprendices}
+                        value={valueAprendices}
+                        placeholder="Buscar o seleccionar estudiantes..."
+                        classNamePrefix="react-select-ciudad-exp"
+                        classNames={compactReactSelectClassNames}
+                        noOptionsMessage={compactReactSelectNoOptions}
+                        filterOption={(candidate, input) => {
+                          const a = aprendices.find((x) => String(x.id) === candidate.value);
+                          return filterOptionNormalized(
+                            [
+                              candidate.label,
+                              candidate.value, // id matrícula
+                              a?.nombre,
+                              a?.nombreCompleto,
+                              a?.identificacion
+                            ],
+                            input
+                          );
+                        }}
+                        formatOptionLabel={(opt, meta) => {
+                          const a = aprendices.find((x) => String(x.id) === opt.value);
+                          if (!a) return opt.label;
+                          const doc = (a.identificacion || '').trim();
+                          const isValue = meta.context === 'value';
+                          if (isValue) return opt.label;
+                          const tieneFotoReal = !!(a.rutaFoto && String(a.rutaFoto).trim());
+                          const avatarSrc = getFotoUrl(a.rutaFoto);
+                          return (
+                            <div className="flex items-center gap-2.5 py-1">
+                              {tieneFotoReal ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setZoomFoto({ src: avatarSrc, alt: opt.label });
+                                  }}
+                                  className="h-10 w-10 shrink-0 rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1"
+                                  title="Ampliar foto"
+                                >
+                                  <img
+                                    src={avatarSrc}
+                                    alt=""
+                                    className="h-10 w-10 rounded-full border border-gray-200 object-cover dark:border-gray-600"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLImageElement).src = AVATAR_DEFAULT;
+                                    }}
+                                  />
+                                </button>
+                              ) : (
+                                <div className="h-10 w-10 shrink-0 rounded-full border border-dashed border-primary flex items-center justify-center text-primary bg-white dark:bg-coal-400 dark:border-primary/60">
+                                  <KeenIcon icon="user" className="text-sm" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold">{opt.label}</div>
+                                <div className="truncate text-[11px] text-gray-500 dark:text-gray-300">
+                                  {doc ? doc : 'Sin documento'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }}
+                        onChange={(opts) => {
+                          const arr = Array.isArray(opts) ? opts : [];
+                          setAprendicesSeleccionados(arr.map((o) => Number(o.value)).filter((n) => Number.isFinite(n)));
+                        }}
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoEstudiantes}</p>
                         <button
                           type="button"
-                          onClick={() => {
-                            setMostrarPickerGrupos(false);
-                            setMostrarPickerEstudiantes(!mostrarPickerEstudiantes);
-                          }}
-                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                          onClick={toggleTodosEstudiantes}
+                          className="text-xs font-medium text-primary hover:underline"
                         >
-                          <KeenIcon icon="users" className="text-lg" />
+                          {aprendicesSeleccionados.length === aprendices.length && aprendices.length > 0 ? 'Quitar todos' : 'Seleccionar todos'}
                         </button>
                       </div>
                       {mostrarPickerEstudiantes && (
@@ -364,26 +462,34 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar grupos</label>
-                      <div className="flex gap-2.5">
-                        <input
-                          type="text"
-                          readOnly
-                          value={textoGrupos}
-                          className="input !min-h-[2.75rem] flex-1 cursor-pointer text-sm"
-                          onClick={() => {
-                            setMostrarPickerEstudiantes(false);
-                            setMostrarPickerGrupos(!mostrarPickerGrupos);
-                          }}
-                        />
+                      <Select
+                        inputId="asignar-actividad-grupos"
+                        isMulti
+                        isClearable
+                        isSearchable
+                        closeMenuOnSelect={false}
+                        options={optionsGrupos}
+                        value={valueGrupos}
+                        placeholder="Buscar o seleccionar grupos..."
+                        classNamePrefix="react-select-ciudad-exp"
+                        classNames={compactReactSelectClassNames}
+                        noOptionsMessage={compactReactSelectNoOptions}
+                        filterOption={(candidate, input) => {
+                          return filterOptionNormalized([candidate.label, candidate.value], input);
+                        }}
+                        onChange={(opts) => {
+                          const arr = Array.isArray(opts) ? opts : [];
+                          setGruposSeleccionados(arr.map((o) => Number(o.value)).filter((n) => Number.isFinite(n)));
+                        }}
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoGrupos}</p>
                         <button
                           type="button"
-                          onClick={() => {
-                            setMostrarPickerEstudiantes(false);
-                            setMostrarPickerGrupos(!mostrarPickerGrupos);
-                          }}
-                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                          onClick={toggleTodosGrupos}
+                          className="text-xs font-medium text-primary hover:underline"
                         >
-                          <KeenIcon icon="users" className="text-lg" />
+                          {gruposSeleccionados.length === grupos.length && grupos.length > 0 ? 'Quitar todos' : 'Seleccionar todos'}
                         </button>
                       </div>
                       {mostrarPickerGrupos && (
