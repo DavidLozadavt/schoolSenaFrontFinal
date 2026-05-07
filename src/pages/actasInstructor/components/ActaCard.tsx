@@ -15,10 +15,10 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
 
   return (
     <div
-      className={`bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${isLocked ? 'opacity-90' : ''}`}
+      className={`bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full ${isLocked ? 'opacity-90' : ''}`}
       onClick={() => onClick(acta)}
     >
-      <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 flex justify-between items-center bg-gray-50 dark:bg-coal-400/50">
+      <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 flex justify-between items-center bg-gray-50 dark:bg-coal-400/50 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
             {acta.tipoActa}
@@ -36,23 +36,24 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
       </div>
 
 
-      <div className="p-4 space-y-3">
-      <div className="flex items-center gap-2">
-          <i className="ki-outline ki-information text-gray-400 text-sm" />
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="p-4 flex-1 flex flex-col space-y-3">
+        <div className="flex items-start gap-2">
+          <i className="ki-outline ki-information text-gray-400 text-sm mt-0.5" />
+          <span className="text-sm text-gray-700 dark:text-gray-200 font-semibold line-clamp-2 leading-snug" title={acta.nombre}>
             {acta.nombre || 'No especificado'}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <i className="ki-outline ki-calendar text-gray-400 text-sm" />
-          <span className="text-sm text-gray-700 dark:text-gray-200">
-            {new Date(acta.fecha).toLocaleDateString()}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <i className="ki-outline ki-geolocation text-gray-400 text-sm" />
+          <i className="ki-outline ki-calendar text-gray-400 text-sm" />
           <span className="text-sm text-gray-600 dark:text-gray-400">
+            {new Date(acta.fecha).toLocaleDateString()}
+          </span>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <i className="ki-outline ki-geolocation text-gray-400 text-sm mt-0.5" />
+          <span className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1" title={acta.lugar}>
             {acta.lugar || 'No especificado'}
           </span>
         </div>
@@ -67,7 +68,7 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
           </span>
         </div>
 
-
+        <div className="flex-1" />
         
         <div className="flex items-center gap-2 pt-2">
           <button
