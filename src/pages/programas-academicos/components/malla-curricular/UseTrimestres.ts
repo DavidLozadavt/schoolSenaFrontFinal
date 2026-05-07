@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
+import Swal from 'sweetalert2';
 
 export const useTrimestres = (fichaId: number , programaId: number | undefined) => {
   const [trimestres, setTrimestres] = useState<any[]>([]);
@@ -150,9 +151,22 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
       return false;
     }
 
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Al crear un nuevo trimestre se interrumpirán los horarios del trimestre actual.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6ff',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, crear trimestre',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) return false;
+
     try {
       setGuardandoTrimestre(true);
-
       const payload = {
         idPrograma: nuevoTrimestre.idPrograma || programaId,
         numeroGrado: nuevoTrimestre.numeroGrado,
@@ -161,9 +175,10 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
         idFicha: ficha.id,
         materias: nuevoTrimestre.materias
       };
+      
       await axios.post('trimestres-ficha', payload);
-      setToast(true)
       await cargarTrimestres(ficha.id);
+      setToast(true);
 
       return true;
     } catch (error: any) {
