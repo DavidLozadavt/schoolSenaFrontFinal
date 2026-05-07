@@ -242,6 +242,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 placeholder="Título de la actividad"
                 value={formData.tituloActividad || ''}
                 onChange={(e) => handleChange('tituloActividad', e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
@@ -254,6 +255,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 placeholder="Descripción de la actividad"
                 value={formData.descripcionActividad || ''}
                 onChange={(e) => handleChange('descripcionActividad', e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
@@ -290,6 +292,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 placeholder="Estrategia pedagógica"
                 value={formData.estrategia || ''}
                 onChange={(e) => handleChange('estrategia', e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
@@ -302,6 +305,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 placeholder="Entregables esperados"
                 value={formData.entregables || ''}
                 onChange={(e) => handleChange('entregables', e.target.value)}
+                data-preserve-case
                 required
               />
             </div>

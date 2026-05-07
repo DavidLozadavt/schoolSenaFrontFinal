@@ -69,6 +69,7 @@ function onInputCapture(ev: Event): void {
   const el = target;
   if (el.readOnly || el.disabled) return;
   if (el.closest('[data-no-uppercase]')) return;
+  if (el.closest('[data-preserve-case]')) return;
 
   if (el instanceof HTMLInputElement && shouldSkipInput(el)) {
     return;

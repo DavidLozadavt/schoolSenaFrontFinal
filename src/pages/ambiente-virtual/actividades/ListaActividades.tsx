@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { KeenIcon, ImageZoomModal, DefaultTooltip } from '@/components';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import axios from 'axios';
+import Select from 'react-select';
 import type { Actividad } from './ModalCrearActividad';
+import { compactReactSelectClassNames, compactReactSelectNoOptions, normalizeText } from '@/components/forms/compactReactSelect';
 
 const DROPDOWN_WIDTH = 180;
 const DROPDOWN_ITEM_HEIGHT = 40;
@@ -410,6 +412,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     loading: boolean;
     error: string;
   }>({ open: false, actividad: null, filas: [], loading: false, error: '' });
+  const [busquedaEntregas, setBusquedaEntregas] = useState('');
 
   const [modalCoberturaAsignacion, setModalCoberturaAsignacion] = useState<{
     open: boolean;
@@ -432,6 +435,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     detalleAsignados: [],
     detallePendientes: []
   });
+  const [busquedaCobertura, setBusquedaCobertura] = useState('');
 
   const cerrarModalCoberturaAsignacion = () => {
     setModalCoberturaAsignacion({
@@ -445,7 +449,27 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
       detalleAsignados: [],
       detallePendientes: []
     });
+    setBusquedaCobertura('');
   };
+
+  const { asignadosFiltrados, pendientesAsignarFiltrados } = useMemo(() => {
+    const q = normalizeText(busquedaCobertura);
+    if (!q) {
+      return {
+        asignadosFiltrados: modalCoberturaAsignacion.detalleAsignados,
+        pendientesAsignarFiltrados: modalCoberturaAsignacion.detallePendientes
+      };
+    }
+    const match = (r: AprendizCoberturaAsignacionItem) => {
+      const nombre = normalizeText(r.nombreCompleto);
+      const doc = normalizeText(r.identificacion);
+      return nombre.includes(q) || doc.includes(q);
+    };
+    return {
+      asignadosFiltrados: modalCoberturaAsignacion.detalleAsignados.filter(match),
+      pendientesAsignarFiltrados: modalCoberturaAsignacion.detallePendientes.filter(match)
+    };
+  }, [busquedaCobertura, modalCoberturaAsignacion.detalleAsignados, modalCoberturaAsignacion.detallePendientes]);
 
   const abrirModalCoberturaAsignacion = (act: Actividad) => {
     if (!idFicha || act.id == null) return;
@@ -497,6 +521,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
 
   const cerrarModalEntregables = () => {
     setModalEntregables({ open: false, actividad: null, filas: [], loading: false, error: '' });
+    setBusquedaEntregas('');
   };
 
   const abrirModalEntregables = (act: Actividad) => {
@@ -554,6 +579,22 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     const pendientes = filas.filter((r) => r.estado === 'PENDIENTE');
     return { entregadosLista: entregados, pendientesLista: pendientes };
   }, [modalEntregables.filas]);
+
+  const { entregadosFiltrados, pendientesFiltrados } = useMemo(() => {
+    const q = normalizeText(busquedaEntregas);
+    if (!q) return { entregadosFiltrados: entregadosLista, pendientesFiltrados: pendientesLista };
+    const match = (r: AprendizEntregaDetalle) => {
+      const nombre = normalizeText(r.nombreAprendiz);
+      const doc = normalizeText(r.identificacion);
+      const grupo = normalizeText(r.nombreGrupo);
+      const estado = normalizeText(r.estado);
+      return nombre.includes(q) || doc.includes(q) || grupo.includes(q) || estado.includes(q);
+    };
+    return {
+      entregadosFiltrados: entregadosLista.filter(match),
+      pendientesFiltrados: pendientesLista.filter(match)
+    };
+  }, [busquedaEntregas, entregadosLista, pendientesLista]);
 
   const resumenDetalleEntregas = useMemo(() => {
     const filas = modalEntregables.filas;
@@ -1210,6 +1251,32 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                       </dl>
                     </div>
                   )}
+                  {!modalCoberturaAsignacion.loading && !modalCoberturaAsignacion.error && (
+                    <div className="shrink-0 border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-600/50 dark:bg-coal-400/95 sm:px-5">
+                      <Select
+                        inputId="buscar-cobertura"
+                        placeholder="Buscar estudiante por nombre, documento o grupo..."
+                        isClearable
+                        isSearchable
+                        menuIsOpen={false}
+                        controlShouldRenderValue={false}
+                        classNamePrefix="react-select-ciudad-exp"
+                        classNames={compactReactSelectClassNames}
+                        noOptionsMessage={compactReactSelectNoOptions}
+                        value={null}
+                        inputValue={busquedaCobertura}
+                        onInputChange={(val) => {
+                          setBusquedaCobertura(val || '');
+                          return val;
+                        }}
+                      />
+                      {busquedaCobertura.trim() ? (
+                        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          Mostrando {asignadosFiltrados.length + pendientesAsignarFiltrados.length} de {modalCoberturaAsignacion.totalEnFicha} estudiantes
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                   <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5">
                     {modalCoberturaAsignacion.loading && (
                       <div className="flex justify-center py-12">
@@ -1224,15 +1291,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
                             <KeenIcon icon="users" className="text-base" />
-                            Ya asignados ({modalCoberturaAsignacion.detalleAsignados.length})
+                            Ya asignados ({asignadosFiltrados.length}{busquedaCobertura.trim() ? ` de ${modalCoberturaAsignacion.detalleAsignados.length}` : ''})
                           </h3>
-                          {modalCoberturaAsignacion.detalleAsignados.length === 0 ? (
+                          {asignadosFiltrados.length === 0 ? (
                             <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-3 py-3 text-xs text-gray-500 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-400">
-                              Aún no hay aprendices con esta actividad asignada en la ficha.
+                              {busquedaCobertura.trim() ? 'No hay coincidencias en asignados.' : 'Aún no hay aprendices con esta actividad asignada en la ficha.'}
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {modalCoberturaAsignacion.detalleAsignados.map((row) => (
+                              {asignadosFiltrados.map((row) => (
                                 <div
                                   key={row.idMatricula}
                                   className="flex gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm dark:border-gray-600/50 dark:bg-coal-500/20"
@@ -1268,15 +1335,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                             <KeenIcon icon="time" className="text-base" />
-                            Pendientes por asignar ({modalCoberturaAsignacion.detallePendientes.length})
+                            Pendientes por asignar ({pendientesAsignarFiltrados.length}{busquedaCobertura.trim() ? ` de ${modalCoberturaAsignacion.detallePendientes.length}` : ''})
                           </h3>
-                          {modalCoberturaAsignacion.detallePendientes.length === 0 ? (
+                          {pendientesAsignarFiltrados.length === 0 ? (
                             <p className="rounded-lg border border-dashed border-emerald-200/80 bg-emerald-50/40 px-3 py-3 text-xs text-emerald-900/90 dark:border-emerald-800/50 dark:bg-emerald-900/15 dark:text-emerald-100">
-                              No quedan aprendices por asignar: la cobertura de asignación está completa para esta actividad.
+                              {busquedaCobertura.trim() ? 'No hay coincidencias en pendientes.' : 'No quedan aprendices por asignar: la cobertura de asignación está completa para esta actividad.'}
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {modalCoberturaAsignacion.detallePendientes.map((row) => (
+                              {pendientesAsignarFiltrados.map((row) => (
                                 <div
                                   key={row.idMatricula}
                                   className="flex gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm dark:border-gray-600/50 dark:bg-coal-500/20"
@@ -1363,6 +1430,32 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                       </dl>
                     </div>
                   )}
+                  {!modalEntregables.loading && !modalEntregables.error && (
+                    <div className="shrink-0 border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-600/50 dark:bg-coal-400/95 sm:px-5">
+                      <Select
+                        inputId="buscar-entregas"
+                        placeholder="Buscar estudiante por nombre, documento, grupo o estado..."
+                        isClearable
+                        isSearchable
+                        menuIsOpen={false}
+                        controlShouldRenderValue={false}
+                        classNamePrefix="react-select-ciudad-exp"
+                        classNames={compactReactSelectClassNames}
+                        noOptionsMessage={compactReactSelectNoOptions}
+                        value={null}
+                        inputValue={busquedaEntregas}
+                        onInputChange={(val) => {
+                          setBusquedaEntregas(val || '');
+                          return val;
+                        }}
+                      />
+                      {busquedaEntregas.trim() ? (
+                        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          Mostrando {entregadosFiltrados.length + pendientesFiltrados.length} de {resumenDetalleEntregas.totalAsignados} asignados
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                   <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5">
                     {modalEntregables.loading && (
                       <div className="flex justify-center py-12">
@@ -1377,15 +1470,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
                             <KeenIcon icon="check-circle" className="text-base" />
-                            Entregaron ({entregadosLista.length})
+                            Entregaron ({entregadosFiltrados.length}{busquedaEntregas.trim() ? ` de ${entregadosLista.length}` : ''})
                           </h3>
-                          {entregadosLista.length === 0 ? (
+                          {entregadosFiltrados.length === 0 ? (
                             <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-3 py-3 text-xs text-gray-500 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-400">
-                              Nadie ha entregado aún esta actividad.
+                              {busquedaEntregas.trim() ? 'No hay coincidencias en entregados.' : 'Nadie ha entregado aún esta actividad.'}
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {entregadosLista.map((row) => (
+                              {entregadosFiltrados.map((row) => (
                                 <div
                                   key={row.idCalificacionActividad}
                                   className="flex gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm dark:border-gray-600/50 dark:bg-coal-500/20"
@@ -1425,15 +1518,15 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                             <KeenIcon icon="time" className="text-base" />
-                            Pendientes de entrega ({pendientesLista.length})
+                            Pendientes de entrega ({pendientesFiltrados.length}{busquedaEntregas.trim() ? ` de ${pendientesLista.length}` : ''})
                           </h3>
-                          {pendientesLista.length === 0 ? (
+                          {pendientesFiltrados.length === 0 ? (
                             <p className="rounded-lg border border-dashed border-emerald-200/80 bg-emerald-50/40 px-3 py-3 text-xs text-emerald-900/90 dark:border-emerald-800/50 dark:bg-emerald-900/15 dark:text-emerald-100">
-                              Todos los aprendices asignados ya entregaron o están calificados.
+                              {busquedaEntregas.trim() ? 'No hay coincidencias en pendientes.' : 'Todos los aprendices asignados ya entregaron o están calificados.'}
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {pendientesLista.map((row) => (
+                              {pendientesFiltrados.map((row) => (
                                 <div
                                   key={row.idCalificacionActividad}
                                   className="flex gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm dark:border-gray-600/50 dark:bg-coal-500/20"

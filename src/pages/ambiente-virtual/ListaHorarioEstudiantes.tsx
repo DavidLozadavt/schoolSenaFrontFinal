@@ -411,7 +411,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             data-no-uppercase
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm shadow-sm"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder:text-gray-400 dark:bg-coal-500/20 dark:text-gray-100 dark:placeholder:text-gray-400 text-sm shadow-sm"
           />
           <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -430,7 +430,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       </div>
 
       {/* Header Compacto */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -484,7 +484,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             return (
               <div
                 key={student.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-4 hover:shadow-md transition-shadow"
               >
                 <div className="text-center">
                   <img
@@ -529,7 +529,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                     <GraficaAsistencia idMatricula={student.idMatricula} />
                     <button
                       onClick={() => showStudentDetails(student)}
-                      className="btn btn-sm btn-icon btn-light btn-active-light-primary"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
                       title="Ver detalles"
                     >
                       <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -539,14 +539,14 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                     </button>
                     <button
                       onClick={() => showAcudienteDetails(student)}
-                      className="btn btn-sm btn-icon btn-light btn-active-light-success"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
                       title="Familiares/Acudiente"
                     >
                       <KeenIcon icon="users" className="text-green-600 dark:text-green-400 text-base" />
                     </button>
                     <button
                       onClick={() => openAnotacionesMenu(student.idMatricula)}
-                      className="btn btn-sm btn-icon btn-light btn-active-light-danger"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
                       title="Anotaciones Disciplinarias"
                     >
                       <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -563,7 +563,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       {/* Empty State */}
       {!loading && !error && students.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+        <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-12 text-center">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
@@ -574,7 +574,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       {/* No Search Results */}
       {!loading && !error && students.length > 0 && filteredStudents.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+        <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-12 text-center">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -589,7 +589,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           <ModalContent className="max-w-[600px] top-[10%] p-4">
             <ModalHeader>
               <ModalTitle>Detalles del Estudiante</ModalTitle>
-              <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={closeModal}>
+              <button
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors shrink-0"
+                onClick={closeModal}
+              >
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
@@ -669,7 +672,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <KeenIcon icon="users" className="text-green-600 dark:text-green-400" />
                 Datos del Familiar / Acudiente
               </ModalTitle>
-              <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={closeAcudienteModal}>
+              <button
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors shrink-0"
+                onClick={closeAcudienteModal}
+              >
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
@@ -692,7 +698,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase">Identificación</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Identificación</label>
                       <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.identificacion || 'No registrada'}
                       </p>
