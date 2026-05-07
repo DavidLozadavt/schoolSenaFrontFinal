@@ -292,13 +292,31 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   }, [actividad, comentario, archivo, onSaved, onSuccess, onClose]);
 
   // Constantes de validación
-  const VALID_FILE_TYPES = ['.pdf', '.doc', '.docx', '.zip', '.rar'];
+  const VALID_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'zip', 'rar', 'sql']);
+  const VALID_MIME_TYPES = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'text/plain',
+    'application/sql',
+  ]);
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   const validateFile = useCallback((file: File): string | null => {
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!VALID_FILE_TYPES.includes(fileExtension)) {
-      return 'Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, ZIP, RAR';
+    const name = String(file.name ?? '').trim();
+    const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? '').toLowerCase();
+    const mime = String(file.type ?? '').trim().toLowerCase();
+
+    const isAllowedByExt = !!ext && VALID_EXTENSIONS.has(ext);
+    const isAllowedByMime = !!mime && VALID_MIME_TYPES.has(mime);
+    const isGenericMime = mime === '' || mime === 'application/octet-stream';
+
+    if ((!isAllowedByExt && !isAllowedByMime) || (isGenericMime && !isAllowedByExt)) {
+      return 'Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, ZIP, RAR, SQL';
     }
     if (file.size > MAX_FILE_SIZE) {
       return 'El archivo excede el tamaño máximo de 10MB';
@@ -620,7 +638,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   type="file"
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".pdf,.doc,.docx,.zip,.rar"
+                  accept=".pdf,.doc,.docx,.zip,.rar,.sql"
                 />
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
                   {archivo ? (
@@ -642,7 +660,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   )}
                 </p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  PDF, DOC, ZIP, RAR (máx. 10MB)
+                  PDF, DOC, DOCX, ZIP, RAR, SQL (máx. 10MB)
                 </p>
               </div>
               {archivo && (
