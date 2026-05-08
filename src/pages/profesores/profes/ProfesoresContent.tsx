@@ -20,6 +20,103 @@ interface ResultadoPlano {
   duracionHoras: number;
 }
 
+function toIsoStartDate(date: string): string {
+  return date.includes('T') ? date : `${date}T00:00:00`;
+}
+
+function safeDate(date: string): Date | null {
+  const d = new Date(toIsoStartDate(date));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function parseIdDia(idDia: unknown): number | null {
+  const raw = Number(idDia);
+  if (!Number.isInteger(raw) || raw < 1 || raw > 7) return null;
+  // En data: 1..7 (7 = Domingo). En JS Date: 0..6 (0 = Domingo).
+  return raw === 7 ? 0 : raw;
+}
+
+function computeWeeklyOccurrencesInclusive(start: Date, end: Date, targetDay: number): number {
+  // Calcula cuántas veces cae targetDay entre start..end inclusive.
+  // start/end se asumen válidos.
+  const s = new Date(start);
+  const e = new Date(end);
+  s.setHours(0, 0, 0, 0);
+  e.setHours(23, 59, 59, 999);
+
+  // Avanzar hasta el primer día objetivo dentro del rango.
+  let current = new Date(s);
+  let guard = 0;
+  while (current.getDay() !== targetDay && current <= e) {
+    current.setDate(current.getDate() + 1);
+    guard++;
+    if (guard > 7) break;
+  }
+  if (current > e) return 0;
+
+  // Contar cada 7 días.
+  let count = 0;
+  guard = 0;
+  while (current <= e) {
+    count++;
+    current.setDate(current.getDate() + 7);
+    guard++;
+    if (guard > 400) break; // safety (≈ >7 años)
+  }
+  return count;
+}
+
+function computeHorasFromHoraStrings(horaInicial?: string, horaFinal?: string): number | null {
+  // Intenta derivar duración por sesión desde hh:mm:ss.
+  if (!horaInicial || !horaFinal) return null;
+  const [hi, mi] = horaInicial.split(':').map((x) => Number(x));
+  const [hf, mf] = horaFinal.split(':').map((x) => Number(x));
+  if ([hi, mi, hf, mf].some((n) => Number.isNaN(n))) return null;
+  const startMin = hi * 60 + mi;
+  const endMin = hf * 60 + mf;
+  const diff = endMin - startMin;
+  if (diff <= 0) return null;
+  return diff / 60;
+}
+
+function deriveSesionesYHoras(rap: Pick<ResultadoPlano, 'fechaInicial' | 'fechaFinal' | 'idDia' | 'duracionSesion' | 'cantidadSesiones' | 'duracionHoras' | 'horaInicial' | 'horaFinal'>): {
+  cantidadSesiones: number;
+  duracionHoras: number;
+} {
+  const cantidadFromApi = Number(rap.cantidadSesiones ?? 0);
+  const horasFromApi = Number(rap.duracionHoras ?? 0);
+
+  // Si backend ya trae valores > 0, respetarlos.
+  if (cantidadFromApi > 0 && horasFromApi > 0) {
+    return { cantidadSesiones: cantidadFromApi, duracionHoras: horasFromApi };
+  }
+
+  const start = safeDate(rap.fechaInicial);
+  const end = safeDate(rap.fechaFinal);
+  const targetDay = parseIdDia(rap.idDia);
+  if (!start || !end || targetDay === null) {
+    return {
+      cantidadSesiones: Math.max(0, cantidadFromApi),
+      duracionHoras: Math.max(0, horasFromApi)
+    };
+  }
+
+  const sesiones = computeWeeklyOccurrencesInclusive(start, end, targetDay);
+
+  // Duración por sesión: preferir duracionSesion (horas), si no, derivar de horaInicial/horaFinal.
+  const duracionSesionHoras =
+    Number(rap.duracionSesion ?? 0) > 0
+      ? Number(rap.duracionSesion)
+      : computeHorasFromHoraStrings(rap.horaInicial, rap.horaFinal) ?? 0;
+
+  const horas = sesiones * (duracionSesionHoras > 0 ? duracionSesionHoras : 0);
+
+  return {
+    cantidadSesiones: sesiones,
+    duracionHoras: horas
+  };
+}
+
 interface Ficha {
   idFicha: number;
   codigoFicha: string;
@@ -462,8 +559,25 @@ const ProfesoresContent: React.FC = () => {
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const totalFichas = fichas.length;
   const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
-  const totalSesiones = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.cantidadSesiones, 0) : 0), 0);
-  const totalHoras = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.duracionHoras, 0) : 0), 0);
+
+  // En producción algunos backends devuelven cantidadSesiones/duracionHoras en 0 aunque haya fechas/idDia.
+  // Derivamos valores si vienen en 0 para que KPIs y calendario sean consistentes.
+  const totalSesiones = fichas.reduce(
+    (a, f) =>
+      a +
+      (Array.isArray(f.resultados)
+        ? f.resultados.reduce((b, r) => b + deriveSesionesYHoras(r).cantidadSesiones, 0)
+        : 0),
+    0
+  );
+  const totalHoras = fichas.reduce(
+    (a, f) =>
+      a +
+      (Array.isArray(f.resultados)
+        ? f.resultados.reduce((b, r) => b + deriveSesionesYHoras(r).duracionHoras, 0)
+        : 0),
+    0
+  );
 
   // ── Fichas en formación y Paginación ─────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
