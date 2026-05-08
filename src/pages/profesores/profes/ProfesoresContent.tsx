@@ -765,5 +765,4 @@ const ProfesoresContent: React.FC = () => {
     </div>
   );
 };
-
 export default ProfesoresContent;
