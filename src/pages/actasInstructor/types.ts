@@ -46,6 +46,15 @@ export interface AsistenciaItem {
   };
 }
 
+export interface AnexoItem {
+  id?: number;
+  idacta?: number;
+  nombre: string;
+  archivo: string;
+  rutaArchivoUrl?: string;
+  descripcion?: string;
+}
+
 export interface Acta {
   id: number;
   nombre: string;
@@ -72,4 +81,5 @@ export interface Acta {
   asistencias?: AsistenciaItem[];
   conclusiones?: ConclusionItem[];
   compromisos?: CompromisoItem[];
+  anexos?: AnexoItem[];
 }

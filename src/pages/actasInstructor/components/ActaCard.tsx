@@ -8,10 +8,12 @@ interface ActaCardProps {
   onEdit?: (acta: Acta) => void;
   onAsistencias?: (acta: Acta) => void;
   onAprobar?: (acta: Acta) => void;
+  onAnexos?: (acta: Acta) => void;
 }
 
-const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdit, onAsistencias, onAprobar }) => {
+const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdit, onAsistencias, onAprobar, onAnexos }) => {
   const isLocked = acta.asistencias && acta.asistencias.length > 0 && acta.asistencias.every(a => a.aprueba === 'SI');
+  const anexosCount = acta.anexos?.length || 0;
 
   return (
     <div
@@ -27,6 +29,12 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
             <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-[9px] font-bold text-green-600 dark:text-green-400 rounded-full border border-green-200 dark:border-green-500/30 uppercase tracking-tight">
               <i className="ki-outline ki-lock text-[10px]" />
               Finalizada
+            </span>
+          )}
+          {anexosCount > 0 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-[9px] font-bold text-amber-600 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-500/30 uppercase tracking-tight">
+              <i className="ki-outline ki-file-up text-[10px]" />
+              {anexosCount} {anexosCount === 1 ? 'Anexo' : 'Anexos'}
             </span>
           )}
         </div>
@@ -105,6 +113,18 @@ const ActaCard: React.FC<ActaCardProps> = ({ acta, onClick, onDownloadPDF, onEdi
               className={`flex items-center justify-center flex-1 py-1.5 transition-all border border-transparent rounded-lg ${isLocked ? 'text-gray-400 bg-gray-100 dark:bg-coal-300 cursor-not-allowed opacity-50' : 'text-purple-600 bg-purple-50/50 dark:bg-purple-500/10 hover:border-purple-500 hover:scale-105'}`}
             >
               <i className="ki-outline ki-users" />
+            </button>
+          )}
+          {onAnexos && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnexos(acta);
+              }}
+              title='Gestionar Anexos'
+              className="flex items-center justify-center flex-1 py-1.5 text-amber-600 transition-all border border-transparent bg-amber-50/50 dark:bg-amber-500/10 rounded-lg hover:border-amber-500 hover:scale-105"
+            >
+              <i className="ki-outline ki-file-up" />
             </button>
           )}
           {onAprobar && !isLocked && (

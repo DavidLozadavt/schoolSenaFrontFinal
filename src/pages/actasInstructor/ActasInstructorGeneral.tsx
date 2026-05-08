@@ -7,6 +7,7 @@ import ActaDetailModal from './components/ActaDetailModal';
 import ActaCreateModal from './components/ActaCreateModal';
 import ActaAsistenciasModal from './components/ActaAsistenciasModal';
 import ActaAprobarModal from './components/ActaAprobarModal';
+import ActaAnexosModal from './components/ActaAnexosModal';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -36,6 +37,10 @@ const ActasInstructorGeneral = () => {
   // Estado para modal de aprobar asistencia
   const [isAprobarModalOpen, setIsAprobarModalOpen] = useState(false);
   const [actaForAprobar, setActaForAprobar] = useState<Acta | null>(null);
+
+  // Estado para modal de anexos
+  const [isAnexosModalOpen, setIsAnexosModalOpen] = useState(false);
+  const [actaForAnexos, setActaForAnexos] = useState<Acta | null>(null);
 
   const [availableFichas, setAvailableFichas] = useState<any[]>([]);
   const [ciudades, setCiudades] = useState<any[]>([]);
@@ -120,6 +125,11 @@ const ActasInstructorGeneral = () => {
   const handleOpenAprobar = (acta: Acta) => {
     setActaForAprobar(acta);
     setIsAprobarModalOpen(true);
+  };
+
+  const handleOpenAnexos = (acta: Acta) => {
+    setActaForAnexos(acta);
+    setIsAnexosModalOpen(true);
   };
 
   const handleOpenCreate = () => {
@@ -313,6 +323,7 @@ const ActasInstructorGeneral = () => {
                       onDownloadPDF={handleDownloadPDF}
                       onEdit={handleEdit}
                       onAsistencias={handleOpenAsistencias}
+                      onAnexos={handleOpenAnexos}
                     />
                   ))}
                 </div>
@@ -363,6 +374,7 @@ const ActasInstructorGeneral = () => {
                       onClick={setSelectedActa}
                       onDownloadPDF={handleDownloadPDF}
                       onAprobar={handleOpenAprobar}
+                      onAnexos={handleOpenAnexos}
                     />
                   ))}
                 </div>
@@ -417,6 +429,16 @@ const ActasInstructorGeneral = () => {
         acta={actaForAprobar}
         idContrato={idContrato}
         onSuccess={loadActasAsistente}
+      />
+
+      <ActaAnexosModal
+        isOpen={isAnexosModalOpen}
+        onClose={() => {
+          setIsAnexosModalOpen(false);
+          setActaForAnexos(null);
+        }}
+        acta={actaForAnexos}
+        onSuccess={loadActas}
       />
     </div>
   );
