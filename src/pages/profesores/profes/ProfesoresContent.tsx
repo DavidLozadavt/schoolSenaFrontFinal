@@ -102,57 +102,170 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
   const sessions: UpcomingSession[] = [];
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
-  
+
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month + 2, 0);
-  
+
   for (const ficha of fichas) {
     for (const rap of (Array.isArray(ficha.resultados) ? ficha.resultados : [])) {
-      if (!rap.fechaInicial || !rap.fechaFinal) continue;
-      
-      const rapStartStr = rap.fechaInicial.includes('T') ? rap.fechaInicial : `${rap.fechaInicial}T00:00:00`;
-      const rapEndStr = rap.fechaFinal.includes('T') ? rap.fechaFinal : `${rap.fechaFinal}T00:00:00`;
-      
+      if (!rap.fechaInicial || !rap.fechaFinal) {
+        console.warn("RAP sin fechaInicial o fechaFinal", { ficha, rap });
+        continue;
+      }
+
+      const rapStartStr = rap.fechaInicial.includes("T")
+        ? rap.fechaInicial
+        : `${rap.fechaInicial}T00:00:00`;
+
+      const rapEndStr = rap.fechaFinal.includes("T")
+        ? rap.fechaFinal
+        : `${rap.fechaFinal}T00:00:00`;
+
       const rapStart = new Date(rapStartStr);
       const rapEnd = new Date(rapEndStr);
-      if (Number.isNaN(rapStart.getTime()) || Number.isNaN(rapEnd.getTime())) continue;
-      if (rap.idDia < 1 || rap.idDia > 7) continue;
+
+      if (isNaN(rapStart.getTime()) || isNaN(rapEnd.getTime())) {
+        console.error("FECHA INVALIDA EN RAP", {
+          codigoFicha: ficha.codigoFicha,
+          programaFormacion: ficha.programaFormacion,
+          rap,
+          rapStartStr,
+          rapEndStr,
+          rapStart,
+          rapEnd,
+        });
+        continue;
+      }
+
       rapEnd.setHours(23, 59, 59, 999);
-      
-      const searchStart = new Date(Math.max(startDate.getTime(), rapStart.getTime()));
-      const searchEnd = new Date(Math.min(endDate.getTime(), rapEnd.getTime()));
-      
-      if (searchStart > searchEnd) continue;
-      
+
+      const searchStart = new Date(
+        Math.max(startDate.getTime(), rapStart.getTime())
+      );
+
+      const searchEnd = new Date(
+        Math.min(endDate.getTime(), rapEnd.getTime())
+      );
+
+      if (isNaN(searchStart.getTime()) || isNaN(searchEnd.getTime())) {
+        console.error("searchStart/searchEnd INVALIDO", {
+          codigoFicha: ficha.codigoFicha,
+          rap,
+          startDate,
+          endDate,
+          rapStart,
+          rapEnd,
+          searchStart,
+          searchEnd,
+        });
+        continue;
+      }
+
+      if (searchStart > searchEnd) {
+        console.warn("RAP fuera del rango buscado", {
+          codigoFicha: ficha.codigoFicha,
+          rap,
+          searchStart,
+          searchEnd,
+        });
+        continue;
+      }
+
+      const rawIdDia = Number(rap.idDia);
+
+      if (!Number.isInteger(rawIdDia) || rawIdDia < 1 || rawIdDia > 7) {
+        console.error("idDia INVALIDO EN RAP", {
+          codigoFicha: ficha.codigoFicha,
+          idDia: rap.idDia,
+          rap,
+        });
+        continue;
+      }
+
+      const targetDay = rawIdDia === 7 ? 0 : rawIdDia;
+
       let current = new Date(searchStart);
       current.setHours(0, 0, 0, 0);
-      
-      const targetDay = rap.idDia === 7 ? 0 : rap.idDia;
-      
+
+      console.log("Procesando RAP", {
+        codigoFicha: ficha.codigoFicha,
+        idHorario: rap.idHorario,
+        idDia: rap.idDia,
+        targetDay,
+        fechaInicial: rap.fechaInicial,
+        fechaFinal: rap.fechaFinal,
+        searchStart,
+        searchEnd,
+        current,
+      });
+
+      let safetyDaySearch = 0;
+
       while (current.getDay() !== targetDay) {
+        safetyDaySearch++;
+
+        if (safetyDaySearch > 7) {
+          console.error("LOOP DETENIDO buscando targetDay", {
+            codigoFicha: ficha.codigoFicha,
+            rap,
+            targetDay,
+            current,
+            searchEnd,
+          });
+          break;
+        }
+
         current.setDate(current.getDate() + 1);
       }
-      
+
+      if (current > searchEnd) {
+        console.warn("No hay dia valido dentro del rango", {
+          codigoFicha: ficha.codigoFicha,
+          rap,
+          targetDay,
+          current,
+          searchEnd,
+        });
+        continue;
+      }
+
+      let safetySessions = 0;
+
       while (current <= searchEnd) {
-        const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-        
+        safetySessions++;
+
+        if (safetySessions > 60) {
+          console.error("LOOP DETENIDO creando sesiones", {
+            codigoFicha: ficha.codigoFicha,
+            rap,
+            current,
+            searchEnd,
+            safetySessions,
+          });
+          break;
+        }
+
+        const dateStr = `${current.getFullYear()}-${String(
+          current.getMonth() + 1
+        ).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+
         sessions.push({
           id: `${rap.idHorario}-${dateStr}`,
           materia: rap.competencia || ficha.programaFormacion,
           fechaStr: dateStr,
           fechaObj: new Date(current),
-          horaInicial: rap.horaInicial ? rap.horaInicial.substring(0, 5) : '00:00',
-          horaFinal: rap.horaFinal ? rap.horaFinal.substring(0, 5) : '00:00',
-          estado: 'PENDIENTE',
-          profesor: '',
-          aula: `Ficha ${ficha.codigoFicha}`
+          horaInicial: rap.horaInicial ? rap.horaInicial.substring(0, 5) : "00:00",
+          horaFinal: rap.horaFinal ? rap.horaFinal.substring(0, 5) : "00:00",
+          estado: "PENDIENTE",
+          profesor: "",
+          aula: `Ficha ${ficha.codigoFicha}`,
         });
-        
+
         current.setDate(current.getDate() + 7);
       }
     }
   }
-  
+
   return sessions.sort((a, b) => {
     if (a.fechaStr !== b.fechaStr) return a.fechaStr.localeCompare(b.fechaStr);
     return a.horaInicial.localeCompare(b.horaInicial);
@@ -765,4 +878,5 @@ const ProfesoresContent: React.FC = () => {
     </div>
   );
 };
+
 export default ProfesoresContent;
