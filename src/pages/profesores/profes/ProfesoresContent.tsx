@@ -61,7 +61,7 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
   const endDate = new Date(year, month + 2, 0);
   
   for (const ficha of fichas) {
-    for (const rap of ficha.resultados) {
+    for (const rap of (Array.isArray(ficha.resultados) ? ficha.resultados : [])) {
       if (!rap.fechaInicial || !rap.fechaFinal) continue;
       
       const rapStartStr = rap.fechaInicial.includes('T') ? rap.fechaInicial : `${rap.fechaInicial}T00:00:00`;
@@ -111,7 +111,6 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
   });
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DIAS = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const FICHA_BG = [
@@ -141,13 +140,10 @@ function getTitulo(act: Actividad): string {
   return act.tituloActividad || act.titulo || act.nombre || "Sin nombre";
 }
 
-function getDescripcion(act: Actividad): string | undefined {
-  return act.descripcionActividad || act.descripcion;
-}
 
 // ─── REELS DATA & COMPONENT ──────────────────────────────────────────────────
 
-const MOCK_REELS = [
+const PROFESOR_REELS = [
   { id: 1, title: 'Tips para React', views: '1.2k', duration: '0:45', img: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=400&auto=format&fit=crop' },
   { id: 2, title: '¿Qué es Tailwind?', views: '850', duration: '1:00', img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop' },
   { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
@@ -155,7 +151,7 @@ const MOCK_REELS = [
   { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
 ];
 
-const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
+const ProfesorReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -208,8 +204,8 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
   const currentReel = reels[currentIndex];
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center animate-fade-in" onClick={onClose}>
-      <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[110]" onClick={onClose}>
+    <div className="fixed inset-0 bg-black z-[9999] flex items-center justify-center animate-fade-in" onClick={onClose}>
+      <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[10000]" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onClose(); }}>
         <KeenIcon icon="cross" className="text-3xl" />
       </button>
 
@@ -251,8 +247,6 @@ const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIn
   );
 };
 
-// ─── Main Component ────────────────────────────────────────────────────────────
-
 const ProfesoresContent: React.FC = () => {
   const { user, persona } = useAuthContext();
   const userName = persona
@@ -269,17 +263,21 @@ const ProfesoresContent: React.FC = () => {
   const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
   const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
 
-  // ── Fichas del instructor (endpoint autónomo, sin params) ───────────────
   useEffect(() => {
     axios.get("instructores/mi-dashboard")
       .then((r) => {
         const d = r.data?.fichas ?? r.data ?? [];
-        setFichas(Array.isArray(d) ? d : []);
+        const normalizadas = Array.isArray(d)
+          ? d.map((f: any) => ({
+              ...(f && typeof f === 'object' ? f : {}),
+              resultados: Array.isArray(f?.resultados) ? f.resultados : []
+            }))
+          : [];
+        setFichas(normalizadas);
       })
       .catch(() => setFichas([]));
   }, []);
 
-  // ── Actividades por evaluar ──────────────────────────────────────────
   useEffect(() => {
     axios.get("actividades-por-evaluar")
       .then((r) => {
@@ -289,7 +287,6 @@ const ProfesoresContent: React.FC = () => {
       .catch(() => setActividades([]));
   }, []);
 
-  // Filtramos para asegurar que solo se muestren las enviadas
   const actividadesPorEvaluar = useMemo(() =>
     actividades.filter(act => {
       const label = getEstadoLabel(act.estado);
@@ -298,24 +295,20 @@ const ProfesoresContent: React.FC = () => {
     [actividades]
   )
 
-  // ── KPIs ─────────────────────────────────────────────────────────────────
   const totalFichas = fichas.length;
-  const totalRAPs = fichas.reduce((a, f) => a + f.resultados.length, 0);
-  const totalSesiones = fichas.reduce((a, f) => a + f.resultados.reduce((b, r) => b + r.cantidadSesiones, 0), 0);
-  const totalHoras = fichas.reduce((a, f) => a + f.resultados.reduce((b, r) => b + r.duracionHoras, 0), 0);
+  const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
+  const totalSesiones = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.cantidadSesiones, 0) : 0), 0);
+  const totalHoras = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.duracionHoras, 0) : 0), 0);
 
-  // ── Fichas en formación y Paginación ─────────────────────────────────────
-  const fichasFormacion = useMemo(() => fichas.filter(f => f.resultados && f.resultados.length > 0), [fichas]);
+  const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
   const itemsPerPage = 4;
   const totalPages = Math.ceil(fichasFormacion.length / itemsPerPage);
   const currentFichas = fichasFormacion.slice((fichasPage - 1) * itemsPerPage, fichasPage * itemsPerPage);
 
-  // ── Conteos de Actividades ────────────────────────────────────────────────
   const vencidas = useMemo(() => actividades.filter(act => act.fechaFin && new Date(act.fechaFin) < new Date()).length, [actividades]);
   const pendientes = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'PENDIENTE').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
 
-  // ── Calendario ────────────────────────────────────────────────────────────
   const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
 
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
@@ -368,7 +361,7 @@ const ProfesoresContent: React.FC = () => {
         </div>
         <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-3 w-full">
           <div className="flex gap-3 overflow-x-auto pb-1">
-            {MOCK_REELS.map((reel, idx) => (
+            {PROFESOR_REELS.map((reel, idx) => (
               <div
                 key={reel.id}
                 onClick={() => setPlayingReelIndex(idx)}
@@ -708,8 +701,8 @@ const ProfesoresContent: React.FC = () => {
 
       {/* REELS VIEWER MODAL */}
       {playingReelIndex !== null && (
-        <ReelsViewer
-          reels={MOCK_REELS}
+        <ProfesorReelsViewer
+          reels={PROFESOR_REELS}
           initialIndex={playingReelIndex}
           onClose={() => setPlayingReelIndex(null)}
         />
