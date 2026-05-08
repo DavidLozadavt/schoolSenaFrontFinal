@@ -11,6 +11,9 @@ import { PersonaInterface } from '../contratacion/model/PersonaInterface';
 import { validationFieldPerson } from './utils/validationFieldPerson';
 import { Link } from 'react-router-dom';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
+import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
+import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
+import { getResolvedPersonaPhotoUrl } from '@/utils/profilePhotoUrl';
 
 interface FormErrors {
   [key: string]: string;
@@ -21,14 +24,13 @@ const PerfilPage = () => {
   const { persona, getUserAuthenticated, auth, roles } = authContext;
   const { enqueueSnackbar } = useSnackbar();
 
-  const defaultImage = toAbsoluteUrl('/media/avatars/300-35.png');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [tipoIdentificaciones, setTipoIdentificacion] = useState<TipoDocumentoInterface[]>([]);
   const [departamentos, setDepartamentos] = useState<any[]>([]);
   const [ciudades, setCiudades] = useState<any[]>([]);
   const [selectedFilePersona, setSelectedFilePersona] = useState<File | null>(null);
-  const [previewSrc, setPreviewSrc] = useState<string>(defaultImage);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -200,10 +202,8 @@ const PerfilPage = () => {
       const reader = new FileReader();
       reader.onloadend = () => setPreviewSrc(reader.result as string);
       reader.readAsDataURL(selectedFilePersona);
-    } else if (persona?.rutaFotoUrl) {
-      setPreviewSrc(persona.rutaFotoUrl);
     } else {
-      setPreviewSrc(defaultImage);
+      setPreviewSrc(getResolvedPersonaPhotoUrl(persona ?? undefined));
     }
   }, [selectedFilePersona, persona]);
 
@@ -434,6 +434,12 @@ const PerfilPage = () => {
     );
   };
 
+  const fotoPerfilAlt =
+    [persona?.nombre1, persona?.nombre2, persona?.apellido1, persona?.apellido2]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || 'Foto de perfil';
+
   return (
     <Container>
       <style>
@@ -451,10 +457,16 @@ const PerfilPage = () => {
       <div className="bg-center bg-cover bg-no-repeat hero-bg">
         <Container>
           <div className="flex flex-col items-center gap-2 lg:gap-3 py-4 lg:py-5">
-            <img
-              src={previewSrc}
-              className="w-[120px] h-[120px] rounded-full border-4 border-success object-cover"
-            />
+            {previewSrc ? (
+              <UserProfileAvatar
+                srcOverride={previewSrc}
+                variant="hero"
+                enableZoom
+                alt={fotoPerfilAlt}
+              />
+            ) : (
+              <MisActividadesAvatarFallback variant="hero" />
+            )}
             <div className="text-lg leading-5 font-semibold text-gray-800">
               {persona?.nombre1} {persona?.nombre2} {persona?.apellido1} {persona?.apellido2}
             </div>
@@ -632,8 +644,17 @@ const PerfilPage = () => {
             </div>
 
             <div className="basis-[35%] flex flex-col items-center justify-center gap-4">
-              <div className="w-48 h-48 border rounded-lg overflow-hidden shadow">
-                <img src={previewSrc} alt="Vista previa" className="w-full h-full object-cover" />
+              <div className="w-48 h-48 border rounded-lg overflow-hidden shadow flex items-center justify-center bg-gray-50 dark:bg-coal-500/20">
+                {previewSrc ? (
+                  <UserProfileAvatar
+                    srcOverride={previewSrc}
+                    variant="lg"
+                    enableZoom
+                    alt="Vista previa de la foto"
+                  />
+                ) : (
+                  <MisActividadesAvatarFallback variant="lg" />
+                )}
               </div>
               <div className="w-48">
                 <label className="block text-sm font-medium mb-2">Foto</label>
