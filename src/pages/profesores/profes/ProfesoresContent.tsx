@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useAuthContext } from "@/auth/useAuthContext";
 import { KeenIcon } from "@/components/keenicons";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface ResultadoPlano {
   idHorario: number;
   competencia: string;
@@ -40,6 +42,50 @@ interface Actividad {
   materia?: { nombreMateria?: string };
 }
 
+const toNum = (v: unknown): number => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const n = Number(String(v ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+};
+
+const toStr = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
+
+const normalizarResultado = (raw: any): ResultadoPlano => ({
+  idHorario: toNum(raw?.idHorario),
+  competencia: toStr(raw?.competencia),
+  resultadoAprendizaje: toStr(raw?.resultadoAprendizaje),
+  horaInicial: toStr(raw?.horaInicial),
+  horaFinal: toStr(raw?.horaFinal),
+  fechaInicial: toStr(raw?.fechaInicial),
+  fechaFinal: toStr(raw?.fechaFinal),
+  idDia: toNum(raw?.idDia),
+  duracionSesion: toNum(raw?.duracionSesion),
+  cantidadSesiones: toNum(raw?.cantidadSesiones),
+  duracionHoras: toNum(raw?.duracionHoras),
+});
+
+const normalizarFicha = (raw: any): Ficha => ({
+  idFicha: toNum(raw?.idFicha),
+  codigoFicha: toStr(raw?.codigoFicha),
+  programaFormacion: toStr(raw?.programaFormacion),
+  codigoPrograma: toStr(raw?.codigoPrograma),
+  resultados: Array.isArray(raw?.resultados) ? raw.resultados.map(normalizarResultado) : [],
+});
+
+const normalizarActividad = (raw: any): Actividad => ({
+  id: toNum(raw?.id ?? raw?.idActividad ?? raw?.idCalificacionActividad),
+  tituloActividad: toStr(raw?.tituloActividad),
+  nombre: toStr(raw?.nombre),
+  titulo: toStr(raw?.titulo),
+  descripcionActividad: toStr(raw?.descripcionActividad),
+  descripcion: toStr(raw?.descripcion),
+  estado: raw?.estado,
+  fechaInicio: toStr(raw?.fechaInicio),
+  fechaFin: toStr(raw?.fechaFin ?? raw?.fechaFinal),
+  tipo_actividad: raw?.tipo_actividad,
+  materia: raw?.materia,
+});
+
 interface UpcomingSession {
   id: string;
   materia: string;
@@ -69,6 +115,8 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
       
       const rapStart = new Date(rapStartStr);
       const rapEnd = new Date(rapEndStr);
+      if (Number.isNaN(rapStart.getTime()) || Number.isNaN(rapEnd.getTime())) continue;
+      if (rap.idDia < 1 || rap.idDia > 7) continue;
       rapEnd.setHours(23, 59, 59, 999);
       
       const searchStart = new Date(Math.max(startDate.getTime(), rapStart.getTime()));
@@ -111,6 +159,7 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
   });
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DIAS = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const FICHA_BG = [
@@ -203,6 +252,8 @@ const ProfesorReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], i
 
   const currentReel = reels[currentIndex];
 
+  if (!currentReel) return null;
+
   return (
     <div className="fixed inset-0 bg-black z-[9999] flex items-center justify-center animate-fade-in" onClick={onClose}>
       <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[10000]" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onClose(); }}>
@@ -247,6 +298,8 @@ const ProfesorReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], i
   );
 };
 
+// ─── Main Component ────────────────────────────────────────────────────────────
+
 const ProfesoresContent: React.FC = () => {
   const { user, persona } = useAuthContext();
   const userName = persona
@@ -263,30 +316,28 @@ const ProfesoresContent: React.FC = () => {
   const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
   const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
 
+  // ── Fichas del instructor (endpoint autónomo, sin params) ───────────────
   useEffect(() => {
     axios.get("instructores/mi-dashboard")
       .then((r) => {
         const d = r.data?.fichas ?? r.data ?? [];
-        const normalizadas = Array.isArray(d)
-          ? d.map((f: any) => ({
-              ...(f && typeof f === 'object' ? f : {}),
-              resultados: Array.isArray(f?.resultados) ? f.resultados : []
-            }))
-          : [];
+        const normalizadas = Array.isArray(d) ? d.map(normalizarFicha) : [];
         setFichas(normalizadas);
       })
       .catch(() => setFichas([]));
   }, []);
 
+  // ── Actividades por evaluar ──────────────────────────────────────────
   useEffect(() => {
     axios.get("actividades-por-evaluar")
       .then((r) => {
         const d = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
-        setActividades(d);
+        setActividades(Array.isArray(d) ? d.map(normalizarActividad) : []);
       })
       .catch(() => setActividades([]));
   }, []);
 
+  // Filtramos para asegurar que solo se muestren las enviadas
   const actividadesPorEvaluar = useMemo(() =>
     actividades.filter(act => {
       const label = getEstadoLabel(act.estado);
@@ -295,20 +346,24 @@ const ProfesoresContent: React.FC = () => {
     [actividades]
   )
 
+  // ── KPIs ─────────────────────────────────────────────────────────────────
   const totalFichas = fichas.length;
   const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
   const totalSesiones = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.cantidadSesiones, 0) : 0), 0);
   const totalHoras = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.reduce((b, r) => b + r.duracionHoras, 0) : 0), 0);
 
+  // ── Fichas en formación y Paginación ─────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
   const itemsPerPage = 4;
   const totalPages = Math.ceil(fichasFormacion.length / itemsPerPage);
   const currentFichas = fichasFormacion.slice((fichasPage - 1) * itemsPerPage, fichasPage * itemsPerPage);
 
+  // ── Conteos de Actividades ────────────────────────────────────────────────
   const vencidas = useMemo(() => actividades.filter(act => act.fechaFin && new Date(act.fechaFin) < new Date()).length, [actividades]);
   const pendientes = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'PENDIENTE').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
 
+  // ── Calendario ────────────────────────────────────────────────────────────
   const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
 
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
@@ -422,7 +477,7 @@ const ProfesoresContent: React.FC = () => {
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <Link 
-            to={fichas.length > 0 && fichas[0].resultados.length > 0 ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/actividades"} 
+            to={fichas[0]?.resultados?.[0]?.idHorario ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/actividades"} 
             state={{ activeMenu: 'actividades-asignadas' }}
             className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all duration-300 p-2 rounded-xl group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
           >
@@ -492,8 +547,8 @@ const ProfesoresContent: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                          {ficha.resultados.map((rap) => (
-                            <tr key={rap.idHorario} className="hover:bg-gray-50/80 dark:hover:bg-coal-300/30 transition-colors">
+                          {ficha.resultados.map((rap, ri) => (
+                            <tr key={`${rap.idHorario}-${ri}`} className="hover:bg-gray-50/80 dark:hover:bg-coal-300/30 transition-colors">
                               <td className="px-4 py-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400 max-w-[180px]"><span className="line-clamp-2">{rap.competencia || "—"}</span></td>
                               <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[220px]"><span className="line-clamp-2">{rap.resultadoAprendizaje || "—"}</span></td>
                               <td className="px-4 py-3"><span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase">{DIAS[rap.idDia] || "—"}</span></td>
