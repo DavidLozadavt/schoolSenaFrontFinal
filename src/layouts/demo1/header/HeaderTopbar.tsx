@@ -8,6 +8,7 @@ import { DropdownChat } from '@/partials/dropdowns/chat';
 import { ModalSearch } from '@/partials/modals/search/ModalSearch';
 import { useAuthContext } from '@/auth';
 import axios from 'axios';
+import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
 
 const HeaderTopbar = () => {
   const itemChatRef = useRef<any>(null);
@@ -183,11 +184,7 @@ const HeaderTopbar = () => {
         >
           <MenuToggle>
             <div className="btn btn-icon rounded-full">
-              <img
-                className="size-9 rounded-full border-2 border-success shrink-0"
-                src={persona?.rutaFotoUrl}
-                alt=""
-              />
+              <UserProfileAvatar persona={persona ?? undefined} variant="sm" alt="" />
             </div>
           </MenuToggle>
           {DropdownUser()}

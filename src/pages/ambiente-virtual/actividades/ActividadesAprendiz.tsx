@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { KeenIcon, ImageZoomModal, Toast } from '@/components';
+import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 
@@ -733,13 +734,7 @@ const AvatarCreadorActividad: React.FC<{
   }, [src]);
 
   if (!src || broken) {
-    return (
-      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white shrink-0">
-        <div className="w-10 h-10 rounded-full border-2 border-dashed border-primary flex items-center justify-center text-primary">
-          <KeenIcon icon="user" className="text-base" />
-        </div>
-      </div>
-    );
+    return <MisActividadesAvatarFallback variant="md" />;
   }
 
   return (
