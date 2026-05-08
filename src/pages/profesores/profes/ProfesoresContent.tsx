@@ -4,8 +4,6 @@ import { Link } from "react-router-dom";
 import { useAuthContext } from "@/auth/useAuthContext";
 import { KeenIcon } from "@/components/keenicons";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface ResultadoPlano {
   idHorario: number;
   competencia: string;
@@ -360,6 +358,52 @@ const ProfesoresContent: React.FC = () => {
         </p>
       </header>
 
+      {/* ══ REELS SECTION (Full width) ══ */}
+      <section className="w-full space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1 h-5 bg-red-500 rounded-full"></div>
+          <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
+            Cápsulas SENA
+          </h2>
+        </div>
+        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-3 w-full">
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {MOCK_REELS.map((reel, idx) => (
+              <div
+                key={reel.id}
+                onClick={() => setPlayingReelIndex(idx)}
+                className="relative shrink-0 w-[112px] sm:w-[128px] md:w-[140px] aspect-[9/16] rounded-xl overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
+              >
+                <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
+                    <KeenIcon icon="play" className="text-lg ml-1" />
+                  </div>
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                  <h4 className="text-white font-bold text-[11px] leading-tight mb-1">{reel.title}</h4>
+                  <div className="text-white/70 text-[10px] font-semibold">{reel.duration}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ EVENTOS SECTION (Blank placeholder) ══ */}
+      <section className="w-full space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1 h-5 bg-emerald-500 rounded-full"></div>
+          <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
+            Eventos
+          </h2>
+        </div>
+        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-dashed border-gray-200 dark:border-gray-700 min-h-[130px] w-full"></div>
+      </section>
+
       {/* ══ KPI General ══ */}
       <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-blue-200 dark:border-blue-900/50 p-5 w-full mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 md:gap-8">
@@ -569,38 +613,6 @@ const ProfesoresContent: React.FC = () => {
             </div>
           </div>
 
-          {/* REELS SECTION */}
-          <div className="flex flex-col mt-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-5 bg-red-500 rounded-full"></div>
-              <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
-                Cápsulas SENA
-              </h2>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
-              {MOCK_REELS.map((reel, idx) => (
-                <div
-                  key={reel.id}
-                  onClick={() => setPlayingReelIndex(idx)}
-                  className="relative w-36 sm:w-44 aspect-[9/16] rounded-2xl shrink-0 snap-start overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
-                >
-                  <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
-                      <KeenIcon icon="play" className="text-lg ml-1" />
-                    </div>
-                  </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <h4 className="text-white font-bold text-xs leading-tight mb-1">{reel.title}</h4>
-                    <div className="text-white/70 text-[10px] font-semibold">{reel.duration}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* RIGHT COLUMN: Actividades */}
