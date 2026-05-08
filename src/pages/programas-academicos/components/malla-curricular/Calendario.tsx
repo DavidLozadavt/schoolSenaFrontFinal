@@ -224,28 +224,24 @@ export const Calendario: React.FC<CalendarioProps> = ({
         });
 
         if (existing) {
-          // Si ya existe este slot, agregamos el instructor y asignación extra
+          // Si ya existe este slot, agregamos instructor(es) y asignación(es) extra
           if (!existing.allInstructors) {
             existing.allInstructors = [existing.instructor || existing.contrato?.persona];
           }
           const currentInstructor = ev.instructor || ev.contrato?.persona;
-          if (currentInstructor) {
-            existing.allInstructors.push(currentInstructor);
-          }
-          
+          if (currentInstructor) existing.allInstructors.push(currentInstructor);
+
           if (!existing.allAssignments) {
             existing.allAssignments = existing.activeAsignacion ? [existing.activeAsignacion] : [];
           }
-          if (ev.activeAsignacion) {
-            existing.allAssignments.push(ev.activeAsignacion);
-          }
-          
-          // Marcar como compartido para visualización
-          existing.isSharedSlot = true;
+          if (ev.activeAsignacion) existing.allAssignments.push(ev.activeAsignacion);
+
+          // Determinar si realmente es un slot compartido: al menos 2 instructores o 1+ asignaciones
+          existing.isSharedSlot = (existing.allAssignments?.length || 0) > 0 || (existing.allInstructors?.length || 0) > 1;
         } else {
           ev.allInstructors = [ev.instructor || ev.contrato?.persona];
           ev.allAssignments = ev.activeAsignacion ? [ev.activeAsignacion] : [];
-          ev.isSharedSlot = ev.activeAsignacion ? true : false;
+          ev.isSharedSlot = (ev.allAssignments?.length || 0) > 0 || (ev.allInstructors?.length || 0) > 1;
           grouped.push(ev);
         }
       });
@@ -474,7 +470,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
                               </div>
                               {ev.isSharedSlot && (
                                 <div className="text-[7px] text-primary-active mt-0.5 uppercase font-black">
-                                  {ev.allAssignments[0].tipoAsignacion}
+                                  {ev.allAssignments?.[0]?.tipoAsignacion || ''}
                                 </div>
                               )}
                             </div>
@@ -523,12 +519,12 @@ export const Calendario: React.FC<CalendarioProps> = ({
                                 {/* Instructor Secundario / Compartido */}
                                 {ev.isSharedSlot && ev.allAssignments && ev.allAssignments.length > 0 && (
                                   <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: carouselIndex === 1 ? 1 : 0 }}>
-                                    {(ev.allAssignments[0].contrato?.persona?.rutaFotoUrl || ev.allAssignments[0].contrato?.persona?.rutaFoto) ? (
-                                      <img src={ev.allAssignments[0].contrato.persona.rutaFotoUrl || ev.allAssignments[0].contrato.persona.rutaFoto} alt="" className="w-full h-full object-cover" />
+                                    {(ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto) ? (
+                                      <img src={ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
                                     )}
-                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.allAssignments[0].tipoAsignacion}</div>
+                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.allAssignments?.[0]?.tipoAsignacion || ''}</div>
                                   </div>
                                 )}
 
