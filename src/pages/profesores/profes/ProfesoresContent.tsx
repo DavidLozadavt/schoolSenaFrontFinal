@@ -20,103 +20,6 @@ interface ResultadoPlano {
   duracionHoras: number;
 }
 
-function toIsoStartDate(date: string): string {
-  return date.includes('T') ? date : `${date}T00:00:00`;
-}
-
-function safeDate(date: string): Date | null {
-  const d = new Date(toIsoStartDate(date));
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function parseIdDia(idDia: unknown): number | null {
-  const raw = Number(idDia);
-  if (!Number.isInteger(raw) || raw < 1 || raw > 7) return null;
-  // En data: 1..7 (7 = Domingo). En JS Date: 0..6 (0 = Domingo).
-  return raw === 7 ? 0 : raw;
-}
-
-function computeWeeklyOccurrencesInclusive(start: Date, end: Date, targetDay: number): number {
-  // Calcula cuántas veces cae targetDay entre start..end inclusive.
-  // start/end se asumen válidos.
-  const s = new Date(start);
-  const e = new Date(end);
-  s.setHours(0, 0, 0, 0);
-  e.setHours(23, 59, 59, 999);
-
-  // Avanzar hasta el primer día objetivo dentro del rango.
-  let current = new Date(s);
-  let guard = 0;
-  while (current.getDay() !== targetDay && current <= e) {
-    current.setDate(current.getDate() + 1);
-    guard++;
-    if (guard > 7) break;
-  }
-  if (current > e) return 0;
-
-  // Contar cada 7 días.
-  let count = 0;
-  guard = 0;
-  while (current <= e) {
-    count++;
-    current.setDate(current.getDate() + 7);
-    guard++;
-    if (guard > 400) break; // safety (≈ >7 años)
-  }
-  return count;
-}
-
-function computeHorasFromHoraStrings(horaInicial?: string, horaFinal?: string): number | null {
-  // Intenta derivar duración por sesión desde hh:mm:ss.
-  if (!horaInicial || !horaFinal) return null;
-  const [hi, mi] = horaInicial.split(':').map((x) => Number(x));
-  const [hf, mf] = horaFinal.split(':').map((x) => Number(x));
-  if ([hi, mi, hf, mf].some((n) => Number.isNaN(n))) return null;
-  const startMin = hi * 60 + mi;
-  const endMin = hf * 60 + mf;
-  const diff = endMin - startMin;
-  if (diff <= 0) return null;
-  return diff / 60;
-}
-
-function deriveSesionesYHoras(rap: Pick<ResultadoPlano, 'fechaInicial' | 'fechaFinal' | 'idDia' | 'duracionSesion' | 'cantidadSesiones' | 'duracionHoras' | 'horaInicial' | 'horaFinal'>): {
-  cantidadSesiones: number;
-  duracionHoras: number;
-} {
-  const cantidadFromApi = Number(rap.cantidadSesiones ?? 0);
-  const horasFromApi = Number(rap.duracionHoras ?? 0);
-
-  // Si backend ya trae valores > 0, respetarlos.
-  if (cantidadFromApi > 0 && horasFromApi > 0) {
-    return { cantidadSesiones: cantidadFromApi, duracionHoras: horasFromApi };
-  }
-
-  const start = safeDate(rap.fechaInicial);
-  const end = safeDate(rap.fechaFinal);
-  const targetDay = parseIdDia(rap.idDia);
-  if (!start || !end || targetDay === null) {
-    return {
-      cantidadSesiones: Math.max(0, cantidadFromApi),
-      duracionHoras: Math.max(0, horasFromApi)
-    };
-  }
-
-  const sesiones = computeWeeklyOccurrencesInclusive(start, end, targetDay);
-
-  // Duración por sesión: preferir duracionSesion (horas), si no, derivar de horaInicial/horaFinal.
-  const duracionSesionHoras =
-    Number(rap.duracionSesion ?? 0) > 0
-      ? Number(rap.duracionSesion)
-      : computeHorasFromHoraStrings(rap.horaInicial, rap.horaFinal) ?? 0;
-
-  const horas = sesiones * (duracionSesionHoras > 0 ? duracionSesionHoras : 0);
-
-  return {
-    cantidadSesiones: sesiones,
-    duracionHoras: horas
-  };
-}
-
 interface Ficha {
   idFicha: number;
   codigoFicha: string;
@@ -270,7 +173,7 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
 
       const rawIdDia = Number(rap.idDia);
 
-      if (!Number.isInteger(rawIdDia) || rawIdDia < 1 || rawIdDia > 7) {
+      if (!Number.isInteger(rawIdDia) || rawIdDia < 0 || rawIdDia > 7) {
         console.error("idDia INVALIDO EN RAP", {
           codigoFicha: ficha.codigoFicha,
           idDia: rap.idDia,
@@ -283,18 +186,6 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
 
       let current = new Date(searchStart);
       current.setHours(0, 0, 0, 0);
-
-      console.log("Procesando RAP", {
-        codigoFicha: ficha.codigoFicha,
-        idHorario: rap.idHorario,
-        idDia: rap.idDia,
-        targetDay,
-        fechaInicial: rap.fechaInicial,
-        fechaFinal: rap.fechaFinal,
-        searchStart,
-        searchEnd,
-        current,
-      });
 
       let safetyDaySearch = 0;
 
@@ -388,6 +279,127 @@ const FICHA_TEXT = [
 ];
 
 function fmtH(h: string) { return h ? h.substring(0, 5) : "-"; }
+
+function getDiaLabel(idDia: unknown): string {
+  const d = toNum(idDia);
+  if (d === 0 || d === 7) return "Dom";
+  return DIAS[d] || "—";
+}
+
+function parseLocalDate(value: unknown, endOfDay = false): Date | null {
+  const raw = toStr(value).trim();
+  if (!raw) return null;
+
+  const date = new Date(raw.includes("T") ? raw : `${raw}T${endOfDay ? "23:59:59" : "00:00:00"}`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (endOfDay) date.setHours(23, 59, 59, 999);
+  else date.setHours(0, 0, 0, 0);
+
+  return date;
+}
+
+function diffHoras(horaInicial: unknown, horaFinal: unknown): number {
+  const parseTime = (value: unknown): number | null => {
+    const raw = toStr(value).trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const start = parseTime(horaInicial);
+  const end = parseTime(horaFinal);
+
+  if (start === null || end === null) return 0;
+
+  let diff = end - start;
+  if (diff < 0) diff += 24 * 60;
+
+  return Math.max(0, diff / 60);
+}
+
+function deriveSesionesYHoras(rap: ResultadoPlano, baseDate = new Date()) {
+  const backendSesiones = toNum(rap.cantidadSesiones);
+  const backendHoras = toNum(rap.duracionHoras);
+
+  if (backendSesiones > 0 || backendHoras > 0) {
+    return {
+      cantidadSesiones: backendSesiones,
+      duracionHoras: backendHoras,
+    };
+  }
+
+  const rapStart = parseLocalDate(rap.fechaInicial);
+  const rapEnd = parseLocalDate(rap.fechaFinal, true);
+
+  if (!rapStart || !rapEnd) {
+    return {
+      cantidadSesiones: backendSesiones,
+      duracionHoras: backendHoras,
+    };
+  }
+
+  const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const monthEnd = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+  monthEnd.setHours(23, 59, 59, 999);
+
+  const desde = new Date(Math.max(monthStart.getTime(), rapStart.getTime()));
+  const hasta = new Date(Math.min(monthEnd.getTime(), rapEnd.getTime()));
+
+  if (Number.isNaN(desde.getTime()) || Number.isNaN(hasta.getTime()) || desde > hasta) {
+    return {
+      cantidadSesiones: backendSesiones,
+      duracionHoras: backendHoras,
+    };
+  }
+
+  const rawIdDia = toNum(rap.idDia);
+
+  if (!Number.isInteger(rawIdDia) || rawIdDia < 0 || rawIdDia > 7) {
+    return {
+      cantidadSesiones: backendSesiones,
+      duracionHoras: backendHoras,
+    };
+  }
+
+  const targetDay = rawIdDia === 7 ? 0 : rawIdDia;
+  const duracionSesion = toNum(rap.duracionSesion) || diffHoras(rap.horaInicial, rap.horaFinal);
+
+  let current = new Date(desde);
+  current.setHours(0, 0, 0, 0);
+
+  let safetyDaySearch = 0;
+
+  while (current.getDay() !== targetDay && current <= hasta) {
+    safetyDaySearch++;
+
+    if (safetyDaySearch > 7) break;
+    current.setDate(current.getDate() + 1);
+  }
+
+  let cantidadSesiones = 0;
+  let safetySessions = 0;
+
+  while (current <= hasta) {
+    safetySessions++;
+
+    if (safetySessions > 60) break;
+    cantidadSesiones++;
+    current.setDate(current.getDate() + 7);
+  }
+
+  return {
+    cantidadSesiones,
+    duracionHoras: Number((cantidadSesiones * duracionSesion).toFixed(2)),
+  };
+}
 
 function getEstadoLabel(estado: Actividad["estado"]): string {
   if (!estado) return "SIN ESTADO";
@@ -559,9 +571,6 @@ const ProfesoresContent: React.FC = () => {
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const totalFichas = fichas.length;
   const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
-
-  // En producción algunos backends devuelven cantidadSesiones/duracionHoras en 0 aunque haya fechas/idDia.
-  // Derivamos valores si vienen en 0 para que KPIs y calendario sean consistentes.
   const totalSesiones = fichas.reduce(
     (a, f) =>
       a +
@@ -614,13 +623,32 @@ const ProfesoresContent: React.FC = () => {
     return map;
   }, [upcomingSessions]);
 
-  const weeklySessions = useMemo(() => {
+  const currentWeekRange = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(today);
-    endOfWeek.setDate(today.getDate() + 7);
-    return upcomingSessions.filter(s => s.fechaObj >= today && s.fechaObj <= endOfWeek);
-  }, [upcomingSessions]);
+
+    const day = today.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    const start = new Date(today);
+    start.setDate(today.getDate() + diffToMonday);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const label = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+
+    return { start, end, label };
+  }, []);
+
+  const weeklySessions = useMemo(() => {
+    const currentWeekSessions = getInstructorSessions(fichas, new Date());
+    return currentWeekSessions.filter(
+      (s) => s.fechaObj >= currentWeekRange.start && s.fechaObj <= currentWeekRange.end
+    );
+  }, [fichas, currentWeekRange]);
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-screen">
@@ -676,7 +704,17 @@ const ProfesoresContent: React.FC = () => {
             Eventos
           </h2>
         </div>
-        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-dashed border-gray-200 dark:border-gray-700 min-h-[130px] w-full"></div>
+        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-dashed border-gray-200 dark:border-gray-700 min-h-[130px] w-full flex flex-col items-center justify-center text-center px-4">
+          <div className="w-11 h-11 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-3 text-emerald-600 dark:text-emerald-400">
+            <KeenIcon icon="calendar" className="text-xl" />
+          </div>
+          <p className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wide">
+            Funcionalidad aún no disponible
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Próximamente podrás consultar eventos desde este apartado.
+          </p>
+        </div>
       </section>
 
       {/* ══ KPI General ══ */}
@@ -733,8 +771,20 @@ const ProfesoresContent: React.FC = () => {
 
         {currentFichas.map((ficha, fi) => {
           const isOpen = expanded[ficha.idFicha];
-          const horasF = ficha.resultados.reduce((a, r) => a + r.duracionHoras, 0);
-          const sesF = ficha.resultados.reduce((a, r) => a + r.cantidadSesiones, 0);
+
+          const resultadosCalculados = ficha.resultados.map((rap) => {
+            const calculado = deriveSesionesYHoras(rap);
+
+            return {
+              ...rap,
+              cantidadSesionesCalculada: calculado.cantidadSesiones,
+              duracionHorasCalculada: calculado.duracionHoras,
+            };
+          });
+
+          const horasF = resultadosCalculados.reduce((a, r) => a + r.duracionHorasCalculada, 0);
+          const sesF = resultadosCalculados.reduce((a, r) => a + r.cantidadSesionesCalculada, 0);
+
           return (
             <div key={ficha.idFicha} className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden">
               <button
@@ -774,14 +824,14 @@ const ProfesoresContent: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                          {ficha.resultados.map((rap, ri) => (
+                          {resultadosCalculados.map((rap, ri) => (
                             <tr key={`${rap.idHorario}-${ri}`} className="hover:bg-gray-50/80 dark:hover:bg-coal-300/30 transition-colors">
                               <td className="px-4 py-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400 max-w-[180px]"><span className="line-clamp-2">{rap.competencia || "—"}</span></td>
                               <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[220px]"><span className="line-clamp-2">{rap.resultadoAprendizaje || "—"}</span></td>
-                              <td className="px-4 py-3"><span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase">{DIAS[rap.idDia] || "—"}</span></td>
+                              <td className="px-4 py-3"><span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase">{getDiaLabel(rap.idDia)}</span></td>
                               <td className="px-4 py-3 font-mono text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-coal-500/30 rounded">{fmtH(rap.horaInicial)} - {fmtH(rap.horaFinal)}</td>
-                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-extrabold text-xs">{rap.cantidadSesiones}</span></td>
-                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-10 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-extrabold text-xs">{rap.duracionHoras.toFixed(1)}h</span></td>
+                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-extrabold text-xs">{rap.cantidadSesionesCalculada}</span></td>
+                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-10 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-extrabold text-xs">{rap.duracionHorasCalculada.toFixed(1)}h</span></td>
                             </tr>
                           ))}
                         </tbody>
@@ -802,10 +852,10 @@ const ProfesoresContent: React.FC = () => {
         )}
       </section>
 
-      {/* ══ BOTTOM GRID: Calendar & Reels (Left) / Actividades (Right) ══ */}
+      {/* ══ BOTTOM GRID: Calendario (Left) / Actividades (Right) ══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
         
-        {/* LEFT COLUMN: Calendar and Reels */}
+        {/* LEFT COLUMN: Calendar */}
         <div className="space-y-8 border-r-0 lg:border-r border-gray-200 dark:border-gray-700 lg:pr-8">
           
           {/* CALENDARIO */}
@@ -839,10 +889,43 @@ const ProfesoresContent: React.FC = () => {
                       const daySessions = sessionsByDate[dateStr] || [];
                       const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
                       return (
-                        <div key={day} className={`relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer group ${isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-coal-500 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-coal-500/50 font-bold" : ""}`}>
+                        <div
+                          key={day}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-blue-900/20 font-bold" : ""}`}
+                        >
                           <span className="z-10">{day}</span>
                           {daySessions.length > 0 && (
-                            <div className="absolute bottom-1.5 flex gap-1 z-10">{daySessions.slice(0, 3).map((_, i) => <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />)}</div>
+                            <>
+                              <div className="absolute bottom-1.5 flex gap-1 z-10">
+                                {daySessions.slice(0, 3).map((_, i) => (
+                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />
+                                ))}
+                              </div>
+
+                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del día</p>
+                                  <p className="mt-0.5 text-sm font-extrabold">
+                                    {new Date(year, month, day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                  </p>
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto p-3">
+                                  {daySessions.map((s) => (
+                                    <div key={s.id} className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400">
+                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
+                                        <KeenIcon icon="time" className="text-xs" />
+                                        <span>{s.horaInicial} - {s.horaFinal}</span>
+                                      </div>
+                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">{s.materia}</p>
+                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{s.aula}</p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
+                              </div>
+                            </>
                           )}
                         </div>
                       );
@@ -852,7 +935,10 @@ const ProfesoresContent: React.FC = () => {
               ) : (
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Próximos 7 días</h3>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Semana actual</h3>
+                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5">{currentWeekRange.label}</p>
+                    </div>
                     <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">{weeklySessions.length} clases</span>
                   </div>
                   {weeklySessions.length > 0 ? (
@@ -937,7 +1023,7 @@ const ProfesoresContent: React.FC = () => {
                       <KeenIcon icon="check-circle" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por Calificar</p>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por revisar</p>
                       <p className="text-[10px] text-gray-500 mt-0.5">Entregas listas para revisar</p>
                     </div>
                   </div>
@@ -963,7 +1049,7 @@ const ProfesoresContent: React.FC = () => {
                         <p className="text-[10px] text-gray-500 line-clamp-1 mb-2">{act.materia?.nombreMateria || 'Sin materia asignada'}</p>
                         <div className="flex items-center justify-between text-[9px] font-semibold text-gray-400">
                           <span className="flex items-center gap-1"><KeenIcon icon="calendar" className="text-[10px]" /> {act.fechaFin ? new Date(act.fechaFin).toLocaleDateString() : 'Sin fecha'}</span>
-                          <Link to="/ambiente-virtual/actividades" className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">Calificar →</Link>
+                          
                         </div>
                       </div>
                     ))}
