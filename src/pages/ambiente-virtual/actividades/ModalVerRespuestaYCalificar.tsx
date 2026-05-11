@@ -3,6 +3,8 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import type { AprendizCalificacion } from './ModalAprendices';
+import ModalCorregirActividadAprendiz from './ModalCorregirActividadAprendiz';
+import ModalAmpliarPlazoAprendiz from './ModalAmpliarPlazoAprendiz';
 
 const getDocumentUrl = (path: string | undefined): string | null => {
   if (!path) return null;
@@ -21,6 +23,14 @@ const getFileName = (path: string | undefined): string => {
   } catch {
     return base || 'archivo';
   }
+};
+
+const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÓN]';
+
+const stripMarcaCorreccionDocente = (s: string | null | undefined): string => {
+  const t = (s ?? '').trim();
+  if (!t.startsWith(MARCA_SOLICITUD_CORRECCION)) return (s ?? '').trim();
+  return t.slice(MARCA_SOLICITUD_CORRECCION.length).replace(/^\s*\r?\n/, '').trim();
 };
 
 const pickFileNameFromContentDisposition = (headerValue: string | null | undefined): string | null => {
@@ -73,11 +83,15 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
   const [calificacion, setCalificacion] = useState<string>('');
   const [comentario, setComentario] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [modalCorregirOpen, setModalCorregirOpen] = useState(false);
+  const [modalAmpliarPlazoOpen, setModalAmpliarPlazoOpen] = useState(false);
 
   useEffect(() => {
     if (open && aprendiz) {
       setCalificacion(aprendiz.calificacionNumerica != null ? String(aprendiz.calificacionNumerica) : '');
-      setComentario(aprendiz.ComentarioDocente || '');
+      setComentario(stripMarcaCorreccionDocente(aprendiz.ComentarioDocente));
+      setModalCorregirOpen(false);
+      setModalAmpliarPlazoOpen(false);
     }
   }, [open, aprendiz]);
 
@@ -114,6 +128,22 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
   const tieneEvidencia = !!(String(aprendiz.archivo ?? '').trim() || String(aprendiz.ComentarioEstudiante ?? '').trim());
   const puedeCalificar = !requiereEvidencia || tieneEvidencia;
 
+  const esCuestionarioTipo = (tipoActividad || '').toLowerCase().trim() === 'cuestionario';
+  const estadoAp = aprendiz.estado;
+  const comDocRaw = (aprendiz.ComentarioDocente ?? '').trim();
+  const pendienteCorreccion =
+    estadoAp === 'CORRECCION_SOLICITADA' || comDocRaw.startsWith(MARCA_SOLICITUD_CORRECCION);
+  /**
+   * Corregir: marca corrección + fecha/motivo (solicitar-correccion). Requiere evidencia previa salvo que ya esté en corrección.
+   */
+  const mostrarBotonCorregir =
+    !esCuestionarioTipo &&
+    estadoAp !== 'CALIFICADO' &&
+    (pendienteCorreccion || tieneEvidencia);
+
+  /** Ampliar: solo fecha límite individual (ampliar-plazo-individual), sin estado “Corrección solicitada”. */
+  const mostrarBotonAmpliarPlazoIndividual = !esCuestionarioTipo && estadoAp !== 'CALIFICADO';
+
   const handleDownload = async () => {
     try {
       const resp = await axios.get(`calificacion-actividad/${aprendiz.idCalificacionActividad}/descargar-archivo`, {
@@ -129,6 +159,7 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
   };
 
   return (
+    <>
     <Modal open={open} onClose={onClose} zIndex={120}>
       <ModalContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <ModalHeader>
@@ -222,6 +253,16 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
               </p>
             </div>
           )}
+          {pendienteCorreccion && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-800 dark:bg-red-950/30">
+              <p className="text-sm text-red-900 dark:text-red-100">
+                Esta entrega está en corrección: el aprendiz puede actualizar la evidencia mientras el plazo individual esté
+                vigente. Use <strong>Corregir actividad</strong> para ajustar fecha u observaciones de la corrección, o{' '}
+                <strong>Ampliar plazo del aprendiz</strong> si solo necesita más tiempo <span className="font-medium">sin</span>{' '}
+                volver a marcar corrección.
+              </p>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Calificación numérica (1 a 5, a criterio del instructor)
@@ -249,6 +290,27 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
             />
           </div>
 
+          <div className="flex flex-wrap gap-2 pt-1">
+            {mostrarBotonCorregir && (
+              <button
+                type="button"
+                onClick={() => setModalCorregirOpen(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-blue-600 text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/25 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-900/35"
+              >
+                Corregir actividad
+              </button>
+            )}
+            {mostrarBotonAmpliarPlazoIndividual && (
+              <button
+                type="button"
+                onClick={() => setModalAmpliarPlazoOpen(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-500 text-gray-800 bg-gray-50 hover:bg-gray-100 dark:bg-coal-600 dark:border-gray-500 dark:text-gray-200 dark:hover:bg-coal-500"
+              >
+                Ampliar plazo del aprendiz
+              </button>
+            )}
+          </div>
+
           <div className="flex gap-2 justify-end pt-2">
             <button
               className="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800"
@@ -267,6 +329,21 @@ const ModalVerRespuestaYCalificar: React.FC<ModalVerRespuestaYCalificarProps> = 
         </ModalBody>
       </ModalContent>
     </Modal>
+    <ModalCorregirActividadAprendiz
+      open={modalCorregirOpen}
+      onClose={() => setModalCorregirOpen(false)}
+      aprendiz={aprendiz}
+      onSaved={onCalificado}
+      onSuccess={onSuccess}
+    />
+    <ModalAmpliarPlazoAprendiz
+      open={modalAmpliarPlazoOpen}
+      onClose={() => setModalAmpliarPlazoOpen(false)}
+      aprendiz={aprendiz}
+      onSaved={onCalificado}
+      onSuccess={onSuccess}
+    />
+    </>
   );
 };
 

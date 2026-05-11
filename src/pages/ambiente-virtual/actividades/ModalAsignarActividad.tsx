@@ -4,7 +4,11 @@ import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
 import Select from 'react-select';
 import type { Actividad } from './ModalCrearActividad';
-import { compactReactSelectClassNames, compactReactSelectNoOptions, normalizeText } from '@/components/forms/compactReactSelect';
+import {
+  compactReactSelectClassNames,
+  compactReactSelectNoOptions,
+  filterOptionNormalized
+} from '@/components/forms/compactReactSelect';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
@@ -30,6 +34,7 @@ interface Aprendiz {
   nombre: string;
   identificacion?: string | null;
   nombreCompleto?: string | null;
+  email?: string | null;
   /** Misma ruta de storage que otras pantallas; opcional. */
   rutaFoto?: string | null;
 }
@@ -42,12 +47,6 @@ interface Grupo {
 }
 
 type SelectOption = { value: string; label: string };
-
-const filterOptionNormalized = (haystack: Array<unknown>, rawInput: string): boolean => {
-  const q = normalizeText(rawInput);
-  if (!q) return true;
-  return haystack.some((v) => normalizeText(v).includes(q));
-};
 
 interface ModalAsignarActividadProps {
   open: boolean;
@@ -344,7 +343,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                               candidate.value, // id matrícula
                               a?.nombre,
                               a?.nombreCompleto,
-                              a?.identificacion
+                              a?.identificacion,
+                              a?.email
                             ],
                             input
                           );

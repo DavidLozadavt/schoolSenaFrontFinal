@@ -6,7 +6,7 @@ import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAv
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 
-type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR';
+type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR' | 'CORRECCION_SOLICITADA';
 
 interface ActividadAprendiz {
   idCalificacionActividad: number;
@@ -77,10 +77,19 @@ const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   return 'Sin materia asignada';
 };
 
+const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÓN]';
+
+const textoComentarioDocenteVisible = (c: string | null | undefined): string => {
+  const s = (c ?? '').trim();
+  if (!s.startsWith(MARCA_SOLICITUD_CORRECCION)) return (c ?? '').trim();
+  return s.slice(MARCA_SOLICITUD_CORRECCION.length).replace(/^\s*\r?\n/, '').trim();
+};
+
 const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'TODOS', label: 'Todos' },
   { id: 'CALIFICADO', label: 'Calificado' },
   { id: 'POR_EVALUAR', label: 'Por Evaluar' },
+  { id: 'CORRECCION_SOLICITADA', label: 'Corrección solicitada' },
   { id: 'PENDIENTE', label: 'Pendiente' },
   { id: 'SIN_ENTREGAR', label: 'Sin Entregar' }
 ];
@@ -214,6 +223,13 @@ const estadoBadgeMap: Record<
     chip: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
     line: 'border-l-slate-300',
     score: 'text-slate-500 dark:text-slate-300'
+  },
+  CORRECCION_SOLICITADA: {
+    label: 'Corrección solicitada',
+    chip:
+      'bg-red-100 text-red-900 font-semibold ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-800',
+    line: 'border-l-red-600',
+    score: 'text-red-700 dark:text-red-300 font-medium'
   },
   SIN_ENTREGAR: {
     label: 'Sin Entregar',
@@ -870,7 +886,9 @@ const ActividadesAprendiz: React.FC = () => {
                   key={actividad.idCalificacionActividad}
                   className={clsx(
                     'rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden dark:bg-coal-400 dark:border-gray-700 border-l-4',
-                    status.line
+                    status.line,
+                    actividad.estadoVisual === 'CORRECCION_SOLICITADA' &&
+                      'ring-1 ring-red-200/80 dark:ring-red-900/50'
                   )}
                 >
                   <div className="px-4 py-3">
@@ -998,6 +1016,13 @@ const ActividadesAprendiz: React.FC = () => {
                             </div>
                           </div>
 
+                          {actividad.estadoVisual === 'CORRECCION_SOLICITADA' && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/35 dark:text-red-100">
+                              El instructor solicitó corregir esta entrega. Actualiza tu evidencia según lo acordado con tu
+                              instructor.
+                            </div>
+                          )}
+
                           <div>
                             <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
                               Observaciones del Instructor
@@ -1006,12 +1031,19 @@ const ActividadesAprendiz: React.FC = () => {
                               <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 flex items-start gap-2">
                                 <KeenIcon icon="information" className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <span>
-                                  {actividad.comentarioDocente || 'No se recibió la entrega. Comunicarse con el instructor.'}
+                                  {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
+                                    'No se recibió la entrega. Comunicarse con el instructor.'}
                                 </span>
+                              </div>
+                            ) : actividad.estadoVisual === 'CORRECCION_SOLICITADA' &&
+                              !textoComentarioDocenteVisible(actividad.comentarioDocente) ? (
+                              <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                El instructor solicitó corregir esta entrega.
                               </div>
                             ) : (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                {actividad.comentarioDocente || 'Aún no hay observaciones del instructor.'}
+                                {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
+                                  'Aún no hay observaciones del instructor.'}
                               </div>
                             )}
                           </div>
@@ -1204,6 +1236,7 @@ const ActividadesAprendiz: React.FC = () => {
                                         {(actividad.puedeResponder ||
                                           actividad.estadoVisual === 'POR_EVALUAR' ||
                                           actividad.estadoVisual === 'PENDIENTE' ||
+                                          actividad.estadoVisual === 'CORRECCION_SOLICITADA' ||
                                           actividad.estadoVisual === 'CALIFICADO') &&
                                           actividad.activa !== false &&
                                           !actividad.fechaVencida && (
@@ -1232,6 +1265,7 @@ const ActividadesAprendiz: React.FC = () => {
                                         {(actividad.puedeResponder ||
                                           actividad.estadoVisual === 'POR_EVALUAR' ||
                                           actividad.estadoVisual === 'PENDIENTE' ||
+                                          actividad.estadoVisual === 'CORRECCION_SOLICITADA' ||
                                           actividad.estadoVisual === 'CALIFICADO') &&
                                           actividad.activa !== false &&
                                           !actividad.fechaVencida && (

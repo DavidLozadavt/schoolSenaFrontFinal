@@ -26,4 +26,10 @@ export const normalizeText = (value: unknown): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
 
+/** Búsqueda insensible a acentos; usada con react-select (p. ej. contratación, actividades). */
+export const filterOptionNormalized = (haystack: Array<unknown>, rawInput: string): boolean => {
+  const q = normalizeText(rawInput);
+  if (!q) return true;
+  return haystack.some((v) => normalizeText(v).includes(q));
+};
 
