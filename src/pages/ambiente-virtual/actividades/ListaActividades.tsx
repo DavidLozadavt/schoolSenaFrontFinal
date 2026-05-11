@@ -316,7 +316,7 @@ interface AprendizEntregaDetalle {
   nombreAprendiz: string;
   identificacion: string;
   rutaFoto: string | null;
-  estado: 'PENDIENTE' | 'ENVIADO' | 'CALIFICADO';
+  estado: 'PENDIENTE' | 'ENVIADO' | 'CALIFICADO' | 'CORRECCION_SOLICITADA';
   archivo?: string | null;
   fechaCalificacion?: string | null;
   fechaActualizacionRegistro?: string | null;
@@ -548,11 +548,16 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     if (row.estado === 'CALIFICADO' && row.fechaCalificacion) {
       return `Calificado: ${formatearFecha(row.fechaCalificacion, true)}`;
     }
-    if ((row.estado === 'ENVIADO' || row.estado === 'CALIFICADO') && row.fechaActualizacionRegistro) {
+    if (
+      (row.estado === 'ENVIADO' ||
+        row.estado === 'CALIFICADO' ||
+        row.estado === 'CORRECCION_SOLICITADA') &&
+      row.fechaActualizacionRegistro
+    ) {
       return `Última actividad: ${formatearFecha(row.fechaActualizacionRegistro, true)}`;
     }
-    if (row.estado === 'ENVIADO' || row.estado === 'CALIFICADO') {
-      return 'Entrega registrada';
+    if (row.estado === 'ENVIADO' || row.estado === 'CALIFICADO' || row.estado === 'CORRECCION_SOLICITADA') {
+      return row.estado === 'CORRECCION_SOLICITADA' ? 'Corrección solicitada' : 'Entrega registrada';
     }
     return 'Sin entrega';
   };
@@ -564,18 +569,25 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     if (estado === 'ENVIADO') {
       return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-200 dark:border-emerald-800';
     }
+    if (estado === 'CORRECCION_SOLICITADA') {
+      return 'bg-violet-50 text-violet-800 border-violet-200 dark:bg-violet-900/25 dark:text-violet-200 dark:border-violet-800';
+    }
     return 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/25 dark:text-amber-200 dark:border-amber-800';
   };
 
   const etiquetaEstadoEntrega = (estado: AprendizEntregaDetalle['estado']) => {
     if (estado === 'CALIFICADO') return 'Calificado';
     if (estado === 'ENVIADO') return 'Entregado';
+    if (estado === 'CORRECCION_SOLICITADA') return 'Corrección';
     return 'Pendiente';
   };
 
   const { entregadosLista, pendientesLista } = useMemo(() => {
     const filas = modalEntregables.filas;
-    const entregados = filas.filter((r) => r.estado === 'ENVIADO' || r.estado === 'CALIFICADO');
+    const entregados = filas.filter(
+      (r) =>
+        r.estado === 'ENVIADO' || r.estado === 'CALIFICADO' || r.estado === 'CORRECCION_SOLICITADA'
+    );
     const pendientes = filas.filter((r) => r.estado === 'PENDIENTE');
     return { entregadosLista: entregados, pendientesLista: pendientes };
   }, [modalEntregables.filas]);
@@ -599,7 +611,9 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   const resumenDetalleEntregas = useMemo(() => {
     const filas = modalEntregables.filas;
     const totalAsignados = filas.length;
-    const entregaron = filas.filter((r) => r.estado === 'ENVIADO' || r.estado === 'CALIFICADO').length;
+    const entregaron = filas.filter(
+      (r) => r.estado === 'ENVIADO' || r.estado === 'CALIFICADO' || r.estado === 'CORRECCION_SOLICITADA'
+    ).length;
     const pendientesEntrega = filas.filter((r) => r.estado === 'PENDIENTE').length;
     return { totalAsignados, entregaron, pendientesEntrega };
   }, [modalEntregables.filas]);

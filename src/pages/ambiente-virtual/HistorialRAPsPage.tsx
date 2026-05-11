@@ -38,7 +38,7 @@ const HistorialRAPsPage: React.FC = () => {
 
       <Container>
         
-        <ListaHistorialRAPs searchTerm="" evento={evento} setEvento={setEvento} />
+        <ListaHistorialRAPs evento={evento} setEvento={setEvento} />
       </Container>
       <Toast isOpen={toastOpen} message={toastMessage} onClose={() => setToastOpen(false)} />
     </Fragment>

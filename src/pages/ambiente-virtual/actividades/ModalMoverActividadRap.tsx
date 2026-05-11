@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import Select from 'react-select';
+import type { SingleValue } from 'react-select';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
+import {
+  compactReactSelectClassNames,
+  compactReactSelectNoOptions,
+  filterOptionNormalized
+} from '@/components/forms/compactReactSelect';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 
@@ -21,6 +28,26 @@ interface ModalMoverActividadRapProps {
   onSuccess?: (message: string) => void;
 }
 
+/** Texto completo del RAP (búsqueda + tooltip), mismo criterio que el `<select>` anterior. */
+function rapLabelCompleto(r: RapOpcion): string {
+  const base = [r.codigo, r.nombreMateria].filter(Boolean).join(' — ');
+  return base.trim() !== '' ? base : `RAP ${r.id}`;
+}
+
+const selectClassNames = {
+  ...compactReactSelectClassNames,
+  control: () =>
+    `${compactReactSelectClassNames.control()} min-w-0 max-w-full`,
+  singleValue: () =>
+    `${compactReactSelectClassNames.singleValue()} !max-w-[calc(100%-1.5rem)] truncate`,
+  menu: () => `${compactReactSelectClassNames.menu()} !min-w-full !max-w-full shadow-md rounded-md`,
+  menuList: () => `${compactReactSelectClassNames.menuList()} max-h-56 overflow-y-auto overflow-x-hidden`,
+  option: (state: { isFocused: boolean; isSelected: boolean; isDisabled?: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} min-w-0 max-w-full ${
+      state.isDisabled ? 'opacity-60 cursor-not-allowed' : ''
+    }`
+} as const;
+
 const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
   open,
   onClose,
@@ -36,16 +63,30 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const nombreRapActual =
-    actividad?.materia?.nombreMateria?.trim() ||
-    (actividad?.idMateria ? `RAP ID ${actividad.idMateria}` : '—');
+  const idMateriaActual = actividad?.idMateria;
+
+  const textoRapActual = useMemo(() => {
+    const cod = actividad?.materia?.codigo?.trim();
+    const nom = actividad?.materia?.nombreMateria?.trim();
+    const joined = [cod, nom].filter(Boolean).join(' — ');
+    if (joined) return joined;
+    if (idMateriaActual != null) return `RAP ID ${idMateriaActual}`;
+    return '—';
+  }, [actividad?.materia?.codigo, actividad?.materia?.nombreMateria, idMateriaActual]);
+
+  const destinoSeleccionado = useMemo(
+    () => (idDestino ? opcionesRap.find((r) => r.id === idDestino) ?? null : null),
+    [idDestino, opcionesRap]
+  );
+
+  const destinoValido =
+    Boolean(idDestino) && idMateriaActual != null && idDestino !== idMateriaActual;
 
   useEffect(() => {
     if (!open || idFicha <= 0) return;
     setError('');
     setIdDestino(0);
     setLoadingRaps(true);
-    // Solo RAPs con horarios de esta ficha (misma API que valida el backend).
     axios
       .get<RapOpcion[]>(`fichas/${idFicha}/raps-horario-actividades`)
       .then((res) => {
@@ -66,7 +107,7 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
       setError('Faltan datos de actividad o ficha.');
       return;
     }
-    if (!idDestino || idDestino === actividad.idMateria) {
+    if (!destinoValido) {
       setError('Selecciona un RAP destino distinto al actual.');
       return;
     }
@@ -80,11 +121,13 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
         payload.id_horario_materia = idHorarioMateria;
       }
       await axios.put(`actividades/${actividad.id}/mover-rap`, payload);
-      onSuccess?.('Actividad movida correctamente al RAP seleccionado.');
+      onSuccess?.('Actividad movida correctamente.');
       onSave();
       onClose();
     } catch (err: unknown) {
-      const ex = err as { response?: { data?: { error?: string; message?: string; errors?: Record<string, string[]> } } };
+      const ex = err as {
+        response?: { data?: { error?: string; message?: string; errors?: Record<string, string[]> } };
+      };
       const errs = ex.response?.data?.errors;
       const firstField =
         errs && typeof errs === 'object'
@@ -102,9 +145,16 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
     }
   };
 
+  const onSelectDestino = (opt: SingleValue<RapOpcion>) => {
+    setIdDestino(opt?.id ?? 0);
+    setError('');
+  };
+
+  const esRapActual = (r: RapOpcion) => idMateriaActual != null && r.id === idMateriaActual;
+
   return (
-    <Modal open={open} onClose={onClose} zIndex={120}>
-      <ModalContent className="max-w-md">
+    <Modal open={open} onClose={onClose} zIndex={120} className="flex items-center justify-center p-4 sm:p-6">
+      <ModalContent className="max-w-[min(100vw-2rem,760px)] w-full max-h-[min(90vh,900px)] overflow-hidden flex flex-col my-auto">
         <ModalHeader>
           <ModalTitle>Mover actividad</ModalTitle>
           <button
@@ -116,46 +166,100 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
             <KeenIcon icon="cross" />
           </button>
         </ModalHeader>
-        <ModalBody>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Actividad</p>
-              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{actividad?.tituloActividad || '—'}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">RAP actual</p>
-              <p className="mt-1 text-sm text-gray-800 dark:text-gray-200">{nombreRapActual}</p>
-            </div>
-            <div>
-              <label htmlFor="rap-destino" className="block text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5">
+        <ModalBody className="overflow-y-auto flex-1 min-h-0">
+          <form onSubmit={handleSubmit} className="space-y-5 pb-1">
+            <section>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Actividad
+              </p>
+              <p
+                className="mt-1 text-sm font-medium text-gray-900 dark:text-white leading-snug break-words"
+                title={actividad?.tituloActividad || undefined}
+              >
+                {actividad?.tituloActividad || '—'}
+              </p>
+            </section>
+
+            <section>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                RAP actual
+              </p>
+              <p
+                className="mt-1 text-sm text-gray-800 dark:text-gray-200 leading-snug line-clamp-3"
+                title={textoRapActual}
+              >
+                {textoRapActual}
+              </p>
+            </section>
+
+            <section className="min-w-0">
+              <label
+                htmlFor="rap-destino-select"
+                className="block text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5"
+              >
                 RAP destino
               </label>
-              <select
-                id="rap-destino"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-coal-500 dark:text-white"
-                value={idDestino || ''}
-                onChange={(ev) => setIdDestino(Number(ev.target.value) || 0)}
-                disabled={loadingRaps || saving}
-              >
-                <option value="">{loadingRaps ? 'Cargando…' : 'Seleccione un RAP'}</option>
-                {opcionesRap.map((r) => {
-                  const label = [r.codigo, r.nombreMateria].filter(Boolean).join(' — ') || `RAP ${r.id}`;
-                  const disabled = actividad?.idMateria != null && r.id === actividad.idMateria;
+              <Select<RapOpcion, false>
+                inputId="rap-destino-select"
+                instanceId="mover-actividad-rap-destino"
+                options={opcionesRap}
+                value={destinoSeleccionado}
+                onChange={onSelectDestino}
+                placeholder={loadingRaps ? 'Cargando RAP…' : 'Buscar por código o nombre del RAP…'}
+                isClearable
+                isSearchable
+                isDisabled={loadingRaps || saving}
+                isLoading={loadingRaps}
+                isOptionDisabled={esRapActual}
+                getOptionValue={(r) => String(r.id)}
+                getOptionLabel={rapLabelCompleto}
+                formatOptionLabel={(r) => {
+                  const full = rapLabelCompleto(r);
                   return (
-                    <option key={r.id} value={r.id} disabled={disabled}>
-                      {label}
-                      {disabled ? ' (actual)' : ''}
-                    </option>
+                    <div className="min-w-0 max-w-full py-0.5" title={full}>
+                      <div className="text-sm font-medium leading-snug truncate">{full}</div>
+                      {esRapActual(r) ? (
+                        <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">RAP actual (no disponible)</div>
+                      ) : null}
+                    </div>
                   );
-                })}
-              </select>
-            </div>
-            {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
-            <div className="flex justify-end gap-2 pt-2">
+                }}
+                filterOption={(option, raw) =>
+                  filterOptionNormalized(
+                    [
+                      option.data.codigo,
+                      option.data.nombreMateria,
+                      rapLabelCompleto(option.data),
+                      String(option.data.id)
+                    ],
+                    raw
+                  )
+                }
+                classNamePrefix="react-select-mover-rap"
+                classNames={selectClassNames}
+                noOptionsMessage={compactReactSelectNoOptions}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                }}
+              />
+            </section>
+
+            {error ? (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
               <button type="button" className="btn btn-light" onClick={onClose} disabled={saving}>
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving || !idDestino}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving || loadingRaps || !destinoValido}
+              >
                 {saving ? 'Moviendo…' : 'Mover actividad'}
               </button>
             </div>

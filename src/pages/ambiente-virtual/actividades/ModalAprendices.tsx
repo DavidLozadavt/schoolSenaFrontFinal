@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
+import type { SingleValue } from 'react-select';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, ImageZoomModal } from '@/components';
+import {
+  compactReactSelectClassNames,
+  compactReactSelectNoOptions,
+  filterOptionNormalized
+} from '@/components/forms/compactReactSelect';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 import ModalVerRespuestaYCalificar from './ModalVerRespuestaYCalificar';
@@ -37,7 +44,9 @@ export interface AprendizCalificacion {
   ComentarioEstudiante: string | null;
   archivo: string | null;
   fechaCalificacion: string | null;
-  estado: 'PENDIENTE' | 'ENVIADO' | 'CALIFICADO';
+  estado: 'PENDIENTE' | 'ENVIADO' | 'CALIFICADO' | 'CORRECCION_SOLICITADA';
+  fechaFinal?: string | null;
+  email?: string | null;
 }
 
 interface ModalAprendicesProps {
@@ -128,6 +137,12 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
     }
     return list;
   }, [aprendices, filtroEstado, filtroGrupo]);
+
+  const handleBusquedaAprendizSelect = (opt: SingleValue<AprendizCalificacion>) => {
+    if (!opt) return;
+    const el = document.getElementById(`aprendiz-row-${opt.idCalificacionActividad}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
 
   const handleVerYCalificar = (aprendiz: AprendizCalificacion) => {
     setAprendizSeleccionado(aprendiz);
@@ -246,6 +261,40 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
               {titulo}
             </p>
             <div className="flex flex-wrap items-center gap-2 mb-3">
+              {aprendices.length > 0 && (
+                <div className="w-full min-w-[220px] max-w-md">
+                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                    Buscar aprendiz
+                  </label>
+                  <Select<AprendizCalificacion, false>
+                    inputId="buscar-aprendiz-actividad"
+                    instanceId="buscar-aprendiz-actividad"
+                    options={aprendices}
+                    placeholder="Nombre, documento o correo..."
+                    isClearable
+                    isSearchable
+                    classNamePrefix="react-select-aprendiz-act"
+                    classNames={compactReactSelectClassNames}
+                    getOptionValue={(a) => String(a.idCalificacionActividad)}
+                    getOptionLabel={(a) => a.nombreAprendiz}
+                    formatOptionLabel={(a) => (
+                      <div className="py-0.5">
+                        <div className="font-medium leading-tight">{a.nombreAprendiz}</div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
+                          {a.identificacion}
+                          {a.email ? ` · ${a.email}` : ''}
+                        </div>
+                      </div>
+                    )}
+                    filterOption={(option, raw) => {
+                      const a = option.data;
+                      return filterOptionNormalized([a.nombreAprendiz, a.identificacion, a.email], raw);
+                    }}
+                    onChange={handleBusquedaAprendizSelect}
+                    noOptionsMessage={compactReactSelectNoOptions}
+                  />
+                </div>
+              )}
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
@@ -254,6 +303,7 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                 <option value="todos">TODOS LOS APRENDICES</option>
                 <option value="PENDIENTE">Pendiente</option>
                 <option value="ENVIADO">Enviado</option>
+                <option value="CORRECCION_SOLICITADA">Corrección solicitada</option>
                 <option value="CALIFICADO">Calificado</option>
               </select>
               {esActividadGrupal && gruposEnActividad.length > 0 && (
@@ -340,7 +390,11 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                   </thead>
                   <tbody>
                     {filtrados.map((a) => (
-                      <tr key={a.idCalificacionActividad} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/30">
+                      <tr
+                        key={a.idCalificacionActividad}
+                        id={`aprendiz-row-${a.idCalificacionActividad}`}
+                        className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/30"
+                      >
                         <td className="py-2 px-3">
                           <input
                             type="checkbox"
@@ -406,10 +460,12 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                 : a.estado === 'ENVIADO'
                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                : a.estado === 'CORRECCION_SOLICITADA'
+                                ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200'
                                 : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
                             }`}
                           >
-                            {a.estado}
+                            {a.estado === 'CORRECCION_SOLICITADA' ? 'CORRECCIÓN' : a.estado}
                           </span>
                         </td>
                         <td className="py-2 px-3">
