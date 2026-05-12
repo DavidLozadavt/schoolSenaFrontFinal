@@ -86,6 +86,8 @@ const normalizarActividad = (raw: any): Actividad => ({
   fechaFin: toStr(raw?.fechaFin ?? raw?.fechaFinal),
   tipo_actividad: raw?.tipo_actividad,
   materia: raw?.materia,
+  idHorario: toNum(raw?.idHorario ?? raw?.id_horario ?? raw?.materia?.idHorario ?? raw?.materia?.id_horario),
+  idHorarioMateria: toNum(raw?.idHorarioMateria ?? raw?.id_horario_materia ?? raw?.materia?.idHorarioMateria ?? raw?.materia?.id_horario_materia),
 });
 
 interface UpcomingSession {
@@ -803,7 +805,7 @@ const ProfesoresContent: React.FC = () => {
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <Link 
-            to={fichas[0]?.resultados?.[0]?.idHorario ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/historial-raps"} 
+            to="/ambiente-virtual/historial-raps"
             state={{ activeMenu: 'actividades-asignadas' }}
             className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all duration-300 p-2 rounded-xl group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
           >
@@ -1242,7 +1244,7 @@ const ProfesoresContent: React.FC = () => {
                   <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar max-h-[300px] pr-1">
                     {actividadesPorEvaluar.slice(0, 4).map(act => (
                       <Link 
-                        to={act.idHorarioMateria ? `/ambiente-virtual/clase/${act.idHorarioMateria}` : act.idHorario ? `/ambiente-virtual/clase/${act.idHorario}` : act.materia?.idHorario ? `/ambiente-virtual/clase/${act.materia.idHorario}` : act.materia?.idHorarioMateria ? `/ambiente-virtual/clase/${act.materia.idHorarioMateria}` : act.materia?.id ? `/ambiente-virtual/clase/${act.materia.id}` : fichas[0]?.resultados?.[0]?.idHorario ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/historial-raps"}
+                        to={act.idHorarioMateria ? `/ambiente-virtual/clase/${act.idHorarioMateria}` : act.idHorario ? `/ambiente-virtual/clase/${act.idHorario}` : act.materia?.idHorario ? `/ambiente-virtual/clase/${act.materia.idHorario}` : act.materia?.idHorarioMateria ? `/ambiente-virtual/clase/${act.materia.idHorarioMateria}` : act.materia?.id ? `/ambiente-virtual/clase/${act.materia.id}` : "/ambiente-virtual/historial-raps"}
                         state={{ activeMenu: 'actividades-asignadas' }}
                         key={act.id} 
                         className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group block"
