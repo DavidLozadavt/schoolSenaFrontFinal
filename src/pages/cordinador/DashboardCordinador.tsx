@@ -1,5 +1,7 @@
 import React from "react";
-import Chart from "react-apexcharts"; 
+import Chart from "react-apexcharts";
+import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import { KeenIcon } from '@/components/keenicons';
 
 const Icons = {
   Academic: () => (
@@ -141,7 +143,7 @@ export const DashboardCoordinador: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-7 gap-1 mb-2 font-bold text-center text-gray-400 uppercase text-4xs">
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d} className="py-1">{d}</div>)}
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, idx) => <div key={idx} className="py-1">{d}</div>)}
             {[...Array(31)].map((_, i) => (
               <div key={i} className={`py-2 text-2sm rounded-md transition-all cursor-pointer hover:bg-primary-light hover:text-primary ${i + 1 === 12 ? 'bg-primary text-white shadow-primary' : 'text-gray-600 dark:text-gray-400'}`}>
                 {i + 1}
@@ -151,7 +153,16 @@ export const DashboardCoordinador: React.FC = () => {
         </div>
       </section>
 
-      {/* ACCIONES RÁPIDAS (Sección D) */}
+      <section className="mb-7.5">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h2 className="text-md font-bold text-gray-800 dark:text-gray-100">C{"\u00E1"}psulas SENA</h2>
+          <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Multimedia reciente</span>
+        </div>
+        <MultimediaCapsulas />
+      </section>
+
+      {/* ACCIONES RÁPIDAS (Sección E) */}
       <section className="bg-white dark:bg-coal-300 p-7.5 rounded-xl shadow-card border border-gray-200 dark:border-coal-100">
         <h2 className="mb-6 font-bold tracking-widest text-gray-400 uppercase text-2xs">Acciones de Gestión</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4.5">

@@ -3,8 +3,9 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { useAuthContext } from "@/auth/useAuthContext";
 import { KeenIcon } from "@/components/keenicons";
+import MultimediaCapsulas from "@/components/capsulas/MultimediaCapsulas";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types ---
 
 interface ResultadoPlano {
   idHorario: number;
@@ -260,7 +261,7 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
 
   const uniqueSessionsMap = new Map<string, UpcomingSession>();
   sessions.forEach(s => {
-    // Para RAPs sin idHorario el ID se construyó con undefined-fecha, lo reemplazamos si es el caso.
+    // Para RAPs sin idHorario el ID se construy   con undefined-fecha, lo reemplazamos si es el caso.
     const key = s.id.startsWith('undefined') || s.id.startsWith('null') || s.id.startsWith('0') 
       ? `${s.fechaStr}-${s.horaInicial}-${s.horaFinal}` 
       : s.id;
@@ -275,9 +276,9 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
   });
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+//           Constants                                                                                                                                                                                                 
 
-const DIAS = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const DIAS = ["", "Lun", "Mar", "Mi  ", "Jue", "Vie", "S  b", "Dom"];
 const FICHA_BG = [
   "bg-blue-100 dark:bg-blue-900/30 border-blue-600 dark:border-blue-500",
   "bg-green-100 dark:bg-green-900/30 border-green-600 dark:border-green-500",
@@ -298,7 +299,7 @@ function fmtH(h: string) { return h ? h.substring(0, 5) : "-"; }
 function getDiaLabel(idDia: unknown): string {
   const d = toNum(idDia);
   if (d === 0 || d === 7) return "Dom";
-  return DIAS[d] || "—";
+  return DIAS[d] || "   ";
 }
 
 function parseLocalDate(value: unknown, endOfDay = false): Date | null {
@@ -502,118 +503,11 @@ function parsePeriodoToDate(periodoStr: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-// ─── REELS DATA & COMPONENT ──────────────────────────────────────────────────
+// --- REELS DATA & COMPONENT ---
 
-const PROFESOR_REELS = [
-  { id: 1, title: 'Tips para React', views: '1.2k', duration: '0:45', img: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=400&auto=format&fit=crop' },
-  { id: 2, title: '¿Qué es Tailwind?', views: '850', duration: '1:00', img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop' },
-  { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
-  { id: 4, title: 'Mejorar tu lógica', views: '3k', duration: '1:30', img: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=400&auto=format&fit=crop' },
-  { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
-  { id: 6, title: 'Planear una sesión', views: '1.8k', duration: '1:20', img: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=400&auto=format&fit=crop' },
-  { id: 7, title: 'Evaluar evidencias', views: '2.1k', duration: '1:10', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=400&auto=format&fit=crop' },
-  { id: 8, title: 'Buenas prácticas TIC', views: '3.4k', duration: '1:45', img: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=400&auto=format&fit=crop' },
-];
 
-const ProfesorReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const duration = 5000;
+// --- Main Component ---
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          if (currentIndex < reels.length - 1) {
-            setCurrentIndex(currentIndex + 1);
-            return 0;
-          } else {
-            onClose();
-            return 100;
-          }
-        }
-        return p + (100 / (duration / 50));
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying, currentIndex, reels.length, onClose]);
-
-  const handlePrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setProgress(0);
-      setIsPlaying(true);
-    }
-  };
-
-  const handleNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex < reels.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setProgress(0);
-      setIsPlaying(true);
-    } else {
-      onClose();
-    }
-  };
-
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPlaying(!isPlaying);
-  };
-
-  const currentReel = reels[currentIndex];
-
-  if (!currentReel) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black z-[9999] flex items-center justify-center animate-fade-in" onClick={onClose}>
-      <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[10000]" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onClose(); }}>
-        <KeenIcon icon="cross" className="text-3xl" />
-      </button>
-
-      <div className="absolute top-4 left-0 right-0 px-4 flex gap-1 z-20 max-w-[450px] mx-auto">
-        {reels.map((r, i) => (
-          <div key={r.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-75"
-              style={{ width: i < currentIndex ? '100%' : i === currentIndex ? `${progress}%` : '0%' }}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div
-        className="w-full sm:w-[450px] h-full sm:h-[90vh] bg-gray-900 relative flex flex-col justify-center sm:rounded-lg overflow-hidden"
-        onClick={togglePlay}
-      >
-        <img src={currentReel.img} className="absolute inset-0 w-full h-full object-cover" alt={currentReel.title} />
-
-        <div className="absolute inset-y-0 left-0 w-1/3 z-10 cursor-w-resize" onClick={handlePrev}></div>
-        <div className="absolute inset-y-0 right-0 w-1/3 z-10 cursor-e-resize" onClick={handleNext}></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white">
-              <KeenIcon icon="play" className="text-4xl ml-2" />
-            </div>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 z-10 pointer-events-none">
-          <h3 className="text-white font-bold text-xl mb-1">{currentReel.title}</h3>
-          <p className="text-white/80 text-sm">Cápsulas formativas SENA</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── Main Component ────────────────────────────────────────────────────────────
 
 const ProfesoresContent: React.FC = () => {
   const { user, persona } = useAuthContext();
@@ -630,9 +524,9 @@ const ProfesoresContent: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDay, setSelectedDay] = useState(new Date());
-  const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
+  
 
-  // ── Fichas del instructor (endpoint autónomo, sin params) ───────────────
+  // Fichas del instructor (endpoint autónomo, sin params)                                              
   useEffect(() => {
     axios.get("instructores/mi-dashboard")
       .then((r) => {
@@ -643,7 +537,7 @@ const ProfesoresContent: React.FC = () => {
       .catch(() => setFichas([]));
   }, []);
 
-  // ── Actividades por evaluar ──────────────────────────────────────────
+  //        Actividades por evaluar                                                                                                                               
   useEffect(() => {
     axios.get("actividades-por-evaluar")
       .then((r) => {
@@ -662,7 +556,7 @@ const ProfesoresContent: React.FC = () => {
     [actividades]
   );
 
-  // ── Calendario (Generación de Sesiones) ──────────────────────────────────
+  // Calendario (Generación de Sesiones)                                                                                                       
   const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
@@ -787,10 +681,10 @@ const ProfesoresContent: React.FC = () => {
   const totalPages = Math.ceil(fichasFormacion.length / itemsPerPage);
   const currentFichas = fichasFormacion.slice((fichasPage - 1) * itemsPerPage, fichasPage * itemsPerPage);
 
-  // ── Conteos de Actividades ────────────────────────────────────────────────
+  //        Conteos de Actividades                                                                                                                                                 
   const calificadas = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'CALIFICADO').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
-  // ── Calendario (Controles) ────────────────────────────────────────────────
+  //        Calendario (Controles)                                                                                                                                                 
 
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -888,42 +782,8 @@ const ProfesoresContent: React.FC = () => {
         </p>
       </header>
 
-      {/* ══ REELS SECTION (Full width) ══ */}
-      <section className="w-full space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-red-500 rounded-full"></div>
-          <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
-            Cápsulas SENA
-          </h2>
-        </div>
-        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-3 w-full">
-          <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {PROFESOR_REELS.map((reel, idx) => (
-              <div
-                key={reel.id}
-                onClick={() => setPlayingReelIndex(idx)}
-                className="relative shrink-0 w-[112px] sm:w-[128px] md:w-[140px] aspect-[9/16] rounded-xl overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
-              >
-                <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
 
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
-                    <KeenIcon icon="play" className="text-lg ml-1" />
-                  </div>
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <h4 className="text-white font-bold text-[11px] leading-tight mb-1">{reel.title}</h4>
-                  <div className="text-white/70 text-[10px] font-semibold">{reel.duration}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ EVENTOS SECTION (Blank placeholder) ══ */}
+      {/*        EVENTOS SECTION (Blank placeholder)        */}
       <section className="w-full space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-emerald-500 rounded-full"></div>
@@ -944,27 +804,27 @@ const ProfesoresContent: React.FC = () => {
         </div>
       </section>
 
-      {/* ══ KPI General ══ */}
+      {/* --- KPI General --- */}
       <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-blue-200 dark:border-blue-900/50 p-5 w-full mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 md:gap-8">
           <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-blue-500 dark:text-blue-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">📋</span> Fichas</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-blue-500 dark:text-blue-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> Fichas</p>
             <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-300 leading-none">{totalFichas}</p>
             <p className="text-[10px] mt-1 text-gray-500 uppercase tracking-wider">asignadas</p>
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-green-500 dark:text-green-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">🎯</span> RAPs</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-green-500 dark:text-green-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> RAPs</p>
             <p className="text-3xl font-extrabold text-green-600 dark:text-green-300 leading-none">{totalRAPs}</p>
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-orange-500 dark:text-orange-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">📅</span> Sesiones</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-orange-500 dark:text-orange-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> Sesiones</p>
             <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-300 leading-none">{totalSesiones}</p>
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-amber-500 dark:text-amber-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">⏱️</span> Horas</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-amber-500 dark:text-amber-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">      </span> Horas</p>
             <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-300 leading-none">{totalHoras.toFixed(1)}</p>
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
@@ -973,16 +833,23 @@ const ProfesoresContent: React.FC = () => {
             state={{ activeMenu: 'actividades-asignadas' }}
             className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all duration-300 p-2 rounded-xl group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
           >
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-purple-500 dark:text-purple-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm transition-transform group-hover:scale-110">📝</span> Por evaluar</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-purple-500 dark:text-purple-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm transition-transform group-hover:scale-110">    </span> Por evaluar</p>
             <p className="text-3xl font-extrabold text-purple-600 dark:text-purple-300 leading-none">{actividadesPorEvaluar.length}</p>
             <p className="text-[10px] mt-1 text-gray-500 uppercase tracking-wider pl-8">pendientes</p>
           </Link>
         </div>
       </div>
 
+      {/* --- CÁPSULAS SENA SECTION (Reels & Stories) --- */}
+      <section className="w-full space-y-4 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">Cápsulas SENA</h2>
+        </div>
+        <MultimediaCapsulas />
+      </section>
 
-
-      {/* ══ FICHAS SECTION (Full width) ══ */}
+      {/* --- FICHAS SECTION (Full width) --- */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
@@ -993,7 +860,7 @@ const ProfesoresContent: React.FC = () => {
 
         {currentFichas.length === 0 && (
           <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-            <span className="text-4xl">📋</span>
+            <span className="text-4xl">    </span>
             <p className="mt-3 text-gray-500 dark:text-gray-400 font-semibold">Sin fichas asignadas en este periodo</p>
           </div>
         )}
@@ -1028,7 +895,7 @@ const ProfesoresContent: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase truncate">{ficha.programaFormacion}</h2>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                    Ficha <strong>{ficha.codigoFicha}</strong> · Prog. {ficha.codigoPrograma}
+                    Ficha <strong>{ficha.codigoFicha}</strong>    Prog. {ficha.codigoPrograma}
                   </p>
                 </div>
                 <div className="hidden sm:flex items-center gap-8 shrink-0 text-xs text-gray-500 dark:text-gray-400 px-4 border-l border-gray-100 dark:border-gray-700">
@@ -1047,7 +914,7 @@ const ProfesoresContent: React.FC = () => {
                       <table className="w-full text-xs min-w-[700px] bg-white dark:bg-coal-400 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                         <thead>
                           <tr className="bg-gray-100 dark:bg-coal-300">
-                            {["Competencia", "RAP / Resultado", "Día", "Horario", "Sesiones", "Horas"].map((h) => (
+                            {["Competencia", "RAP / Resultado", "D  a", "Horario", "Sesiones", "Horas"].map((h) => (
                               <th key={h} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400">{h}</th>
                             ))}
                           </tr>
@@ -1055,8 +922,8 @@ const ProfesoresContent: React.FC = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                           {resultadosCalculados.map((rap, ri) => (
                             <tr key={`${rap.idHorario}-${ri}`} className="hover:bg-gray-50/80 dark:hover:bg-coal-300/30 transition-colors">
-                              <td className="px-4 py-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400 max-w-[180px]"><span className="line-clamp-2">{rap.competencia || "—"}</span></td>
-                              <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[220px]"><span className="line-clamp-2">{rap.resultadoAprendizaje || "—"}</span></td>
+                              <td className="px-4 py-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400 max-w-[180px]"><span className="line-clamp-2">{rap.competencia || "   "}</span></td>
+                              <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[220px]"><span className="line-clamp-2">{rap.resultadoAprendizaje || "   "}</span></td>
                               <td className="px-4 py-3"><span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase">{getDiaLabel(rap.idDia)}</span></td>
                               <td className="px-4 py-3 font-mono text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-coal-500/30 rounded">{fmtH(rap.horaInicial)} - {fmtH(rap.horaFinal)}</td>
                               <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-extrabold text-xs">{rap.cantidadSesionesCalculada}</span></td>
@@ -1081,7 +948,7 @@ const ProfesoresContent: React.FC = () => {
         )}
       </section>
 
-      {/* ══ BOTTOM GRID: Calendario (Left) / Actividades (Right) ══ */}
+      {/*        BOTTOM GRID: Calendario (Left) / Actividades (Right)        */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
         
         {/* LEFT COLUMN: Calendar */}
@@ -1099,7 +966,7 @@ const ProfesoresContent: React.FC = () => {
               <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
-                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Día</button>
+                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>D  a</button>
               </div>
             </div>
             
@@ -1146,7 +1013,7 @@ const ProfesoresContent: React.FC = () => {
                     <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
                     <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="right" /></button>
                   </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mie</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
                   <div className="grid grid-cols-7 gap-1 flex-1">
                     {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
                     {daysArray.map(day => {
@@ -1170,7 +1037,7 @@ const ProfesoresContent: React.FC = () => {
 
                               <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
                                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del día</p>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del d  a</p>
                                   <p className="mt-0.5 text-sm font-extrabold">
                                     {new Date(year, month, day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
                                   </p>
@@ -1231,10 +1098,10 @@ const ProfesoresContent: React.FC = () => {
                   <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
                     <div>Lun</div>
                     <div>Mar</div>
-                    <div>Mié</div>
+                    <div>Mi  </div>
                     <div>Jue</div>
                     <div>Vie</div>
-                    <div>Sáb</div>
+                    <div>S  b</div>
                     <div>Dom</div>
                   </div>
 
@@ -1358,7 +1225,7 @@ const ProfesoresContent: React.FC = () => {
                       return (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
                           <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día libre</h3>
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">D  a libre</h3>
                           <p className="text-xs text-gray-500 mt-1">No hay clases programadas para este día.</p>
                         </div>
                       );
@@ -1462,7 +1329,7 @@ const ProfesoresContent: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-gray-50 dark:bg-coal-500/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <span className="text-2xl mb-2">🎉</span>
+                    <span className="text-2xl mb-2">    </span>
                     <p className="text-xs font-semibold text-gray-500">¡Al día! No hay entregas pendientes por revisar.</p>
                   </div>
                 )}
@@ -1473,15 +1340,8 @@ const ProfesoresContent: React.FC = () => {
 
       </div>
 
-      {/* REELS VIEWER MODAL */}
-      {playingReelIndex !== null && (
-        <ProfesorReelsViewer
-          reels={PROFESOR_REELS}
-          initialIndex={playingReelIndex}
-          onClose={() => setPlayingReelIndex(null)}
-        />
-      )}
     </div>
   );
 };
 export default ProfesoresContent;
+

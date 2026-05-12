@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '@/auth/useAuthContext';
 import { KeenIcon } from '@/components/keenicons';
+import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
 
 // --- Interfaces de Datos ---
 interface AreaAsistencia {
@@ -208,114 +209,6 @@ const ESTADO_CFG: Record<string, { label: string; color: string; icon: string }>
   CORRECCION_SOLICITADA: { label: 'Corrección', color: 'text-purple-600 bg-purple-100', icon: 'refresh' },
 };
 
-// --- REELS MOCK DATA ---
-const MOCK_REELS = [
-  { id: 1, title: 'Tips para React', views: '1.2k', duration: '0:45', img: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=400&auto=format&fit=crop' },
-  { id: 2, title: '¿Qué es Tailwind?', views: '850', duration: '1:00', img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop' },
-  { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
-  { id: 4, title: 'Mejorar tu lógica', views: '3k', duration: '1:30', img: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=400&auto=format&fit=crop' },
-  { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
-  { id: 6, title: 'Organiza tu estudio', views: '1.8k', duration: '1:20', img: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=400&auto=format&fit=crop' },
-  { id: 7, title: 'Entrega evidencias', views: '2.1k', duration: '1:10', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=400&auto=format&fit=crop' },
-  { id: 8, title: 'Buenas prácticas TIC', views: '3.4k', duration: '1:45', img: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=400&auto=format&fit=crop' },
-];
-
-// === REELS VIEWER COMPONENT (Solo Visual) ===
-const ReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const duration = 5000;
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          if (currentIndex < reels.length - 1) {
-            setCurrentIndex(currentIndex + 1);
-            return 0;
-          } else {
-            onClose();
-            return 100;
-          }
-        }
-        return p + (100 / (duration / 50));
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying, currentIndex, reels.length, onClose]);
-
-  const handlePrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setProgress(0);
-      setIsPlaying(true);
-    }
-  };
-
-  const handleNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex < reels.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setProgress(0);
-      setIsPlaying(true);
-    } else {
-      onClose();
-    }
-  };
-
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPlaying(!isPlaying);
-  };
-
-  const currentReel = reels[currentIndex];
-
-  return (
-    <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center animate-fade-in" onClick={onClose}>
-      <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[110]" onClick={onClose}>
-        <KeenIcon icon="cross" className="text-3xl" />
-      </button>
-
-      <div className="absolute top-4 left-0 right-0 px-4 flex gap-1 z-20 max-w-[450px] mx-auto">
-        {reels.map((r, i) => (
-          <div key={r.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-75"
-              style={{ width: i < currentIndex ? '100%' : i === currentIndex ? `${progress}%` : '0%' }}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div
-        className="w-full sm:w-[450px] h-full sm:h-[90vh] bg-gray-900 relative flex flex-col justify-center sm:rounded-lg overflow-hidden"
-        onClick={togglePlay}
-      >
-        <img src={currentReel.img} className="absolute inset-0 w-full h-full object-cover" alt={currentReel.title} />
-
-        <div className="absolute inset-y-0 left-0 w-1/3 z-10 cursor-w-resize" onClick={handlePrev}></div>
-        <div className="absolute inset-y-0 right-0 w-1/3 z-10 cursor-e-resize" onClick={handleNext}></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white">
-              <KeenIcon icon="play" className="text-4xl ml-2" />
-            </div>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 z-10 pointer-events-none">
-          <h3 className="text-white font-bold text-xl mb-1">{currentReel.title}</h3>
-          <p className="text-white/80 text-sm">Cápsulas formativas SENA</p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
 // === MAIN DASHBOARD COMPONENT ===
@@ -334,7 +227,7 @@ const EstudiantesContent: React.FC = () => {
   const [actividades, setActividades] = useState<ActividadAprendiz[]>([]);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
+  
   
   // Calendario state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -455,35 +348,10 @@ const EstudiantesContent: React.FC = () => {
       <div className="flex flex-col w-full">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <KeenIcon icon="youtube" className="text-primary" /> Cápsulas SENA
+            <KeenIcon icon="youtube" className="text-primary" /> C{"\u00E1"}psulas SENA
           </h2>
         </div>
-
-        <div className="bg-white dark:bg-coal-400 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 w-full">
-          <div className="flex gap-3 overflow-x-auto pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {MOCK_REELS.map((reel, idx) => (
-              <div
-                key={reel.id}
-                onClick={() => setPlayingReelIndex(idx)}
-                className="relative shrink-0 w-[112px] sm:w-[128px] md:w-[140px] aspect-[9/16] rounded-xl snap-start overflow-hidden group cursor-pointer border border-gray-200 dark:border-gray-800 shadow-sm"
-              >
-                <img src={reel.img} alt={reel.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40">
-                    <KeenIcon icon="play" className="text-base ml-1" />
-                  </div>
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <h4 className="text-white font-bold text-[11px] leading-tight mb-1">{reel.title}</h4>
-                  <div className="text-white/70 text-[10px] font-semibold">{reel.duration}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MultimediaCapsulas />
       </div>
 
       {/* EVENTOS SECTION */}
@@ -702,14 +570,6 @@ const EstudiantesContent: React.FC = () => {
 
       </div>
 
-      {/* REELS VIEWER MODAL */}
-      {playingReelIndex !== null && (
-        <ReelsViewer
-          reels={MOCK_REELS}
-          initialIndex={playingReelIndex}
-          onClose={() => setPlayingReelIndex(null)}
-        />
-      )}
 
     </div>
   );

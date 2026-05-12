@@ -168,7 +168,6 @@
 //     </div>
 //   );
 // };
-
 import {
   ChannelStats,
   EarningsChart,
@@ -177,10 +176,21 @@ import {
   TeamMeeting,
   Teams
 } from './blocks';
+import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import { KeenIcon } from '@/components/keenicons';
 
 const Demo1LightSidebarContent = () => {
   return (
     <div className="grid gap-5 lg:gap-7.5">
+      {/* Historias & Reels Carousel */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">C{"\u00E1"}psulas SENA</h3>
+        </div>
+        <MultimediaCapsulas />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-y-5 lg:gap-7.5 items-stretch">
         <div className="lg:col-span-1">
           <div className="grid grid-cols-2 gap-5 lg:gap-7.5 h-full items-stretch">
@@ -217,3 +227,4 @@ const Demo1LightSidebarContent = () => {
 };
 
 export { Demo1LightSidebarContent };
+
