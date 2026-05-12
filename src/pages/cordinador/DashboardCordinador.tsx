@@ -143,7 +143,7 @@ export const DashboardCoordinador: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-7 gap-1 mb-2 font-bold text-center text-gray-400 uppercase text-4xs">
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d} className="py-1">{d}</div>)}
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, idx) => <div key={idx} className="py-1">{d}</div>)}
             {[...Array(31)].map((_, i) => (
               <div key={i} className={`py-2 text-2sm rounded-md transition-all cursor-pointer hover:bg-primary-light hover:text-primary ${i + 1 === 12 ? 'bg-primary text-white shadow-primary' : 'text-gray-600 dark:text-gray-400'}`}>
                 {i + 1}
