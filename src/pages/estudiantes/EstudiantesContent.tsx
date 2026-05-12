@@ -30,7 +30,7 @@ interface DashboardAsistencia {
 interface ActividadAprendiz {
   idCalificacionActividad: number;
   tituloActividad: string;
-  estadoVisual: 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR';
+  estadoVisual: 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR' | 'CORRECCION_SOLICITADA';
   fechaFinal?: string | null;
   fechaVencida?: boolean;
   materia?: { nombreMateria?: string };
@@ -205,6 +205,7 @@ const ESTADO_CFG: Record<string, { label: string; color: string; icon: string }>
   POR_EVALUAR: { label: 'Por evaluar', color: 'text-warning bg-warning/10', icon: 'time' },
   PENDIENTE: { label: 'Pendiente', color: 'text-primary bg-primary/10', icon: 'information-2' },
   SIN_ENTREGAR: { label: 'Vencida', color: 'text-danger bg-danger/10', icon: 'cross-circle' },
+  CORRECCION_SOLICITADA: { label: 'Corrección', color: 'text-purple-600 bg-purple-100', icon: 'refresh' },
 };
 
 // --- REELS MOCK DATA ---
@@ -367,8 +368,9 @@ const EstudiantesContent: React.FC = () => {
   const vencidas = actividades.filter((a) => a.estadoVisual === 'SIN_ENTREGAR').length;
   const presentadas = actividades.filter((a) => a.estadoVisual === 'POR_EVALUAR').length;
   const calificadas = actividades.filter((a) => a.estadoVisual === 'CALIFICADO').length;
+  const correcciones = actividades.filter((a) => a.estadoVisual === 'CORRECCION_SOLICITADA').length;
 
-  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE').sort((a, b) => {
+  const actAlerta = actividades.filter(a => a.estadoVisual === 'PENDIENTE' || a.estadoVisual === 'CORRECCION_SOLICITADA').sort((a, b) => {
     if (!a.fechaFinal) return 1;
     if (!b.fechaFinal) return -1;
     return new Date(a.fechaFinal).getTime() - new Date(b.fechaFinal).getTime();
@@ -630,7 +632,7 @@ const EstudiantesContent: React.FC = () => {
             <a href="/ambiente-virtual/actividades" className="text-sm font-bold text-primary hover:underline transition-all">Ir a actividades</a>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
               <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendiente</p>
               <p className="text-base font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
@@ -646,6 +648,10 @@ const EstudiantesContent: React.FC = () => {
             <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
               <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificado</p>
               <p className="text-base font-black text-success leading-none">{calificadas}</p>
+            </div>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+              <p className="text-[9px] font-bold text-purple-600 uppercase mb-1 leading-none">Corrección</p>
+              <p className="text-base font-black text-purple-600 leading-none">{correcciones}</p>
             </div>
           </div>
 
