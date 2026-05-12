@@ -36,6 +36,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     idFicha?: string;
   }>({});
   const [currentStep, setCurrentStep] = useState(0);
+  const [contratosFicha, setContratosFicha] = useState<any[]>([]);
+  const [asistenciaSearch, setAsistenciaSearch] = useState('');
 
   const getInitialFormState = () => ({
     nombre: '',
@@ -51,7 +53,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     agenda: [{ punto: '' }],
     objetivos: [{ objetivo: '' }],
     conclusiones: [{ conclusion: '' }],
-    compromisos: [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }]
+    compromisos: [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }],
+    asistencias: [] as any[]
   });
 
   const [formData, setFormData] = useState(getInitialFormState());
@@ -115,8 +118,20 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                   fecha: c.fecha ? c.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
                   responsable: c.responsable
                 }))
-              : [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }]
+              : [{ actividad: '', fecha: new Date().toISOString().split('T')[0], responsable: '' }],
+          asistencias:
+            actaToEdit.asistencias && actaToEdit.asistencias.length > 0
+              ? actaToEdit.asistencias.map((a) => ({
+                  idContrato: a.idContrato.toString(),
+                  dependencia: a.dependencia || 'INSTRUCTOR',
+                  aprueba: a.aprueba || 'NO',
+                  observacion: a.observacion || ''
+                }))
+              : []
         });
+        if (actaToEdit.idFicha) {
+          fetchContratos(actaToEdit.idFicha.toString());
+        }
         // Set the selected city label when editing
         if (actaToEdit.idCiudad) {
           const ciudadEncontrada = ciudades.find((c) => c.id === actaToEdit.idCiudad);
@@ -134,14 +149,68 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
       setIsCiudadFocused(false);
       setFichaSearch('');
       setIsFichaFocused(false);
+      setContratosFicha([]);
+      setAsistenciaSearch('');
     } else {
       // Clean up when modal closes
       setCiudadSearch('');
       setIsCiudadFocused(false);
       setFichaSearch('');
       setIsFichaFocused(false);
+      setContratosFicha([]);
+      setAsistenciaSearch('');
     }
   }, [isOpen, actaToEdit, ciudades]);
+
+  const fetchContratos = async (idFicha: string) => {
+    try {
+      const response = await axios.get(`actas/ficha-data`, {
+        params: { idFicha }
+      });
+      setContratosFicha(response.data);
+    } catch (error) {
+      console.error('Error fetching contratos:', error);
+    }
+  };
+
+  const toggleAsistencia = (contrato: any) => {
+    const isSelected = formData.asistencias.some((a) => a.idContrato === contrato.idContrato.toString());
+
+    if (isSelected) {
+      setFormData((prev) => ({
+        ...prev,
+        asistencias: prev.asistencias.filter((a) => a.idContrato !== contrato.idContrato.toString())
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        asistencias: [
+          ...prev.asistencias,
+          {
+            idContrato: contrato.idContrato.toString(),
+            dependencia: 'INSTRUCTOR',
+            aprueba: 'NO',
+            observacion: ''
+          }
+        ]
+      }));
+    }
+  };
+
+  const getAvatarUrl = (path: string | undefined): string => {
+    if (!path) return '/media/avatars/blank.png';
+    if (path.startsWith('http')) return path;
+    const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+    return `${base.replace(/\/$/, '')}/${storagePath}`;
+  };
+
+  const filteredAsistentes = contratosFicha.filter(
+    (c) =>
+      `${c.nombre1} ${c.apellido1}`.toLowerCase().includes(asistenciaSearch.toLowerCase()) ||
+      (c.numeroContrato && c.numeroContrato.includes(asistenciaSearch))
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -281,6 +350,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
       return;
     }
 
+    if (formData.asistencias.length === 0) {
+      setCurrentStep(2); // Ir al paso de asistentes
+      // Opcional: mostrar un aviso que debe agregar al menos un asistente
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload = {
@@ -291,7 +366,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         agenda: formData.agenda.filter((i) => i.punto.trim() !== ''),
         objetivos: formData.objetivos.filter((i) => i.objetivo.trim() !== ''),
         conclusiones: formData.conclusiones.filter((i) => i.conclusion.trim() !== ''),
-        compromisos: formData.compromisos.filter((i) => i.actividad.trim() !== '')
+        compromisos: formData.compromisos.filter((i) => i.actividad.trim() !== ''),
+        asistencias: formData.asistencias
       };
 
       if (actaToEdit) {
@@ -344,13 +420,13 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         targetStep = 0;
       }
       if (backendText.includes('agenda') || backendText.includes('objetivo')) {
-        targetStep = 2;
-      }
-      if (backendText.includes('conclusion') || backendText.includes('compromiso')) {
         targetStep = 3;
       }
-      if (backendText.includes('observacion')) {
+      if (backendText.includes('conclusion') || backendText.includes('compromiso')) {
         targetStep = 4;
+      }
+      if (backendText.includes('observacion')) {
+        targetStep = 5;
       }
 
       setCurrentStep(targetStep);
@@ -372,6 +448,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   const steps = [
     { title: 'Datos básicos', icon: 'ki-information-2' },
     { title: 'Ubicación', icon: 'ki-geolocation' },
+    { title: 'Asistentes', icon: 'ki-users' },
     { title: 'Agenda y objetivos', icon: 'ki-list' },
     { title: 'Conclusiones y compromisos', icon: 'ki-check-square' },
     { title: 'Observaciones', icon: 'ki-message-text-2' }
@@ -616,6 +693,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                                   setFichaSearch('');
                                   setIsFichaFocused(false);
                                   setErrors((prev) => ({ ...prev, idFicha: undefined }));
+                                  fetchContratos(ficha.idFicha.toString());
                                 }}
                                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-500/20 border-b border-gray-100 dark:border-coal-300 last:border-b-0 text-sm text-gray-700 dark:text-gray-200 transition-colors"
                               >
@@ -762,8 +840,149 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 </div>
               </div>}
 
+              {/* Asistentes */}
+              {currentStep === 2 && (
+                <div className="space-y-4 pt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-coal-300 pb-3">
+                    <div className="flex items-center gap-2">
+                      <i className="ki-outline ki-users text-blue-500 text-lg" />
+                      <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                        Instructores / Asistentes
+                      </h3>
+                    </div>
+                    <div className="relative flex-1 max-w-xs">
+                      <i className="ki-outline ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre o contrato..."
+                        className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        value={asistenciaSearch}
+                        onChange={(e) => setAsistenciaSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-coal-300 overflow-hidden">
+                    <div className="overflow-x-auto max-h-[350px] custom-scrollbar">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 dark:bg-coal-500/50 sticky top-0 z-10">
+                          <tr>
+                            <th className="py-2.5 px-4 text-center w-14">
+                              <span className="sr-only">Seleccionar</span>
+                            </th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                              Instructor
+                            </th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                              Contrato
+                            </th>
+                            <th className="py-2.5 px-4 text-center text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider w-24">
+                              Estado
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-coal-300">
+                          {contratosFicha.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="py-10 text-center">
+                                {formData.idFicha ? (
+                                  <>
+                                    <i className="ki-outline ki-user-remove text-gray-300 text-4xl mb-2 block" />
+                                    <p className="text-xs text-gray-400">
+                                      No se encontraron instructores vinculados a esta ficha.
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="ki-outline ki-information-2 text-blue-400 text-4xl mb-2 block" />
+                                    <p className="text-xs text-gray-400">
+                                      Primero debe seleccionar una ficha en el paso anterior.
+                                    </p>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredAsistentes.map((contrato) => {
+                              const isSelected = formData.asistencias.some(
+                                (a) => a.idContrato === contrato.idContrato.toString()
+                              );
+                              return (
+                                <tr
+                                  key={`${contrato.idContrato}`}
+                                  onClick={() => !isLocked && toggleAsistencia(contrato)}
+                                  className={`
+                                    hover:bg-gray-50 dark:hover:bg-coal-300/30 transition-colors cursor-pointer
+                                    ${isSelected ? 'bg-blue-50/50 dark:bg-blue-500/5' : ''}
+                                  `}
+                                >
+                                  <td className="py-3 px-4 text-center align-middle">
+                                    <div className="flex justify-center">
+                                      <div
+                                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                          isSelected
+                                            ? 'bg-blue-600 border-blue-600 text-white'
+                                            : 'border-gray-300 dark:border-coal-200'
+                                        }`}
+                                      >
+                                        {isSelected && <i className="ki-outline ki-check text-[10px] font-bold" />}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3 align-middle">
+                                    <div className="flex items-center gap-3">
+                                      <img
+                                        src={getAvatarUrl(contrato.rutaFotoUrl || contrato.rutaFoto)}
+                                        className="w-8 h-8 rounded-full object-cover border border-gray-100 dark:border-coal-200"
+                                        alt=""
+                                      />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[11px] font-bold text-gray-800 dark:text-gray-200 truncate">
+                                          {contrato.nombre1} {contrato.apellido1}
+                                        </span>
+                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 truncate">
+                                          {contrato.email || 'Sin correo'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3 align-middle">
+                                    <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                                      # {contrato.numeroContrato || 'S/N'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-center align-middle">
+                                    {isSelected ? (
+                                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-[9px] font-bold text-green-600 dark:text-green-400 rounded-full">
+                                        SELECCIONADO
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-coal-500 text-[9px] font-bold text-gray-400 dark:text-gray-500 rounded-full">
+                                        OMITIDO
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-2">
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                      Seleccionados:
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-bold">
+                      {formData.asistencias.length}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Agenda */}
-              {currentStep === 2 && <div className="space-y-4 pt-2">
+              {currentStep === 3 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-list text-blue-500" />
@@ -806,7 +1025,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               </div>}
 
               {/* Objetivos */}
-              {currentStep === 2 && <div className="space-y-4 pt-2">
+              {currentStep === 3 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-target text-blue-500" />
@@ -849,7 +1068,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               </div>}
 
               {/* Conclusiones */}
-              {currentStep === 3 && <div className="space-y-4 pt-2">
+              {currentStep === 4 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-check-square text-blue-500" />
@@ -892,7 +1111,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               </div>}
 
               {/* Compromisos */}
-              {currentStep === 3 && <div className="space-y-4 pt-2">
+              {currentStep === 4 && <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-coal-300 pb-2">
                   <div className="flex items-center gap-2">
                     <i className="ki-outline ki-calendar-tick text-blue-500" />
@@ -972,7 +1191,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
               </div>}
 
               {/* Observación General */}
-              {currentStep === 4 && <div className="space-y-4 pt-2">
+              {currentStep === 5 && <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2">
                   <i className="ki-outline ki-message-text-2 text-blue-500" />
                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
