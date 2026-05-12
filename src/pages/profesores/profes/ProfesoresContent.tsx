@@ -426,6 +426,81 @@ function getTitulo(act: Actividad): string {
   return act.tituloActividad || act.titulo || act.nombre || "Sin nombre";
 }
 
+// ─── SEMAFORO DE HORAS RMI (HELPERS) ──────────────────────────────────────────
+
+function getHorasPeriodo(dataRmi: any[], monthStr: string): number {
+  if (!Array.isArray(dataRmi)) return 0;
+  let horas = 0;
+  dataRmi.forEach(contrato => {
+    const p = contrato.periodos?.find((x: any) => x.periodo === monthStr);
+    if (p) {
+      horas += Number(p.horasAsignadas || p.horas || p.totalHoras || p.duracionHoras) || 0;
+    }
+  });
+  return horas;
+}
+
+function getFechaInicioContrato(dataRmi: any[]): Date | null {
+  if (!Array.isArray(dataRmi) || dataRmi.length === 0) return null;
+  
+  let earliestDate: Date | null = null;
+
+  for (const contrato of dataRmi) {
+    const rawDate = contrato.fechaInicio || contrato.fecha_inicio || contrato.fechaInicial || contrato.fecha_inicial || contrato.fechaInicioContrato || contrato.fecha_inicio_contrato || contrato.contrato?.fechaInicio || contrato.contrato?.fecha_inicio;
+    
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        if (!earliestDate || d < earliestDate) earliestDate = d;
+      }
+    }
+    
+    if (Array.isArray(contrato.periodos) && contrato.periodos.length > 0) {
+      const pSorted = [...contrato.periodos].sort((a, b) => (a.periodo || "").localeCompare(b.periodo || ""));
+      const p1 = pSorted[0]?.periodo;
+      if (p1) {
+        const d = new Date(`${p1}-01T00:00:00`);
+        if (!isNaN(d.getTime())) {
+          if (!earliestDate || d < earliestDate) earliestDate = d;
+        }
+      }
+    }
+  }
+  return earliestDate;
+}
+
+function getSemaforoHorasMes(horas: number) {
+  if (horas < 155) return { 
+    bg: "bg-red-500", text: "text-red-500", bgLight: "bg-red-50 dark:bg-red-900/20", 
+    border: "border-red-200 dark:border-red-800", label: "Por debajo" 
+  };
+  if (horas < 160) return { 
+    bg: "bg-amber-400", text: "text-amber-500", bgLight: "bg-amber-50 dark:bg-amber-900/20", 
+    border: "border-amber-200 dark:border-amber-800", label: "Cerca de cumplir" 
+  };
+  if (horas === 160) return { 
+    bg: "bg-green-400", text: "text-green-500", bgLight: "bg-green-50 dark:bg-green-900/20", 
+    border: "border-green-200 dark:border-green-800", label: "Cumple" 
+  };
+  return { 
+    bg: "bg-green-600", text: "text-green-600", bgLight: "bg-green-50 dark:bg-green-900/20", 
+    border: "border-green-200 dark:border-green-800", label: "Por encima" 
+  };
+}
+
+function getSemaforoHorasAcumulado(horas: number, meta: number) {
+  const diff = meta - horas;
+  if (diff >= 6) return { bg: "bg-red-500", text: "text-red-500" };
+  if (diff > 0 && diff <= 5) return { bg: "bg-amber-400", text: "text-amber-500" };
+  if (diff === 0) return { bg: "bg-green-400", text: "text-green-500" };
+  return { bg: "bg-green-600", text: "text-green-600" };
+}
+
+function parsePeriodoToDate(periodoStr: string): Date | null {
+  if (!periodoStr) return null;
+  const d = new Date(`${periodoStr}-01T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 // ─── REELS DATA & COMPONENT ──────────────────────────────────────────────────
 
@@ -652,6 +727,58 @@ const ProfesoresContent: React.FC = () => {
     }
 
     return { totalSesiones: sesiones, totalHoras: horas };
+  }, [dataRmi, currentMonth]);
+
+  // ── Semáforo de Horas RMI ────────────────────────────────────────────────
+  const rmiCalculations = useMemo(() => {
+    const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    const horasMes = getHorasPeriodo(dataRmi, monthStr);
+    const semaforoMes = getSemaforoHorasMes(horasMes);
+
+    let fechaInicio = getFechaInicioContrato(dataRmi);
+    if (!fechaInicio) {
+      fechaInicio = new Date(currentMonth.getFullYear(), 0, 1);
+    }
+    
+    let acumuladoHoras = 0;
+    const startY = fechaInicio.getFullYear();
+    const startM = fechaInicio.getMonth();
+    const currY = currentMonth.getFullYear();
+    const currM = currentMonth.getMonth();
+    
+    let mesesTranscurridos = (currY - startY) * 12 + (currM - startM) + 1;
+    if (mesesTranscurridos < 0) mesesTranscurridos = 0;
+    
+    if (Array.isArray(dataRmi)) {
+      dataRmi.forEach(contrato => {
+        if (Array.isArray(contrato.periodos)) {
+          contrato.periodos.forEach((p: any) => {
+            if (p.periodo && p.periodo <= monthStr) {
+              const d = parsePeriodoToDate(p.periodo);
+              if (d && d >= new Date(startY, startM, 1)) {
+                acumuladoHoras += Number(p.horasAsignadas || p.horas || p.totalHoras || p.duracionHoras) || 0;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    const metaAcumulada = mesesTranscurridos * 160;
+    const semaforoAcumulado = getSemaforoHorasAcumulado(acumuladoHoras, metaAcumulada);
+    
+    const mesNombres = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+    const textoInicio = `Desde ${mesNombres[startM]} ${startY}`;
+
+    return {
+      horasMes,
+      semaforoMes,
+      acumuladoHoras,
+      metaAcumulada,
+      semaforoAcumulado,
+      mesesTranscurridos,
+      textoInicio,
+    };
   }, [dataRmi, currentMonth]);
 
   // ── Fichas en formación y Paginación ─────────────────────────────────────
@@ -976,6 +1103,41 @@ const ProfesoresContent: React.FC = () => {
               </div>
             </div>
             
+            {/* SEMÁFORO RMI */}
+            <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 mb-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="flex-1 flex items-center gap-4 w-full">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoMes.bg}`}>
+                  <KeenIcon icon="time" className="text-xl" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Mensual</p>
+                  <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-0.5">
+                    {rmiCalculations.horasMes.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ 160h</span>
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoMes.text}`}>
+                    {rmiCalculations.semaforoMes.label}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="hidden sm:block w-px h-10 bg-gray-100 dark:bg-gray-700"></div>
+              
+              <div className="flex-1 flex items-center justify-end gap-4 w-full">
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Acumulado</p>
+                  <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-0.5">
+                    {rmiCalculations.acumuladoHoras.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ {rmiCalculations.metaAcumulada}h</span>
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoAcumulado.text}`}>
+                    {rmiCalculations.textoInicio} · {rmiCalculations.mesesTranscurridos} meses × 160 h
+                  </p>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoAcumulado.bg}`}>
+                  <KeenIcon icon="chart-line-up" className="text-xl" />
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white dark:bg-coal-400 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col min-h-[320px]">
               {calendarView === 'month' ? (
                 <>
@@ -995,14 +1157,14 @@ const ProfesoresContent: React.FC = () => {
                         <div
                           key={day}
                           onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-black font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-blue-900/20 font-bold" : ""}`}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-black font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? `${rmiCalculations.semaforoMes.bgLight} ${rmiCalculations.semaforoMes.text} font-bold` : ""}`}
                         >
                           <span className="z-10">{day}</span>
                           {daySessions.length > 0 && (
                             <>
                               <div className="absolute bottom-1.5 flex gap-1 z-10">
                                 {daySessions.slice(0, 3).map((_, i) => (
-                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`} />
+                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : rmiCalculations.semaforoMes.bg}`} />
                                 ))}
                               </div>
 
@@ -1104,8 +1266,8 @@ const ProfesoresContent: React.FC = () => {
                                 : "text-gray-700 dark:text-gray-300 font-medium"
                             }
                             ${
-                              isInSelectedWeek && !isToday
-                                ? "bg-blue-50/80 dark:bg-blue-900/20 ring-1 ring-primary/20 font-bold"
+                              isInSelectedWeek && !isToday && daySessions.length > 0
+                                ? `${rmiCalculations.semaforoMes.bgLight} ${rmiCalculations.semaforoMes.text} ring-1 ${rmiCalculations.semaforoMes.border} font-bold`
                                 : ""
                             }
                             ${
@@ -1123,7 +1285,7 @@ const ProfesoresContent: React.FC = () => {
                                 {daySessions.slice(0, 3).map((_, i) => (
                                   <div
                                     key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`}
+                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : rmiCalculations.semaforoMes.bg}`}
                                   />
                                 ))}
                               </div>
@@ -1205,16 +1367,16 @@ const ProfesoresContent: React.FC = () => {
                       <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] custom-scrollbar pr-2">
                         {daySessions.map(session => (
                           <div key={session.id} className="flex items-stretch gap-3 group">
-                            <div className="flex flex-col items-center justify-center w-[72px] shrink-0 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10">
-                              <span className="text-[10px] font-bold text-primary uppercase leading-none mb-1">Inicio</span>
-                              <span className="text-sm font-black text-primary leading-none">{session.horaInicial}</span>
+                            <div className={`flex flex-col items-center justify-center w-[72px] shrink-0 ${rmiCalculations.semaforoMes.bgLight} rounded-xl border ${rmiCalculations.semaforoMes.border}`}>
+                              <span className={`text-[10px] font-bold ${rmiCalculations.semaforoMes.text} uppercase leading-none mb-1`}>Inicio</span>
+                              <span className={`text-sm font-black ${rmiCalculations.semaforoMes.text} leading-none`}>{session.horaInicial}</span>
                             </div>
                             <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 hover:border-primary/30 transition-colors shadow-sm">
                               <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight mb-1">{session.materia}</h3>
                               <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium">
                                 <span className="flex items-center gap-1"><KeenIcon icon="time" /> Fin {session.horaFinal}</span>
                                 <span className="flex items-center gap-1 truncate"><KeenIcon icon="geolocation" /> {session.aula}</span>
-                                <span className="flex items-center gap-1 truncate text-gray-400"><KeenIcon icon="check-circle" /> {session.estado}</span>
+                                <span className={`flex items-center gap-1 truncate font-bold ${rmiCalculations.semaforoMes.text}`}><KeenIcon icon="flag" /> {rmiCalculations.semaforoMes.label}</span>
                               </div>
                             </div>
                           </div>

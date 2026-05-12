@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Tooltip } from '@mui/material';
 
@@ -6,7 +6,9 @@ interface Estudiante {
   idMatriculaAcademica: number;
   idMatricula: number;
   nombre: string;
-  asistio: boolean | null; // true (Asistió), false (Faltó/Inasistencia)
+  identificacion?: string;
+  fotoUrl?: string | null;
+  asistio: boolean | null;
   estadoLocal?: 'presente' | 'ausente' | 'justificada';
 }
 
@@ -16,7 +18,8 @@ interface TakeAttendanceModalProps {
   estudiantes: Estudiante[];
   idMateria: number;
   idAsignacionPeriodoProgramaJornada: number;
-  onAttendanceUpdated: () => void; // Callback para recargar la lista de estudiantes
+  idHorarioMateria?: number;
+  onAttendanceUpdated: () => void;
 }
 
 const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
@@ -25,11 +28,14 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
   estudiantes,
   idMateria,
   idAsignacionPeriodoProgramaJornada,
+  idHorarioMateria,
   onAttendanceUpdated
 }) => {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [localEstudiantes, setLocalEstudiantes] = useState<Estudiante[]>([]);
   const [justifyingStudentId, setJustifyingStudentId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
   const [justificationData, setJustificationData] = useState({
     tipoExcusa: 'FUERZA MAYOR',
     observacionExcusa: ''
@@ -41,7 +47,59 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
     }
   }, [isOpen, estudiantes]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setSearchTerm('');
+      setJustifyingStudentId(null);
+      setJustificationData({
+        tipoExcusa: 'FUERZA MAYOR',
+        observacionExcusa: ''
+      });
+    }
+  }, [isOpen]);
+
+  const normalizeText = (value: string = ''): string => {
+    return value
+      .toLocaleLowerCase('es')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  };
+
+  const normalizeIdentity = (value: string = ''): string => {
+    return value.replace(/\D/g, '');
+  };
+
+  const getInitials = (nombre: string): string => {
+    return nombre
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word.charAt(0))
+      .join('')
+      .toUpperCase();
+  };
+
+  const filteredEstudiantes = useMemo(() => {
+    const search = normalizeText(searchTerm);
+    const searchIdentity = normalizeIdentity(searchTerm);
+
+    if (!search && !searchIdentity) {
+      return localEstudiantes;
+    }
+
+    return localEstudiantes.filter((estudiante) => {
+      const nombre = normalizeText(estudiante.nombre);
+      const identificacionTexto = normalizeText(estudiante.identificacion || '');
+      const identificacionNumerica = normalizeIdentity(estudiante.identificacion || '');
+
+      return (
+        nombre.includes(search) ||
+        identificacionTexto.includes(search) ||
+        (searchIdentity.length > 0 && identificacionNumerica.includes(searchIdentity))
+      );
+    });
+  }, [localEstudiantes, searchTerm]);
 
   const setAttendance = async (
     estudiante: Estudiante,
@@ -51,7 +109,7 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
     setLoadingId(estudiante.idMatriculaAcademica);
 
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         idMatriculaAcademica: estudiante.idMatriculaAcademica,
         idMatricula: estudiante.idMatricula,
         idMateria,
@@ -61,23 +119,38 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
         ...(justificationOptions || {})
       };
 
+      if (idHorarioMateria) {
+        payload.idHorarioMateria = idHorarioMateria;
+      }
+
       await axios.put('update_assistance', payload);
 
-      setLocalEstudiantes(prev => prev.map(e =>
-        e.idMatriculaAcademica === estudiante.idMatriculaAcademica
-          ? { ...e, asistio: estado === 'presente', estadoLocal: estado }
-          : e
-      ));
+      setLocalEstudiantes((prev) =>
+        prev.map((e) =>
+          e.idMatriculaAcademica === estudiante.idMatriculaAcademica
+            ? {
+                ...e,
+                asistio: estado === 'presente',
+                estadoLocal: estado
+              }
+            : e
+        )
+      );
 
-      if (onAttendanceUpdated) onAttendanceUpdated();
+      if (onAttendanceUpdated) {
+        onAttendanceUpdated();
+      }
 
       if (estado === 'justificada') {
         setJustifyingStudentId(null);
+        setJustificationData({
+          tipoExcusa: 'FUERZA MAYOR',
+          observacionExcusa: ''
+        });
       }
-
     } catch (error) {
-      console.error("Error al actualizar asistencia", error);
-      alert("Error al actualizar la asistencia.");
+      console.error('Error al actualizar asistencia', error);
+      alert('Error al actualizar la asistencia.');
     } finally {
       setLoadingId(null);
     }
@@ -85,51 +158,139 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
 
   const handleOpenJustification = (id: number) => {
     setJustifyingStudentId(id);
-    setJustificationData({ tipoExcusa: 'FUERZA MAYOR', observacionExcusa: '' });
+    setJustificationData({
+      tipoExcusa: 'FUERZA MAYOR',
+      observacionExcusa: ''
+    });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+  if (!isOpen) return null;
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity p-4">
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header del Modal */}
         <div className="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
           <h2 className="text-xl font-bold text-gray-800">Justificaciones</h2>
+
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </button>
+        </div>
+
+        {/* Buscador */}
+        <div className="px-4 pt-4 pb-3 border-b bg-white">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.currentTarget.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              placeholder="Buscar estudiante..."
+              autoFocus
+              data-no-uppercase
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pl-10 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-colors"
+            />
+
+            <svg
+              className="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+              />
+            </svg>
+          </div>
+
+          <p className="mt-2 text-xs text-gray-500">
+            Mostrando {filteredEstudiantes.length} de {localEstudiantes.length} estudiantes
+          </p>
         </div>
 
         {/* Lista de Estudiantes */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
-          {localEstudiantes.map((estudiante) => (
+          {filteredEstudiantes.map((estudiante) => (
             <React.Fragment key={estudiante.idMatriculaAcademica}>
               <div
-                className={`flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors z-10 relative
-                ${justifyingStudentId === estudiante.idMatriculaAcademica ? 'rounded-b-none border-b-transparent bg-gray-50' : ''}
-              `}
+                className={`flex justify-between items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors z-10 relative ${
+                  justifyingStudentId === estudiante.idMatriculaAcademica
+                    ? 'rounded-b-none border-b-transparent bg-gray-50'
+                    : ''
+                }`}
               >
-                <Tooltip title={estudiante.nombre} placement="top" arrow>
-                  <span className="text-gray-700 font-medium truncate pr-4 cursor-pointer hover:text-blue-600 transition-colors">
-                    {estudiante.nombre}
-                  </span>
-                </Tooltip>
+                <div className="flex items-center gap-3 min-w-0">
+                  {estudiante.fotoUrl ? (
+                    <img
+                      src={estudiante.fotoUrl}
+                      alt={estudiante.nombre}
+                      className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.src = '/media/avatars/blank.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {getInitials(estudiante.nombre)}
+                    </div>
+                  )}
 
-                <div className="flex gap-1 sm:gap-2">
+                  <div className="min-w-0">
+                    <Tooltip title={estudiante.nombre} placement="top" arrow>
+                      <p className="text-gray-700 font-medium truncate cursor-pointer hover:text-blue-600 transition-colors">
+                        {estudiante.nombre}
+                      </p>
+                    </Tooltip>
+
+                    {estudiante.identificacion && (
+                      <p className="text-xs text-gray-500 truncate">
+                        ID: {estudiante.identificacion}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                   <button
+                    type="button"
                     onClick={() => handleOpenJustification(estudiante.idMatriculaAcademica)}
                     disabled={loadingId === estudiante.idMatriculaAcademica}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors
-                    ${loadingId === estudiante.idMatriculaAcademica ? 'opacity-50 cursor-not-allowed' : ''}
-                    ${estudiante.estadoLocal === 'justificada'
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                      loadingId === estudiante.idMatriculaAcademica
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
+                    } ${
+                      estudiante.estadoLocal === 'justificada'
                         ? 'bg-yellow-500 text-white shadow-sm ring-1 ring-yellow-600'
                         : 'bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700'
-                      }`}
+                    }`}
                   >
-                    Justificar
+                    {loadingId === estudiante.idMatriculaAcademica
+                      ? 'Guardando...'
+                      : 'Justificar'}
                   </button>
                 </div>
               </div>
@@ -138,10 +299,18 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
               {justifyingStudentId === estudiante.idMatriculaAcademica && (
                 <div className="p-3 border-x border-b rounded-b-lg bg-yellow-50/50 mt-[-0.5rem] mb-2 text-sm border-yellow-200">
                   <div className="mb-2">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de Excusa</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      Tipo de Excusa
+                    </label>
+
                     <select
                       value={justificationData.tipoExcusa}
-                      onChange={(e) => setJustificationData({ ...justificationData, tipoExcusa: e.target.value })}
+                      onChange={(e) =>
+                        setJustificationData({
+                          ...justificationData,
+                          tipoExcusa: e.target.value
+                        })
+                      }
                       className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 py-1"
                     >
                       <option value="FUERZA MAYOR">Fuerza Mayor</option>
@@ -150,25 +319,43 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
                       <option value="PERMISO MEDICO">Permiso Médico</option>
                     </select>
                   </div>
+
                   <div className="mb-3">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Observación</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      Observación
+                    </label>
+
                     <textarea
                       value={justificationData.observacionExcusa}
-                      onChange={(e) => setJustificationData({ ...justificationData, observacionExcusa: e.target.value })}
+                      onChange={(e) =>
+                        setJustificationData({
+                          ...justificationData,
+                          observacionExcusa: e.target.value
+                        })
+                      }
                       placeholder="Detalles sobre la inasistencia..."
                       className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 resize-none h-16"
-                    ></textarea>
+                    />
                   </div>
+
                   <div className="flex justify-end gap-2">
                     <button
+                      type="button"
                       onClick={() => setJustifyingStudentId(null)}
                       className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs font-semibold transition-colors"
                     >
                       Cancelar
                     </button>
+
                     <button
+                      type="button"
                       onClick={() => setAttendance(estudiante, 'justificada', justificationData)}
-                      className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs font-semibold transition-colors"
+                      disabled={loadingId === estudiante.idMatriculaAcademica}
+                      className={`px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs font-semibold transition-colors ${
+                        loadingId === estudiante.idMatriculaAcademica
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
                     >
                       Guardar Justificación
                     </button>
@@ -178,9 +365,11 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
             </React.Fragment>
           ))}
 
-          {localEstudiantes.length === 0 && (
-            <div className="text-center p-4 text-gray-500">
-              No hay estudiantes para mostrar.
+          {filteredEstudiantes.length === 0 && (
+            <div className="text-center p-6 text-gray-500">
+              {searchTerm
+                ? 'No se encontraron estudiantes con ese nombre o identificación.'
+                : 'No hay estudiantes para mostrar.'}
             </div>
           )}
         </div>
@@ -188,16 +377,16 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
           >
             Cerrar
           </button>
         </div>
-
       </div>
     </div>
   );
-}
+};
 
 export default TakeAttendanceModal;
