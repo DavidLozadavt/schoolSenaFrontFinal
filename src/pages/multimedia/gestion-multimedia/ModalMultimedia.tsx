@@ -421,6 +421,7 @@ const ModalMultimedia = ({ open, tipo = 'historia', data, onClose, onSave }: Mod
                 className="input p-2 border border-gray-300 rounded-md w-full"
                 placeholder="https://ejemplo.com/video.mp4 o link de TikTok/Instagram"
                 value={urlDirecta}
+                data-no-uppercase
                 style={{ textTransform: 'none' }}
                 onChange={(e) => setUrlDirecta(e.target.value)}
               />
