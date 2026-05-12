@@ -591,31 +591,68 @@ const ProfesoresContent: React.FC = () => {
   const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  const totalFichas = fichas.length;
-  const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
-  
-  // Las horas y sesiones se calculan mensualmente en base al mes actual seleccionado en el calendario.
-  // Esto simula la lógica del RMI donde el conteo se hace estrictamente por las sesiones que caen en el mes.
-  const { totalSesiones, totalHoras } = useMemo(() => {
-    const currentMonthSessions = upcomingSessions.filter(s => 
-      s.fechaObj.getMonth() === currentMonth.getMonth() && 
-      s.fechaObj.getFullYear() === currentMonth.getFullYear()
-    );
+  const { totalFichas, totalRAPs } = useMemo(() => {
+    let fichasCount = 0;
+    let rapsCount = 0;
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
-    const sesiones = currentMonthSessions.length;
-    const horas = currentMonthSessions.reduce((acc, s) => {
-      const start = s.horaInicial.split(':').map(Number);
-      const end = s.horaFinal.split(':').map(Number);
-      if (start.length >= 2 && end.length >= 2) {
-        let diff = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
-        if (diff < 0) diff += 24 * 60;
-        return acc + (diff / 60);
+    fichas.forEach(f => {
+      let fichaHasRapInMonth = false;
+      if (Array.isArray(f.resultados)) {
+        f.resultados.forEach(rap => {
+          const rapStart = parseLocalDate(rap.fechaInicial);
+          const rapEnd = parseLocalDate(rap.fechaFinal, true);
+          if (rapStart && rapEnd && rapStart <= monthEnd && rapEnd >= monthStart) {
+            rapsCount++;
+            fichaHasRapInMonth = true;
+          }
+        });
       }
-      return acc;
-    }, 0);
+      if (fichaHasRapInMonth) {
+        fichasCount++;
+      }
+    });
+
+    return { totalFichas: fichasCount, totalRAPs: rapsCount };
+  }, [fichas, currentMonth]);
+
+  const [dataRmi, setDataRmi] = useState<any[]>([]);
+
+  useEffect(() => {
+    const year = currentMonth.getFullYear();
+    const idPerson = persona?.id ?? user?.persona?.id;
+    if (!idPerson) return;
+    
+    axios.get("get_data_rmi_configuration_by_year", {
+      params: { year, idPerson }
+    })
+    .then(r => setDataRmi(r.data))
+    .catch(e => console.error("Error fetching RMI", e));
+  }, [currentMonth.getFullYear(), persona?.id, user?.persona?.id]);
+
+  // Las horas y sesiones se obtienen desde el endpoint de RMI, filtrando por el mes actual.
+  const { totalSesiones, totalHoras } = useMemo(() => {
+    const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    let sesiones = 0;
+    let horas = 0;
+
+    if (Array.isArray(dataRmi)) {
+      dataRmi.forEach(contrato => {
+        const periodo = contrato.periodos?.find((p: any) => p.periodo === monthStr);
+        if (periodo) {
+          horas += Number(periodo.horasAsignadas) || 0;
+          if (Array.isArray(periodo.detalles)) {
+            sesiones += periodo.detalles.length;
+          }
+        }
+      });
+    }
 
     return { totalSesiones: sesiones, totalHoras: horas };
-  }, [upcomingSessions, currentMonth]);
+  }, [dataRmi, currentMonth]);
 
   // ── Fichas en formación y Paginación ─────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
