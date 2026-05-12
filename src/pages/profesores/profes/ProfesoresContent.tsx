@@ -254,7 +254,18 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
     }
   }
 
-  return sessions.sort((a, b) => {
+  const uniqueSessionsMap = new Map<string, UpcomingSession>();
+  sessions.forEach(s => {
+    // Para RAPs sin idHorario el ID se construyó con undefined-fecha, lo reemplazamos si es el caso.
+    const key = s.id.startsWith('undefined') || s.id.startsWith('null') || s.id.startsWith('0') 
+      ? `${s.fechaStr}-${s.horaInicial}-${s.horaFinal}` 
+      : s.id;
+    if (!uniqueSessionsMap.has(key)) {
+      uniqueSessionsMap.set(key, s);
+    }
+  });
+
+  return Array.from(uniqueSessionsMap.values()).sort((a, b) => {
     if (a.fechaStr !== b.fechaStr) return a.fechaStr.localeCompare(b.fechaStr);
     return a.horaInicial.localeCompare(b.horaInicial);
   });
@@ -535,7 +546,8 @@ const ProfesoresContent: React.FC = () => {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [fichasPage, setFichasPage] = useState(1);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
+  const [selectedDay, setSelectedDay] = useState(new Date());
   const [playingReelIndex, setPlayingReelIndex] = useState<number | null>(null);
 
   // ── Fichas del instructor (endpoint autónomo, sin params) ───────────────
@@ -568,25 +580,35 @@ const ProfesoresContent: React.FC = () => {
     [actividades]
   )
 
+  // ── Calendario (Generación de Sesiones) ──────────────────────────────────
+  const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
+
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const totalFichas = fichas.length;
   const totalRAPs = fichas.reduce((a, f) => a + (Array.isArray(f.resultados) ? f.resultados.length : 0), 0);
-  const totalSesiones = fichas.reduce(
-    (a, f) =>
-      a +
-      (Array.isArray(f.resultados)
-        ? f.resultados.reduce((b, r) => b + deriveSesionesYHoras(r).cantidadSesiones, 0)
-        : 0),
-    0
-  );
-  const totalHoras = fichas.reduce(
-    (a, f) =>
-      a +
-      (Array.isArray(f.resultados)
-        ? f.resultados.reduce((b, r) => b + deriveSesionesYHoras(r).duracionHoras, 0)
-        : 0),
-    0
-  );
+  
+  // Las horas y sesiones se calculan mensualmente en base al mes actual seleccionado en el calendario.
+  // Esto simula la lógica del RMI donde el conteo se hace estrictamente por las sesiones que caen en el mes.
+  const { totalSesiones, totalHoras } = useMemo(() => {
+    const currentMonthSessions = upcomingSessions.filter(s => 
+      s.fechaObj.getMonth() === currentMonth.getMonth() && 
+      s.fechaObj.getFullYear() === currentMonth.getFullYear()
+    );
+
+    const sesiones = currentMonthSessions.length;
+    const horas = currentMonthSessions.reduce((acc, s) => {
+      const start = s.horaInicial.split(':').map(Number);
+      const end = s.horaFinal.split(':').map(Number);
+      if (start.length >= 2 && end.length >= 2) {
+        let diff = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+        if (diff < 0) diff += 24 * 60;
+        return acc + (diff / 60);
+      }
+      return acc;
+    }, 0);
+
+    return { totalSesiones: sesiones, totalHoras: horas };
+  }, [upcomingSessions, currentMonth]);
 
   // ── Fichas en formación y Paginación ─────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
@@ -599,8 +621,7 @@ const ProfesoresContent: React.FC = () => {
   const pendientes = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'PENDIENTE').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
 
-  // ── Calendario ────────────────────────────────────────────────────────────
-  const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
+  // ── Calendario (Controles) ────────────────────────────────────────────────
 
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -608,6 +629,45 @@ const ProfesoresContent: React.FC = () => {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const formatDateKey = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const getMondayOfWeek = (date: Date) => {
+    const base = new Date(date);
+    base.setHours(0, 0, 0, 0);
+
+    const day = base.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    base.setDate(base.getDate() + diffToMonday);
+    return base;
+  };
+
+  const isDateInRange = (date: Date, start: Date, end: Date) => {
+    return date >= start && date <= end;
+  };
+
+  const changeWeek = (amount: number) => {
+    const nextDate = new Date(selectedDay);
+    nextDate.setDate(nextDate.getDate() + amount * 7);
+
+    setSelectedDay(nextDate);
+    setCurrentMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+  };
+
+  const prevWeek = () => changeWeek(-1);
+  const nextWeek = () => changeWeek(1);
+
+  const changeSelectedDay = (amount: number) => {
+    const nextDate = new Date(selectedDay);
+    nextDate.setDate(nextDate.getDate() + amount);
+
+    setSelectedDay(nextDate);
+    setCurrentMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+  };
+
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const startDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // Lunes = 0
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -624,31 +684,29 @@ const ProfesoresContent: React.FC = () => {
   }, [upcomingSessions]);
 
   const currentWeekRange = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const day = today.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-
-    const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday);
-    start.setHours(0, 0, 0, 0);
+    const start = getMondayOfWeek(selectedDay);
 
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
 
-    const label = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+    const label = `${start.toLocaleDateString('es-CO', {
+      day: 'numeric',
+      month: 'short',
+    })} - ${end.toLocaleDateString('es-CO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })}`;
 
     return { start, end, label };
-  }, []);
+  }, [selectedDay]);
 
   const weeklySessions = useMemo(() => {
-    const currentWeekSessions = getInstructorSessions(fichas, new Date());
-    return currentWeekSessions.filter(
+    return upcomingSessions.filter(
       (s) => s.fechaObj >= currentWeekRange.start && s.fechaObj <= currentWeekRange.end
     );
-  }, [fichas, currentWeekRange]);
+  }, [upcomingSessions, currentWeekRange]);
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-screen">
@@ -870,6 +928,7 @@ const ProfesoresContent: React.FC = () => {
               <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
+                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Día</button>
               </div>
             </div>
             
@@ -891,6 +950,7 @@ const ProfesoresContent: React.FC = () => {
                       return (
                         <div
                           key={day}
+                          onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
                           className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-blue-900/20 font-bold" : ""}`}
                         >
                           <span className="z-10">{day}</span>
@@ -932,43 +992,192 @@ const ProfesoresContent: React.FC = () => {
                     })}
                   </div>
                 </>
+              ) : calendarView === 'week' ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <button
+                      onClick={prevWeek}
+                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                    >
+                      <KeenIcon icon="left" />
+                    </button>
+
+                    <div className="text-center">
+                      <h3 className="font-bold text-gray-900 dark:text-white capitalize">
+                        {monthNames[month]} {year}
+                      </h3>
+                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                        Semana: {currentWeekRange.label}
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">
+                        {weeklySessions.length} clases
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={nextWeek}
+                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                    >
+                      <KeenIcon icon="right" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
+                    <div>Lun</div>
+                    <div>Mar</div>
+                    <div>Mié</div>
+                    <div>Jue</div>
+                    <div>Vie</div>
+                    <div>Sáb</div>
+                    <div>Dom</div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 flex-1">
+                    {blanks.map(b => (
+                      <div key={`blank-week-${b}`} className="h-8 md:h-10" />
+                    ))}
+
+                    {daysArray.map(day => {
+                      const dayDate = new Date(year, month, day);
+                      dayDate.setHours(0, 0, 0, 0);
+
+                      const dateStr = formatDateKey(dayDate);
+                      const isToday = new Date().toDateString() === dayDate.toDateString();
+                      const isInSelectedWeek = isDateInRange(dayDate, currentWeekRange.start, currentWeekRange.end);
+                      const daySessions = isInSelectedWeek ? sessionsByDate[dateStr] || [] : [];
+
+                      return (
+                        <div
+                          key={`week-${day}`}
+                          onClick={() => {
+                            setSelectedDay(dayDate);
+                            setCalendarView('day');
+                          }}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer
+                            ${
+                              isToday
+                                ? "bg-primary text-white font-black shadow-md shadow-primary/30"
+                                : "text-gray-700 dark:text-gray-300 font-medium"
+                            }
+                            ${
+                              isInSelectedWeek && !isToday
+                                ? "bg-blue-50/80 dark:bg-blue-900/20 ring-1 ring-primary/20 font-bold"
+                                : ""
+                            }
+                            ${
+                              !isInSelectedWeek
+                                ? "opacity-30 hover:opacity-60"
+                                : "hover:ring-1 hover:ring-primary/30"
+                            }
+                          `}
+                        >
+                          <span className="z-10">{day}</span>
+
+                          {daySessions.length > 0 && (
+                            <>
+                              <div className="absolute bottom-1.5 flex gap-1 z-10">
+                                {daySessions.slice(0, 3).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-primary'}`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">
+                                    Clases de la semana
+                                  </p>
+                                  <p className="mt-0.5 text-sm font-extrabold">
+                                    {dayDate.toLocaleDateString('es-CO', {
+                                      weekday: 'long',
+                                      day: 'numeric',
+                                      month: 'long',
+                                    })}
+                                  </p>
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto p-3">
+                                  {daySessions.map((s) => (
+                                    <div
+                                      key={s.id}
+                                      className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
+                                        <KeenIcon icon="time" className="text-xs" />
+                                        <span>{s.horaInicial} - {s.horaFinal}</span>
+                                      </div>
+
+                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">
+                                        {s.materia}
+                                      </p>
+
+                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                                        {s.aula}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col h-full">
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Semana actual</h3>
-                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5">{currentWeekRange.label}</p>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día seleccionado</h3>
+                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5 capitalize">{selectedDay.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                     </div>
-                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">{weeklySessions.length} clases</span>
+                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-coal-500 rounded p-1">
+                      <button onClick={() => changeSelectedDay(-1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
+                        <KeenIcon icon="left" className="text-xs" />
+                      </button>
+                      <button onClick={() => changeSelectedDay(1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
+                        <KeenIcon icon="right" className="text-xs" />
+                      </button>
+                    </div>
                   </div>
-                  {weeklySessions.length > 0 ? (
-                    <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] custom-scrollbar pr-2">
-                      {weeklySessions.map(session => {
-                        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                        const isToday = session.fechaObj.toDateString() === new Date().toDateString();
-                        return (
+                  
+                  {(() => {
+                    const daySessions = getInstructorSessions(fichas, selectedDay).filter(s => s.fechaObj.toDateString() === selectedDay.toDateString());
+                    if (daySessions.length === 0) {
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                          <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día libre</h3>
+                          <p className="text-xs text-gray-500 mt-1">No hay clases programadas para este día.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] custom-scrollbar pr-2">
+                        {daySessions.map(session => (
                           <div key={session.id} className="flex items-stretch gap-3 group">
-                            <div className="flex flex-col items-center justify-center w-12 shrink-0 bg-gray-50 dark:bg-coal-500/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">{dias[session.fechaObj.getDay()]}</span>
-                              <span className={`text-lg font-black leading-none ${isToday ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>{session.fechaObj.getDate()}</span>
+                            <div className="flex flex-col items-center justify-center w-[72px] shrink-0 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10">
+                              <span className="text-[10px] font-bold text-primary uppercase leading-none mb-1">Inicio</span>
+                              <span className="text-sm font-black text-primary leading-none">{session.horaInicial}</span>
                             </div>
-                            <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 group-hover:border-primary/30 transition-colors shadow-sm">
+                            <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 hover:border-primary/30 transition-colors shadow-sm">
                               <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight mb-1">{session.materia}</h3>
                               <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium">
-                                <span className="flex items-center gap-1"><KeenIcon icon="time" /> {session.horaInicial} - {session.horaFinal}</span>
+                                <span className="flex items-center gap-1"><KeenIcon icon="time" /> Fin {session.horaFinal}</span>
                                 <span className="flex items-center gap-1 truncate"><KeenIcon icon="geolocation" /> {session.aula}</span>
+                                <span className="flex items-center gap-1 truncate text-gray-400"><KeenIcon icon="check-circle" /> {session.estado}</span>
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                      <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Semana libre</h3>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
