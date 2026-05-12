@@ -757,10 +757,13 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           idMatriculaAcademica: s.id,
           idMatricula: s.idMatricula,
           nombre: getFullName(s),
-          asistio: null
+          identificacion: getStudentIdentificacion(s),
+          asistio: null,
+          fotoUrl: getStudentPhoto(s)
         }))}
         idMateria={typeof materiaData.idMateria === 'string' ? parseInt(materiaData.idMateria) : materiaData.idMateria}
         idAsignacionPeriodoProgramaJornada={materiaData.idFicha}
+        idHorarioMateria={materiaData.idHorarioMateria}
         onAttendanceUpdated={fetchStudents}
       />
 
