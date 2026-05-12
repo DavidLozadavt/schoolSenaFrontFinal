@@ -3,8 +3,6 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth/useAuthContext';
-import { normalizeText } from '@/components/forms/compactReactSelect';
-
 interface Props {
   evento: boolean;
   setEvento: (value: boolean) => void;
@@ -54,6 +52,64 @@ interface Clase {
   idMateria: number;
 }
 
+/** Quita caracteres invisibles que a veces vienen del backend y rompen .includes() en prefijos cortos. */
+function sanitizeBusquedaRaw(s: string): string {
+  return s.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\u00AD/g, '');
+}
+
+/**
+ * Textos de tarjeta (competencia / RAP) igual que en la UI.
+ * Debe vivir fuera del componente para reutilizarlo en el índice de búsqueda.
+ */
+function titulosCompetenciaYRap(clase: Clase): { competencia: string; rap: string | null } {
+  const materia = clase.materia_nombre.trim();
+  let competencia =
+    clase.competencia_nombre.trim() || materia || clase.programa_nombre.trim() || 'Sin nombre';
+  let rap = clase.rap_nombre?.trim() || null;
+
+  if (!rap && materia.includes(' - ')) {
+    const sep = ' - ';
+    const i = materia.indexOf(sep);
+    const tail = materia.slice(i + sep.length).trim();
+    const head = materia.slice(0, i).trim();
+    if (tail.length > 0 && head.length > 0) {
+      rap = tail;
+      if (clase.competencia_nombre.trim() === materia) {
+        competencia = head;
+      }
+    }
+  }
+
+  return { competencia, rap };
+}
+
+/** Cadena amplia para filtrar por cualquier fragmento (competencia, RAP, ficha, ids, evaluador, etc.). */
+function textoIndexBusquedaClase(clase: Clase): string {
+  const { competencia, rap } = titulosCompetenciaYRap(clase);
+  const sesExtras = (clase.sesiones_completadas ?? []).flatMap((s) => [
+    s.evaluador_nombre ?? '',
+    s.observacion ?? ''
+  ]);
+  const parts = [
+    competencia,
+    rap ?? '',
+    clase.competencia_nombre ?? '',
+    clase.materia_nombre ?? '',
+    clase.rap_nombre ?? '',
+    clase.programa_nombre ?? '',
+    clase.ficha_codigo ?? '',
+    String(clase.ficha_id ?? ''),
+    clase.jornada_nombre ?? '',
+    clase.instructor_nombre ?? '',
+    clase.grado_nombre ?? '',
+    clase.dia_semana ?? '',
+    String(clase.idMateria ?? ''),
+    String(clase.idHorarioMateria ?? ''),
+    ...sesExtras
+  ];
+  return sanitizeBusquedaRaw(parts.join(' '));
+}
+
 /** Una fila por `idHorarioMateria` (PK). Ojo: la API a veces manda el id como string → Map debe usar Number(). */
 function dedupeClasesPorIdHorario(lista: Clase[]): Clase[] {
   const m = new Map<number, Clase>();
@@ -91,123 +147,36 @@ function dedupeSesionesCompletadasPorId(
   return out;
 }
 
+/** Quita tildes y pasa a minúsculas para que "desarrollo" encuentre aunque el usuario escriba distinto. */
+function foldBusqueda(s: string): string {
+  const clean = sanitizeBusquedaRaw(s);
+  try {
+    return clean
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  } catch {
+    return clean.toLowerCase();
+  }
+}
+
+/** Una cadena por horario: competencia, RAP, ficha, programa, jornada, instructor — subcadena en tiempo real. */
+function claseCoincideBusquedaHistorial(
+  idHorarioMateria: number,
+  termFolded: string,
+  haystackMap: Map<number, string>
+): boolean {
+  if (!termFolded) return true;
+  const h = haystackMap.get(idHorarioMateria);
+  return h != null && h.includes(termFolded);
+}
+
 /** Ocurrencia única de sesión dictada (misma materia + día + # sesión), aunque la BD tenga 2 PK por error. */
 function claveOcurrenciaSesionListado(clase: Clase, s: SesionCompletada): string {
   const hm = Number(clase.idHorarioMateria);
   const ymd = String(s.fechaSesion ?? '').split('T')[0];
   const n = Number(s.numeroSesion);
   return `${Number.isFinite(hm) ? hm : 0}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
-}
-
-/** Misma lógica visual que `getJornadaType` en el listado (para búsqueda). */
-function jornadaLabelDesdeTipoHistorial(jornadaTipo: string): string {
-  if (!jornadaTipo) return 'Mañana';
-  const lower = jornadaTipo.toLowerCase().trim();
-  if (lower.includes('mañana') || lower.includes('manana')) return 'Mañana';
-  if (lower.includes('tarde')) return 'Tarde';
-  if (lower.includes('noche') || lower.includes('nocturna')) return 'Noche';
-  return jornadaTipo.charAt(0).toUpperCase() + jornadaTipo.slice(1).toLowerCase();
-}
-
-function formatTime12hBusquedaHistorial(timeString: string): string {
-  if (!timeString) return '';
-  const time = timeString.substring(0, 5);
-  const [hours, minutes] = time.split(':');
-  const hour24 = parseInt(hours, 10);
-  if (Number.isNaN(hour24)) return timeString;
-  const esPM = hour24 >= 12;
-  let hour12: number;
-  if (hour24 === 0) hour12 = 12;
-  else if (hour24 === 12) hour12 = 12;
-  else if (hour24 < 12) hour12 = hour24;
-  else hour12 = hour24 - 12;
-  return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
-}
-
-function horarioBusquedaHistorial(clase: Clase): string {
-  if (clase.horaInicial && clase.horaFinal) {
-    return `${formatTime12hBusquedaHistorial(clase.horaInicial)} - ${formatTime12hBusquedaHistorial(clase.horaFinal)}`;
-  }
-  return '';
-}
-
-/** Campos visibles en tarjeta + ids numéricos (ficha, RAP/materia). */
-function buildClaseSearchStrings(clase: Clase): string[] {
-  const m = (clase.materia_nombre ?? '').trim();
-  let competencia =
-    (clase.competencia_nombre ?? '').trim() || m || (clase.programa_nombre ?? '').trim() || '';
-  let rap = clase.rap_nombre?.trim() || null;
-  if (!rap && m.includes(' - ')) {
-    const sep = ' - ';
-    const i = m.indexOf(sep);
-    const tail = m.slice(i + sep.length).trim();
-    const head = m.slice(0, i).trim();
-    if (tail.length > 0 && head.length > 0) {
-      rap = tail;
-      if ((clase.competencia_nombre ?? '').trim() === m) {
-        competencia = head;
-      }
-    }
-  }
-  const jt = jornadaLabelDesdeTipoHistorial(clase.jornada_tipo || '');
-  const hor = horarioBusquedaHistorial(clase);
-  const fc = (clase.ficha_codigo ?? '').trim();
-  const fichaLabel = fc !== '' ? `Ficha ${fc}` : '';
-
-  const parts = [
-    fc,
-    fichaLabel,
-    String(clase.ficha_id),
-    String(clase.idMateria),
-    String(clase.idHorarioMateria),
-    clase.programa_nombre,
-    clase.materia_nombre,
-    clase.competencia_nombre,
-    competencia,
-    rap || '',
-    clase.jornada_nombre,
-    clase.jornada_tipo,
-    clase.dia_semana,
-    clase.horaInicial,
-    clase.horaFinal,
-    hor,
-    jt,
-    clase.instructor_nombre,
-    clase.grado_nombre || ''
-  ];
-  return parts.map((p) => String(p ?? '').trim()).filter(Boolean);
-}
-
-function buildSesionCompletadaSearchStrings(clase: Clase, sesion: SesionCompletada): string[] {
-  const n = sesion.numeroSesion;
-  return [
-    ...buildClaseSearchStrings(clase),
-    String(n),
-    sesion.fechaSesion,
-    sesion.fechaFormateada,
-    sesion.fechaCorta,
-    sesion.estado,
-    sesion.observacion || '',
-    sesion.evaluador_nombre || '',
-    `Sesión ${n}`,
-    `sesion ${n}`
-  ]
-    .map((p) => String(p ?? '').trim())
-    .filter(Boolean);
-}
-
-function textoMatcheaBusquedaHistorial(haystack: string[], rawTerm: string): boolean {
-  const q = normalizeText(rawTerm);
-  if (!q) return true;
-  return haystack.some((h) => normalizeText(h).includes(q));
-}
-
-function claseMatcheaBusquedaHistorial(clase: Clase, rawTerm: string): boolean {
-  return textoMatcheaBusquedaHistorial(buildClaseSearchStrings(clase), rawTerm);
-}
-
-function sesionCompletadaMatcheaBusqueda(clase: Clase, sesion: SesionCompletada, rawTerm: string): boolean {
-  return textoMatcheaBusquedaHistorial(buildSesionCompletadaSearchStrings(clase, sesion), rawTerm);
 }
 
 // Helper común: convierte idDia de BD (1=Lunes ... 7=Domingo) a número JS (0=Domingo ... 6=Sábado)
@@ -377,10 +346,28 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const authContext = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [clases, setClases] = useState<Clase[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<FiltroEstadoHistorial>('pendiente');
+  const [busquedaLista, setBusquedaLista] = useState('');
   // Estado para actualizar el tiempo en tiempo real y recalcular estados de clases
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const queryBusquedaDisplay = useMemo(() => busquedaLista.trim(), [busquedaLista]);
+  const termBusquedaFolded = useMemo(
+    () => foldBusqueda(queryBusquedaDisplay),
+    [queryBusquedaDisplay]
+  );
+
+  /** Texto normalizado por id de horario; un solo .includes por tecla. */
+  const haystackPorHorario = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const c of clases) {
+      const id = Number(c.idHorarioMateria);
+      if (!Number.isFinite(id) || id <= 0) continue;
+      const blob = foldBusqueda(textoIndexBusquedaClase(c));
+      m.set(id, blob);
+    }
+    return m;
+  }, [clases]);
 
   /**
    * Normaliza los datos de una clase que llegan del backend,
@@ -998,8 +985,14 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const filteredClases = useMemo(() => {
     let filtered = [...clases];
 
-    if (normalizeText(searchTerm)) {
-      filtered = filtered.filter((clase) => claseMatcheaBusquedaHistorial(clase, searchTerm));
+    if (termBusquedaFolded) {
+      filtered = filtered.filter((clase) =>
+        claseCoincideBusquedaHistorial(
+          Number(clase.idHorarioMateria),
+          termBusquedaFolded,
+          haystackPorHorario
+        )
+      );
     }
 
     const map: Record<FiltroEstadoHistorial, 'EN CURSO' | 'PENDIENTE' | 'COMPLETADO'> = {
@@ -1041,7 +1034,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     });
 
     return filtered;
-  }, [clases, searchTerm, selectedFilter, currentTime]); // Agregar currentTime para actualización en tiempo real
+  }, [clases, termBusquedaFolded, haystackPorHorario, selectedFilter, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   const classesToday = useMemo(() => {
     const today = filteredClases.filter((clase) => {
@@ -1076,13 +1069,17 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
   const clasesPendientes = useMemo(() => {
     let pendientes = clases.filter((c) => getStatus(c) === 'PENDIENTE');
-
-    if (normalizeText(searchTerm)) {
-      pendientes = pendientes.filter((clase) => claseMatcheaBusquedaHistorial(clase, searchTerm));
+    if (termBusquedaFolded) {
+      pendientes = pendientes.filter((clase) =>
+        claseCoincideBusquedaHistorial(
+          Number(clase.idHorarioMateria),
+          termBusquedaFolded,
+          haystackPorHorario
+        )
+      );
     }
-
     return pendientes;
-  }, [clases, currentTime, searchTerm]);
+  }, [clases, currentTime, termBusquedaFolded, haystackPorHorario]);
 
   const clasesCompletadas = useMemo(() => {
     const completadas = filteredClases.filter((c) => getStatus(c) === 'COMPLETADO');
@@ -1118,6 +1115,16 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     // Importante: iterar sobre TODAS las clases originales, no sobre filteredClases,
     // para no perder sesiones completadas de clases que aún tienen pendientes.
     clases.forEach((clase) => {
+      if (
+        termBusquedaFolded &&
+        !claseCoincideBusquedaHistorial(
+          Number(clase.idHorarioMateria),
+          termBusquedaFolded,
+          haystackPorHorario
+        )
+      ) {
+        return;
+      }
       // Validar que la clase tenga sesiones completadas y que sean válidas
       if (
         clase.sesiones_completadas &&
@@ -1144,12 +1151,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       todasLasSesionesUnicas.push(item);
     }
 
-    const sesionesFiltradasBusqueda =
-      normalizeText(searchTerm).length > 0
-        ? todasLasSesionesUnicas.filter((item) =>
-            sesionCompletadaMatcheaBusqueda(item.clase, item.sesion, searchTerm)
-          )
-        : todasLasSesionesUnicas;
+    // La exclusión por búsqueda ya se aplicó por clase arriba (haystack incluye datos de sesión).
+    const sesionesFiltradasBusqueda = todasLasSesionesUnicas;
 
     // Agrupar sesiones por fecha
     const grupos: { [fecha: string]: Array<{ clase: Clase; sesion: SesionCompletada }> } = {};
@@ -1186,7 +1189,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         items: grupos[fecha] || []
       }))
     };
-  }, [clases, currentTime, searchTerm]);
+  }, [clases, currentTime, termBusquedaFolded, haystackPorHorario]);
 
   /**
    * Obtiene la próxima fecha de clase como string para agrupar
@@ -1374,7 +1377,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    * @param clase Clase opcional para verificar si es próxima
    * @returns JSX del badge de estado
    */
-  const getStatusBadge = (status: string, clase?: Clase): JSX.Element | null => {
+  const getStatusBadge = (status: string, clase?: Clase): React.ReactElement | null => {
     const esProxima = clase && esProximaClase(clase);
 
     switch (status) {
@@ -1475,32 +1478,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     } catch (error) {
       return 'Fecha inválida';
     }
-  };
-
-  /**
-   * Textos para la tarjeta: competencia (API/padre/seguimiento) y RAP.
-   * Si no hay `rap_nombre` pero `materia_nombre` trae todo junto tipo "código - …", separa en dos líneas.
-   */
-  const titulosCompetenciaYRap = (clase: Clase): { competencia: string; rap: string | null } => {
-    const materia = clase.materia_nombre.trim();
-    let competencia =
-      clase.competencia_nombre.trim() || materia || clase.programa_nombre.trim() || 'Sin nombre';
-    let rap = clase.rap_nombre?.trim() || null;
-
-    if (!rap && materia.includes(' - ')) {
-      const sep = ' - ';
-      const i = materia.indexOf(sep);
-      const tail = materia.slice(i + sep.length).trim();
-      const head = materia.slice(0, i).trim();
-      if (tail.length > 0 && head.length > 0) {
-        rap = tail;
-        if (clase.competencia_nombre.trim() === materia) {
-          competencia = head;
-        }
-      }
-    }
-
-    return { competencia, rap };
   };
 
   /**
@@ -1700,7 +1677,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const showEnCurso = selectedFilter === 'en_curso';
   const showPendiente = selectedFilter === 'pendiente';
   const showCompletado = selectedFilter === 'completado';
-  const hayBusquedaActiva = normalizeText(searchTerm).length > 0;
+  const hayBusqueda = queryBusquedaDisplay.length > 0;
+  const sinResultadosBusqueda =
+    hayBusqueda &&
+    ((showEnCurso && clasesEnCurso.length === 0) ||
+      (showPendiente && pendientesPorSemanaVistaUnica.length === 0) ||
+      (showCompletado && sesionesCompletadasAgrupadas.todasLasSesiones.length === 0));
 
   const chips: { id: FiltroEstadoHistorial; label: string }[] = [
     { id: 'pendiente', label: 'Pendiente' },
@@ -1710,9 +1692,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             Estado:
           </span>
           <div className="flex flex-wrap items-center gap-2">
@@ -1727,7 +1709,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                     'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
                     active
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white dark:bg-coal-400 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:border-blue-300 dark:border-gray-600 dark:bg-coal-400 dark:text-slate-200 dark:hover:border-blue-500'
                   ].join(' ')}
                 >
                   {label}
@@ -1736,140 +1718,155 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
             })}
           </div>
         </div>
-        <div className="w-full min-w-0 max-w-full sm:max-w-2xl">
-          <label htmlFor="historial-formaciones-busqueda" className="sr-only">
-            Buscar formaciones
-          </label>
-          <div className="relative w-full min-w-0">
-            <KeenIcon
-              icon="search"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              id="historial-formaciones-busqueda"
-              type="search"
-              enterKeyHint="search"
-              autoComplete="off"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por ficha, RAP o materia..."
-              className="w-full min-w-0 rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
-            />
-          </div>
+        <div className="relative w-full lg:max-w-md lg:flex-1 lg:min-w-[260px]">
+          <KeenIcon
+            icon="magnifier"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            type="text"
+            value={busquedaLista}
+            onChange={(e) => setBusquedaLista(e.target.value)}
+            placeholder="Buscar por competencia, RAP o ficha..."
+            autoComplete="off"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="none"
+            enterKeyHint="search"
+            aria-label="Buscar por competencia, RAP o número de ficha"
+            className="input input-sm h-10 w-full rounded-full border border-slate-200 bg-white pl-10 pr-10 text-sm dark:border-gray-600 dark:bg-coal-400 dark:text-gray-100"
+          />
+          {busquedaLista ? (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600"
+              aria-label="Limpiar búsqueda"
+              onClick={() => setBusquedaLista('')}
+            >
+              <i className="ki-outline ki-cross text-sm leading-none" />
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Clases En Curso */}
-      {showEnCurso &&
-        (clasesEnCurso.length > 0 ? (
-          <div className="space-y-3">
-            {clasesEnCurso.map((clase) => (
-              <ClaseCard key={clase.idHorarioMateria} clase={clase} />
-            ))}
-          </div>
-        ) : (
-          hayBusquedaActiva && (
-            <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              No se encontraron formaciones con esa búsqueda.
-            </div>
-          )
-        ))}
-
-      {/* Clases Pendientes - Agrupadas por fecha */}
-      {showPendiente && pendientesPorSemanaVistaUnica.length === 0 && (
-        <div className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">
-          {hayBusquedaActiva
-            ? 'No se encontraron formaciones con esa búsqueda.'
-            : 'No hay clases pendientes con los datos actuales.'}
+      {sinResultadosBusqueda ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/90 py-14 text-center dark:border-gray-600 dark:bg-coal-400/40">
+          <KeenIcon icon="magnifier" className="mx-auto mb-3 text-4xl text-slate-300 dark:text-gray-500" />
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
+            No hay resultados para «{queryBusquedaDisplay}»
+          </p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Prueba con competencia, texto del RAP o número de ficha.
+          </p>
+          <button
+            type="button"
+            className="mt-5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-300 dark:text-gray-100 dark:hover:bg-coal-200"
+            onClick={() => setBusquedaLista('')}
+          >
+            Limpiar búsqueda
+          </button>
         </div>
-      )}
-      {showPendiente &&
-        pendientesPorSemanaVistaUnica.map((semana) => (
-          <div key={`sem-${semana.weekOffset}-${semana.tituloSemana}`} className="space-y-4">
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex-1 h-px bg-slate-200 dark:bg-gray-600" />
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 px-2">
-                {semana.tituloSemana}
-              </span>
-              <div className="flex-1 h-px bg-slate-200 dark:bg-gray-600" />
+      ) : (
+        <>
+          {/* Clases En Curso */}
+          {showEnCurso && clasesEnCurso.length > 0 && (
+            <div className="space-y-3">
+              {clasesEnCurso.map((clase) => (
+                <ClaseCard key={clase.idHorarioMateria} clase={clase} />
+              ))}
             </div>
-            {semana.gruposDia.map(({ rowKey, labelTitulo, clases: clasesGrupo }) => (
-              <div key={rowKey} className="space-y-3">
-                {rowKey !== 'sin-fecha-calendario' && (
+          )}
+
+          {/* Clases Pendientes - Agrupadas por fecha */}
+          {showPendiente && pendientesPorSemanaVistaUnica.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+              {hayBusqueda
+                ? `No hay resultados para «${queryBusquedaDisplay}».`
+                : 'No hay clases pendientes con los datos actuales.'}
+            </div>
+          )}
+          {showPendiente &&
+            pendientesPorSemanaVistaUnica.map((semana) => (
+              <div key={`sem-${semana.weekOffset}-${semana.tituloSemana}`} className="space-y-4">
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-gray-600" />
+                  <span className="px-2 text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    {semana.tituloSemana}
+                  </span>
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-gray-600" />
+                </div>
+                {semana.gruposDia.map(({ rowKey, labelTitulo, clases: clasesGrupo }) => (
+                  <div key={rowKey} className="space-y-3">
+                    {rowKey !== 'sin-fecha-calendario' && (
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {labelTitulo}
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                            {clasesGrupo.length} {clasesGrupo.length === 1 ? 'clase' : 'clases'}
+                          </span>
+                        </div>
+                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                      </div>
+                    )}
+                    {clasesGrupo.map((clase) => (
+                      <ClaseCard
+                        key={`${rowKey}-${clase.idHorarioMateria}`}
+                        clase={clase}
+                        showProximaFecha={true}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+
+          {/* Clases Completadas - Una tarjeta por cada sesión */}
+          {showCompletado && sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 py-2">
+                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Clases Completadas
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {sesionesCompletadasAgrupadas.todasLasSesiones.length}{' '}
+                    {sesionesCompletadasAgrupadas.todasLasSesiones.length === 1 ? 'sesión' : 'sesiones'}
+                  </span>
+                </div>
+                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+              </div>
+              {sesionesCompletadasAgrupadas.sesionesPorFecha.map((grupo) => (
+                <div key={grupo.fecha} className="space-y-3">
                   <div className="flex items-center gap-3 py-2">
-                    <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {labelTitulo}
+                      <i className="ki-outline ki-calendar text-sm text-blue-600 dark:text-blue-400"></i>
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        {formatearFechaSeparador(grupo.fecha)}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                        {clasesGrupo.length} {clasesGrupo.length === 1 ? 'clase' : 'clases'}
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {grupo.items.length} {grupo.items.length === 1 ? 'sesión' : 'sesiones'}
                       </span>
                     </div>
-                    <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
                   </div>
-                )}
-                {clasesGrupo.map((clase) => (
-                  <ClaseCard
-                    key={`${rowKey}-${clase.idHorarioMateria}`}
-                    clase={clase}
-                    showProximaFecha={true}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        ))}
-
-      {/* Clases Completadas - Una tarjeta por cada sesión */}
-      {showCompletado &&
-        (sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 py-2">
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Clases Completadas
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                  {sesionesCompletadasAgrupadas.todasLasSesiones.length}{' '}
-                  {sesionesCompletadasAgrupadas.todasLasSesiones.length === 1 ? 'sesión' : 'sesiones'}
-                </span>
-              </div>
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-            </div>
-            {sesionesCompletadasAgrupadas.sesionesPorFecha.map((grupo) => (
-              <div key={grupo.fecha} className="space-y-3">
-                <div className="flex items-center gap-3 py-2">
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-                  <div className="flex items-center gap-2">
-                    <i className="ki-outline ki-calendar text-sm text-blue-600 dark:text-blue-400"></i>
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                      {formatearFechaSeparador(grupo.fecha)}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                      {grupo.items.length} {grupo.items.length === 1 ? 'sesión' : 'sesiones'}
-                    </span>
-                  </div>
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                  {grupo.items.map((item) => (
+                    <SesionCompletadaCard
+                      key={claveOcurrenciaSesionListado(item.clase, item.sesion)}
+                      clase={item.clase}
+                      sesion={item.sesion}
+                    />
+                  ))}
                 </div>
-                {grupo.items.map((item) => (
-                  <SesionCompletadaCard
-                    key={claveOcurrenciaSesionListado(item.clase, item.sesion)}
-                    clase={item.clase}
-                    sesion={item.sesion}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          hayBusquedaActiva && (
-            <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              No se encontraron formaciones con esa búsqueda.
+              ))}
             </div>
-          )
-        ))}
+          )}
+        </>
+      )}
     </div>
   );
 };

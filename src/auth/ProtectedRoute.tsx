@@ -1,25 +1,39 @@
-import React, { ReactNode, useContext } from 'react';
+import React, { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthContext } from '@/auth';
 
 interface ProtectedRouteProps {
+  /** Si hay varios permisos, basta con tener uno (OR), igual que en el menú lateral. */
   requiredPermissions: string[];
   children?: ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, children }) => {
-  const authContext = useAuthContext();
-  const { auth, permissions } = authContext;
+  const { auth, permissions, roles } = useAuthContext();
+  const safePermissions = permissions ?? [];
 
   if (!auth) {
-    return <Navigate to="/auth" />;
+    return <Navigate to="/auth" replace />;
   }
 
-/*   const hasPermission = requiredPermissions.every((perm) => permissions.includes(perm));
+  /**
+   * Misma idea que `getActiveDashboard` en AppRoutingSetup: si el usuario tiene rol
+   * INSTRUCTOR SENA, el dashboard ya lo trata como instructor aunque el JWT no traiga
+   * explícitamente el permiso AULA_VIRTUAL_INSTRUCTOR (suele pasar por cómo se sincronizan roles).
+   */
+  const instructorSenaBypass =
+    Array.isArray(roles) &&
+    roles.includes('INSTRUCTOR SENA') &&
+    requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
 
-    if (!auth) {
-    return <Navigate to="/error/403" />;
-  } */
+  const allowed =
+    requiredPermissions.length === 0 ||
+    requiredPermissions.some((perm) => safePermissions.includes(perm)) ||
+    instructorSenaBypass;
+
+  if (!allowed) {
+    return <Navigate to="/" replace />;
+  }
 
   return <>{children || <Outlet />}</>;
 };

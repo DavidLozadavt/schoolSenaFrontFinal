@@ -29,6 +29,13 @@ const Breadcrumbs = () => {
   const items = generateBreadcrumbs(pathname);
 
   const renderItems = () => {
+    /** Instructor vs aprendiz comparten prefijo /ambiente-virtual/. */
+    const ambienteVirtualCrumbHome =
+      pathname.startsWith('/ambiente-virtual/historial-raps') ||
+      /^\/ambiente-virtual\/clase\//.test(pathname)
+        ? '/ambiente-virtual/historial-raps'
+        : '/ambiente-virtual/mis-clases';
+
     return items.map((item, index) => {
       const last = index === items.length - 1;
       const isClase = item.title === 'Clase';
@@ -46,9 +53,8 @@ const Breadcrumbs = () => {
               {item.title}
             </span>
           ) : isAmbienteVirtual ? (
-            // Ambiente-virtual debe navegar a historial-raps
             <Link
-              to="/ambiente-virtual/historial-raps"
+              to={ambienteVirtualCrumbHome}
               className={clsx(
                 'hover:underline',
                 item.active ? 'text-gray-700 font-medium' : 'text-gray-600'

@@ -1075,7 +1075,9 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/historial-raps"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
                 <HistorialRAPsPage />
               </ProtectedRoute>
             }
@@ -1107,7 +1109,9 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/clase/:id"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
                 <ClaseDetallePage />
               </ProtectedRoute>
             }
