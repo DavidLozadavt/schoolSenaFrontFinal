@@ -192,13 +192,18 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Gestion instructor',
+    title: 'Gestión instructor',
     icon: 'tablet-text-down',
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
     children: [
       {
         title: 'Informe de Pago',
         path: '/informeInstructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Actas',
+        path: '/actas',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       }
     ]
