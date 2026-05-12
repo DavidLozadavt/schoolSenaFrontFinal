@@ -215,6 +215,9 @@ const MOCK_REELS = [
   { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
   { id: 4, title: 'Mejorar tu lógica', views: '3k', duration: '1:30', img: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=400&auto=format&fit=crop' },
   { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
+  { id: 6, title: 'Organiza tu estudio', views: '1.8k', duration: '1:20', img: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=400&auto=format&fit=crop' },
+  { id: 7, title: 'Entrega evidencias', views: '2.1k', duration: '1:10', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=400&auto=format&fit=crop' },
+  { id: 8, title: 'Buenas prácticas TIC', views: '3.4k', duration: '1:45', img: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=400&auto=format&fit=crop' },
 ];
 
 // === REELS VIEWER COMPONENT (Solo Visual) ===
@@ -457,7 +460,7 @@ const EstudiantesContent: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-coal-400 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 w-full">
-          <div className="flex gap-3 overflow-x-auto pb-1 custom-scrollbar snap-x">
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {MOCK_REELS.map((reel, idx) => (
               <div
                 key={reel.id}
@@ -632,26 +635,30 @@ const EstudiantesContent: React.FC = () => {
             <a href="/ambiente-virtual/actividades" className="text-sm font-bold text-primary hover:underline transition-all">Ir a actividades</a>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendiente</p>
+          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-gray-300 transition-colors">
+              <p className="text-[9px] font-bold text-gray-500 uppercase mb-1 leading-none">Todas</p>
+              <p className="text-base font-black text-gray-900 dark:text-white leading-none">{actividades.length}</p>
+            </div>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-gray-300 transition-colors">
+              <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 leading-none">Pendientes</p>
               <p className="text-base font-black text-gray-900 dark:text-white leading-none">{pendientes}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-danger/30 transition-colors">
               <p className="text-[9px] font-bold text-danger uppercase mb-1 leading-none">Sin entregar</p>
               <p className="text-base font-black text-danger leading-none">{vencidas}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-warning/30 transition-colors">
               <p className="text-[9px] font-bold text-warning uppercase mb-1 leading-none">Por evaluar</p>
               <p className="text-base font-black text-warning leading-none">{presentadas}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificado</p>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-success/30 transition-colors">
+              <p className="text-[9px] font-bold text-success uppercase mb-1 leading-none">Calificadas</p>
               <p className="text-base font-black text-success leading-none">{calificadas}</p>
             </div>
-            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center">
-              <p className="text-[9px] font-bold text-purple-600 uppercase mb-1 leading-none">Corrección</p>
-              <p className="text-base font-black text-purple-600 leading-none">{correcciones}</p>
+            <div className="bg-white dark:bg-coal-400 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-800 text-center flex flex-col justify-center group hover:border-purple-300 transition-colors">
+              <p className="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-1 leading-none">Corrección</p>
+              <p className="text-base font-black text-purple-600 dark:text-purple-400 leading-none">{correcciones}</p>
             </div>
           </div>
 

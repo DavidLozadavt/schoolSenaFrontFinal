@@ -431,6 +431,9 @@ const PROFESOR_REELS = [
   { id: 3, title: 'Rutas en Next.js', views: '2.3k', duration: '0:55', img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop' },
   { id: 4, title: 'Mejorar tu lógica', views: '3k', duration: '1:30', img: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=400&auto=format&fit=crop' },
   { id: 5, title: 'Git Principiantes', views: '5k', duration: '2:15', img: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=400&auto=format&fit=crop' },
+  { id: 6, title: 'Planear una sesión', views: '1.8k', duration: '1:20', img: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=400&auto=format&fit=crop' },
+  { id: 7, title: 'Evaluar evidencias', views: '2.1k', duration: '1:10', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=400&auto=format&fit=crop' },
+  { id: 8, title: 'Buenas prácticas TIC', views: '3.4k', duration: '1:45', img: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=400&auto=format&fit=crop' },
 ];
 
 const ProfesorReelsViewer = ({ reels, initialIndex, onClose }: { reels: any[], initialIndex: number, onClose: () => void }) => {
@@ -575,10 +578,10 @@ const ProfesoresContent: React.FC = () => {
   const actividadesPorEvaluar = useMemo(() =>
     actividades.filter(act => {
       const label = getEstadoLabel(act.estado);
-      return label === 'ENVIADO';
+      return label === 'ENVIADO' || label === 'POR_EVALUAR';
     }),
     [actividades]
-  )
+  );
 
   // ── Calendario (Generación de Sesiones) ──────────────────────────────────
   const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
@@ -617,10 +620,8 @@ const ProfesoresContent: React.FC = () => {
   const currentFichas = fichasFormacion.slice((fichasPage - 1) * itemsPerPage, fichasPage * itemsPerPage);
 
   // ── Conteos de Actividades ────────────────────────────────────────────────
-  const vencidas = useMemo(() => actividades.filter(act => act.fechaFin && new Date(act.fechaFin) < new Date()).length, [actividades]);
-  const pendientes = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'PENDIENTE').length, [actividades]);
+  const calificadas = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'CALIFICADO').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
-
   // ── Calendario (Controles) ────────────────────────────────────────────────
 
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
@@ -728,7 +729,7 @@ const ProfesoresContent: React.FC = () => {
           </h2>
         </div>
         <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-3 w-full">
-          <div className="flex gap-3 overflow-x-auto pb-1">
+          <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {PROFESOR_REELS.map((reel, idx) => (
               <div
                 key={reel.id}
@@ -810,6 +811,8 @@ const ProfesoresContent: React.FC = () => {
           </Link>
         </div>
       </div>
+
+
 
       {/* ══ FICHAS SECTION (Full width) ══ */}
       <section className="space-y-4">
@@ -951,7 +954,7 @@ const ProfesoresContent: React.FC = () => {
                         <div
                           key={day}
                           onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-white font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-blue-900/20 font-bold" : ""}`}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-black font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? "bg-blue-50/50 dark:bg-blue-900/20 font-bold" : ""}`}
                         >
                           <span className="z-10">{day}</span>
                           {daySessions.length > 0 && (
@@ -1006,7 +1009,7 @@ const ProfesoresContent: React.FC = () => {
                       <h3 className="font-bold text-gray-900 dark:text-white capitalize">
                         {monthNames[month]} {year}
                       </h3>
-                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                      <p className="text-[10px] font-semibold text-black dark:text-white mt-0.5">
                         Semana: {currentWeekRange.label}
                       </p>
                       <span className="inline-block mt-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">
@@ -1056,7 +1059,7 @@ const ProfesoresContent: React.FC = () => {
                           className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer
                             ${
                               isToday
-                                ? "bg-primary text-white font-black shadow-md shadow-primary/30"
+                                ? "bg-primary text-black font-black shadow-md shadow-primary/30"
                                 : "text-gray-700 dark:text-gray-300 font-medium"
                             }
                             ${
@@ -1200,43 +1203,30 @@ const ProfesoresContent: React.FC = () => {
             <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 flex flex-col h-full">
               {/* CONTEOS - Sleek and professional */}
               <div className="flex flex-col gap-3 mb-6">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-red-200 dark:hover:border-red-900/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                      <KeenIcon icon="time" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Vencidas</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Actividades fuera de plazo</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-black text-red-600 dark:text-red-400">{vencidas}</span>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-amber-200 dark:hover:border-amber-900/50 transition-colors">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-warning/30 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                       <KeenIcon icon="document" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Pendientes</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Por entregar de aprendices</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-black text-amber-600 dark:text-amber-400">{pendientes}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-blue-200 dark:hover:border-blue-900/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                      <KeenIcon icon="check-circle" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por revisar</p>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por evaluar</p>
                       <p className="text-[10px] text-gray-500 mt-0.5">Entregas listas para revisar</p>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-blue-600 dark:text-blue-400">{porCalificar}</span>
+                  <span className="text-lg font-black text-amber-600 dark:text-amber-400">{porCalificar}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-success/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
+                      <KeenIcon icon="check-circle" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Calificadas</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Entregas ya evaluadas</p>
+                    </div>
+                  </div>
+                  <span className="text-lg font-black text-green-600 dark:text-green-400">{calificadas}</span>
                 </div>
               </div>
 
@@ -1253,7 +1243,7 @@ const ProfesoresContent: React.FC = () => {
                       <div key={act.id} className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group">
                         <div className="flex justify-between items-start gap-2 mb-1.5">
                           <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{getTitulo(act)}</h4>
-                          <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-1.5 py-0.5 rounded">Enviado</span>
+                          <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-1.5 py-0.5 rounded">Por evaluar</span>
                         </div>
                         <p className="text-[10px] text-gray-500 line-clamp-1 mb-2">{act.materia?.nombreMateria || 'Sin materia asignada'}</p>
                         <div className="flex items-center justify-between text-[9px] font-semibold text-gray-400">
