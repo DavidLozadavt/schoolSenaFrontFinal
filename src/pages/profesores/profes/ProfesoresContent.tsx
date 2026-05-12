@@ -40,7 +40,9 @@ interface Actividad {
   fechaInicio?: string;
   fechaFin?: string;
   tipo_actividad?: { nombre?: string };
-  materia?: { nombreMateria?: string };
+  materia?: { nombreMateria?: string; idHorario?: number; idHorarioMateria?: number; id?: number };
+  idHorario?: number;
+  idHorarioMateria?: number;
 }
 
 const toNum = (v: unknown): number => {
@@ -85,6 +87,8 @@ const normalizarActividad = (raw: any): Actividad => ({
   fechaFin: toStr(raw?.fechaFin ?? raw?.fechaFinal),
   tipo_actividad: raw?.tipo_actividad,
   materia: raw?.materia,
+  idHorario: toNum(raw?.idHorario ?? raw?.id_horario ?? raw?.materia?.idHorario ?? raw?.materia?.id_horario),
+  idHorarioMateria: toNum(raw?.idHorarioMateria ?? raw?.id_horario_materia ?? raw?.materia?.idHorarioMateria ?? raw?.materia?.id_horario_materia),
 });
 
 interface UpcomingSession {
@@ -669,7 +673,7 @@ const ProfesoresContent: React.FC = () => {
           </div>
           <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
           <Link 
-            to={fichas[0]?.resultados?.[0]?.idHorario ? `/ambiente-virtual/clase/${fichas[0].resultados[0].idHorario}` : "/ambiente-virtual/actividades"} 
+            to="/ambiente-virtual/historial-raps"
             state={{ activeMenu: 'actividades-asignadas' }}
             className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all duration-300 p-2 rounded-xl group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
           >
@@ -1100,13 +1104,17 @@ const ProfesoresContent: React.FC = () => {
               <div className="mt-2 pt-5 border-t border-gray-100 dark:border-gray-700 flex-1 flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Entregas Recientes</h3>
-                  <Link to="/ambiente-virtual/actividades" className="text-[10px] text-blue-600 hover:underline font-semibold">Ver todas</Link>
                 </div>
                 
                 {actividadesPorEvaluar.length > 0 ? (
                   <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar max-h-[300px] pr-1">
                     {actividadesPorEvaluar.slice(0, 4).map(act => (
-                      <div key={act.id} className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group">
+                      <Link 
+                        to={act.idHorarioMateria ? `/ambiente-virtual/clase/${act.idHorarioMateria}` : act.idHorario ? `/ambiente-virtual/clase/${act.idHorario}` : act.materia?.idHorario ? `/ambiente-virtual/clase/${act.materia.idHorario}` : act.materia?.idHorarioMateria ? `/ambiente-virtual/clase/${act.materia.idHorarioMateria}` : act.materia?.id ? `/ambiente-virtual/clase/${act.materia.id}` : "/ambiente-virtual/historial-raps"}
+                        state={{ activeMenu: 'actividades-asignadas' }}
+                        key={act.id} 
+                        className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group block"
+                      >
                         <div className="flex justify-between items-start gap-2 mb-1.5">
                           <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{getTitulo(act)}</h4>
                           <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-1.5 py-0.5 rounded">Por evaluar</span>
@@ -1116,7 +1124,7 @@ const ProfesoresContent: React.FC = () => {
                           <span className="flex items-center gap-1"><KeenIcon icon="calendar" className="text-[10px]" /> {act.fechaFin ? new Date(act.fechaFin).toLocaleDateString() : 'Sin fecha'}</span>
                           
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 ) : (
