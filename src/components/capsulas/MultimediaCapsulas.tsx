@@ -32,11 +32,11 @@ const MultimediaViewer = ({
   onClose: () => void 
 }) => {
   const { roles } = useAuthContext();
-  const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
-  const [fileIndex, setFileIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [groupIndex, setGroupIndex] = React.useState(initialGroupIndex);
+  const [fileIndex, setFileIndex] = React.useState(0);
+  const [progress, setProgress] = React.useState(0);
+  const [isPlaying, setIsPlaying] = React.useState(true);
+  const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const duration = 5000;
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const playPromiseRef = React.useRef<Promise<void> | null>(null);
@@ -73,7 +73,7 @@ const MultimediaViewer = ({
   }
 
   // Debug log moved to effect
-  useEffect(() => {
+  React.useEffect(() => {
     if (currentFile?.cancion) {
       console.log('Multimedia Debug:', {
         fileId: currentFile?.id,
@@ -102,12 +102,12 @@ const MultimediaViewer = ({
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     playAudio();
   }, [isPlaying, isAudioMuted, fileIndex, cancionUrl]);
 
   // Global listener to "unlock" audio on first interaction within the viewer
-  useEffect(() => {
+  React.useEffect(() => {
     const unlockAudio = () => {
       if (audioRef.current && isPlaying && !isAudioMuted) {
         audioRef.current.play().catch(() => {});
@@ -118,7 +118,7 @@ const MultimediaViewer = ({
     return () => window.removeEventListener('click', unlockAudio);
   }, [isPlaying, isAudioMuted]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isPlaying || !currentGroup) return;
 
     const interval = setInterval(() => {
@@ -128,7 +128,7 @@ const MultimediaViewer = ({
     return () => clearInterval(interval);
   }, [isPlaying, groupIndex, fileIndex, currentGroup]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (progress >= 100) {
       handleNext();
     }
@@ -330,11 +330,11 @@ const MultimediaViewer = ({
 
 // === MAIN COMPONENT ===
 const MultimediaCapsulas = () => {
-  const [items, setItems] = useState<MultimediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [items, setItems] = React.useState<MultimediaItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchMedia = async () => {
       try {
         const res = await axios.get('dashboard_multimedia');
