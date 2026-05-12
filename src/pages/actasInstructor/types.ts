@@ -65,6 +65,8 @@ export interface Acta {
   observacion: string;
   lugar: string;
   direccion: string;
+  documento?: string;
+  rutaDocumentoUrl?: string;
   idCiudad: number;
   idFicha: number;
   idContrato: number;
