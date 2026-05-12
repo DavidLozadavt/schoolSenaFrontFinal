@@ -1,5 +1,7 @@
 import React from "react";
-import Chart from "react-apexcharts"; 
+import Chart from "react-apexcharts";
+import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import { KeenIcon } from '@/components/keenicons';
 
 const Icons = {
   Academic: () => (
@@ -151,7 +153,16 @@ export const DashboardCoordinador: React.FC = () => {
         </div>
       </section>
 
-      {/* ACCIONES RÁPIDAS (Sección D) */}
+      <section className="mb-7.5">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h2 className="text-md font-bold text-gray-800 dark:text-gray-100">C{"\u00E1"}psulas SENA</h2>
+          <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Multimedia reciente</span>
+        </div>
+        <MultimediaCapsulas />
+      </section>
+
+      {/* ACCIONES RÁPIDAS (Sección E) */}
       <section className="bg-white dark:bg-coal-300 p-7.5 rounded-xl shadow-card border border-gray-200 dark:border-coal-100">
         <h2 className="mb-6 font-bold tracking-widest text-gray-400 uppercase text-2xs">Acciones de Gestión</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4.5">
