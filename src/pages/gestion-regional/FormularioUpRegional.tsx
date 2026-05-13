@@ -22,6 +22,9 @@ interface ToastProps {
 interface Ciudades {
   id: number;
   descripcion: string;
+  departamento: {
+    descripcion: string;
+  };
 }
 interface FormValues {
   razonSocial: string;
@@ -196,7 +199,7 @@ const FormularioUpRegional: React.FC<Props> = ({
 
   const options = ciudades.map((val) => ({
     value: val.id,
-    label: val.descripcion
+    label: `${val.descripcion} - ${val.departamento.descripcion}`
   }));
 
   const handleUppercase = (field: string, value: string) => {
@@ -225,7 +228,7 @@ const FormularioUpRegional: React.FC<Props> = ({
             {mode === 'edit' ? 'Editar Regional' : 'Crear Regional'}
           </h2>
 
-          <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]" >
+          <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Ciudad */}
               <div className="md:col-span-2">

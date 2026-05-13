@@ -18,11 +18,19 @@ interface Props {
 interface Ciudades {
   id: number;
   descripcion: string;
+  iddepartamento: number;
+  departamento: {
+    descripcion: string;
+  };
 }
 
 interface Empresa {
   id: number;
   razonSocial: string;
+  idCiudad: number;
+  ciudad: {
+    iddepartamento: number;
+  };
 }
 
 interface FormValues {
@@ -196,9 +204,16 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
     }
   }, [isModalOpen]);
 
-  const options = ciudades.map((val) => ({
+  const selectedRegional = regionales.find((r) => r.id === formik.values.idEmpresa);
+  const regionalDepartamentoId = selectedRegional?.ciudad?.iddepartamento;
+
+  const filteredCiudades = regionalDepartamentoId
+    ? ciudades.filter((c) => c.iddepartamento === regionalDepartamentoId)
+    : [];
+
+  const options = filteredCiudades.map((val) => ({
     value: val.id,
-    label: val.descripcion
+    label: `${val.descripcion} - ${val.departamento.descripcion}`
   }));
 
   const options2 = regionales.map((val) => ({
@@ -234,13 +249,57 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
 
         <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Regional */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Regional *</label>
+              <Select
+                options={options2}
+                placeholder="Selecciona la Regional..."
+                isClearable
+                value={options2.find((option) => option.value === formik.values.idEmpresa) || null}
+                onChange={(option) => {
+                  formik.setFieldValue('idEmpresa', option ? option.value : null);
+                  formik.setFieldValue('idCiudad', null); // Reset city when regional changes
+                  formik.setFieldTouched('idEmpresa', true);
+                }}
+                onBlur={() => formik.setFieldTouched('idEmpresa', true)}
+                classNames={{
+                  control: () =>
+                    `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                  singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                  placeholder: () => 'text-gray-400 dark:text-gray-300',
+                  input: () => 'text-gray-900 dark:text-gray-100',
+                  menu: () => 'bg-white dark:bg-coal-500',
+                  option: ({ isFocused, isSelected }) =>
+                    `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                  indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                  dropdownIndicator: () =>
+                    'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                  clearIndicator: () =>
+                    'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                }}
+              />
+              {formik.touched.idEmpresa && formik.errors.idEmpresa && (
+                <p className="text-xs text-red-500 mt-1">{formik.errors.idEmpresa}</p>
+              )}
+            </div>
+
             {/* Ciudad */}
             <div>
               <label className="text-sm font-medium text-gray-700">Ciudad *</label>
               <Select
                 options={options}
-                placeholder="Selecciona la ciudad..."
+                placeholder={formik.values.idEmpresa ? "Selecciona la ciudad..." : "Selecciona primero una Regional"}
                 isClearable
+                isDisabled={!formik.values.idEmpresa}
                 value={options.find((option) => option.value === formik.values.idCiudad) || null}
                 onChange={(option) => {
                   formik.setFieldValue('idCiudad', option ? option.value : null);
@@ -273,48 +332,6 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
               />
               {formik.touched.idCiudad && formik.errors.idCiudad && (
                 <p className="text-xs text-red-500 mt-1">{formik.errors.idCiudad}</p>
-              )}
-            </div>
-
-            {/* Regional */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Regional *</label>
-              <Select
-                options={options2}
-                placeholder="Selecciona la Regional..."
-                isClearable
-                value={options2.find((option) => option.value === formik.values.idEmpresa) || null}
-                onChange={(option) => {
-                  formik.setFieldValue('idEmpresa', option ? option.value : null);
-                  formik.setFieldTouched('idEmpresa', true);
-                }}
-                onBlur={() => formik.setFieldTouched('idEmpresa', true)}
-                classNames={{
-                  control: () =>
-                    `
-                      bg-white dark:bg-coal-400
-                      border border-gray-300 dark:border-coal-200
-                      text-gray-900 dark:text-gray-100
-                      `,
-                  singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                  placeholder: () => 'text-gray-400 dark:text-gray-300',
-                  input: () => 'text-gray-900 dark:text-gray-100',
-                  menu: () => 'bg-white dark:bg-coal-500',
-                  option: ({ isFocused, isSelected }) =>
-                    `
-                      text-gray-900 dark:text-gray-100
-                      ${isSelected ? 'bg-primary-500 text-white' : ''}
-                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
-                      `,
-                  indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                  dropdownIndicator: () =>
-                    'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                  clearIndicator: () =>
-                    'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                }}
-              />
-              {formik.touched.idEmpresa && formik.errors.idEmpresa && (
-                <p className="text-xs text-red-500 mt-1">{formik.errors.idEmpresa}</p>
               )}
             </div>
 
