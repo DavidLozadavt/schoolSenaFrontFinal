@@ -12,11 +12,11 @@ import { messaging } from '../../../../src/firebase/firebaseConfig';
 const loginSchema = Yup.object().shape({
   email: Yup.string()
     .min(3, 'Mínimo 3 caracteres')
-    .max(50, 'Máximo 50 caracteres')
+    .max(120, 'Máximo 120 caracteres')
     .required('Correo o número de documento es requerido'),
   password: Yup.string()
     .min(3, 'Mínimo 3 caracteres')
-    .max(50, 'Máximo 50 caracteres')
+    .max(120, 'Máximo 120 caracteres')
     .required('Contraseña es requerida'),
   remember: Yup.boolean()
 });
