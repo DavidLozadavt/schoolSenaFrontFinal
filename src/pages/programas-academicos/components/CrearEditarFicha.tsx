@@ -78,7 +78,11 @@ interface FormValues {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const toDate = (date?: string) => (date ? new Date(date) : null);
-const normalizeDate = (date?: string | null) => (date ? date.split('T')[0] : '');
+const normalizeDate = (date?: string | null) => {
+  if (!date) return '';
+  // Dividir por T o espacio para obtener solo la fecha YYYY-MM-DD
+  return date.split(/T| /)[0];
+};
 
 const ESTADOS_APERTURA = [
   { value: 'ACTIVO', label: 'ACTIVO' },
@@ -397,11 +401,12 @@ const CrearEditarFicha: React.FC<Props> = ({
         const response = await axios.get(`fichas/${fichaId}`);
         const { ficha, apertura } = response.data.data;
 
-        const idRegional = ficha.idRegional || 0;
-        const idSede = ficha.idSede || apertura.idSede || 0;
+        const idRegional = Number(ficha.idRegional) || 0;
+        const idSede = Number(ficha.idSede || apertura.idSede) || 0;
         // Usar el idCentroFormacion que viene en la respuesta del API
-        const idCentroFromApi =
-          ficha.sede?.idCentroFormacion || ficha.jornada?.idCentroFormacion || idCentro;
+        const idCentroFromApi = Number(
+          ficha.sede?.idCentroFormacion || ficha.jornada?.idCentroFormacion || idCentro
+        );
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
         const [jornadaRes, periodosRes, regionalesRes, programasRes, sedesRes, ambientesRes] =
@@ -423,12 +428,12 @@ const CrearEditarFicha: React.FC<Props> = ({
 
         formik.setValues({
           observacion: apertura.observacion || '',
-          idPeriodo: apertura.idPeriodo || 0,
-          idPrograma: apertura.idPrograma || 0,
-          idRegional,
+          idPeriodo: Number(apertura.idPeriodo) || 0,
+          idPrograma: Number(apertura.idPrograma) || 0,
+          idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
-          idSede,
-          idJornada: ficha.idJornada || 0,
+          idSede: Number(idSede) || 0,
+          idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
           fechaInicialClases: normalizeDate(apertura.fechaInicialClases),
           fechaFinalClases: normalizeDate(apertura.fechaFinalClases),
@@ -438,9 +443,9 @@ const CrearEditarFicha: React.FC<Props> = ({
           fechaFinalMatriculas: normalizeDate(apertura.fechaFinalMatriculas),
           fechaInicialPlanMejoramiento: normalizeDate(apertura.fechaInicialPlanMejoramiento),
           fechaFinalPlanMejoramiento: normalizeDate(apertura.fechaFinalPlanMejoramiento),
-          idInfraestructura: ficha.idInfraestructura || 0,
+          idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
-          porcentajeEjecucion: ficha.porcentajeEjecucion ?? null,
+          porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
           documento: null
         });
       } catch (error: any) {
@@ -466,7 +471,7 @@ const CrearEditarFicha: React.FC<Props> = ({
       .get(`sedes/centro-formacion/${user.idCentroFormacion}`)
       .then((res) => {
         setSedes(res.data.data ?? []);
-        formik.setFieldValue('idRegional', res.data.centroFormacion?.idEmpresa ?? 0);
+        formik.setFieldValue('idRegional', Number(res.data.centroFormacion?.idEmpresa) || 0);
       })
       .catch(() => setSedes([]));
   }, [isModalOpen, user]);
