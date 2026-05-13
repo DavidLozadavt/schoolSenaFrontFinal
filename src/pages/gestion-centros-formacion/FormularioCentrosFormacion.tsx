@@ -18,6 +18,9 @@ interface Props {
 interface Ciudades {
   id: number;
   descripcion: string;
+  departamento: {
+    descripcion: string;
+  };
 }
 
 interface Empresa {
@@ -198,7 +201,7 @@ const FormularioCentrosFormacion: React.FC<Props> = ({
 
   const options = ciudades.map((val) => ({
     value: val.id,
-    label: val.descripcion
+    label: `${val.descripcion} - ${val.departamento.descripcion}`
   }));
 
   const options2 = regionales.map((val) => ({
