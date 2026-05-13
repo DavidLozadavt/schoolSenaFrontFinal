@@ -6,6 +6,7 @@ import ModalEliminar from './ModalEliminar';
 import Toast from '../programas-academicos/components/Toast';
 import FormularioSedesSena from './FormularioSedesSena';
 import ModalInfoRow from '../gestion-regional/ModalInfoRow';
+import { useAuthContext } from '@/auth';
 
 interface Props {
   searchTerm: string;
@@ -48,6 +49,7 @@ interface Sede {
 }
 
 const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
+
   const [loading, setLoading] = useState(true);
   const [sedes, setSedes] = useState<Sede[]>([]);
 
@@ -66,6 +68,10 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   // Informaciòn adicional de la sede
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [info, setInfo] = useState<Sede | null>(null);
+
+  const auth = useAuthContext();
+
+  console.log(auth)
 
   useEffect(() => {
     const loadData = async () => {
