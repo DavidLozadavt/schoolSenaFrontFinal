@@ -30,11 +30,18 @@ interface Responsable {
 interface Ciudades {
   id: number;
   descripcion: string;
+  iddepartamento: number;
+  departamento: {
+    descripcion: string;
+  };
 }
 
 interface Empresa {
   id: number;
   razonSocial: string;
+  ciudad?: {
+    iddepartamento: number;
+  };
 }
 
 interface CentroFormacion {
@@ -335,12 +342,55 @@ const FormularioSedesSena: React.FC<Props> = ({
       setImagenActual(null);
       setCentrosFormacion([]);
     }
-  }, [idSede, mode, resetForm, setValues, user]);
+  }, [idSede, mode, resetForm, setValues]);
+
+  // Cargar contexto del usuario (Regional y Centro) cuando el usuario ya tiene uno asignado
+  useEffect(() => {
+    if (
+      !isModalOpen ||
+      !user?.idCentroFormacion ||
+      mode !== 'create' ||
+      regionales.length === 0 ||
+      formik.values.empresa
+    )
+      return;
+
+    const loadUserContext = async () => {
+      try {
+        const res = await axios.get(`centrosFormacion/${user.idCentroFormacion}`);
+        const centro = res.data.data;
+        if (centro) {
+          const regional = regionales.find((r) => r.id === centro.idEmpresa);
+
+          if (regional) {
+            formik.setFieldValue('empresa', {
+              value: regional.id,
+              label: regional.razonSocial
+            });
+          }
+
+          formik.setFieldValue('centroFormacion', {
+            value: centro.id,
+            label: centro.nombre
+          });
+
+          // También cargamos los centros de formación de esa regional
+          const centrosRes = await axios.get(`centrosFormacion/regional/${centro.idEmpresa}`);
+          setCentrosFormacion(centrosRes.data.data);
+        }
+      } catch (error) {
+        console.error('Error cargando contexto del usuario:', error);
+      }
+    };
+
+    loadUserContext();
+  }, [user, isModalOpen, regionales, mode, formik.values.empresa]);
 
   // Cargar centros de formación cuando se selecciona una regional
   const handleChangeRegional = async (value: { value: number; label: string } | null) => {
     formik.setFieldValue('empresa', value);
     formik.setFieldValue('centroFormacion', null);
+    formik.setFieldValue('ciudad', null); // Reset city when regional changes
     setCentrosFormacion([]);
 
     if (!value) return;
@@ -354,9 +404,16 @@ const FormularioSedesSena: React.FC<Props> = ({
     }
   };
 
-  const optionsCiudades = ciudades.map((val) => ({
+  const selectedRegional = regionales.find((r) => r.id === formik.values.empresa?.value);
+  const regionalDepartamentoId = selectedRegional?.ciudad?.iddepartamento;
+
+  const filteredCiudades = regionalDepartamentoId
+    ? ciudades.filter((c) => c.iddepartamento === regionalDepartamentoId)
+    : [];
+
+  const optionsCiudades = filteredCiudades.map((val) => ({
     value: val.id,
-    label: val.descripcion
+    label: `${val.descripcion} - ${val.departamento.descripcion}`
   }));
 
   const optionsRegionales = regionales.map((val) => ({
@@ -404,50 +461,10 @@ const FormularioSedesSena: React.FC<Props> = ({
           {/* Form con scroll */}
           <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Ciudad */}
-              <div>
-                <label className="text-sm font-medium text-gray-700">Ciudad</label>
-                <Select
-                  options={optionsCiudades}
-                  placeholder="Selecciona la ciudad..."
-                  isClearable
-                  value={formik.values.ciudad}
-                  onChange={(value) => formik.setFieldValue('ciudad', value)}
-                  onBlur={() => formik.setFieldTouched('ciudad', true)}
-                  classNamePrefix="react-select"
-                  classNames={{
-                    control: () =>
-                      `
-                      bg-white dark:bg-coal-400
-                      border border-gray-300 dark:border-coal-200
-                      text-gray-900 dark:text-gray-100
-                      `,
-                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                    placeholder: () => 'text-gray-400 dark:text-gray-300',
-                    input: () => 'text-gray-900 dark:text-gray-100',
-                    menu: () => 'bg-white dark:bg-coal-500',
-                    option: ({ isFocused, isSelected }) =>
-                      `
-                      text-gray-900 dark:text-gray-100
-                      ${isSelected ? 'bg-primary-500 text-white' : ''}
-                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
-                      `,
-                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                    dropdownIndicator: () =>
-                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                    clearIndicator: () =>
-                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                  }}
-                />
-                {formik.touched.ciudad && formik.errors.ciudad && (
-                  <p className="mt-1 text-xs text-red-500">{formik.errors.ciudad}</p>
-                )}
-              </div>
-
               {/* Regional */}
               {!user?.idCentroFormacion && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Regional</label>
+                  <label className="text-sm font-medium text-gray-700">Regional *</label>
                   <Select
                     options={optionsRegionales}
                     placeholder="Selecciona la regional..."
@@ -488,8 +505,8 @@ const FormularioSedesSena: React.FC<Props> = ({
 
               {/* Centro de Formación */}
               {!user?.idCentroFormacion && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Centro de Formación</label>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Centro de Formación *</label>
                   <Select
                     options={optionsCentrosFormacion}
                     placeholder={
@@ -538,6 +555,51 @@ const FormularioSedesSena: React.FC<Props> = ({
                   )}
                 </div>
               )}
+
+              {/* Ciudad */}
+              <div>
+                <label className="text-sm font-medium text-gray-700">Ciudad *</label>
+                <Select
+                  options={optionsCiudades}
+                  placeholder={
+                    !formik.values.empresa
+                      ? 'Selecciona primero una Regional'
+                      : 'Selecciona la ciudad...'
+                  }
+                  isClearable
+                  isDisabled={!formik.values.empresa}
+                  value={formik.values.ciudad}
+                  onChange={(value) => formik.setFieldValue('ciudad', value)}
+                  onBlur={() => formik.setFieldTouched('ciudad', true)}
+                  classNamePrefix="react-select"
+                  classNames={{
+                    control: () =>
+                      `
+                      bg-white dark:bg-coal-400
+                      border border-gray-300 dark:border-coal-200
+                      text-gray-900 dark:text-gray-100
+                      `,
+                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                    placeholder: () => 'text-gray-400 dark:text-gray-300',
+                    input: () => 'text-gray-900 dark:text-gray-100',
+                    menu: () => 'bg-white dark:bg-coal-500',
+                    option: ({ isFocused, isSelected }) =>
+                      `
+                      text-gray-900 dark:text-gray-100
+                      ${isSelected ? 'bg-primary-500 text-white' : ''}
+                      ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
+                      `,
+                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                    dropdownIndicator: () =>
+                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                    clearIndicator: () =>
+                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                  }}
+                />
+                {formik.touched.ciudad && formik.errors.ciudad && (
+                  <p className="mt-1 text-xs text-red-500">{formik.errors.ciudad}</p>
+                )}
+              </div>
 
               {/* Responsable de la Sede */}
               <div>
