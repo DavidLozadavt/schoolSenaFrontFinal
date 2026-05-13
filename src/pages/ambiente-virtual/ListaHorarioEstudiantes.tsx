@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import GraficaAsistencia from '../asistencias/GraficaAsistencia';
 import TakeAttendanceModal from '../asistencias/TakeAttendanceModal';
@@ -6,6 +6,8 @@ import AnotacionesDiciplinariasModal from '@/pages/anotaciones-disciplinarias/Mo
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import { Tooltip } from '@mui/material';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 // Interfaces TypeScript basadas en la respuesta del backend
 interface Persona {
@@ -120,6 +122,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showAttendanceModal, setShowAttendanceModal] = useState<boolean>(false);
 
+  // Estado para menú de exportación
+  const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
+
   // Estado para Acudiente
   const [showAcudienteModal, setShowAcudienteModal] = useState<boolean>(false);
   const [selectedAcudiente, setSelectedAcudiente] = useState<Persona | null>(null);
@@ -132,6 +138,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     setSelectedMatriculaId(idMatricula);
     setShowAnotacionesModal(true);
   };
+
   const encodeData = (data: any): string => {
     return JSON.stringify(data);
   };
@@ -143,14 +150,19 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       const newStatus = !isCurrentlyPresent;
 
       // Optimistic update en UI
-      setStudents(prev => prev.map(s =>
-        s.idMatricula === student.idMatricula ? { ...s, asistio: newStatus } : s
-      ));
+      setStudents(prev =>
+        prev.map(s =>
+          s.idMatricula === student.idMatricula ? { ...s, asistio: newStatus } : s
+        )
+      );
 
       const payload: Record<string, any> = {
         idMatriculaAcademica: student.id,
         idMatricula: student.idMatricula,
-        idMateria: typeof materiaData.idMateria === 'string' ? parseInt(materiaData.idMateria) : materiaData.idMateria,
+        idMateria:
+          typeof materiaData.idMateria === 'string'
+            ? parseInt(materiaData.idMateria)
+            : materiaData.idMateria,
         asistio: newStatus
       };
 
@@ -162,26 +174,24 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       }
 
       await axios.put('update_assistance', payload);
-
     } catch (error) {
-      console.error("Error al actualizar asistencia", error);
+      console.error('Error al actualizar asistencia', error);
       // Revertir el optimistic update si falla
       fetchStudents();
     }
   };
 
   // Función para obtener estudiantes
-  // En StudentListByMateria.tsx, dentro de fetchStudents:
-
   const fetchStudents = async () => {
     setLoading(true);
     setError(null);
 
     try {
       const requestData: Record<string, any> = {
-        idMateria: typeof materiaData.idMateria === 'string'
-          ? parseInt(materiaData.idMateria)
-          : materiaData.idMateria,
+        idMateria:
+          typeof materiaData.idMateria === 'string'
+            ? parseInt(materiaData.idMateria)
+            : materiaData.idMateria,
         idFicha: materiaData.idFicha
       };
 
@@ -192,35 +202,40 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       console.log('🎯 [StudentList] Enviando datos al backend:', requestData);
       console.log('🎯 [StudentList] Estado de la clase recibido:', materiaData.estadoClase);
-      console.log('🎯 [StudentList] URL completa:', `get_student_by_id_materia?data_encoded=${encodeURIComponent(JSON.stringify(requestData))}`);
+      console.log(
+        '🎯 [StudentList] URL completa:',
+        `get_student_by_id_materia?data_encoded=${encodeURIComponent(JSON.stringify(requestData))}`
+      );
 
       const dataEncoded = encodeData(requestData);
 
-      const response = await axios.get(
-        `get_student_by_id_materia`,
-        {
-          params: { data_encoded: dataEncoded, ts: new Date().getTime() }
-        }
-      );
+      const response = await axios.get('get_student_by_id_materia', {
+        params: { data_encoded: dataEncoded, ts: new Date().getTime() }
+      });
 
       console.log('[StudentList] Respuesta del backend:', response.data);
-      console.log('[StudentList] Tipo de respuesta:', Array.isArray(response.data) ? 'array' : typeof response.data);
+      console.log(
+        '[StudentList] Tipo de respuesta:',
+        Array.isArray(response.data) ? 'array' : typeof response.data
+      );
       console.log('[StudentList] Cantidad de estudiantes:', response.data?.length || 0);
 
       if (Array.isArray(response.data)) {
         console.log('[StudentList] Primer estudiante:', response.data[0]);
-        // Obtener la fecha de hoy en formato YYYY-MM-DD para comparar con fechaSesion
+
         // Obtener la fecha de hoy en formato YYYY-MM-DD local
         const hoy = new Date();
         const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
         const mappedStudents = response.data.map((s: any) => {
           let asistioVal = false;
+
           if (s.asistencias && s.asistencias.length > 0) {
             // Buscar TODAS las asistencias de la sesión EXACTA de HOY:
             const asistenciasHoy = s.asistencias.filter((ast: any) => {
               const sm = ast.sesion_materia ?? ast.sesionMateria ?? null;
               const fechaSesion = sm?.fechaSesion ?? sm?.fecha_sesion ?? ast.fecha_sesion ?? null;
+
               if (!fechaSesion) return false;
 
               // Ensure we just safely grab the first 10 chars "YYYY-MM-DD"
@@ -229,25 +244,33 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
               // Si tenemos el horario exacto, verificar que la sesión pertenezca a él
               const idHorarioMateriaBackend = sm?.idHorarioMateria ?? sm?.id_horario_materia;
-              if (materiaData.idHorarioMateria && idHorarioMateriaBackend !== undefined && idHorarioMateriaBackend !== null) {
+
+              if (
+                materiaData.idHorarioMateria &&
+                idHorarioMateriaBackend !== undefined &&
+                idHorarioMateriaBackend !== null
+              ) {
                 return Number(idHorarioMateriaBackend) === Number(materiaData.idHorarioMateria);
               }
+
               return true; // sin idHorarioMateria, cualquier sesión de hoy sirve
             });
 
             if (asistenciasHoy && asistenciasHoy.length > 0) {
               // Si hay registros de esta sesión, priorizar si ALGUNO dice que asistió
-              asistioVal = asistenciasHoy.some((ast: any) => 
-                ast.asistio === 1 || 
-                ast.asistio === '1' || 
-                ast.asistio === true || 
-                String(ast.asistio).toLowerCase() === 'true'
+              asistioVal = asistenciasHoy.some(
+                (ast: any) =>
+                  ast.asistio === 1 ||
+                  ast.asistio === '1' ||
+                  ast.asistio === true ||
+                  String(ast.asistio).toLowerCase() === 'true'
               );
             } else {
               // Sin registro para esta sesión → estado inicial Falta
               asistioVal = false;
             }
           }
+
           return { ...s, asistio: asistioVal };
         });
 
@@ -260,11 +283,13 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       console.error('[StudentList] Error fetching students:', err);
       console.error('[StudentList] Mensaje:', err.message);
       console.error('[StudentList] Respuesta:', err.response?.data);
+
       setError(
         err.response?.data?.message ||
-        err.message ||
-        'Error al cargar los estudiantes'
+          err.message ||
+          'Error al cargar los estudiantes'
       );
+
       setStudents([]);
     } finally {
       setLoading(false);
@@ -278,6 +303,32 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     }
   }, [materiaData.idMateria, materiaData.idFicha, materiaData.idHorarioMateria]);
 
+  // Cerrar menú de exportación al hacer clic afuera o presionar Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
   // Función para obtener nombre completo
   const getFullName = (student: StudentData): string => {
     const persona = student.matricula?.person;
@@ -285,25 +336,38 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
     const nombres = [persona.nombre1, persona.nombre2].filter(Boolean).join(' ');
     const apellidos = [persona.apellido1, persona.apellido2].filter(Boolean).join(' ');
+
     return `${nombres} ${apellidos}`.trim();
   };
 
   // Función para obtener foto del estudiante
   const getStudentPhoto = (student: StudentData): string => {
     const API_URL = import.meta.env.VITE_APP_API_URL || '';
-    // Laravel storage a menudo sirve los archivos en la raíz del backend (quitamos /api/ si existe en la variable)
-    const baseUrl = API_URL.endsWith('/api/') ? API_URL.slice(0, -5) : API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
 
-    // Prioridad: rutaFoto (ya que confirmaste que tiene /storage/persona/...)
+    // Laravel storage a menudo sirve los archivos en la raíz del backend
+    // quitamos /api/ si existe en la variable.
+    const baseUrl = API_URL.endsWith('/api/')
+      ? API_URL.slice(0, -5)
+      : API_URL.endsWith('/')
+        ? API_URL.slice(0, -1)
+        : API_URL;
+
+    // Prioridad: rutaFoto
     if (student.matricula?.person?.rutaFoto) {
       const rutaRelativa = student.matricula.person.rutaFoto;
-      return rutaRelativa.startsWith('http') ? rutaRelativa : `${baseUrl}${rutaRelativa.startsWith('/') ? '' : '/'}${rutaRelativa}`;
+
+      return rutaRelativa.startsWith('http')
+        ? rutaRelativa
+        : `${baseUrl}${rutaRelativa.startsWith('/') ? '' : '/'}${rutaRelativa}`;
     }
 
     // Segunda: rutaFotoUrl de la persona
     if (student.matricula?.person?.rutaFotoUrl) {
       const rutaRelativa = student.matricula.person.rutaFotoUrl;
-      return rutaRelativa.startsWith('http') ? rutaRelativa : `${baseUrl}${rutaRelativa.startsWith('/') ? '' : '/'}${rutaRelativa}`;
+
+      return rutaRelativa.startsWith('http')
+        ? rutaRelativa
+        : `${baseUrl}${rutaRelativa.startsWith('/') ? '' : '/'}${rutaRelativa}`;
     }
 
     // Default: Avatar por defecto
@@ -328,16 +392,16 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
   // Función para obtener estado con estilo
   const getStatusBadge = (estado: string): JSX.Element => {
     const statusColors: Record<string, string> = {
-      'ACTIVO': 'bg-green-100 text-green-800',
-      'INACTIVO': 'bg-red-100 text-red-800',
+      ACTIVO: 'bg-green-100 text-green-800',
+      INACTIVO: 'bg-red-100 text-red-800',
       'POR EVALUAR': 'bg-yellow-100 text-yellow-800',
-      'APROBADO': 'bg-green-100 text-green-800',
-      'REPROBADO': 'bg-red-100 text-red-800',
-      'CURSANDO': 'bg-blue-100 text-blue-800',
-      'PENDIENTE': 'bg-gray-100 text-gray-800',
+      APROBADO: 'bg-green-100 text-green-800',
+      REPROBADO: 'bg-red-100 text-red-800',
+      CURSANDO: 'bg-blue-100 text-blue-800',
+      PENDIENTE: 'bg-gray-100 text-gray-800',
       'EN LÍNEA': 'bg-green-100 text-green-800',
-      'ONLINE': 'bg-green-100 text-green-800',
-      'DESCONECTADO': 'bg-gray-100 text-gray-800'
+      ONLINE: 'bg-green-100 text-green-800',
+      DESCONECTADO: 'bg-gray-100 text-gray-800'
     };
 
     const colorClass = statusColors[estado] || 'bg-gray-100 text-gray-800';
@@ -368,6 +432,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     } else {
       setSelectedAcudiente(null);
     }
+
     setShowAcudienteModal(true);
   };
 
@@ -385,7 +450,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
   const normalizeIdentity = (value: string): string => value.replace(/\D/g, '');
 
-  const filteredStudents = students.filter(student => {
+  const filteredStudents = students.filter((student) => {
     const search = normalizeText(searchTerm);
     const searchIdentity = normalizeIdentity(searchTerm);
 
@@ -400,6 +465,210 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     );
   });
 
+  const exportToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Estudiantes');
+
+      // Intentamos cargar el logo
+      try {
+        const response = await fetch('/media/images/sena/logo-sena-excel-rmi.png');
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+
+          const logoId = workbook.addImage({
+            buffer: arrayBuffer,
+            extension: 'png'
+          });
+
+          worksheet.addImage(logoId, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 80, height: 80 }
+          });
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar el logo para Excel', e);
+      }
+
+      // Estilo de encabezado del documento
+      worksheet.mergeCells('B2:E3');
+
+      const titleCell = worksheet.getCell('B2');
+      titleCell.value = 'LISTA DE APRENDICES';
+      titleCell.font = {
+        name: 'Arial',
+        size: 16,
+        bold: true,
+        color: { argb: 'FF00401A' }
+      };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      worksheet.getCell('A5').value = 'Programa:';
+      worksheet.getCell('A5').font = { bold: true };
+      worksheet.getCell('B5').value = materiaData.programa_nombre || 'N/A';
+
+      worksheet.getCell('A6').value = 'Ficha:';
+      worksheet.getCell('A6').font = { bold: true };
+      worksheet.getCell('B6').value = materiaData.ficha_codigo || materiaData.idFicha || 'N/A';
+
+      // Tabla de estudiantes - Fila de encabezado
+      const headerRow = worksheet.getRow(8);
+      headerRow.values = ['#', 'Nombre Completo', 'Identificación', 'Estado'];
+
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF0072C6' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+        };
+      });
+
+      // Filas de datos
+      filteredStudents.forEach((student, index) => {
+        const row = worksheet.addRow([
+          index + 1,
+          getFullName(student),
+          getStudentIdentificacion(student),
+          'En formación'
+        ]);
+
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+            left: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+            bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } },
+            right: { style: 'thin', color: { argb: 'FFEEEEEE' } }
+          };
+
+          if (colNumber === 1 || colNumber === 4) {
+            cell.alignment = { horizontal: 'center' };
+          }
+        });
+      });
+
+      // Anchos de columna
+      worksheet.getColumn(1).width = 5;
+      worksheet.getColumn(2).width = 45;
+      worksheet.getColumn(3).width = 20;
+      worksheet.getColumn(4).width = 18;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      const finalBlob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      saveAs(finalBlob, `Lista_Aprendices_${materiaData.ficha_codigo || 'Ficha'}.xlsx`);
+    } catch (error) {
+      console.error('Error al generar Excel', error);
+      alert('Hubo un error al generar el archivo Excel.');
+    }
+  };
+
+  const exportToPDF = () => {
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+      alert('Por favor, permite las ventanas emergentes para exportar a PDF.');
+      return;
+    }
+
+    const logoUrl = `${window.location.origin}/media/images/sena/logo-sena.png`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Lista de Aprendices - ${materiaData.ficha_codigo || 'Ficha'}</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
+            .header-container { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border-bottom: 3px solid #0072C6; padding-bottom: 15px; position: relative; }
+            .logo { width: 80px; height: auto; position: absolute; left: 0; top: -10px; }
+            h1 { text-align: center; font-size: 24px; margin: 0; color: #0072C6; text-transform: uppercase; letter-spacing: 1px; }
+            .info-grid { display: flex; justify-content: space-between; margin-bottom: 25px; background-color: #f8f9fa; padding: 15px 20px; border-radius: 6px; border: 1px solid #eaeaea; }
+            .info-item p { margin: 0; font-size: 14px; }
+            .info-item strong { color: #444; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+            th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+            th { background-color: #0072C6; color: white; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+            tr:nth-child(even) { background-color: #fcfcfc; }
+            .text-center { text-align: center; }
+            @media print {
+              body { padding: 0; }
+              .header-container { border-bottom: 3px solid #000; }
+              h1 { color: #000; }
+              th { background-color: #f0f0f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .info-grid { background-color: transparent; border: none; padding: 0; margin-bottom: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <img src="${logoUrl}" class="logo" alt="Logo SENA" onerror="this.style.display='none'" />
+            <h1>Lista de Aprendices</h1>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-item">
+              <p><strong>Programa:</strong> ${materiaData.programa_nombre || 'N/A'}</p>
+            </div>
+            <div class="info-item">
+              <p><strong>Ficha:</strong> ${materiaData.ficha_codigo || materiaData.idFicha || 'N/A'}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th class="text-center" style="width: 5%">#</th>
+                <th style="width: 45%">Nombre Completo</th>
+                <th style="width: 25%">Identificación</th>
+                <th class="text-center" style="width: 25%">Estado</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${filteredStudents
+                .map(
+                  (s, index) => `
+                    <tr>
+                      <td class="text-center">${index + 1}</td>
+                      <td>${getFullName(s)}</td>
+                      <td>${getStudentIdentificacion(s)}</td>
+                      <td class="text-center">En formación</td>
+                    </tr>
+                  `
+                )
+                .join('')}
+            </tbody>
+          </table>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-4">
       {/* Search and Actions */}
@@ -413,20 +682,100 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             data-no-uppercase
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder:text-gray-400 dark:bg-coal-500/20 dark:text-gray-100 dark:placeholder:text-gray-400 text-sm shadow-sm"
           />
-          <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+
+          <svg
+            className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
         </div>
 
-        <button
-          onClick={() => setShowAttendanceModal(true)}
-          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-          </svg>
-          Justificaciones
-        </button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <div ref={exportMenuRef} className="relative w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setShowExportMenu((prev) => !prev)}
+              className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              <KeenIcon icon="file-down" className="text-base" />
+              Exportar
+
+              <svg
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  showExportMenu ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-coal-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    exportToPDF();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-gray-200 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300">
+                    <KeenIcon icon="document" className="text-base" />
+                  </span>
+
+                  <span>Exportar PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    exportToExcel();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-green-50 hover:text-green-700 dark:text-gray-200 dark:hover:bg-green-900/20 dark:hover:text-green-300"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300">
+                    <KeenIcon icon="file-down" className="text-base" />
+                  </span>
+
+                  <span>Exportar Excel</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAttendanceModal(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
+            </svg>
+            Justificaciones
+          </button>
+        </div>
       </div>
 
       {/* Header Compacto */}
@@ -436,13 +785,19 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Estudiantes de la Clase
             </h3>
+
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Ficha: {materiaData.ficha_codigo || materiaData.idFicha} | {materiaData.programa_nombre || materiaData.idPrograma}
+              Ficha: {materiaData.ficha_codigo || materiaData.idFicha} |{' '}
+              {materiaData.programa_nombre || materiaData.idPrograma}
             </p>
           </div>
+
           <div className="text-right">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Total: <span className="font-semibold text-gray-900 dark:text-white">{filteredStudents.length}</span>
+              Total:{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {filteredStudents.length}
+              </span>
             </p>
           </div>
         </div>
@@ -452,7 +807,9 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       {loading && (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600 dark:text-gray-400">Cargando estudiantes...</span>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">
+            Cargando estudiantes...
+          </span>
         </div>
       )}
 
@@ -462,12 +819,21 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
+
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Error
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                {error}
+              </p>
             </div>
           </div>
         </div>
@@ -497,27 +863,29 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                       e.currentTarget.src = '/media/avatars/blank.png';
                     }}
                   />
+
                   <Tooltip title={fullName} placement="top" arrow>
                     <h4 className="text-[11px] font-semibold text-gray-900 dark:text-white mb-1 truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                       {fullName}
                     </h4>
                   </Tooltip>
+
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate">
                     {email}
                   </p>
-                  <div className="mb-3">
-                    {getStatusBadge(student.estado)}
-                  </div>
 
-                  {(materiaData.estadoClase === 'EN_CURSO' || materiaData.estadoClase === 'EN CURSO') && (
+                  <div className="mb-3">{getStatusBadge(student.estado)}</div>
+
+                  {(materiaData.estadoClase === 'EN_CURSO' ||
+                    materiaData.estadoClase === 'EN CURSO') && (
                     <div className="flex items-center justify-center gap-2 mb-3">
                       <button
                         onClick={() => handleAttendanceToggle(student)}
-                        className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 
-                          ${student.asistio
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                          student.asistio
                             ? 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-400'
                             : 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-400'
-                          }`}
+                        }`}
                         title={student.asistio ? 'Marcar como ausente' : 'Marcar como presente'}
                       >
                         {student.asistio ? 'Presente' : 'Falta'}
@@ -527,16 +895,33 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
                   <div className="flex items-center justify-center gap-2">
                     <GraficaAsistencia idMatricula={student.idMatricula} />
+
                     <button
                       onClick={() => showStudentDetails(student)}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
                       title="Ver detalles"
                     >
-                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <svg
+                        className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
                       </svg>
                     </button>
+
                     <button
                       onClick={() => showAcudienteDetails(student)}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
@@ -544,13 +929,24 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                     >
                       <KeenIcon icon="users" className="text-green-600 dark:text-green-400 text-base" />
                     </button>
+
                     <button
                       onClick={() => openAnotacionesMenu(student.idMatricula)}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors"
                       title="Anotaciones Disciplinarias"
                     >
-                      <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      <svg
+                        className="w-4 h-4 text-red-600 dark:text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -564,22 +960,54 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       {/* Empty State */}
       {!loading && !error && students.length === 0 && (
         <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-12 text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+            />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No se encontraron estudiantes</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No hay estudiantes registrados para esta materia.</p>
+
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+            No se encontraron estudiantes
+          </h3>
+
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            No hay estudiantes registrados para esta materia.
+          </p>
         </div>
       )}
 
       {/* No Search Results */}
       {!loading && !error && students.length > 0 && filteredStudents.length === 0 && (
         <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600/60 p-12 text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No hay coincidencias</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No se encontraron estudiantes con ese nombre o identificación.</p>
+
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+            No hay coincidencias
+          </h3>
+
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron estudiantes con ese nombre o identificación.
+          </p>
         </div>
       )}
 
@@ -589,6 +1017,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           <ModalContent className="max-w-[600px] top-[10%] p-4">
             <ModalHeader>
               <ModalTitle>Detalles del Estudiante</ModalTitle>
+
               <button
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors shrink-0"
                 onClick={closeModal}
@@ -596,6 +1025,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
+
             <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 dark:text-gray-300 font-medium">
               <div className="flex items-center gap-4 mb-2">
                 <img
@@ -606,10 +1036,12 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                     e.currentTarget.src = '/media/avatars/blank.png';
                   }}
                 />
+
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
                     {getFullName(selectedStudent)}
                   </h4>
+
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {getStudentEmail(selectedStudent)}
                   </p>
@@ -618,43 +1050,58 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Identificación</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    Identificación
+                  </label>
+
                   <p className="mt-1 text-gray-900 dark:text-white">
                     {getStudentIdentificacion(selectedStudent)}
                   </p>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    Teléfono
+                  </label>
+
                   <p className="mt-1 text-gray-900 dark:text-white">
                     {getStudentCelular(selectedStudent)}
                   </p>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedStudent.estado)}
-                  </div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    Estado
+                  </label>
+
+                  <div className="mt-1">{getStatusBadge(selectedStudent.estado)}</div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Nota Parcial</label>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    Nota Parcial
+                  </label>
+
                   <p className="mt-1 text-gray-900 dark:text-white">
-                    {selectedStudent.notaParcial !== null ? selectedStudent.notaParcial : 'No calificado'}
+                    {selectedStudent.notaParcial !== null
+                      ? selectedStudent.notaParcial
+                      : 'No calificado'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Observaciones</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                  Observaciones
+                </label>
+
                 <div className="mt-1 p-3 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 rounded min-h-[60px] text-gray-900 dark:text-white">
                   {selectedStudent.observacion || 'Sin observaciones'}
                 </div>
               </div>
 
               <div className="flex justify-end mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={closeModal}
-                  className="btn btn-sm btn-secondary"
-                >
+                <button onClick={closeModal} className="btn btn-sm btn-secondary">
                   Cerrar
                 </button>
               </div>
@@ -672,6 +1119,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <KeenIcon icon="users" className="text-green-600 dark:text-green-400" />
                 Datos del Familiar / Acudiente
               </ModalTitle>
+
               <button
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors shrink-0"
                 onClick={closeAcudienteModal}
@@ -679,6 +1127,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
+
             <ModalBody className="grid gap-5 py-5 text-sm text-gray-700 dark:text-gray-300 font-medium">
               {selectedAcudiente ? (
                 <div className="space-y-4">
@@ -686,10 +1135,19 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                     <div className="flex items-center justify-center w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-300 text-2xl font-semibold">
                       {selectedAcudiente.nombre1?.charAt(0) || 'A'}
                     </div>
+
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
-                        {[selectedAcudiente.nombre1, selectedAcudiente.nombre2, selectedAcudiente.apellido1, selectedAcudiente.apellido2].filter(Boolean).join(' ')}
+                        {[
+                          selectedAcudiente.nombre1,
+                          selectedAcudiente.nombre2,
+                          selectedAcudiente.apellido1,
+                          selectedAcudiente.apellido2
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                       </h4>
+
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {selectedAcudiente.email || 'Sin correo electrónico'}
                       </p>
@@ -698,43 +1156,62 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Identificación</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        Identificación
+                      </label>
+
                       <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.identificacion || 'No registrada'}
                       </p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono Celular</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        Teléfono Celular
+                      </label>
+
                       <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.celular || 'No registrado'}
                       </p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Teléfono Fijo</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        Teléfono Fijo
+                      </label>
+
                       <p className="mt-1 text-gray-900 dark:text-white">
                         {selectedAcudiente.telefonoFijo || 'No registrado'}
                       </p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Género</label>
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                        Género
+                      </label>
+
                       <p className="mt-1 text-gray-900 dark:text-white">
-                        {selectedAcudiente.sexo === '1' ? 'Masculino' : selectedAcudiente.sexo === '2' ? 'Femenino' : selectedAcudiente.sexo || 'No registrado'}
+                        {selectedAcudiente.sexo === '1'
+                          ? 'Masculino'
+                          : selectedAcudiente.sexo === '2'
+                            ? 'Femenino'
+                            : selectedAcudiente.sexo || 'No registrado'}
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
-                  <KeenIcon icon="information-2" className="text-4xl mb-3 opacity-50 text-gray-400 dark:text-gray-500" />
+                  <KeenIcon
+                    icon="information-2"
+                    className="text-4xl mb-3 opacity-50 text-gray-400 dark:text-gray-500"
+                  />
                   <p>Este estudiante no tiene un acudiente o familiar registrado.</p>
                 </div>
               )}
 
               <div className="flex justify-end mt-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={closeAcudienteModal}
-                  className="btn btn-sm btn-secondary"
-                >
+                <button onClick={closeAcudienteModal} className="btn btn-sm btn-secondary">
                   Cerrar
                 </button>
               </div>
@@ -753,7 +1230,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       <TakeAttendanceModal
         isOpen={showAttendanceModal}
         onClose={() => setShowAttendanceModal(false)}
-        estudiantes={students.map(s => ({
+        estudiantes={students.map((s) => ({
           idMatriculaAcademica: s.id,
           idMatricula: s.idMatricula,
           nombre: getFullName(s),
@@ -761,7 +1238,11 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           asistio: null,
           fotoUrl: getStudentPhoto(s)
         }))}
-        idMateria={typeof materiaData.idMateria === 'string' ? parseInt(materiaData.idMateria) : materiaData.idMateria}
+        idMateria={
+          typeof materiaData.idMateria === 'string'
+            ? parseInt(materiaData.idMateria)
+            : materiaData.idMateria
+        }
         idAsignacionPeriodoProgramaJornada={materiaData.idFicha}
         idHorarioMateria={materiaData.idHorarioMateria}
         onAttendanceUpdated={fetchStudents}
@@ -784,9 +1265,15 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
               title="Cerrar (Click fuera de la imagen también cierra)"
             >
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
+
             <img
               src={selectedPhotoUrl}
               alt="Ampliada"
