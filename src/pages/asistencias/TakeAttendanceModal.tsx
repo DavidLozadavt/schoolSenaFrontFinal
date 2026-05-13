@@ -22,6 +22,21 @@ interface TakeAttendanceModalProps {
   onAttendanceUpdated: () => void;
 }
 
+interface JustificationData {
+  tipoExcusa: string;
+  observacionExcusa: string;
+  archivoSoporte: File | null;
+}
+
+const initialJustificationData: JustificationData = {
+  tipoExcusa: 'FUERZA MAYOR',
+  observacionExcusa: '',
+  archivoSoporte: null
+};
+
+const validFileTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const maxFileSize = 5 * 1024 * 1024; // 5 MB
+
 const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
   isOpen,
   onClose,
@@ -35,11 +50,9 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
   const [localEstudiantes, setLocalEstudiantes] = useState<Estudiante[]>([]);
   const [justifyingStudentId, setJustifyingStudentId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-
-  const [justificationData, setJustificationData] = useState({
-    tipoExcusa: 'FUERZA MAYOR',
-    observacionExcusa: ''
-  });
+  const [justificationData, setJustificationData] = useState<JustificationData>(
+    initialJustificationData
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -51,10 +64,7 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
     if (isOpen) {
       setSearchTerm('');
       setJustifyingStudentId(null);
-      setJustificationData({
-        tipoExcusa: 'FUERZA MAYOR',
-        observacionExcusa: ''
-      });
+      setJustificationData(initialJustificationData);
     }
   }, [isOpen]);
 
@@ -101,29 +111,99 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
     });
   }, [localEstudiantes, searchTerm]);
 
+  const resetJustificationForm = () => {
+    setJustifyingStudentId(null);
+    setJustificationData(initialJustificationData);
+  };
+
+  const handleOpenJustification = (id: number) => {
+    setJustifyingStudentId(id);
+    setJustificationData(initialJustificationData);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+
+    if (!file) {
+      setJustificationData((prev) => ({
+        ...prev,
+        archivoSoporte: null
+      }));
+      return;
+    }
+
+    if (!validFileTypes.includes(file.type)) {
+      alert('Tipo de archivo no permitido. Solo se permite PDF, JPG, JPEG o PNG.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      alert('El archivo no debe superar los 5 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setJustificationData((prev) => ({
+      ...prev,
+      archivoSoporte: file
+    }));
+  };
+
   const setAttendance = async (
     estudiante: Estudiante,
     estado: 'presente' | 'ausente' | 'justificada',
-    justificationOptions?: { tipoExcusa: string; observacionExcusa: string }
+    justificationOptions?: JustificationData
   ) => {
     setLoadingId(estudiante.idMatriculaAcademica);
 
     try {
-      const payload: Record<string, any> = {
-        idMatriculaAcademica: estudiante.idMatriculaAcademica,
-        idMatricula: estudiante.idMatricula,
-        idMateria,
-        idAsignacionPeriodoProgramaJornada,
-        asistio: estado === 'presente',
-        justificada: estado === 'justificada',
-        ...(justificationOptions || {})
-      };
+      if (estado === 'justificada') {
+        const formData = new FormData();
 
-      if (idHorarioMateria) {
-        payload.idHorarioMateria = idHorarioMateria;
+        formData.append('idMatriculaAcademica', String(estudiante.idMatriculaAcademica));
+        formData.append('idMatricula', String(estudiante.idMatricula));
+        formData.append('idMateria', String(idMateria));
+        formData.append(
+          'idAsignacionPeriodoProgramaJornada',
+          String(idAsignacionPeriodoProgramaJornada)
+        );
+        formData.append('asistio', 'false');
+        formData.append('justificada', 'true');
+        formData.append('tipoExcusa', justificationOptions?.tipoExcusa || '');
+        formData.append('observacionExcusa', justificationOptions?.observacionExcusa || '');
+
+        if (idHorarioMateria) {
+          formData.append('idHorarioMateria', String(idHorarioMateria));
+        }
+
+        if (justificationOptions?.archivoSoporte) {
+          formData.append('archivoSoporte', justificationOptions.archivoSoporte);
+        }
+
+        formData.append('_method', 'PUT');
+
+        await axios.post('update_assistance', formData, {
+          headers: {
+            Accept: 'application/json'
+          }
+        });
+      } else {
+        const payloadData: any = {
+          idMatriculaAcademica: estudiante.idMatriculaAcademica,
+          idMatricula: estudiante.idMatricula,
+          idMateria,
+          idAsignacionPeriodoProgramaJornada,
+          asistio: estado === 'presente',
+          justificada: false
+        };
+
+        if (idHorarioMateria) {
+          payloadData.idHorarioMateria = idHorarioMateria;
+        }
+
+        await axios.put('update_assistance', payloadData);
       }
-
-      await axios.put('update_assistance', payload);
 
       setLocalEstudiantes((prev) =>
         prev.map((e) =>
@@ -142,11 +222,7 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
       }
 
       if (estado === 'justificada') {
-        setJustifyingStudentId(null);
-        setJustificationData({
-          tipoExcusa: 'FUERZA MAYOR',
-          observacionExcusa: ''
-        });
+        resetJustificationForm();
       }
     } catch (error) {
       console.error('Error al actualizar asistencia', error);
@@ -154,14 +230,6 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
     } finally {
       setLoadingId(null);
     }
-  };
-
-  const handleOpenJustification = (id: number) => {
-    setJustifyingStudentId(id);
-    setJustificationData({
-      tipoExcusa: 'FUERZA MAYOR',
-      observacionExcusa: ''
-    });
   };
 
   if (!isOpen) return null;
@@ -306,10 +374,10 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
                     <select
                       value={justificationData.tipoExcusa}
                       onChange={(e) =>
-                        setJustificationData({
-                          ...justificationData,
+                        setJustificationData((prev) => ({
+                          ...prev,
                           tipoExcusa: e.target.value
-                        })
+                        }))
                       }
                       className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 py-1"
                     >
@@ -328,20 +396,43 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
                     <textarea
                       value={justificationData.observacionExcusa}
                       onChange={(e) =>
-                        setJustificationData({
-                          ...justificationData,
+                        setJustificationData((prev) => ({
+                          ...prev,
                           observacionExcusa: e.target.value
-                        })
+                        }))
                       }
                       placeholder="Detalles sobre la inasistencia..."
                       className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 resize-none h-16"
                     />
                   </div>
 
+                  <div className="mb-3">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      Documento de soporte
+                    </label>
+
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      className="block w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-yellow-100 file:text-yellow-700 hover:file:bg-yellow-200 transition-colors"
+                    />
+
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Formatos permitidos: PDF, JPG, JPEG o PNG. Máximo 5 MB.
+                    </p>
+
+                    {justificationData.archivoSoporte && (
+                      <p className="mt-1 text-xs text-green-600 font-medium truncate">
+                        ✓ {justificationData.archivoSoporte.name}
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => setJustifyingStudentId(null)}
+                      onClick={resetJustificationForm}
                       className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs font-semibold transition-colors"
                     >
                       Cancelar
