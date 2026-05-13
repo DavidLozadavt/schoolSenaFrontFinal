@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import * as Yup from 'yup';
 import Select from 'react-select';
 import ModalError from './ModalError';
+import { useAuthContext } from '../../auth/useAuthContext';
 
 interface Props {
   idSede?: string;
@@ -60,55 +61,6 @@ interface FormValues {
   urlImagen: File | null;
 }
 
-const validationSchema = Yup.object({
-  nombre: Yup.string()
-    .trim()
-    .min(3, 'Debe tener al menos 3 caracteres')
-    .max(100, 'Máximo 100 caracteres')
-    .required('El nombre es obligatorio'),
-
-  ciudad: Yup.object().nullable().required('La ciudad es obligatoria'),
-
-  responsable: Yup.object().nullable(),
-
-  empresa: Yup.object().nullable().required('La regional es obligatoria'),
-
-  centroFormacion: Yup.object().nullable().required('El centro de formación es obligatorio'),
-
-  jefeInmediato: Yup.string()
-    .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'Solo letras'),
-
-  direccion: Yup.string()
-    .trim()
-    .min(5, 'Dirección muy corta'),
-
-  descripcion: Yup.string()
-    .max(250, 'Máximo 250 caracteres')
-    .nullable(),
-
-  email: Yup.string().email('Correo inválido'),
-
-  telefono: Yup.string()
-    .matches(/^[0-9]+$/, 'Solo números')
-    .min(7, 'Debe tener al menos 7 dígitos')
-    .max(10, 'Máximo 10 dígitos'),
-
-  celular: Yup.string()
-    .matches(/^[0-9]+$/, 'Solo números')
-    .length(10, 'Debe tener 10 dígitos'),
-
-  urlImagen: Yup.mixed<File>()
-    .nullable()
-    .test('fileType', 'Solo se permiten imágenes PNG o JPG', (value?: File | null) => {
-      if (!value) return true;
-      return ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(value.type);
-    })
-    .test('fileSize', 'La imagen debe pesar menos de 2MB', (value?: File | null) => {
-      if (!value) return true;
-      return value.size <= 2 * 1024 * 1024;
-    })
-});
-
 const FormularioSedesSena: React.FC<Props> = ({
   idSede,
   setIdSede,
@@ -118,6 +70,55 @@ const FormularioSedesSena: React.FC<Props> = ({
   showToast,
   mode = 'create'
 }) => {
+  const { user } = useAuthContext();
+
+  const validationSchema = Yup.object({
+    nombre: Yup.string()
+      .trim()
+      .min(3, 'Debe tener al menos 3 caracteres')
+      .max(100, 'Máximo 100 caracteres')
+      .required('El nombre es obligatorio'),
+
+    ciudad: Yup.object().nullable().required('La ciudad es obligatoria'),
+
+    responsable: Yup.object().nullable(),
+
+    empresa: user?.idCentroFormacion
+      ? Yup.object().nullable()
+      : Yup.object().nullable().required('La regional es obligatoria'),
+
+    centroFormacion: user?.idCentroFormacion
+      ? Yup.object().nullable()
+      : Yup.object().nullable().required('El centro de formación es obligatorio'),
+
+    jefeInmediato: Yup.string().matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'Solo letras'),
+
+    direccion: Yup.string().trim().min(5, 'Dirección muy corta'),
+
+    descripcion: Yup.string().max(250, 'Máximo 250 caracteres').nullable(),
+
+    email: Yup.string().email('Correo inválido'),
+
+    telefono: Yup.string()
+      .matches(/^[0-9]+$/, 'Solo números')
+      .min(7, 'Debe tener al menos 7 dígitos')
+      .max(10, 'Máximo 10 dígitos'),
+
+    celular: Yup.string()
+      .matches(/^[0-9]+$/, 'Solo números')
+      .length(10, 'Debe tener 10 dígitos'),
+
+    urlImagen: Yup.mixed<File>()
+      .nullable()
+      .test('fileType', 'Solo se permiten imágenes PNG o JPG', (value?: File | null) => {
+        if (!value) return true;
+        return ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(value.type);
+      })
+      .test('fileSize', 'La imagen debe pesar menos de 2MB', (value?: File | null) => {
+        if (!value) return true;
+        return value.size <= 2 * 1024 * 1024;
+      })
+  });
   const [ciudades, setCiudades] = useState<Ciudades[]>([]);
   const [regionales, setRegionales] = useState<Empresa[]>([]);
   const [centrosFormacion, setCentrosFormacion] = useState<CentroFormacion[]>([]);
@@ -254,7 +255,7 @@ const FormularioSedesSena: React.FC<Props> = ({
           setImagenActual(null);
         }, 1000);
       } catch (error: any) {
-        console.log(error)
+        console.log(error);
       } finally {
         setSubmitting(false);
       }
@@ -334,7 +335,7 @@ const FormularioSedesSena: React.FC<Props> = ({
       setImagenActual(null);
       setCentrosFormacion([]);
     }
-  }, [idSede, mode, resetForm, setValues]);
+  }, [idSede, mode, resetForm, setValues, user]);
 
   // Cargar centros de formación cuando se selecciona una regional
   const handleChangeRegional = async (value: { value: number; label: string } | null) => {
@@ -444,90 +445,99 @@ const FormularioSedesSena: React.FC<Props> = ({
               </div>
 
               {/* Regional */}
-              <div>
-                <label className="text-sm font-medium text-gray-700">Regional</label>
-                <Select
-                  options={optionsRegionales}
-                  placeholder="Selecciona la regional..."
-                  isClearable
-                  value={formik.values.empresa}
-                  onChange={handleChangeRegional}
-                  onBlur={() => formik.setFieldTouched('empresa', true)}
-                  classNames={{
-                    control: () =>
-                      `
+              {!user?.idCentroFormacion && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Regional</label>
+                  <Select
+                    options={optionsRegionales}
+                    placeholder="Selecciona la regional..."
+                    isClearable
+                    isDisabled={mode === 'create' && !!user?.idCentroFormacion}
+                    value={formik.values.empresa}
+                    onChange={handleChangeRegional}
+                    onBlur={() => formik.setFieldTouched('empresa', true)}
+                    classNames={{
+                      control: () =>
+                        `
                       bg-white dark:bg-coal-400
                       border border-gray-300 dark:border-coal-200
                       text-gray-900 dark:text-gray-100
                       `,
-                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                    placeholder: () => 'text-gray-400 dark:text-gray-300',
-                    input: () => 'text-gray-900 dark:text-gray-100',
-                    menu: () => 'bg-white dark:bg-coal-500',
-                    option: ({ isFocused, isSelected }) =>
-                      `
+                      singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                      placeholder: () => 'text-gray-400 dark:text-gray-300',
+                      input: () => 'text-gray-900 dark:text-gray-100',
+                      menu: () => 'bg-white dark:bg-coal-500',
+                      option: ({ isFocused, isSelected }) =>
+                        `
                       text-gray-900 dark:text-gray-100
                       ${isSelected ? 'bg-primary-500 text-white' : ''}
                       ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
                       `,
-                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                    dropdownIndicator: () =>
-                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                    clearIndicator: () =>
-                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                  }}
-                />
-                {formik.touched.empresa && formik.errors.empresa && (
-                  <p className="mt-1 text-xs text-red-500">{formik.errors.empresa}</p>
-                )}
-              </div>
+                      indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                      dropdownIndicator: () =>
+                        'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                      clearIndicator: () =>
+                        'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                    }}
+                  />
+                  {formik.touched.empresa && formik.errors.empresa && (
+                    <p className="mt-1 text-xs text-red-500">{formik.errors.empresa}</p>
+                  )}
+                </div>
+              )}
 
               {/* Centro de Formación */}
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">Centro de Formación</label>
-                <Select
-                  options={optionsCentrosFormacion}
-                  placeholder={
-                    !formik.values.empresa
-                      ? 'Primero selecciona una regional...'
-                      : centrosFormacion.length === 0
-                        ? 'No hay centros de formación disponibles'
-                        : 'Selecciona el centro de formación...'
-                  }
-                  isClearable
-                  isDisabled={!formik.values.empresa || centrosFormacion.length === 0}
-                  value={formik.values.centroFormacion}
-                  onChange={(value) => formik.setFieldValue('centroFormacion', value)}
-                  onBlur={() => formik.setFieldTouched('centroFormacion', true)}
-                  classNamePrefix="react-select"
-                  classNames={{
-                    control: () =>
-                      `
+              {!user?.idCentroFormacion && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Centro de Formación</label>
+                  <Select
+                    options={optionsCentrosFormacion}
+                    placeholder={
+                      !formik.values.empresa
+                        ? 'Primero selecciona una regional...'
+                        : centrosFormacion.length === 0
+                          ? 'No hay centros de formación disponibles'
+                          : 'Selecciona el centro de formación...'
+                    }
+                    isClearable
+                    isDisabled={
+                      !formik.values.empresa ||
+                      centrosFormacion.length === 0 ||
+                      (mode === 'create' && !!user?.idCentroFormacion)
+                    }
+                    value={formik.values.centroFormacion}
+                    onChange={(value) => formik.setFieldValue('centroFormacion', value)}
+                    onBlur={() => formik.setFieldTouched('centroFormacion', true)}
+                    classNamePrefix="react-select"
+                    classNames={{
+                      control: () =>
+                        `
                       bg-white dark:bg-coal-400
                       border border-gray-300 dark:border-coal-200
                       text-gray-900 dark:text-gray-100
                       `,
-                    singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
-                    placeholder: () => 'text-gray-400 dark:text-gray-300',
-                    input: () => 'text-gray-900 dark:text-gray-100',
-                    menu: () => 'bg-white dark:bg-coal-500',
-                    option: ({ isFocused, isSelected }) =>
-                      `
+                      singleValue: () => 'text-gray-900 dark:text-gray-100 font-medium',
+                      placeholder: () => 'text-gray-400 dark:text-gray-300',
+                      input: () => 'text-gray-900 dark:text-gray-100',
+                      menu: () => 'bg-white dark:bg-coal-500',
+                      option: ({ isFocused, isSelected }) =>
+                        `
                       text-gray-900 dark:text-gray-100
                       ${isSelected ? 'bg-primary-500 text-white' : ''}
                       ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}
                       `,
-                    indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
-                    dropdownIndicator: () =>
-                      'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
-                    clearIndicator: () =>
-                      'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
-                  }}
-                />
-                {formik.touched.centroFormacion && formik.errors.centroFormacion && (
-                  <p className="mt-1 text-xs text-red-500">{formik.errors.centroFormacion}</p>
-                )}
-              </div>
+                      indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                      dropdownIndicator: () =>
+                        'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                      clearIndicator: () =>
+                        'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                    }}
+                  />
+                  {formik.touched.centroFormacion && formik.errors.centroFormacion && (
+                    <p className="mt-1 text-xs text-red-500">{formik.errors.centroFormacion}</p>
+                  )}
+                </div>
+              )}
 
               {/* Responsable de la Sede */}
               <div>

@@ -78,7 +78,11 @@ interface FormValues {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const toDate = (date?: string) => (date ? new Date(date) : null);
-const normalizeDate = (date?: string | null) => (date ? date.split('T')[0] : '');
+const normalizeDate = (date?: string | null) => {
+  if (!date) return '';
+  // Dividir por T o espacio para obtener solo la fecha YYYY-MM-DD
+  return date.split(/T| /)[0];
+};
 
 const ESTADOS_APERTURA = [
   { value: 'ACTIVO', label: 'ACTIVO' },
@@ -91,7 +95,7 @@ const ESTADOS_APERTURA = [
 ];
 
 // ─── Validación ───────────────────────────────────────────────────────────────
-const buildValidationSchema = (isEditing: boolean) =>
+const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
 
@@ -106,9 +110,11 @@ const buildValidationSchema = (isEditing: boolean) =>
           .required('Debe seleccionar un programa')
       : Yup.number().nullable(),
 
-    idRegional: Yup.number()
-      .typeError('Debe seleccionar una regional')
-      .required('Debe seleccionar una regional'),
+    idRegional: hasCentro
+      ? Yup.number().nullable()
+      : Yup.number()
+          .typeError('Debe seleccionar una regional')
+          .required('Debe seleccionar una regional'),
 
     // Estado solo se valida en edición
     estado: isEditing
@@ -250,6 +256,7 @@ const CrearEditarFicha: React.FC<Props> = ({
   const isEditing = Boolean(fichaId);
 
   const authContext = useContext(AuthContext);
+  const user = authContext?.user;
   const esInstructorSenaRef = React.useRef(false);
   const idContratoUsuarioRef = React.useRef<number | undefined>(undefined);
 
@@ -309,7 +316,7 @@ const CrearEditarFicha: React.FC<Props> = ({
       porcentajeEjecucion: isEditing ? null : 100,
       documento: null
     },
-    validationSchema: buildValidationSchema(isEditing),
+    validationSchema: buildValidationSchema(isEditing, !!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
         const formData = new FormData();
@@ -394,11 +401,12 @@ const CrearEditarFicha: React.FC<Props> = ({
         const response = await axios.get(`fichas/${fichaId}`);
         const { ficha, apertura } = response.data.data;
 
-        const idRegional = ficha.idRegional || 0;
-        const idSede = ficha.idSede || apertura.idSede || 0;
+        const idRegional = Number(ficha.idRegional) || 0;
+        const idSede = Number(ficha.idSede || apertura.idSede) || 0;
         // Usar el idCentroFormacion que viene en la respuesta del API
-        const idCentroFromApi =
-          ficha.sede?.idCentroFormacion || ficha.jornada?.idCentroFormacion || idCentro;
+        const idCentroFromApi = Number(
+          ficha.sede?.idCentroFormacion || ficha.jornada?.idCentroFormacion || idCentro
+        );
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
         const [jornadaRes, periodosRes, regionalesRes, programasRes, sedesRes, ambientesRes] =
@@ -420,12 +428,12 @@ const CrearEditarFicha: React.FC<Props> = ({
 
         formik.setValues({
           observacion: apertura.observacion || '',
-          idPeriodo: apertura.idPeriodo || 0,
-          idPrograma: apertura.idPrograma || 0,
-          idRegional,
+          idPeriodo: Number(apertura.idPeriodo) || 0,
+          idPrograma: Number(apertura.idPrograma) || 0,
+          idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
-          idSede,
-          idJornada: ficha.idJornada || 0,
+          idSede: Number(idSede) || 0,
+          idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
           fechaInicialClases: normalizeDate(apertura.fechaInicialClases),
           fechaFinalClases: normalizeDate(apertura.fechaFinalClases),
@@ -435,9 +443,9 @@ const CrearEditarFicha: React.FC<Props> = ({
           fechaFinalMatriculas: normalizeDate(apertura.fechaFinalMatriculas),
           fechaInicialPlanMejoramiento: normalizeDate(apertura.fechaInicialPlanMejoramiento),
           fechaFinalPlanMejoramiento: normalizeDate(apertura.fechaFinalPlanMejoramiento),
-          idInfraestructura: ficha.idInfraestructura || 0,
+          idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
-          porcentajeEjecucion: ficha.porcentajeEjecucion ?? null,
+          porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
           documento: null
         });
       } catch (error: any) {
@@ -453,11 +461,27 @@ const CrearEditarFicha: React.FC<Props> = ({
     loadFichaData();
   }, [fichaId, isModalOpen]);
 
-  // ── Cargar sedes al cambiar regional (solo en modo CREAR o si el usuario cambia manual) ──
+  // ── Auto-cargar sedes desde el centro de formación del usuario ───────────
+  // Si el usuario tiene centro asignado, se cargan solo sus sedes y se
+  // detecta automáticamente la regional (idEmpresa del centro).
   useEffect(() => {
+    if (!isModalOpen || isEditing || !user?.idCentroFormacion) return;
+
+    axios
+      .get(`sedes/centro-formacion/${user.idCentroFormacion}`)
+      .then((res) => {
+        setSedes(res.data.data ?? []);
+        formik.setFieldValue('idRegional', Number(res.data.centroFormacion?.idEmpresa) || 0);
+      })
+      .catch(() => setSedes([]));
+  }, [isModalOpen, user]);
+
+  // ── Cargar sedes al cambiar regional (solo usuarios sin centro asignado) ──
+  useEffect(() => {
+    // Usuarios con centro: las sedes las carga el efecto anterior.
+    if (user?.idCentroFormacion) return;
     // En edición, la carga inicial la hace loadFichaData.
-    // Este efecto solo actúa cuando el usuario cambia la regional manualmente.
-    if (isLoading) return; // evita pisar la carga inicial
+    if (isLoading) return;
     if (!formik.values.idRegional) {
       setSedes([]);
       return;
@@ -677,26 +701,28 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </h3>
                 </div>
 
-                {/* Regional */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Regional</label>
-                  <Select
-                    options={optionsRegionales}
-                    placeholder="Seleccione la regional"
-                    isClearable
-                    value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
-                    onChange={(option) => {
-                      formik.setFieldValue('idRegional', option?.value || 0);
-                      formik.setFieldValue('idSede', 0);
-                      formik.setFieldValue('idInfraestructura', 0);
-                    }}
-                    onBlur={() => formik.setFieldTouched('idRegional', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idRegional && formik.errors.idRegional && (
-                    <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
-                  )}
-                </div>
+                {/* Regional — oculta si el usuario tiene centro de formación asignado */}
+                {!user?.idCentroFormacion && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Regional</label>
+                    <Select
+                      options={optionsRegionales}
+                      placeholder="Seleccione la regional"
+                      isClearable
+                      value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
+                      onChange={(option) => {
+                        formik.setFieldValue('idRegional', option?.value || 0);
+                        formik.setFieldValue('idSede', 0);
+                        formik.setFieldValue('idInfraestructura', 0);
+                      }}
+                      onBlur={() => formik.setFieldTouched('idRegional', true)}
+                      classNames={selectClassNames}
+                    />
+                    {formik.touched.idRegional && formik.errors.idRegional && (
+                      <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Sede */}
                 <div>
@@ -704,13 +730,13 @@ const CrearEditarFicha: React.FC<Props> = ({
                   <Select
                     options={optionsSedes}
                     placeholder={
-                      !formik.values.idRegional
-                        ? 'Seleccione primero una regional'
-                        : sedes.length === 0
-                          ? 'No hay sedes para esta regional'
-                          : 'Seleccione la sede'
+                      sedes.length === 0
+                        ? user?.idCentroFormacion
+                          ? 'Cargando sedes...'
+                          : 'Seleccione primero una regional'
+                        : 'Seleccione la sede'
                     }
-                    isDisabled={!formik.values.idRegional || sedes.length === 0}
+                    isDisabled={sedes.length === 0}
                     isClearable
                     value={optionsSedes.find((o) => o.value === formik.values.idSede)}
                     onChange={(option) => {

@@ -69,10 +69,6 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [info, setInfo] = useState<Sede | null>(null);
 
-  const auth = useAuthContext();
-
-  console.log(auth)
-
   useEffect(() => {
     const loadData = async () => {
       try {
