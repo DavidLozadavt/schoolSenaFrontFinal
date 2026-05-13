@@ -4,6 +4,7 @@ import Select from 'react-select';
 import { ESTADOS_APERTURA } from './estados';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
+import { useAuthContext } from '../../auth/useAuthContext';
 
 interface Props {
   isModalOpen: boolean;
@@ -40,11 +41,20 @@ interface Regionales {
   razonSocial: string;
 }
 
+interface CentroFormacion {
+  id: number;
+  nombre: string;
+  ciudad?: {
+    descripcion: string;
+  };
+}
+
 interface FormValues {
   observacion: string;
   idPeriodo: number;
   idPrograma: number;
   idRegional: number;
+  idCentroFormacion: number;
   estado: string;
   idSede: number;
   idJornada: number;
@@ -60,122 +70,6 @@ interface FormValues {
   porcentajeEjecucion: number;
 }
 
-const validationSchema = Yup.object({
-  observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
-
-  idPeriodo: Yup.number()
-    .typeError('Debe seleccionar un periodo')
-    .required('Debe seleccionar un periodo'),
-
-  idPrograma: Yup.number()
-    .typeError('Debe seleccionar un programa')
-    .required('Debe seleccionar un programa'),
-
-  idRegional: Yup.number()
-    .typeError('Debe seleccionar una regional')
-    .required('Debe seleccionar una regional'),
-
-  estado: Yup.string()
-    .required('Debe seleccionar un estado')
-    .oneOf(
-      [
-        'ACTIVO',
-        'INACTIVO',
-        'OCULTO',
-        'PENDIENTE',
-        'RECHAZADO',
-        'APROBADO',
-        'CANCELADO',
-        'REPROBADO',
-        'CERRADO',
-        'ACEPTADO',
-        'LEIDO',
-        'EN ESPERA',
-        'INSCRIPCION',
-        'MATRICULADO',
-        'ABIERTO',
-        'EN CURSO',
-        'POR ACTUALIZAR',
-        'CURSANDO',
-        'ENTREVISTA',
-        'SIN ENTREVISTA',
-        'JUSTIFICADO'
-      ],
-      'Estado inválido'
-    ),
-
-  idSede: Yup.number().typeError('Debe seleccionar una sede').required('Debe seleccionar una sede'),
-
-  idJornada: Yup.number()
-    .typeError('Debe seleccionar una jornada')
-    .required('Debe seleccionar una jornada'),
-
-  codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
-
-  fechaInicialInscripciones: Yup.string().required(
-    'La fecha inicial de inscripciones es obligatoria'
-  ),
-
-  fechaFinalInscripciones: Yup.string()
-    .required('La fecha final de inscripciones es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialInscripciones } = this.parent;
-      return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-    }),
-
-  fechaInicialMatriculas: Yup.string()
-    .required('La fecha inicial de matrículas es obligatoria')
-    .test(
-      'matricula-after-or-equal-inscripcion',
-      'La fecha inicial de matrículas debe ser mayor o igual a la fecha inicial de inscripciones',
-      function (value) {
-        const { fechaInicialInscripciones } = this.parent;
-        return (
-          !value ||
-          !fechaInicialInscripciones ||
-          value >= fechaInicialInscripciones
-        );
-      }
-    ),
-
-  fechaFinalMatriculas: Yup.string()
-    .required('La fecha final de matrículas es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial de matrículas', function (value) {
-      const { fechaInicialMatriculas } = this.parent;
-      return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
-    }),
-
-  fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
-
-  fechaFinalClases: Yup.string()
-    .required('La fecha final de clases es obligatoria')
-    .test(
-      'after-or-equal',
-      'La fecha final debe ser mayor o igual a la fecha inicial',
-      function (value) {
-        const { fechaInicialClases } = this.parent;
-        return !value || !fechaInicialClases || value >= fechaInicialClases;
-      }
-    ),
-
-  fechaInicialPlanMejoramiento: Yup.string().required(
-    'La fecha inicial del plan de mejoramiento es obligatoria'
-  ),
-
-  fechaFinalPlanMejoramiento: Yup.string()
-    .required('La fecha final del plan de mejoramiento es obligatoria')
-    .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-      const { fechaInicialPlanMejoramiento } = this.parent;
-      return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
-    }),
-
-  porcentajeEjecucion: Yup.number()
-    .typeError('Debe ser un número')
-    .min(1, 'No puede ser menor que 1')
-    .max(100, 'No puede ser mayor que 100')
-    .nullable()
-});
-
 const FormularioFichasSena: React.FC<Props> = ({
   isModalOpen,
   setIsModalOpen,
@@ -183,6 +77,134 @@ const FormularioFichasSena: React.FC<Props> = ({
   setShowToast,
   setMessageToast
 }) => {
+  const { user } = useAuthContext();
+
+  const validationSchema = Yup.object({
+    observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
+
+    idPeriodo: Yup.number()
+      .typeError('Debe seleccionar un periodo')
+      .required('Debe seleccionar un periodo'),
+
+    idPrograma: Yup.number()
+      .typeError('Debe seleccionar un programa')
+      .required('Debe seleccionar un programa'),
+
+    idRegional: user?.idCentroFormacion
+      ? Yup.number().nullable()
+      : Yup.number()
+          .typeError('Debe seleccionar una regional')
+          .required('Debe seleccionar una regional'),
+
+    idCentroFormacion: user?.idCentroFormacion
+      ? Yup.number().nullable()
+      : Yup.number()
+          .typeError('Debe seleccionar un centro de formación')
+          .required('Debe seleccionar un centro de formación'),
+
+    estado: Yup.string()
+      .required('Debe seleccionar un estado')
+      .oneOf(
+        [
+          'ACTIVO',
+          'INACTIVO',
+          'OCULTO',
+          'PENDIENTE',
+          'RECHAZADO',
+          'APROBADO',
+          'CANCELADO',
+          'REPROBADO',
+          'CERRADO',
+          'ACEPTADO',
+          'LEIDO',
+          'EN ESPERA',
+          'INSCRIPCION',
+          'MATRICULADO',
+          'ABIERTO',
+          'EN CURSO',
+          'POR ACTUALIZAR',
+          'CURSANDO',
+          'ENTREVISTA',
+          'SIN ENTREVISTA',
+          'JUSTIFICADO'
+        ],
+        'Estado inválido'
+      ),
+
+    idSede: Yup.number()
+      .typeError('Debe seleccionar una sede')
+      .required('Debe seleccionar una sede'),
+
+    idJornada: Yup.number()
+      .typeError('Debe seleccionar una jornada')
+      .required('Debe seleccionar una jornada'),
+
+    codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
+
+    fechaInicialInscripciones: Yup.string().required(
+      'La fecha inicial de inscripciones es obligatoria'
+    ),
+
+    fechaFinalInscripciones: Yup.string()
+      .required('La fecha final de inscripciones es obligatoria')
+      .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+        const { fechaInicialInscripciones } = this.parent;
+        return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
+      }),
+
+    fechaInicialMatriculas: Yup.string()
+      .required('La fecha inicial de matrículas es obligatoria')
+      .test(
+        'matricula-after-or-equal-inscripcion',
+        'La fecha inicial de matrículas debe ser mayor o igual a la fecha inicial de inscripciones',
+        function (value) {
+          const { fechaInicialInscripciones } = this.parent;
+          return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
+        }
+      ),
+
+    fechaFinalMatriculas: Yup.string()
+      .required('La fecha final de matrículas es obligatoria')
+      .test(
+        'after-or-equal',
+        'Debe ser mayor o igual a la fecha inicial de matrículas',
+        function (value) {
+          const { fechaInicialMatriculas } = this.parent;
+          return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
+        }
+      ),
+
+    fechaInicialClases: Yup.string().required('La fecha inicial de clases es obligatoria'),
+
+    fechaFinalClases: Yup.string()
+      .required('La fecha final de clases es obligatoria')
+      .test(
+        'after-or-equal',
+        'La fecha final debe ser mayor o igual a la fecha inicial',
+        function (value) {
+          const { fechaInicialClases } = this.parent;
+          return !value || !fechaInicialClases || value >= fechaInicialClases;
+        }
+      ),
+
+    fechaInicialPlanMejoramiento: Yup.string().required(
+      'La fecha inicial del plan de mejoramiento es obligatoria'
+    ),
+
+    fechaFinalPlanMejoramiento: Yup.string()
+      .required('La fecha final del plan de mejoramiento es obligatoria')
+      .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
+        const { fechaInicialPlanMejoramiento } = this.parent;
+        return !value || !fechaInicialPlanMejoramiento || value >= fechaInicialPlanMejoramiento;
+      }),
+
+    porcentajeEjecucion: Yup.number()
+      .typeError('Debe ser un número')
+      .min(1, 'No puede ser menor que 1')
+      .max(100, 'No puede ser mayor que 100')
+      .nullable()
+  });
+
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
@@ -190,6 +212,7 @@ const FormularioFichasSena: React.FC<Props> = ({
       idPeriodo: 0,
       idPrograma: 0,
       idRegional: 0,
+      idCentroFormacion: 0,
       estado: '',
       idSede: 0,
       fechaInicialClases: '',
@@ -228,23 +251,88 @@ const FormularioFichasSena: React.FC<Props> = ({
   const [sedes, setSedes] = useState<Sedes[]>([]);
   const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
+  const [centrosFormacion, setCentrosFormacion] = useState<CentroFormacion[]>([]);
+
   useEffect(() => {
     const loadData = async () => {
-      const [jornadaRes, periodosRes, sedesRes, programasRes, regionalesRes] = await Promise.all([
-        axios.get('jornadas/agrupadas'),
-        axios.get('periodos'),
-        axios.get('sedesSena'),
-        axios.get('programas'),
-        axios.get('regional')
-      ]);
-      setJornadas(jornadaRes.data.data);
-      setPeriodos(periodosRes.data);
-      setSedes(sedesRes.data);
-      setProgramas(programasRes.data.data);
-      setRegionales(regionalesRes.data);
+      try {
+        const [jornadaRes, periodosRes, programasRes, regionalesRes] = await Promise.all([
+          axios.get('jornadas/agrupadas'),
+          axios.get('periodos'),
+          axios.get('programas'),
+          axios.get('regional')
+        ]);
+        setJornadas(jornadaRes.data.data);
+        setPeriodos(periodosRes.data);
+        setProgramas(programasRes.data.data);
+        setRegionales(regionalesRes.data);
+      } catch (error) {
+        console.error('Error cargando datos iniciales:', error);
+      }
     };
     loadData();
   }, []);
+
+  // Manejar cambio de Regional
+  const handleChangeRegional = async (option: { value: number; label: string } | null) => {
+    const idRegional = option?.value || 0;
+    formik.setFieldValue('idRegional', idRegional);
+    formik.setFieldValue('idCentroFormacion', 0);
+    formik.setFieldValue('idSede', 0);
+    setCentrosFormacion([]);
+    setSedes([]);
+
+    if (idRegional) {
+      try {
+        const res = await axios.get(`centrosFormacion/regional/${idRegional}`);
+        setCentrosFormacion(res.data.data);
+      } catch (error) {
+        console.error('Error cargando centros de formación:', error);
+      }
+    }
+  };
+
+  // Manejar cambio de Centro de Formación
+  const handleChangeCentroFormacion = async (option: { value: number; label: string } | null) => {
+    const idCentro = option?.value || 0;
+    formik.setFieldValue('idCentroFormacion', idCentro);
+    formik.setFieldValue('idSede', 0);
+    setSedes([]);
+
+    if (idCentro) {
+      try {
+        const res = await axios.get(`sedes/centro-formacion/${idCentro}`);
+        setSedes(res.data.data);
+      } catch (error) {
+        console.error('Error cargando sedes:', error);
+      }
+    }
+  };
+
+  // Cuando el usuario tiene centro de formación asignado:
+  // 1. Carga automáticamente las sedes de ese centro
+  // 2. Deriva la regional (idRegional) del campo idEmpresa del centro
+  useEffect(() => {
+    if (!isModalOpen || !user?.idCentroFormacion) return;
+
+    const loadUserContext = async () => {
+      try {
+        const res = await axios.get(`sedes/centro-formacion/${user.idCentroFormacion}`);
+        setSedes(res.data.data ?? []);
+        formik.setFieldValue('idCentroFormacion', user.idCentroFormacion);
+
+        // Auto-detectar la regional a partir del idEmpresa del centro de formación
+        const idEmpresa = res.data.centroFormacion?.idEmpresa;
+        if (idEmpresa) {
+          formik.setFieldValue('idRegional', idEmpresa);
+        }
+      } catch (error) {
+        console.error('Error cargando contexto del centro de formación del usuario:', error);
+      }
+    };
+
+    loadUserContext();
+  }, [user, isModalOpen]);
 
   const optionsJornadas = jornadas.map((val) => ({
     value: val.grupoJornada,
@@ -267,6 +355,11 @@ const FormularioFichasSena: React.FC<Props> = ({
     value: val.id,
     label: val.razonSocial
   }));
+
+  const optionsCentrosFormacion = centrosFormacion.map((val) => ({
+    value: val.id,
+    label: val.nombre
+  }));
   if (!isModalOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -283,7 +376,7 @@ const FormularioFichasSena: React.FC<Props> = ({
           ✕
         </button>
         {/* Header fijo */}
-        <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">Crear Ficha</h2>
+        <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">Crear Ficha Hola</h2>
 
         <form onSubmit={formik.handleSubmit} className="p-6 overflow-y-auto max-h-[70vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,21 +414,47 @@ const FormularioFichasSena: React.FC<Props> = ({
               )}
             </div>
             {/* Regional */}
-            <div>
-              <label className="text-sm font-medium text-gray-700">Regional</label>
+            {!user?.idCentroFormacion && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">Regional</label>
+                <Select
+                  options={optionsRegionales}
+                  placeholder="Seleccione la regional"
+                  isClearable
+                  value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
+                  onChange={handleChangeRegional}
+                  onBlur={() => formik.setFieldTouched('idRegional', true)}
+                />
+                {formik.touched.idRegional && formik.errors.idRegional && (
+                  <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
+                )}
+              </div>
+            )}
 
-              <Select
-                options={optionsRegionales}
-                placeholder="Seleccione la regional"
-                isClearable
-                value={optionsRegionales.find((o) => o.value === formik.values.idRegional)}
-                onChange={(option) => formik.setFieldValue('idRegional', option?.value || 0)}
-                onBlur={() => formik.setFieldTouched('idRegional', true)}
-              />
-              {formik.touched.idRegional && formik.errors.idRegional && (
-                <p className="text-red-500 text-xs">{formik.errors.idRegional}</p>
-              )}
-            </div>
+            {/* Centro de Formación */}
+            {!user?.idCentroFormacion && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">Centro de Formación</label>
+                <Select
+                  options={optionsCentrosFormacion}
+                  placeholder={
+                    !formik.values.idRegional
+                      ? 'Primero seleccione una regional'
+                      : 'Seleccione el centro'
+                  }
+                  isClearable
+                  isDisabled={!formik.values.idRegional}
+                  value={optionsCentrosFormacion.find(
+                    (o) => o.value === formik.values.idCentroFormacion
+                  )}
+                  onChange={handleChangeCentroFormacion}
+                  onBlur={() => formik.setFieldTouched('idCentroFormacion', true)}
+                />
+                {formik.touched.idCentroFormacion && formik.errors.idCentroFormacion && (
+                  <p className="text-red-500 text-xs">{formik.errors.idCentroFormacion}</p>
+                )}
+              </div>
+            )}
 
             {/* Programa */}
             <div>
@@ -376,8 +495,13 @@ const FormularioFichasSena: React.FC<Props> = ({
 
               <Select
                 options={optionsSedes}
-                placeholder="Seleccione la sede"
+                placeholder={
+                  !formik.values.idCentroFormacion
+                    ? 'Primero seleccione un centro'
+                    : 'Seleccione la sede'
+                }
                 isClearable
+                isDisabled={!formik.values.idCentroFormacion}
                 value={optionsSedes.find((o) => o.value === formik.values.idSede)}
                 onChange={(option) => formik.setFieldValue('idSede', option?.value || 0)}
                 onBlur={() => formik.setFieldTouched('idSede', true)}

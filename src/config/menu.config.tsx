@@ -205,7 +205,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title: 'Actas',
         path: '/actas',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      }
+      },
+      {
+        title: 'Instructor lider',
+        path: '/instructor-lider',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
     ]
   },
   {
