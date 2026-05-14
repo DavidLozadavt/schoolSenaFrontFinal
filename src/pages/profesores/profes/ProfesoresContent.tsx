@@ -278,7 +278,7 @@ function getInstructorSessions(fichas: Ficha[], currentMonth: Date): UpcomingSes
 
 //           Constants                                                                                                                                                                                                 
 
-const DIAS = ["", "Lun", "Mar", "Mi  ", "Jue", "Vie", "S  b", "Dom"];
+const DIAS = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const FICHA_BG = [
   "bg-blue-100 dark:bg-blue-900/30 border-blue-600 dark:border-blue-500",
   "bg-green-100 dark:bg-green-900/30 border-green-600 dark:border-green-500",
@@ -429,78 +429,209 @@ function getTitulo(act: Actividad): string {
 
 // ─── SEMAFORO DE HORAS RMI (HELPERS) ──────────────────────────────────────────
 
+/** YYYY-MM desde una fecha (calendario local). */
+function getPeriodoKeyFromDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Normaliza clave de periodo del API a YYYY-MM para comparar con el mes del calendario. */
+function normalizePeriodoKey(raw: unknown): string | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+  if (m) {
+    const y = m[1];
+    const mo = String(Number(m[2])).padStart(2, "0");
+    return `${y}-${mo}`;
+  }
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return getPeriodoKeyFromDate(d);
+  return null;
+}
+
+function parsePeriodoToDate(periodoStr: string): Date | null {
+  const key = normalizePeriodoKey(periodoStr);
+  if (!key) return null;
+  const d = new Date(`${key}-01T12:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Horas de un periodo (misma prioridad de campos en todo el bloque RMI). */
+function getHorasDePeriodo(p: any): number {
+  return toNum(p?.horasAsignadas ?? p?.horas ?? p?.totalHoras ?? p?.duracionHoras);
+}
+
 function getHorasPeriodo(dataRmi: any[], monthStr: string): number {
   if (!Array.isArray(dataRmi)) return 0;
+  const target = normalizePeriodoKey(monthStr);
+  if (!target) return 0;
   let horas = 0;
-  dataRmi.forEach(contrato => {
-    const p = contrato.periodos?.find((x: any) => x.periodo === monthStr);
-    if (p) {
-      horas += Number(p.horasAsignadas || p.horas || p.totalHoras || p.duracionHoras) || 0;
-    }
+  dataRmi.forEach((contrato) => {
+    const periodos = contrato.periodos;
+    if (!Array.isArray(periodos)) return;
+    const p = periodos.find((x: any) => {
+      const key =
+        normalizePeriodoKey(x?.periodo) ??
+        normalizePeriodoKey(x?.mes) ??
+        normalizePeriodoKey(x?.periodoMes) ??
+        normalizePeriodoKey(x?.anioMes);
+      return key === target;
+    });
+    if (p) horas += getHorasDePeriodo(p);
   });
   return horas;
 }
 
 function getFechaInicioContrato(dataRmi: any[]): Date | null {
   if (!Array.isArray(dataRmi) || dataRmi.length === 0) return null;
-  
+
   let earliestDate: Date | null = null;
 
   for (const contrato of dataRmi) {
-    const rawDate = contrato.fechaInicio || contrato.fecha_inicio || contrato.fechaInicial || contrato.fecha_inicial || contrato.fechaInicioContrato || contrato.fecha_inicio_contrato || contrato.contrato?.fechaInicio || contrato.contrato?.fecha_inicio;
-    
+    const rawDate =
+      contrato.fechaInicio ||
+      contrato.fecha_inicio ||
+      contrato.fechaInicial ||
+      contrato.fecha_inicial ||
+      contrato.fechaInicioContrato ||
+      contrato.fecha_inicio_contrato ||
+      contrato.contrato?.fechaInicio ||
+      contrato.contrato?.fecha_inicio;
+
     if (rawDate) {
       const d = new Date(rawDate);
       if (!isNaN(d.getTime())) {
         if (!earliestDate || d < earliestDate) earliestDate = d;
       }
     }
-    
+
     if (Array.isArray(contrato.periodos) && contrato.periodos.length > 0) {
-      const pSorted = [...contrato.periodos].sort((a, b) => (a.periodo || "").localeCompare(b.periodo || ""));
-      const p1 = pSorted[0]?.periodo;
-      if (p1) {
-        const d = new Date(`${p1}-01T00:00:00`);
-        if (!isNaN(d.getTime())) {
-          if (!earliestDate || d < earliestDate) earliestDate = d;
-        }
-      }
+      const pSorted = [...contrato.periodos].sort((a, b) =>
+        String(normalizePeriodoKey(a?.periodo ?? a?.mes) ?? "").localeCompare(
+          String(normalizePeriodoKey(b?.periodo ?? b?.mes) ?? "")
+        )
+      );
+      const p1 = pSorted[0]?.periodo ?? pSorted[0]?.mes;
+      const d = parsePeriodoToDate(String(p1 ?? ""));
+      if (d && (!earliestDate || d < earliestDate)) earliestDate = d;
     }
   }
   return earliestDate;
 }
 
-function getSemaforoHorasMes(horas: number) {
-  if (horas < 155) return { 
-    bg: "bg-red-500", text: "text-red-500", bgLight: "bg-red-50 dark:bg-red-900/20", 
-    border: "border-red-200 dark:border-red-800", label: "Por debajo" 
-  };
-  if (horas < 160) return { 
-    bg: "bg-amber-400", text: "text-amber-500", bgLight: "bg-amber-50 dark:bg-amber-900/20", 
-    border: "border-amber-200 dark:border-amber-800", label: "Cerca de cumplir" 
-  };
-  if (horas === 160) return { 
-    bg: "bg-green-400", text: "text-green-500", bgLight: "bg-green-50 dark:bg-green-900/20", 
-    border: "border-green-200 dark:border-green-800", label: "Cumple" 
-  };
-  return { 
-    bg: "bg-green-600", text: "text-green-600", bgLight: "bg-green-50 dark:bg-green-900/20", 
-    border: "border-green-200 dark:border-green-800", label: "Por encima" 
+/** Meses calendario desde inicio (día 1) hasta el mes de `ref`, inclusive. Mínimo 0. */
+function getMesesTranscurridos(fechaInicio: Date, ref: Date): number {
+  const sy = fechaInicio.getFullYear();
+  const sm = fechaInicio.getMonth();
+  const ry = ref.getFullYear();
+  const rm = ref.getMonth();
+  const n = (ry - sy) * 12 + (rm - sm) + 1;
+  return Math.max(0, n);
+}
+
+type SemaforoMes = {
+  bg: string;
+  text: string;
+  bgLight: string;
+  border: string;
+  label: string;
+};
+
+/** Mensual: 0–154 rojo, 155–159 amarillo, 160 verde claro, >160 verde oscuro. */
+function getSemaforoHorasMes(horas: number): SemaforoMes {
+  const h = Number.isFinite(horas) ? horas : 0;
+  if (h <= 154) {
+    return {
+      bg: "bg-red-500",
+      text: "text-red-500 dark:text-red-400",
+      bgLight: "bg-red-50 dark:bg-red-900/25",
+      border: "border-red-200 dark:border-red-800",
+      label: "Por debajo",
+    };
+  }
+  if (h < 160) {
+    return {
+      bg: "bg-amber-400",
+      text: "text-amber-600 dark:text-amber-400",
+      bgLight: "bg-amber-50 dark:bg-amber-900/25",
+      border: "border-amber-200 dark:border-amber-800",
+      label: "Cerca de cumplir",
+    };
+  }
+  if (h <= 160) {
+    return {
+      bg: "bg-green-400",
+      text: "text-green-600 dark:text-green-400",
+      bgLight: "bg-green-50 dark:bg-green-900/25",
+      border: "border-green-200 dark:border-green-800",
+      label: "Cumple",
+    };
+  }
+  return {
+    bg: "bg-green-600",
+    text: "text-green-700 dark:text-green-500",
+    bgLight: "bg-green-100 dark:bg-green-900/30",
+    border: "border-green-300 dark:border-green-800",
+    label: "Por encima",
   };
 }
 
-function getSemaforoHorasAcumulado(horas: number, meta: number) {
-  const diff = meta - horas;
-  if (diff >= 6) return { bg: "bg-red-500", text: "text-red-500" };
-  if (diff > 0 && diff <= 5) return { bg: "bg-amber-400", text: "text-amber-500" };
-  if (diff === 0) return { bg: "bg-green-400", text: "text-green-500" };
-  return { bg: "bg-green-600", text: "text-green-600" };
-}
+type SemaforoAcum = {
+  bg: string;
+  text: string;
+  bgLight: string;
+  border: string;
+  label: string;
+};
 
-function parsePeriodoToDate(periodoStr: string): Date | null {
-  if (!periodoStr) return null;
-  const d = new Date(`${periodoStr}-01T00:00:00`);
-  return isNaN(d.getTime()) ? null : d;
+/** Acumulado: falta ≥6 h → rojo; falta 1–5 → amarillo; igual meta → verde claro; supera → verde oscuro. Sin meta → neutro. */
+function getSemaforoHorasAcumulado(horas: number, meta: number): SemaforoAcum {
+  const h = Number.isFinite(horas) ? horas : 0;
+  const m = Number.isFinite(meta) ? meta : 0;
+  if (m <= 0) {
+    return {
+      bg: "bg-gray-400",
+      text: "text-gray-500 dark:text-gray-400",
+      bgLight: "bg-gray-50 dark:bg-coal-500/40",
+      border: "border-gray-200 dark:border-gray-600",
+      label: "Sin meta",
+    };
+  }
+  const diff = m - h;
+  if (diff >= 6) {
+    return {
+      bg: "bg-red-500",
+      text: "text-red-500 dark:text-red-400",
+      bgLight: "bg-red-50 dark:bg-red-900/25",
+      border: "border-red-200 dark:border-red-800",
+      label: "Por debajo",
+    };
+  }
+  if (diff > 0 && diff < 6) {
+    return {
+      bg: "bg-amber-400",
+      text: "text-amber-600 dark:text-amber-400",
+      bgLight: "bg-amber-50 dark:bg-amber-900/25",
+      border: "border-amber-200 dark:border-amber-800",
+      label: "Cerca de cumplir",
+    };
+  }
+  if (Math.abs(diff) < 0.01) {
+    return {
+      bg: "bg-green-400",
+      text: "text-green-600 dark:text-green-400",
+      bgLight: "bg-green-50 dark:bg-green-900/25",
+      border: "border-green-200 dark:border-green-800",
+      label: "Cumple",
+    };
+  }
+  return {
+    bg: "bg-green-600",
+    text: "text-green-700 dark:text-green-500",
+    bgLight: "bg-green-100 dark:bg-green-900/30",
+    border: "border-green-300 dark:border-green-800",
+    label: "Por encima",
+  };
 }
 
 // --- REELS DATA & COMPONENT ---
@@ -604,15 +735,24 @@ const ProfesoresContent: React.FC = () => {
 
   // Las horas y sesiones se obtienen desde el endpoint de RMI, filtrando por el mes actual.
   const { totalSesiones, totalHoras } = useMemo(() => {
-    const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    const anchor = calendarView === "day" ? selectedDay : currentMonth;
+    const monthStr = getPeriodoKeyFromDate(anchor);
     let sesiones = 0;
     let horas = 0;
 
     if (Array.isArray(dataRmi)) {
-      dataRmi.forEach(contrato => {
-        const periodo = contrato.periodos?.find((p: any) => p.periodo === monthStr);
+      dataRmi.forEach((contrato) => {
+        const periodos = contrato.periodos;
+        if (!Array.isArray(periodos)) return;
+        const periodo = periodos.find((p: any) => {
+          const key =
+            normalizePeriodoKey(p?.periodo) ??
+            normalizePeriodoKey(p?.mes) ??
+            normalizePeriodoKey(p?.periodoMes);
+          return key === monthStr;
+        });
         if (periodo) {
-          horas += Number(periodo.horasAsignadas) || 0;
+          horas += getHorasDePeriodo(periodo);
           if (Array.isArray(periodo.detalles)) {
             sesiones += periodo.detalles.length;
           }
@@ -621,47 +761,52 @@ const ProfesoresContent: React.FC = () => {
     }
 
     return { totalSesiones: sesiones, totalHoras: horas };
-  }, [dataRmi, currentMonth]);
+  }, [dataRmi, currentMonth, calendarView, selectedDay]);
 
-  // ── Semáforo de Horas RMI ────────────────────────────────────────────────
+  // ── Semáforo de Horas RMI (mes del calendario; en vista Día = mes del día seleccionado) ──
   const rmiCalculations = useMemo(() => {
-    const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    const anchor = calendarView === "day" ? selectedDay : currentMonth;
+    const monthStr = getPeriodoKeyFromDate(anchor);
     const horasMes = getHorasPeriodo(dataRmi, monthStr);
     const semaforoMes = getSemaforoHorasMes(horasMes);
 
     let fechaInicio = getFechaInicioContrato(dataRmi);
     if (!fechaInicio) {
-      fechaInicio = new Date(currentMonth.getFullYear(), 0, 1);
+      fechaInicio = new Date(anchor.getFullYear(), 0, 1);
     }
-    
+
+    const startMonth = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), 1);
+    const refMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+
+    let mesesTranscurridos = getMesesTranscurridos(startMonth, refMonth);
+    if (refMonth < startMonth) {
+      mesesTranscurridos = 0;
+    }
+
     let acumuladoHoras = 0;
-    const startY = fechaInicio.getFullYear();
-    const startM = fechaInicio.getMonth();
-    const currY = currentMonth.getFullYear();
-    const currM = currentMonth.getMonth();
-    
-    let mesesTranscurridos = (currY - startY) * 12 + (currM - startM) + 1;
-    if (mesesTranscurridos < 0) mesesTranscurridos = 0;
-    
-    if (Array.isArray(dataRmi)) {
-      dataRmi.forEach(contrato => {
-        if (Array.isArray(contrato.periodos)) {
-          contrato.periodos.forEach((p: any) => {
-            if (p.periodo && p.periodo <= monthStr) {
-              const d = parsePeriodoToDate(p.periodo);
-              if (d && d >= new Date(startY, startM, 1)) {
-                acumuladoHoras += Number(p.horasAsignadas || p.horas || p.totalHoras || p.duracionHoras) || 0;
-              }
-            }
-          });
-        }
+    if (Array.isArray(dataRmi) && mesesTranscurridos > 0) {
+      dataRmi.forEach((contrato) => {
+        if (!Array.isArray(contrato.periodos)) return;
+        contrato.periodos.forEach((p: any) => {
+          const pKey =
+            normalizePeriodoKey(p?.periodo) ??
+            normalizePeriodoKey(p?.mes) ??
+            normalizePeriodoKey(p?.periodoMes);
+          if (!pKey || pKey > monthStr) return;
+          const pd = parsePeriodoToDate(pKey);
+          if (pd && pd >= startMonth) {
+            acumuladoHoras += getHorasDePeriodo(p);
+          }
+        });
       });
     }
 
     const metaAcumulada = mesesTranscurridos * 160;
     const semaforoAcumulado = getSemaforoHorasAcumulado(acumuladoHoras, metaAcumulada);
-    
+
     const mesNombres = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+    const startM = fechaInicio.getMonth();
+    const startY = fechaInicio.getFullYear();
     const textoInicio = `Desde ${mesNombres[startM]} ${startY}`;
 
     return {
@@ -673,7 +818,7 @@ const ProfesoresContent: React.FC = () => {
       mesesTranscurridos,
       textoInicio,
     };
-  }, [dataRmi, currentMonth]);
+  }, [dataRmi, currentMonth, calendarView, selectedDay]);
 
   // ── Fichas en formación y Paginación ─────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
@@ -915,7 +1060,7 @@ const ProfesoresContent: React.FC = () => {
                       <table className="w-full text-xs min-w-[700px] bg-white dark:bg-coal-400 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                         <thead>
                           <tr className="bg-gray-100 dark:bg-coal-300">
-                            {["Competencia", "RAP / Resultado", "D  a", "Horario", "Sesiones", "Horas"].map((h) => (
+                            {["Competencia", "RAP / Resultado", "Día", "Horario", "Sesiones", "Horas"].map((h) => (
                               <th key={h} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400">{h}</th>
                             ))}
                           </tr>
@@ -967,7 +1112,7 @@ const ProfesoresContent: React.FC = () => {
               <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
-                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>D  a</button>
+                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Día</button>
               </div>
             </div>
             
@@ -997,6 +1142,9 @@ const ProfesoresContent: React.FC = () => {
                     {rmiCalculations.acumuladoHoras.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ {rmiCalculations.metaAcumulada}h</span>
                   </p>
                   <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoAcumulado.text}`}>
+                    {rmiCalculations.semaforoAcumulado.label}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
                     {rmiCalculations.textoInicio} · {rmiCalculations.mesesTranscurridos} meses × 160 h
                   </p>
                 </div>
@@ -1014,7 +1162,7 @@ const ProfesoresContent: React.FC = () => {
                     <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
                     <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="right" /></button>
                   </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mie</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
                   <div className="grid grid-cols-7 gap-1 flex-1">
                     {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
                     {daysArray.map(day => {
@@ -1038,7 +1186,7 @@ const ProfesoresContent: React.FC = () => {
 
                               <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
                                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del d  a</p>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del día</p>
                                   <p className="mt-0.5 text-sm font-extrabold">
                                     {new Date(year, month, day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
                                   </p>
@@ -1099,10 +1247,10 @@ const ProfesoresContent: React.FC = () => {
                   <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
                     <div>Lun</div>
                     <div>Mar</div>
-                    <div>Mi  </div>
+                    <div>Mié</div>
                     <div>Jue</div>
                     <div>Vie</div>
-                    <div>S  b</div>
+                    <div>Sáb</div>
                     <div>Dom</div>
                   </div>
 
@@ -1226,7 +1374,7 @@ const ProfesoresContent: React.FC = () => {
                       return (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
                           <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">D  a libre</h3>
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día libre</h3>
                           <p className="text-xs text-gray-500 mt-1">No hay clases programadas para este día.</p>
                         </div>
                       );

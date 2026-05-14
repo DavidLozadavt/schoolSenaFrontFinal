@@ -125,7 +125,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       await axios.post(`actividades/${actividad.id}/materiales-apoyo`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      onSuccess?.(link.trim() ? 'Link agregado correctamente' : 'Material de apoyo agregado correctamente');
+      onSuccess?.(link.trim() ? 'Link agregado correctamente' : 'Material de la actividad agregado correctamente');
       fetchMateriales();
       setCrearOpen(false);
       setTitulo('');
@@ -142,7 +142,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
   };
 
   const handleEliminar = async (mat: MaterialApoyo) => {
-    if (!actividad?.id || !window.confirm('¿Eliminar este material de apoyo?')) return;
+    if (!actividad?.id || !window.confirm('¿Eliminar este material de la actividad?')) return;
     try {
       await axios.delete(`actividades/${actividad.id}/materiales-apoyo/${mat.id}`);
       fetchMateriales();
@@ -166,7 +166,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-3xl top-[5%] max-h-[90vh] overflow-y-auto flex flex-col p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
         <ModalHeader>
-          <ModalTitle>Material de apoyo</ModalTitle>
+          <ModalTitle>Material de la actividad</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
             <KeenIcon icon="cross" />
           </button>
@@ -268,7 +268,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                     ) : paginatedMateriales.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No hay materiales de apoyo
+                          No hay archivos adjuntos a esta actividad
                         </td>
                       </tr>
                     ) : (

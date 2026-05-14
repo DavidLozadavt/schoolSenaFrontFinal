@@ -2411,7 +2411,7 @@ const ClaseDetallePage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  title="Material de apoyo"
+                  title="Biblioteca de conocimiento"
                   onClick={() => setActiveMenu('material-apoyo')}
                   className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'material-apoyo'
                     ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
@@ -2419,7 +2419,7 @@ const ClaseDetallePage: React.FC = () => {
                     }`}
                 >
                   <KeenIcon icon="document" className={`shrink-0 text-base ${activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Material de apoyo</span>
+                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Biblioteca de conocimiento</span>
                 </button>
               </div>
             </div>
@@ -2560,26 +2560,20 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Material de apoyo RAP: instructor CRUD por ficha; aprendiz solo lectura en el RAP de la clase */}
+              {/* Biblioteca de conocimiento (programa): aprendiz solo lectura; instructor CRUD según creador */}
               {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario === 'aprendiz' && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Material de apoyo</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Recursos de consulta para este RAP (sin entrega ni calificación).
+                      Recursos de consulta de todo tu programa de formación (sin entrega ni calificación). El RAP actual es solo referencia.
                     </p>
                   </div>
                   <MaterialApoyoAprendiz
-                    idFicha={idFichaParaClase}
-                    idRap={
-                      Number(locationState?.idMateria ?? clase?.idMateria ?? 0) > 0
-                        ? Number(locationState?.idMateria ?? clase?.idMateria)
-                        : undefined
-                    }
                     fichaCodigo={ficha?.codigo}
                     rapContextLabel={materialApoyoRapContexto || undefined}
-                    emptyMessage="No hay material de apoyo disponible para este RAP."
-                    hideGroupHeaders
+                    emptyMessage="No hay recursos en la biblioteca de conocimiento para tu programa."
+                    hideGroupHeaders={false}
                   />
                 </div>
               )}
@@ -2595,7 +2589,7 @@ const ClaseDetallePage: React.FC = () => {
               {activeMenu === 'material-apoyo' && idFichaParaClase <= 0 && (
                 <div className="text-center py-12 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
                   <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Material de apoyo</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 px-4">
                     No hay ficha cargada para esta clase. Vuelve a entrar desde el detalle de la ficha o recarga la página.
                   </p>
