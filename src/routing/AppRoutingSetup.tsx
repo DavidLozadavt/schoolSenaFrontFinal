@@ -92,6 +92,7 @@ import { ConfigurarAsientosPage } from '@/pages/configurar-asientos';
 import { AhorroTerceroPage } from '@/pages/ahorro-tercero';
 import { CobrosPolizasPage } from '@/pages/cobros-polizas';
 import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage';
+import { EventForm } from '@/pages/multimedia/gestion-multimedia/EventForm';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
@@ -933,6 +934,33 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
                 <MultimediaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/multimedia/eventos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+                <MultimediaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/multimedia/eventos/nuevo"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+                <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/multimedia/eventos/editar/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+                <EventForm />
               </ProtectedRoute>
             }
           />

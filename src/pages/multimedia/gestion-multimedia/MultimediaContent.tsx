@@ -113,8 +113,13 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
 
   const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
-  const getMediaUrl = (item: Multimedia) =>
-    item.urlMultimediaFull || item.urlMultimedia || '';
+  const getMediaUrl = (item: Multimedia) => {
+    const raw = item.urlMultimediaFull || item.urlMultimedia || '';
+    if (!raw) return '';
+    // Prefix relative /storage paths with backend base URL
+    if (raw.startsWith('/storage/')) return `http://127.0.0.1:8000${raw}`;
+    return raw;
+  };
 
   const getEmbedPreview = (url: string) => {
     if (!url) return null;

@@ -664,6 +664,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title: 'Gestion Multimedia',
         path: '/multimedia/gestion-multimedia',
         requiredPermissions: ['GESTION_NOMINA']
+      },
+      {
+        title: 'Eventos',
+        path: '/multimedia/eventos',
+        requiredPermissions: ['GESTION_NOMINA']
       }
     ]
   },
