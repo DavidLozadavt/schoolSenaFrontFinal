@@ -3,6 +3,14 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth/useAuthContext';
+import {
+  dedupeClasesAsignadasInstructorPorClaveLogica,
+  normalizarHoraCampoClaseApi,
+  textoJornadaParaAjuste12h,
+  titulosCompetenciaYRapUi,
+  jsGetDayDesdeApiClase,
+  columnaHorarioApiClase
+} from '@/utils/clasesAsignadasLogica';
 interface Props {
   evento: boolean;
   setEvento: (value: boolean) => void;
@@ -50,6 +58,8 @@ interface Clase {
   idHorarioMateria: number;
   idGradoMateria: number;
   idMateria: number;
+  /** Salón/aula física si `horarioMateria.idInfraestructura` está enlazado; si no, no mostrar número inventado. */
+  aula_nombre?: string | null;
 }
 
 /** Quita caracteres invisibles que a veces vienen del backend y rompen .includes() en prefijos cortos. */
@@ -57,35 +67,8 @@ function sanitizeBusquedaRaw(s: string): string {
   return s.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\u00AD/g, '');
 }
 
-/**
- * Textos de tarjeta (competencia / RAP) igual que en la UI.
- * Debe vivir fuera del componente para reutilizarlo en el índice de búsqueda.
- */
-function titulosCompetenciaYRap(clase: Clase): { competencia: string; rap: string | null } {
-  const materia = clase.materia_nombre.trim();
-  let competencia =
-    clase.competencia_nombre.trim() || materia || clase.programa_nombre.trim() || 'Sin nombre';
-  let rap = clase.rap_nombre?.trim() || null;
-
-  if (!rap && materia.includes(' - ')) {
-    const sep = ' - ';
-    const i = materia.indexOf(sep);
-    const tail = materia.slice(i + sep.length).trim();
-    const head = materia.slice(0, i).trim();
-    if (tail.length > 0 && head.length > 0) {
-      rap = tail;
-      if (clase.competencia_nombre.trim() === materia) {
-        competencia = head;
-      }
-    }
-  }
-
-  return { competencia, rap };
-}
-
-/** Cadena amplia para filtrar por cualquier fragmento (competencia, RAP, ficha, ids, evaluador, etc.). */
 function textoIndexBusquedaClase(clase: Clase): string {
-  const { competencia, rap } = titulosCompetenciaYRap(clase);
+  const { competencia, rap } = titulosCompetenciaYRapUi(clase);
   const sesExtras = (clase.sesiones_completadas ?? []).flatMap((s) => [
     s.evaluador_nombre ?? '',
     s.observacion ?? ''
@@ -102,23 +85,13 @@ function textoIndexBusquedaClase(clase: Clase): string {
     clase.jornada_nombre ?? '',
     clase.instructor_nombre ?? '',
     clase.grado_nombre ?? '',
+    clase.aula_nombre ?? '',
     clase.dia_semana ?? '',
     String(clase.idMateria ?? ''),
     String(clase.idHorarioMateria ?? ''),
     ...sesExtras
   ];
   return sanitizeBusquedaRaw(parts.join(' '));
-}
-
-/** Una fila por `idHorarioMateria` (PK). Ojo: la API a veces manda el id como string → Map debe usar Number(). */
-function dedupeClasesPorIdHorario(lista: Clase[]): Clase[] {
-  const m = new Map<number, Clase>();
-  for (const c of lista) {
-    const id = Number(c.idHorarioMateria);
-    if (!Number.isFinite(id) || id <= 0) continue;
-    if (!m.has(id)) m.set(id, c);
-  }
-  return Array.from(m.values());
 }
 
 /**
@@ -179,11 +152,6 @@ function claveOcurrenciaSesionListado(clase: Clase, s: SesionCompletada): string
   return `${Number.isFinite(hm) ? hm : 0}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
 }
 
-// Helper común: convierte idDia de BD (1=Lunes ... 7=Domingo) a número JS (0=Domingo ... 6=Sábado)
-const convertirIdDiaANumeroJS = (idDia: number): number => {
-  return idDia === 7 ? 0 : idDia;
-};
-
 const parseSoloFecha = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
   return new Date(year, month - 1, day);
@@ -238,17 +206,16 @@ const tituloSeccionSemanaPendiente = (weekOffset: number, primeraFechaYmd: strin
 const ORDEN_DIA_SEMANA_LUN_A_DOM: readonly number[] = [1, 2, 3, 4, 5, 6, 0];
 
 /**
- * Último día de la semana con clase: máximo idDia entre todas las clases del instructor.
- * Si no hay clases, se asume jueves (4).
+ * Último día de la semana con clase (según `dia_semana` / columna horario), para la vista corta de pendientes.
  */
 function calcularAnchorMinVistaPendiente(
   clases: Clase[],
   now: Date,
   getEstado: (c: Clase) => string
 ): number {
-  const ids = clases.map((c) => c.idDia).filter((n) => n >= 1 && n <= 7);
-  const idDiaUlt = ids.length > 0 ? Math.max(...ids) : 4;
-  const ultimoJs = convertirIdDiaANumeroJS(idDiaUlt);
+  const cols = clases.map((c) => columnaHorarioApiClase(c)).filter((n) => n >= 0 && n <= 6);
+  const colUlt = cols.length > 0 ? Math.max(...cols) : 3;
+  const ultimoJs = (colUlt + 1) % 7;
   const dow = now.getDay();
   const idxUlt = ORDEN_DIA_SEMANA_LUN_A_DOM.indexOf(ultimoJs);
   const idxNow = ORDEN_DIA_SEMANA_LUN_A_DOM.indexOf(dow);
@@ -258,7 +225,7 @@ function calcularAnchorMinVistaPendiente(
   // Hoy es el último día con clase y esa franja está EN CURSO → mostrar solo semana siguiente
   if (idxNow === idxUlt) {
     const hayUltimoEnCurso = clases.some(
-      (c) => c.idDia === idDiaUlt && getEstado(c) === 'EN CURSO'
+      (c) => columnaHorarioApiClase(c) === colUlt && getEstado(c) === 'EN CURSO'
     );
     return hayUltimoEnCurso ? 1 : 0;
   }
@@ -272,16 +239,17 @@ const obtenerVentanaHorariaHoy = (
   clase: Clase,
   ahora: Date
 ): { inicio: Date; fin: Date } | null => {
-  if (!clase.fechaInicial || !clase.fechaFinal || !clase.horaInicial || !clase.horaFinal || !clase.idDia) {
+  if (!clase.fechaInicial || !clase.fechaFinal || !clase.horaInicial || !clase.horaFinal) {
     return null;
   }
+  const diaNumero = jsGetDayDesdeApiClase(clase);
+  if (diaNumero === null) return null;
   const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
   hoy.setHours(0, 0, 0, 0);
   const fechaInicio = parseSoloFecha(clase.fechaInicial);
   fechaInicio.setHours(0, 0, 0, 0);
   const fechaFin = parseSoloFecha(clase.fechaFinal);
   fechaFin.setHours(0, 0, 0, 0);
-  const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
   if (
     ahora.getDay() !== diaNumero ||
     fechaInicio.getTime() > hoy.getTime() ||
@@ -292,7 +260,7 @@ const obtenerVentanaHorariaHoy = (
 
   let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
   let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-  const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
+  const lowerJ = textoJornadaParaAjuste12h(clase);
   const esTardeONoche =
     lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
   if (esTardeONoche && hIni < 12) hIni += 12;
@@ -413,6 +381,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         : '';
     const rap_nombre = rapRaw.length > 0 ? rapRaw : null;
 
+    const aulaRaw = raw.aula_nombre != null ? String(raw.aula_nombre).trim() : '';
+    const aula_nombre = aulaRaw.length > 0 ? aulaRaw : null;
+
     return {
       ficha_id: toNum(raw.ficha_id),
       ficha_codigo: String(raw.ficha_codigo ?? ''),
@@ -425,8 +396,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       jornada_tipo: String(raw.jornada_tipo ?? ''),
       dia_semana: String(raw.dia_semana ?? ''),
       idDia: toNum(raw.idDia),
-      horaInicial: String(raw.horaInicial ?? ''),
-      horaFinal: String(raw.horaFinal ?? ''),
+      horaInicial: normalizarHoraCampoClaseApi(raw.horaInicial),
+      horaFinal: normalizarHoraCampoClaseApi(raw.horaFinal),
       fechaInicial: String(raw.fechaInicial ?? ''),
       fechaFinal: raw.fechaFinal != null ? String(raw.fechaFinal) : null,
       estado: String(raw.estado ?? ''),
@@ -445,7 +416,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       grado_nombre: raw.grado_nombre != null ? String(raw.grado_nombre) : null,
       idHorarioMateria,
       idGradoMateria: toNum(raw.idGradoMateria),
-      idMateria: toNum(raw.idMateria)
+      idMateria: toNum(raw.idMateria),
+      aula_nombre
     };
   };
 
@@ -463,7 +435,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
           response = await axios.get('fichas/instructor/clases-asignadas');
         }
 
-        const clasesData = dedupeClasesPorIdHorario(
+        const clasesData = dedupeClasesAsignadasInstructorPorClaveLogica<Clase>(
           (response.data?.data || []).map(normalizarClase)
         );
         setClases(clasesData);
@@ -557,7 +529,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         clase.fechaFinal &&
         clase.horaInicial &&
         clase.horaFinal &&
-        clase.idDia
+        jsGetDayDesdeApiClase(clase) != null
       ) {
         const hoy = new Date(ahora);
         hoy.setHours(0, 0, 0, 0);
@@ -567,7 +539,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         fechaFin.setHours(0, 0, 0, 0);
 
         // Verificar si hoy es un día de clase
-        const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+        const diaNumero = jsGetDayDesdeApiClase(clase);
 
         if (
           ahora.getDay() === diaNumero &&
@@ -579,7 +551,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
           let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
 
           // Ajuste de 12h a 24h basado en jornada (el backend envía 12h sin indicador AM/PM)
-          const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
+          const lowerJ = textoJornadaParaAjuste12h(clase);
           const esTardeONoche =
             lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
           if (esTardeONoche && hIni < 12) hIni += 12;
@@ -627,8 +599,11 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     }
 
     // Si estamos dentro del rango de fechas, verificar si es un día de clase y el horario
-    if (clase.fechaInicial && fechaFin && clase.horaInicial && clase.horaFinal && clase.idDia) {
-      const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+    if (clase.fechaInicial && fechaFin && clase.horaInicial && clase.horaFinal) {
+      const diaNumero = jsGetDayDesdeApiClase(clase);
+      if (diaNumero === null) {
+        return 'PENDIENTE';
+      }
 
       // Verificar si hoy es un día de clase (día de la semana coincide Y está en el rango de fechas)
       const esDiaDeClase =
@@ -642,7 +617,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
 
         // Ajuste de 12h a 24h basado en jornada
-        const lowerJ = clase.jornada_nombre?.toLowerCase() || '';
+        const lowerJ = textoJornadaParaAjuste12h(clase);
         const esTardeONoche =
           lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
         if (esTardeONoche && hIni < 12) hIni += 12;
@@ -807,25 +782,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   };
 
   /**
-   * Convierte idDia del backend al formato de JavaScript getDay()
-   * Backend: idDia 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
-   * JavaScript: getDay() 0=Domingo, 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado
-   *
-   * @param idDia ID del día desde el backend (1-7)
-   * @returns Número del día para JavaScript getDay()
-   */
-  const convertirIdDiaANumeroJS = (idDia: number): number => {
-    // Convertir formato backend (1-7) a formato JavaScript (0-6)
-    // Domingo es 7 en backend pero 0 en JavaScript
-    return idDia === 7 ? 0 : idDia;
-  };
-
-  /**
    * Calcula la próxima fecha de clase pendiente (Date object)
    * Retorna null si no se puede calcular
    */
   const calcularProximaFechaClase = (clase: Clase): Date | null => {
-    if (!clase.fechaInicial || !clase.idDia) {
+    if (!clase.fechaInicial) {
+      return null;
+    }
+    const diaNumeroJs = jsGetDayDesdeApiClase(clase);
+    if (diaNumeroJs === null) {
       return null;
     }
 
@@ -839,7 +804,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     const hoy = new Date(currentTime);
     hoy.setHours(0, 0, 0, 0);
 
-    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
+    const diaNumero = diaNumeroJs;
 
     // Buscar la próxima fecha del día de la semana
     let fechaBusqueda = new Date(hoy);
@@ -882,7 +847,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    * - Límite de sesiones_restantes (para no generar más de las que realmente faltan)
    */
   const getTodasFechasPendientes = (clase: Clase): Date[] => {
-    if (!clase.fechaInicial || !clase.idDia) return [];
+    if (!clase.fechaInicial) return [];
+    const diaNumero = jsGetDayDesdeApiClase(clase);
+    if (diaNumero === null) return [];
 
     const parseDate = (dateStr: string) => {
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -894,8 +861,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
     const hoy = new Date(currentTime);
     hoy.setHours(0, 0, 0, 0);
-
-    const diaNumero = convertirIdDiaANumeroJS(clase.idDia);
 
     // Punto de partida: el máximo entre hoy y fechaInicio
     let cursor = new Date(Math.max(fechaInicio.getTime(), hoy.getTime()));
@@ -1202,39 +1167,42 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
   type GrupoPendiente = { rowKey: string; labelTitulo: string; clases: Clase[] };
 
-  // Agrupar pendientes por fecha (clave única por día; fecha en hora local, no UTC)
+  /**
+   * Pendientes agrupados por día de la **próxima** sesión únicamente.
+   * Una tarjeta por `idHorarioMateria` (misma competencia/RAP/franja que en Mi horario); no repetir
+   * la misma clase en miércoles, viernes, etc. por cada fecha futura de sesión.
+   */
   const groupedPendientes = useMemo((): GrupoPendiente[] => {
     const mapa = new Map<string, GrupoPendiente>();
     const sinFechas: Clase[] = [];
 
     clasesPendientes.forEach((clase) => {
       const jornadasType = getJornadaType(clase.jornada_tipo || '');
-      let fechasPendientes = getTodasFechasPendientes(clase);
+      const todas = getTodasFechasPendientes(clase);
+      let fechaParaGrupo: Date | null = todas.length > 0 ? new Date(todas[0]!) : null;
 
-      if (!fechasPendientes.length) {
+      if (!fechaParaGrupo) {
         const prox = calcularProximaFechaClase(clase);
-        if (prox) fechasPendientes = [prox];
-        else if (clase.fechaInicial) fechasPendientes = [parseSoloFecha(clase.fechaInicial)];
+        if (prox) fechaParaGrupo = prox;
+        else if (clase.fechaInicial) fechaParaGrupo = parseSoloFecha(clase.fechaInicial);
       }
 
-      if (!fechasPendientes.length) {
+      if (!fechaParaGrupo) {
         sinFechas.push(clase);
         return;
       }
 
-      fechasPendientes.forEach((fecha) => {
-        const iso = formatYmdLocal(fecha);
-        const labelTitulo = formatDateForGroup(iso, jornadasType);
-        const rowKey = `${iso}|${labelTitulo}`;
+      const iso = formatYmdLocal(fechaParaGrupo);
+      const labelTitulo = formatDateForGroup(iso, jornadasType);
+      const rowKey = `${iso}|${labelTitulo}`;
 
-        if (!mapa.has(rowKey)) {
-          mapa.set(rowKey, { rowKey, labelTitulo, clases: [] });
-        }
-        const g = mapa.get(rowKey)!;
-        if (!g.clases.some((c) => c.idHorarioMateria === clase.idHorarioMateria)) {
-          g.clases.push(clase);
-        }
-      });
+      if (!mapa.has(rowKey)) {
+        mapa.set(rowKey, { rowKey, labelTitulo, clases: [] });
+      }
+      const g = mapa.get(rowKey)!;
+      if (!g.clases.some((c) => c.idHorarioMateria === clase.idHorarioMateria)) {
+        g.clases.push(clase);
+      }
     });
 
     const ordenados = Array.from(mapa.values()).sort((a, b) => {
@@ -1495,7 +1463,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   }> = ({ clase, sesion }) => {
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
-    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRap(clase);
+    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
 
     // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
     const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
@@ -1581,7 +1549,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     const horario = getHorario(clase);
     const numSesiones = getNumSesiones(clase);
     const proximaClase = showProximaFecha ? getProximaClasePendiente(clase) : null;
-    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRap(clase);
+    const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
 
     return (
       <div

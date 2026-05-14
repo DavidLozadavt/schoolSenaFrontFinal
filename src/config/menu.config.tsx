@@ -7,6 +7,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
     path: '/'
   },
   {
+    title: 'Horario',
+    icon: 'calendar-tick',
+    path: '/ambiente-virtual/horario',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+  },
+  {
     title: 'Gestión Académica',
     icon: 'teacher',
     requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
