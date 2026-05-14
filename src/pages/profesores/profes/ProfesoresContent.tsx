@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuthContext } from "@/auth/useAuthContext";
 import { KeenIcon } from "@/components/keenicons";
 import MultimediaCapsulas from "@/components/capsulas/MultimediaCapsulas";
+import EventsDashboard from "@/components/capsulas/EventsDashboard";
 
 // --- Types ---
 
@@ -946,17 +947,7 @@ const ProfesoresContent: React.FC = () => {
             Eventos
           </h2>
         </div>
-        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-dashed border-gray-200 dark:border-gray-700 min-h-[130px] w-full flex flex-col items-center justify-center text-center px-4">
-          <div className="w-11 h-11 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-3 text-emerald-600 dark:text-emerald-400">
-            <KeenIcon icon="calendar" className="text-xl" />
-          </div>
-          <p className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wide">
-            Funcionalidad aún no disponible
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Próximamente podrás consultar eventos desde este apartado.
-          </p>
-        </div>
+        <EventsDashboard />
       </section>
 
       {/* --- KPI General --- */}

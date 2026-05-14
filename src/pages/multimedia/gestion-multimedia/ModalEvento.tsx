@@ -25,7 +25,8 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
     linkRegistro: '',
     tipoEvento: 'GENERAL',
     idArea: '',
-    crearHistoria: true 
+    crearHistoria: true,
+    idGrupoMultimedia: null as number | null
   });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -53,7 +54,8 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
         linkRegistro: evento.linkRegistro || '',
         tipoEvento: evento.tipoEvento || 'GENERAL',
         idArea: evento.idArea || '',
-        crearHistoria: false 
+        crearHistoria: false,
+        idGrupoMultimedia: evento.grupo_multimedia ? (evento.idGrupoMultimedia || true) : null
       });
       setPreview(evento.url || null);
     } else {
@@ -66,7 +68,8 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
         linkRegistro: '',
         tipoEvento: 'GENERAL',
         idArea: '',
-        crearHistoria: true
+        crearHistoria: true,
+        idGrupoMultimedia: null
       });
       setArchivo(null);
       setPreview(null);
@@ -87,7 +90,9 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value.toString());
+      if (value !== null && value !== undefined) {
+        data.append(key, value.toString());
+      }
     });
     
     if (archivo) {
@@ -246,11 +251,15 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
               </div>
             </div>
 
-            {!evento && (
+            {!formData.idGrupoMultimedia && (
               <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
                 <div className="flex-1">
-                  <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">Automatización Multimedia</h4>
-                  <p className="text-xs text-orange-600/80 dark:text-orange-400/60">Se creará una "Historia" automáticamente con esta imagen.</p>
+                  <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">
+                    {evento ? 'Generar Historia ahora' : 'Automatización Multimedia'}
+                  </h4>
+                  <p className="text-xs text-orange-600/80 dark:text-orange-400/60">
+                    {evento ? 'Crea una historia multimedia usando el póster actual.' : 'Se creará una "Historia" automáticamente con esta imagen.'}
+                  </p>
                 </div>
                 <div className="form-switch">
                   <input

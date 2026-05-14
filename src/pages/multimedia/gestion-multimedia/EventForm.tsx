@@ -32,7 +32,8 @@ export const EventForm = () => {
     linkRegistro: '',
     tipoEvento: 'PRESENCIAL',
     idArea: '',
-    crearHistoria: true 
+    crearHistoria: true,
+    idGrupoMultimedia: null as number | null
   });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -64,7 +65,8 @@ export const EventForm = () => {
           linkRegistro: evento.linkRegistro || '',
           tipoEvento: evento.tipoEvento || 'GENERAL',
           idArea: evento.idArea || '',
-          crearHistoria: false 
+          crearHistoria: false,
+          idGrupoMultimedia: evento.grupo_multimedia ? (evento.idGrupoMultimedia || true) : null
         });
         const getImageUrl = (url?: string) => {
           if (!url) return null;
@@ -101,7 +103,7 @@ export const EventForm = () => {
     Object.entries(formData).forEach(([key, value]) => {
       if (key === 'idArea' && value === '') {
         // No añadir o añadir null
-      } else {
+      } else if (value !== null && value !== undefined) {
         data.append(key, value.toString());
       }
     });
@@ -296,11 +298,15 @@ export const EventForm = () => {
             </div>
 
             {/* Automation toggle */}
-            {!id && (
+            {!formData.idGrupoMultimedia && (
               <div className="flex items-center gap-4 p-6 bg-orange-50 dark:bg-orange-950/20 rounded-3xl border border-orange-100 dark:border-orange-900/30">
                 <div className="flex-1">
-                  <h4 className="text-base font-bold text-orange-800 dark:text-orange-400">Publicar como Historia automáticamente</h4>
-                  <p className="text-sm text-orange-600 dark:text-orange-400/60">Al guardar el evento, se generará una entrada en la sección de Historias Multimedia usando este póster.</p>
+                  <h4 className="text-base font-bold text-orange-800 dark:text-orange-400">
+                    {id ? 'Generar Historia Multimedia ahora' : 'Publicar como Historia automáticamente'}
+                  </h4>
+                  <p className="text-sm text-orange-600 dark:text-orange-400/60">
+                    {id ? 'Crea una entrada en Historias usando el póster actual de este evento.' : 'Al guardar el evento, se generará una entrada en la sección de Historias Multimedia usando este póster.'}
+                  </p>
                 </div>
                 <div className="form-switch">
                   <input
