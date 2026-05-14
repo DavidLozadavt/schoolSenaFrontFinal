@@ -29,6 +29,11 @@ const EventsDashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEventoDetalle, setSelectedEventoDetalle] = useState<Evento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [selectedDate]);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -164,7 +169,7 @@ const EventsDashboard = () => {
 
       {/* RIGHT: EVENT DETAILS (5 columns) */}
       <div className="lg:col-span-5 flex flex-col gap-6">
-        <div className="bg-white dark:bg-coal-400 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 p-6 flex-1 flex flex-col min-h-[350px]">
+        <div className="bg-white dark:bg-coal-400 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 p-6 flex-1 flex flex-col min-h-[320px]">
           <div className="flex items-center justify-between mb-6">
              <div className="flex items-center gap-3">
                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
@@ -182,65 +187,81 @@ const EventsDashboard = () => {
              </span>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2">
+          <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-2">
             {selectedEvents.length > 0 ? (
-              selectedEvents.map((evento) => (
-                <div 
-                  key={evento.idEvento} 
-                  onClick={() => {
-                    setSelectedEventoDetalle(evento);
-                    setModalOpen(true);
-                  }}
-                  className="group relative bg-gray-50/50 dark:bg-coal-500/30 rounded-3xl p-4 border border-transparent hover:border-emerald-100 dark:hover:border-emerald-900/30 transition-all hover:bg-white dark:hover:bg-coal-500 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 animate-fade-in cursor-pointer"
-                >
-                  <div className="flex gap-4">
-                    {evento.url ? (
-                      <div className="shrink-0 w-20 h-20 rounded-2xl overflow-hidden shadow-md">
-                        <img src={getImageUrl(evento.url)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
-                      </div>
-                    ) : (
-                      <div className="shrink-0 w-20 h-20 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500">
-                        <KeenIcon icon="image" className="text-2xl" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${evento.tipoEvento === 'VIRTUAL' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                          {evento.tipoEvento}
-                        </span>
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-gray-400">
-                          <Clock className="w-3 h-3" /> {evento.hora}
-                        </span>
-                      </div>
-                      <h5 className="text-sm font-black text-gray-900 dark:text-white mb-1 group-hover:text-emerald-500 transition-colors line-clamp-2 uppercase leading-tight">
-                        {evento.nombre}
-                      </h5>
-                      {evento.area && (
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                          <MapPin className="w-3 h-3 text-emerald-500" />
-                          <span className="truncate">{evento.area.nombre}</span>
+              <>
+                {selectedEvents.slice(0, showAll ? undefined : 3).map((evento) => (
+                  <div 
+                    key={evento.idEvento} 
+                    onClick={() => {
+                      setSelectedEventoDetalle(evento);
+                      setModalOpen(true);
+                    }}
+                    className="group relative bg-gray-50/50 dark:bg-coal-500/30 rounded-[1.5rem] p-3 border border-transparent hover:border-emerald-100 dark:hover:border-emerald-900/30 transition-all hover:bg-white dark:hover:bg-coal-500 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 animate-fade-in cursor-pointer"
+                  >
+                    <div className="flex gap-3">
+                      {evento.url ? (
+                        <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden shadow-sm">
+                          <img src={getImageUrl(evento.url)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+                        </div>
+                      ) : (
+                        <div className="shrink-0 w-14 h-14 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500">
+                          <KeenIcon icon="image" className="text-xl" />
                         </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest ${evento.tipoEvento === 'VIRTUAL' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {evento.tipoEvento}
+                          </span>
+                          <span className="flex items-center gap-1 text-[8px] font-bold text-gray-400">
+                            <Clock className="w-2.5 h-2.5" /> {evento.hora}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-black text-gray-900 dark:text-white mb-0.5 group-hover:text-emerald-500 transition-colors line-clamp-1 uppercase leading-tight">
+                          {evento.nombre}
+                        </h5>
+                        {evento.area && (
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400">
+                            <MapPin className="w-2.5 h-2.5 text-emerald-500" />
+                            <span className="truncate">{evento.area.nombre}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between">
+                       <p className="text-[9px] text-gray-400 font-medium italic line-clamp-1 flex-1 pr-4">
+                          {evento.descripcion || 'Sin descripción'}
+                       </p>
+                       {evento.linkRegistro && (
+                          <a 
+                            href={evento.linkRegistro} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition-colors shadow-md shadow-emerald-500/20"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                       )}
                     </div>
                   </div>
-
-                  <div className="mt-4 flex items-center justify-between">
-                     <p className="text-[10px] text-gray-400 font-medium italic line-clamp-1 max-w-[150px]">
-                        {evento.descripcion || 'Sin descripción'}
-                     </p>
-                     {evento.linkRegistro && (
-                        <a 
-                          href={evento.linkRegistro} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                     )}
-                  </div>
-                </div>
-              ))
+                ))}
+                
+                {selectedEvents.length > 3 && (
+                  <button 
+                    onClick={() => setShowAll(!showAll)}
+                    className="w-full py-2.5 rounded-2xl border-2 border-dashed border-gray-100 dark:border-gray-800 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:border-emerald-500/30 hover:text-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    {showAll ? (
+                      <>Mostrar menos</>
+                    ) : (
+                      <>Ver {selectedEvents.length - 3} eventos más</>
+                    )}
+                  </button>
+                )}
+              </>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
                 <div className="w-24 h-24 rounded-[2rem] bg-gray-50 dark:bg-coal-500 flex items-center justify-center mb-4 rotate-3 group-hover:rotate-0 transition-transform">
