@@ -532,7 +532,7 @@ export const CardRap = ({
               </div>
 
               {/* Botón para asignar (solo si hay horarios sin asignar) */}
-              {hasSinAsignar && (
+              {hasSinAsignar && materia.estado == 'PENDIENTE' && (
                 <div className="col-span-full border-t border-gray-200 dark:border-gray-600 relative">
                   <button
                     onClick={() => {
