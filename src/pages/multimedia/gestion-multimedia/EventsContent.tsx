@@ -74,6 +74,16 @@ const EventsContent = ({ reload }: EventsContentProps) => {
     );
   }, [searchTerm, eventos]);
 
+  const getImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    
+    const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+    const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+    
+    return `${backendUrl}${normalizedUrl}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -121,7 +131,7 @@ const EventsContent = ({ reload }: EventsContentProps) => {
               <div className="h-48 bg-neutral-100 dark:bg-neutral-800 relative overflow-hidden">
                 {evento.url ? (
                   <img
-                    src={evento.url}
+                    src={getImageUrl(evento.url)}
                     alt={evento.nombre}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />

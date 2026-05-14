@@ -113,12 +113,16 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
 
   const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+    const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${backendUrl}${normalizedUrl}`;
+  };
+
   const getMediaUrl = (item: Multimedia) => {
-    const raw = item.urlMultimediaFull || item.urlMultimedia || '';
-    if (!raw) return '';
-    // Prefix relative /storage paths with backend base URL
-    if (raw.startsWith('/storage/')) return `http://127.0.0.1:8000${raw}`;
-    return raw;
+    return getImageUrl(item.urlMultimediaFull || item.urlMultimedia) || '';
   };
 
   const getEmbedPreview = (url: string) => {

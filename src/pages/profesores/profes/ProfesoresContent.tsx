@@ -783,6 +783,16 @@ const ProfesoresContent: React.FC = () => {
       </header>
 
 
+
+      {/* --- CÁPSULAS SENA SECTION (Reels & Stories) --- */}
+      <section className="w-full space-y-4 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">Cápsulas SENA</h2>
+        </div>
+        <MultimediaCapsulas />
+      </section>
+
       {/*        EVENTOS SECTION (Blank placeholder)        */}
       <section className="w-full space-y-4">
         <div className="flex items-center gap-2 mb-4">
@@ -839,15 +849,6 @@ const ProfesoresContent: React.FC = () => {
           </Link>
         </div>
       </div>
-
-      {/* --- CÁPSULAS SENA SECTION (Reels & Stories) --- */}
-      <section className="w-full space-y-4 mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <KeenIcon icon="youtube" className="text-primary text-xl" />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">Cápsulas SENA</h2>
-        </div>
-        <MultimediaCapsulas />
-      </section>
 
       {/* --- FICHAS SECTION (Full width) --- */}
       <section className="space-y-4">

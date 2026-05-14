@@ -66,7 +66,14 @@ export const EventForm = () => {
           idArea: evento.idArea || '',
           crearHistoria: false 
         });
-        setPreview(evento.url || null);
+        const getImageUrl = (url?: string) => {
+          if (!url) return null;
+          if (url.startsWith('http')) return url;
+          const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+          const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+          return `${backendUrl}${normalizedUrl}`;
+        };
+        setPreview(getImageUrl(evento.url));
       } catch (err) {
         console.error('Error al cargar evento:', err);
         enqueueSnackbar('No se pudo cargar el evento', { variant: 'error' });

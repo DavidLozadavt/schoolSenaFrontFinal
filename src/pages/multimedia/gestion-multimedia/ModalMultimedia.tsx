@@ -49,11 +49,20 @@ const ModalMultimedia = ({ open, tipo = 'historia', data, onClose, onSave }: Mod
       setDescripcion(grupo?.descripcion || '');
 
       if (grupo?.grupos_multimedia && Array.isArray(grupo.grupos_multimedia)) {
-        const existing: FileEntry[] = grupo.grupos_multimedia.map((m: any) => ({
-          id: m.id,
-          url: m.urlMultimediaFull ?? m.urlMultimedia ?? m.url ?? '',
-          existing: true
-        }));
+        const existing: FileEntry[] = grupo.grupos_multimedia.map((m: any) => {
+          const rawUrl = m.urlMultimediaFull ?? m.urlMultimedia ?? m.url ?? '';
+          let finalUrl = rawUrl;
+          if (rawUrl && !rawUrl.startsWith('http')) {
+            const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+            const normalizedUrl = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+            finalUrl = `${backendUrl}${normalizedUrl}`;
+          }
+          return {
+            id: m.id,
+            url: finalUrl,
+            existing: true
+          };
+        });
 
         const parsedSongs: (Song | null)[] = grupo.grupos_multimedia.map((m: any) => {
           if (!m.cancion) return null;

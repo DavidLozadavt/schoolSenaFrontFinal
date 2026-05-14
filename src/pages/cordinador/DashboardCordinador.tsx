@@ -64,6 +64,15 @@ export const DashboardCoordinador: React.FC = () => {
         </div>*/}
       </header>
 
+      <section className="mb-7.5">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="youtube" className="text-primary text-xl" />
+          <h2 className="text-md font-bold text-gray-800 dark:text-gray-100">C{"\u00E1"}psulas SENA</h2>
+          <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Multimedia reciente</span>
+        </div>
+        <MultimediaCapsulas />
+      </section>
+
       {/* KPIs (Sección A) */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7.5 mb-7.5">
         {[
@@ -153,14 +162,7 @@ export const DashboardCoordinador: React.FC = () => {
         </div>
       </section>
 
-      <section className="mb-7.5">
-        <div className="flex items-center gap-2 mb-4">
-          <KeenIcon icon="youtube" className="text-primary text-xl" />
-          <h2 className="text-md font-bold text-gray-800 dark:text-gray-100">C{"\u00E1"}psulas SENA</h2>
-          <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Multimedia reciente</span>
-        </div>
-        <MultimediaCapsulas />
-      </section>
+
 
       {/* ACCIONES RÁPIDAS (Sección E) */}
       <section className="bg-white dark:bg-coal-300 p-7.5 rounded-xl shadow-card border border-gray-200 dark:border-coal-100">

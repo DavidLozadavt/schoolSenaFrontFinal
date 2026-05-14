@@ -92,6 +92,7 @@ import { ConfigurarAsientosPage } from '@/pages/configurar-asientos';
 import { AhorroTerceroPage } from '@/pages/ahorro-tercero';
 import { CobrosPolizasPage } from '@/pages/cobros-polizas';
 import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage';
+import EventsPage from '@/pages/multimedia/gestion-multimedia/EventsPage';
 import { EventForm } from '@/pages/multimedia/gestion-multimedia/EventForm';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
@@ -942,7 +943,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/multimedia/eventos"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
-                <MultimediaPage />
+                <EventsPage />
               </ProtectedRoute>
             }
           />
