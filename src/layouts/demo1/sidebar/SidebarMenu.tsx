@@ -23,6 +23,7 @@ import { useState } from 'react';
 const SidebarMenu = () => {
   const { permissions, activacion } = useAuthContext();
   const [searchText, setSearchText] = useState('');
+  const { getMenuConfig } = useMenus();
 
   // Usuarios pendientes de activación: no deben ver opciones de navegación.
   if (activacion?.state_id === 18) {
@@ -326,10 +327,36 @@ const SidebarMenu = () => {
     );
   };
 
+  /** Recursivo: solo ítems permitidos; hijos anidados ya no se muestran “de más”. */
+  const filterMenuByPermissions = (items: TMenuConfig, userPermissions: string[]): TMenuConfig => {
+    const safe = userPermissions ?? [];
+    return items
+      .map((item) => {
+        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+          return null;
+        }
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = filterMenuByPermissions(item.children, safe);
+          if (item.requiredPermissions?.length) {
+            const ok = item.requiredPermissions.some((p) => safe.includes(p));
+            if (!ok) return null;
+          }
+          if (filteredChildren.length === 0) return null;
+          return { ...item, children: filteredChildren };
+        }
+        if (item.requiredPermissions?.length) {
+          const ok = item.requiredPermissions.some((p) => safe.includes(p));
+          if (!ok) return null;
+        }
+        return item;
+      })
+      .filter(Boolean) as TMenuConfig;
+  };
+
   const filterMenuByTitleAndPermissions = (
     items: TMenuConfig,
     query: string,
-    permissions: any
+    userPermissions: string[]
   ): TMenuConfig => {
     const lowerQuery = query.toLowerCase();
 
@@ -339,7 +366,7 @@ const SidebarMenu = () => {
 
         if (item.requiredPermissions) {
           const hasRequiredPermissions = item.requiredPermissions.some((perm) =>
-            permissions.includes(perm)
+            userPermissions.includes(perm)
           );
           if (!hasRequiredPermissions) {
             return null;
@@ -348,7 +375,7 @@ const SidebarMenu = () => {
 
         let filteredChildren: TMenuConfig | undefined;
         if (item.children) {
-          filteredChildren = filterMenuByTitleAndPermissions(item.children, query, permissions);
+          filteredChildren = filterMenuByTitleAndPermissions(item.children, query, userPermissions);
         }
 
         if (matchesTitle || (filteredChildren && filteredChildren.length > 0)) {
@@ -363,8 +390,13 @@ const SidebarMenu = () => {
       .filter(Boolean) as TMenuConfig;
   };
 
-  const { getMenuConfig } = useMenus();
   const menuConfig = getMenuConfig('primary');
+  const safePermissions = permissions ?? [];
+  const menuByPermission = menuConfig ? filterMenuByPermissions(menuConfig, safePermissions) : null;
+  const menuSource =
+    menuByPermission && searchText.trim()
+      ? filterMenuByTitleAndPermissions(menuByPermission, searchText, safePermissions)
+      : menuByPermission;
 
   return (
     <Menu highlight={true} multipleExpand={false} className="flex min-h-0 flex-col grow gap-0.5">
@@ -384,12 +416,7 @@ const SidebarMenu = () => {
         </div>
       </div>
 
-      {menuConfig &&
-        buildMenu(
-          searchText
-            ? filterMenuByTitleAndPermissions(menuConfig, searchText, permissions)
-            : menuConfig
-        )}
+      {menuSource && buildMenu(menuSource)}
     </Menu>
   );
 };

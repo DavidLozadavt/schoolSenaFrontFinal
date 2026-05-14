@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import {
+  extraerHoraHHMM,
+  horaClaveClaseAsignada,
+  normalizarHoraCampoClaseApi,
+  textoJornadaParaAjuste12h,
+  titulosCompetenciaYRapUi,
+  jsGetDayDesdeApiClase
+} from '@/utils/clasesAsignadasLogica';
 import { useResponsive } from '@/hooks';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
@@ -31,14 +39,9 @@ const formatYmdLocal = (d: Date): string => {
 };
 
 /**
- * idDía en BD (1=lun … 7=dom) → valor de Date.getDay() (0=dom … 6=sáb).
- * El API a veces envía string ("6"); sin Number() la comparación con getDay() falla y el calendario queda sin colores.
+ * idDía numérico (solo si no hay `dia_semana` fiable) → `Date.getDay()`.
+ * Preferir siempre `jsGetDayDesdeApiClase` en calendario y fechas.
  */
-const idDiaHorarioAGetDay = (idDia: unknown): number | null => {
-  const n = Number(idDia);
-  if (!Number.isFinite(n) || n < 1 || n > 7) return null;
-  return n === 7 ? 0 : n;
-};
 
 /** Evita `{}` u otros valores en `location.state` / APIs donde los hijos esperan `string | number`. */
 const normalizeIdProp = (value: unknown): string | number => {
@@ -67,32 +70,8 @@ const parseYmdLocal = (dateString: string | undefined | null): Date | null => {
   return isNaN(d.getTime()) ? null : d;
 };
 
-/** Texto tipo "Jueves" / "jue" / letra de calendario (L M X J V S D) → Date.getDay() (0–6). */
-const diaSemanaTextoAGetDay = (diaSemana?: string): number | null => {
-  if (!diaSemana?.trim()) return null;
-  const t = diaSemana
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-  if (t.length === 1) {
-    const una: Record<string, number> = { d: 0, l: 1, m: 2, x: 3, j: 4, v: 5, s: 6 };
-    const u = una[t];
-    if (u !== undefined) return u;
-  }
-  if (t.includes('domingo') || t.startsWith('dom')) return 0;
-  if (t.includes('lunes') || t.startsWith('lun')) return 1;
-  if (t.includes('martes') || t.startsWith('mar')) return 2;
-  if (t.includes('miercoles') || t.includes('miércoles') || t.startsWith('mie') || t === 'mi') return 3;
-  if (t.includes('jueves') || t.startsWith('jue') || t === 'ju') return 4;
-  if (t.includes('viernes') || t.startsWith('vie')) return 5;
-  if (t.includes('sabado') || t.includes('sábado') || t.startsWith('sab')) return 6;
-  return null;
-};
-
 /**
- * Día de la semana de la clase para pintar el calendario (0–6).
- * Orden: idDia BD → texto dia_semana → cualquier fila horario → idDia de la fila horario → 1.ª sesión → fechaInicial.
+ * Día de la semana de la clase para pintar el calendario (0–6): ver `jsGetDayDesdeApiClase` en util.
  */
 /** Lee propiedades aunque el backend/PDO envíe otro casing (id_dia, iddia…). */
 const getProp = (obj: unknown, ...names: string[]): unknown => {
@@ -144,24 +123,28 @@ const resolverGetDayClaseCalendario = (opts: {
   primeraSesionFecha?: string;
   sesionesParaInferir?: Array<{ fechaSesion?: string }>;
 }): number | null => {
-  const a = idDiaHorarioAGetDay(opts.idDia);
-  if (a !== null) return a;
-  const b = diaSemanaTextoAGetDay(opts.diaSemana);
-  if (b !== null) return b;
+  const main = jsGetDayDesdeApiClase({
+    idDia: opts.idDia,
+    dia_semana: opts.diaSemana
+  });
+  if (main !== null) return main;
   if (opts.filasHorario?.length) {
     for (const fc of opts.filasHorario) {
       const idd = getProp(fc, 'idDia', 'id_dia', 'iddia');
       const ds = getProp(fc, 'dia_semana', 'diaSemana');
-      const d =
-        idDiaHorarioAGetDay(idd) ?? diaSemanaTextoAGetDay(ds != null ? String(ds) : undefined);
+      const d = jsGetDayDesdeApiClase({
+        idDia: idd,
+        dia_semana: ds != null ? String(ds) : null
+      });
       if (d !== null) return d;
     }
   }
   const fid = getProp(opts.filaHorario, 'idDia', 'id_dia', 'iddia');
   const fds = getProp(opts.filaHorario, 'dia_semana', 'diaSemana');
-  const c =
-    idDiaHorarioAGetDay(fid) ??
-    diaSemanaTextoAGetDay(fds != null ? String(fds) : undefined);
+  const c = jsGetDayDesdeApiClase({
+    idDia: fid,
+    dia_semana: fds != null ? String(fds) : null
+  });
   if (c !== null) return c;
   const d1 = parseYmdLocal(opts.primeraSesionFecha);
   if (d1) return d1.getDay();
@@ -190,6 +173,19 @@ const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
       : String(rapRaw).trim();
   const idMatRaw = getProp(o, 'idMateria', 'id_materia');
   const idMatNum = idMatRaw !== undefined ? Number(idMatRaw) : NaN;
+  const materiaNombre = strFromRow(o, 'materia_nombre', 'materiaNombre', 'nombreMateria');
+  const competenciaRaw = strFromRow(o, 'competencia_nombre', 'competenciaNombre').trim();
+  const programaNombre =
+    strFromRow(o, 'programa_nombre', 'programaNombre', 'nombrePrograma') ||
+    String((o as Clase).programa_nombre ?? '');
+  const competencia_nombre =
+    competenciaRaw || materiaNombre.trim() || programaNombre.trim() || '';
+  const hiRaw = strFromRow(o, 'horaInicial', 'hora_inicial') ?? String(o.horaInicial ?? '');
+  const hfRaw = strFromRow(o, 'horaFinal', 'hora_final') ?? String(o.horaFinal ?? '');
+  const jn =
+    strFromRow(o, 'jornada_nombre', 'jornadaNombre', 'nombreJornada') ||
+    String((o as Clase).jornada_nombre ?? '');
+  const jt = strFromRow(o, 'jornada_tipo', 'jornadaTipo') || String((o as Clase).jornada_tipo ?? '');
   return {
     ...(o as Clase),
     idDia: Number.isFinite(idDiaNum) && idDiaNum >= 1 && idDiaNum <= 7 ? idDiaNum : (o as Clase).idDia,
@@ -198,37 +194,19 @@ const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
     fechaFinal: String(getProp(o, 'fechaFinal', 'fecha_final') ?? o.fechaFinal ?? ''),
     sesiones_completadas: Array.isArray(sesComp) ? (sesComp as Clase['sesiones_completadas']) : [],
     ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {}),
-    competencia_nombre: strFromRow(o, 'competencia_nombre', 'competenciaNombre'),
+    competencia_nombre,
     rap_nombre: rapNorm,
-    ...(Number.isFinite(idMatNum) && idMatNum > 0 ? { idMateria: idMatNum } : {})
+    idMateriaPadre: (() => {
+      const v = getProp(o, 'idMateriaPadre', 'id_materia_padre');
+      const n = v !== undefined ? Number(v) : NaN;
+      return Number.isFinite(n) && n > 0 ? n : (o as Clase).idMateriaPadre;
+    })(),
+    ...(Number.isFinite(idMatNum) && idMatNum > 0 ? { idMateria: idMatNum } : {}),
+    horaInicial: normalizarHoraCampoClaseApi(hiRaw),
+    horaFinal: normalizarHoraCampoClaseApi(hfRaw),
+    jornada_nombre: jn,
+    jornada_tipo: jt
   };
-};
-
-/** Misma lógica que Historial RAPs: competencia (negrita) + RAP (pequeño) + fallback por “código - texto”. */
-const titulosCompetenciaYRapDetalle = (clase: Clase): { competencia: string; rap: string | null } => {
-  const materia = String(clase.materia_nombre ?? '').trim();
-  const compApi = String(clase.competencia_nombre ?? '').trim();
-  let competencia =
-    compApi || materia || String(clase.programa_nombre ?? '').trim() || 'Sin nombre';
-  let rap =
-    clase.rap_nombre != null && String(clase.rap_nombre).trim() !== ''
-      ? String(clase.rap_nombre).trim()
-      : null;
-
-  if (!rap && materia.includes(' - ')) {
-    const sep = ' - ';
-    const i = materia.indexOf(sep);
-    const tail = materia.slice(i + sep.length).trim();
-    const head = materia.slice(0, i).trim();
-    if (tail.length > 0 && head.length > 0) {
-      rap = tail;
-      if (compApi === materia) {
-        competencia = head;
-      }
-    }
-  }
-
-  return { competencia, rap };
 };
 
 /** Normaliza filas de horario para idDia / dia_semana con cualquier casing. */
@@ -246,6 +224,12 @@ const normalizarFilaFechaClaseApi = (raw: unknown): FechaClase | null => {
   const fechaFinal =
     fechaFinalRaw === null || fechaFinalRaw === undefined ? null : String(fechaFinalRaw);
 
+  const materiaNombre = strFromRow(r, 'materia_nombre', 'materiaNombre', 'nombreMateria');
+  const programaNombre = strFromRow(r, 'programa_nombre', 'programaNombre', 'nombrePrograma');
+  const competenciaRaw = strFromRow(r, 'competencia_nombre', 'competenciaNombre').trim();
+  const competencia_nombre =
+    competenciaRaw || materiaNombre.trim() || programaNombre.trim() || '';
+
   return {
     ...(Number.isFinite(idHmNum) && idHmNum > 0 ? { idHorarioMateria: idHmNum } : {}),
     idDia: Number.isFinite(idn) ? idn : fallbackIdDia,
@@ -253,11 +237,23 @@ const normalizarFilaFechaClaseApi = (raw: unknown): FechaClase | null => {
     fechaInicial,
     fechaFinal,
     ficha_codigo: strFromRow(r, 'ficha_codigo', 'fichaCodigo'),
-    materia_nombre: strFromRow(r, 'materia_nombre', 'materiaNombre', 'nombreMateria'),
-    programa_nombre: strFromRow(r, 'programa_nombre', 'programaNombre', 'nombrePrograma'),
-    horaInicial: strFromRow(r, 'horaInicial', 'hora_inicial'),
-    horaFinal: strFromRow(r, 'horaFinal', 'hora_final'),
-    jornada_nombre: strFromRow(r, 'jornada_nombre', 'jornadaNombre', 'nombreJornada')
+    materia_nombre: materiaNombre,
+    programa_nombre: programaNombre,
+    horaInicial: normalizarHoraCampoClaseApi(strFromRow(r, 'horaInicial', 'hora_inicial')),
+    horaFinal: normalizarHoraCampoClaseApi(strFromRow(r, 'horaFinal', 'hora_final')),
+    jornada_nombre: strFromRow(r, 'jornada_nombre', 'jornadaNombre', 'nombreJornada'),
+    jornada_tipo: strFromRow(r, 'jornada_tipo', 'jornadaTipo', 'tipoJornada'),
+    competencia_nombre,
+    rap_nombre: (() => {
+      const rapRaw = getProp(r, 'rap_nombre', 'rapNombre');
+      if (rapRaw == null || rapRaw === '' || String(rapRaw).toLowerCase() === 'null') return null;
+      return String(rapRaw).trim();
+    })(),
+    idMateriaPadre: (() => {
+      const v = getProp(r, 'idMateriaPadre', 'id_materia_padre');
+      const n = v !== undefined ? Number(v) : NaN;
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    })()
   };
 };
 
@@ -267,28 +263,41 @@ interface ClaseTooltipDia {
   ficha_codigo: string;
   materia_nombre: string;
   programa_nombre: string;
+  competencia_nombre?: string;
+  rap_nombre?: string | null;
   horaInicial: string;
   horaFinal: string;
   jornada_nombre: string;
+  jornada_tipo?: string;
 }
 
-/** Misma ficha + materia + franja horaria → un solo bloque en tooltip (evita duplicados por varios idHorarioMateria en BD). */
-const claveFranjaTooltipDia = (row: ClaseTooltipDia): string =>
-  `${String(row.ficha_codigo || '')
+/** Misma ficha + franja + competencia + RAP (como en horario/listado) → un bloque; evita duplicar idHorarioMateria equivalentes. */
+const claveFranjaTooltipDia = (row: ClaseTooltipDia): string => {
+  const tit = titulosCompetenciaYRapUi({
+    materia_nombre: row.materia_nombre,
+    competencia_nombre: row.competencia_nombre,
+    rap_nombre: row.rap_nombre ?? undefined,
+    programa_nombre: row.programa_nombre
+  });
+  const comp = String(tit.competencia || '').trim().toLowerCase();
+  const rap = String(tit.rap ?? '').trim().toLowerCase();
+  return `${String(row.ficha_codigo || '')
     .trim()
-    .toLowerCase()}|${String(row.materia_nombre || '')
-    .trim()
-    .toLowerCase()}|${(row.horaInicial || '').substring(0, 5)}|${(row.horaFinal || '').substring(0, 5)}`;
+    .toLowerCase()}|${horaClaveClaseAsignada(row.horaInicial || '')}|${horaClaveClaseAsignada(row.horaFinal || '')}|${comp}|${rap}`;
+};
 
 /** Resumen de la clase actual (fallback si el API no trae fila para esa fecha). */
 type ResumenClaseCalendario = {
   ficha_codigo?: string;
   materia_nombre?: string;
+  competencia_nombre?: string;
+  rap_nombre?: string | null;
   programa_nombre?: string;
   horaInicial?: string;
   horaFinal?: string;
   idHorarioMateria?: number;
   jornada_nombre?: string;
+  jornada_tipo?: string;
 };
 
 /** Panel del tooltip del calendario: claro blanco/azul; en oscuro alineado al tema (coal). */
@@ -433,6 +442,22 @@ const CalendarComponent: React.FC<{
         sesionesParaInferir: sesionesCompletadas
       });
 
+      /** Todos los días JS (0=dom … 6=sáb) con clase según las filas de horario + fallback de la clase actual. */
+      const diasSemanaCalendarioJs = new Set<number>();
+      for (const fc of todasLasFechasCalendario) {
+        const dj = jsGetDayDesdeApiClase(fc);
+        if (dj !== null && dj >= 0 && dj <= 6) diasSemanaCalendarioJs.add(dj);
+      }
+      if (diaClaseJsResuelto !== null && diaClaseJsResuelto >= 0 && diaClaseJsResuelto <= 6) {
+        diasSemanaCalendarioJs.add(diaClaseJsResuelto);
+      }
+
+      const sesionDiaPermitido = (wd: number): boolean => {
+        if (diasSemanaCalendarioJs.size > 0) return diasSemanaCalendarioJs.has(wd);
+        if (diaClaseJsResuelto !== null) return wd === diaClaseJsResuelto;
+        return true;
+      };
+
       /** Rango real del horario: la clase a veces trae fechaFinal corta; horarioMateria puede ir más lejos. */
       let minRango: Date | null = null;
       let maxRango: Date | null = null;
@@ -470,11 +495,13 @@ const CalendarComponent: React.FC<{
                 fechaFin.setHours(0, 0, 0, 0);
                 // Si son la misma fecha, agregar solo esa
                 if (fechaIni.getTime() === fechaFin.getTime()) {
-                  fechas.push(new Date(fechaIni));
+                  const diaJsUnico = jsGetDayDesdeApiClase(fechaClase);
+                  if (diaJsUnico === null || fechaIni.getDay() === diaJsUnico) {
+                    fechas.push(new Date(fechaIni));
+                  }
                 } else {
                   // Si hay rango, agregar todas las fechas en el rango que coincidan con el día
-                  const diaJs =
-                    idDiaHorarioAGetDay(fechaClase.idDia) ?? diaSemanaTextoAGetDay(fechaClase.dia_semana);
+                  const diaJs = jsGetDayDesdeApiClase(fechaClase);
                   if (diaJs !== null) {
                     const fechaActual = new Date(fechaIni);
                     while (fechaActual <= fechaFin) {
@@ -489,40 +516,6 @@ const CalendarComponent: React.FC<{
             }
           }
         });
-      }
-
-      // SIEMPRE: una ocurrencia por semana en [minRango, maxRango] con idDia (misma lógica que el backend)
-      // Usa el rango unificado (clase + filas horarioMateria) para no cortar en abril si el horario sigue en mayo+.
-      if (minRango && maxRango && diaClaseJsResuelto !== null) {
-        const inicio = new Date(minRango);
-        const fin = new Date(maxRango);
-        if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime())) {
-          inicio.setHours(0, 0, 0, 0);
-          fin.setHours(0, 0, 0, 0);
-
-          if (diaClaseJsResuelto >= 0 && diaClaseJsResuelto <= 6) {
-            const fechaActual = new Date(inicio);
-            let contador = 0;
-            const maxIteraciones = 10000;
-
-            while (fechaActual <= fin && contador < maxIteraciones) {
-              if (fechaActual.getDay() === diaClaseJsResuelto) {
-                const fechaClase = new Date(fechaActual);
-                fechaClase.setHours(0, 0, 0, 0);
-                const existe = fechas.some((f) => {
-                  const fDate = new Date(f);
-                  fDate.setHours(0, 0, 0, 0);
-                  return fDate.getTime() === fechaClase.getTime();
-                });
-                if (!existe) {
-                  fechas.push(fechaClase);
-                }
-              }
-              fechaActual.setDate(fechaActual.getDate() + 1);
-              contador++;
-            }
-          }
-        }
       }
 
       // Sesiones ya dictadas: mismo rango extendido (coherente con sesiones en BD fuera del fechaFinal “corto” de clase)
@@ -544,10 +537,7 @@ const CalendarComponent: React.FC<{
                 return;
               }
             }
-            if (
-              diaClaseJsResuelto !== null &&
-              fechaSesion.getDay() !== diaClaseJsResuelto
-            ) {
+            if (!sesionDiaPermitido(fechaSesion.getDay())) {
               return;
             }
             const existe = fechas.some((f) => f.getTime() === fechaSesion.getTime());
@@ -639,15 +629,21 @@ const CalendarComponent: React.FC<{
           ficha_codigo: fc.ficha_codigo || '',
           materia_nombre: fc.materia_nombre || '',
           programa_nombre: fc.programa_nombre || '',
+          competencia_nombre: fc.competencia_nombre,
+          rap_nombre: fc.rap_nombre ?? null,
           horaInicial: fc.horaInicial || '',
           horaFinal: fc.horaFinal || '',
-          jornada_nombre: fc.jornada_nombre || ''
+          jornada_nombre: fc.jornada_nombre || '',
+          jornada_tipo: fc.jornada_tipo || ''
         };
 
         if (fechaIni.getTime() === fechaFinFc.getTime()) {
-          agregar(formatYmdLocal(fechaIni), row);
+          const diaJsUnico = jsGetDayDesdeApiClase(fc);
+          if (diaJsUnico === null || fechaIni.getDay() === diaJsUnico) {
+            agregar(formatYmdLocal(fechaIni), row);
+          }
         } else {
-          const diaJs = idDiaHorarioAGetDay(fc.idDia) ?? diaSemanaTextoAGetDay(fc.dia_semana);
+          const diaJs = jsGetDayDesdeApiClase(fc);
           if (diaJs !== null) {
             const cur = new Date(fechaIni);
             while (cur <= fechaFinFc) {
@@ -666,9 +662,12 @@ const CalendarComponent: React.FC<{
           ficha_codigo: resumenClaseActual.ficha_codigo || '',
           materia_nombre: resumenClaseActual.materia_nombre || '',
           programa_nombre: resumenClaseActual.programa_nombre || '',
+          competencia_nombre: resumenClaseActual.competencia_nombre,
+          rap_nombre: resumenClaseActual.rap_nombre ?? null,
           horaInicial: resumenClaseActual.horaInicial || '',
           horaFinal: resumenClaseActual.horaFinal || '',
-          jornada_nombre: resumenClaseActual.jornada_nombre || ''
+          jornada_nombre: resumenClaseActual.jornada_nombre || '',
+          jornada_tipo: resumenClaseActual.jornada_tipo || ''
         };
         fechasClase.forEach((d) => {
           const ymd = formatYmdLocal(new Date(d));
@@ -697,9 +696,16 @@ const CalendarComponent: React.FC<{
       const sesionesRow = getSesionesParaHorario(row.idHorarioMateria);
       const sesionRegistrada = sesionesRow.some((s) => s.fechaSesion?.split('T')[0] === ymd);
 
-      let [hIni, mIni] = (row.horaInicial || '0:0').substring(0, 5).split(':').map(Number);
-      let [hFin, mFin] = (row.horaFinal || '0:0').substring(0, 5).split(':').map(Number);
-      const lowerJ = (row.jornada_nombre || '').toLowerCase();
+      let [hIni, mIni] = (extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5))
+        .split(':')
+        .map(Number);
+      let [hFin, mFin] = (extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5))
+        .split(':')
+        .map(Number);
+      const lowerJ = textoJornadaParaAjuste12h({
+        jornada_nombre: row.jornada_nombre,
+        jornada_tipo: row.jornada_tipo
+      });
       const esTardeONoche =
         lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
       if (esTardeONoche && hIni < 12) hIni += 12;
@@ -736,14 +742,50 @@ const CalendarComponent: React.FC<{
       return modoCalendario === 'aprendiz' ? 'En espera' : 'Pendiente';
     };
 
-    // Abreviaciones de días para el calendario (solo para visualización del header)
-    // Usar Intl.DateTimeFormat para obtener las abreviaciones del navegador
-    const getDayAbbreviation = (dayIndex: number): string => {
-      const date = new Date(2024, 0, dayIndex + 1); // Crear fecha para ese día de la semana
-      return new Intl.DateTimeFormat('es-ES', { weekday: 'narrow' }).format(date).toUpperCase();
+    const contenidoBloqueTooltipDia = (diaCalendario: Date, row: ClaseTooltipDia) => {
+      const tit = titulosCompetenciaYRapUi({
+        materia_nombre: row.materia_nombre,
+        competencia_nombre: row.competencia_nombre,
+        rap_nombre: row.rap_nombre ?? undefined,
+        programa_nombre: row.programa_nombre
+      });
+      const estadoEtiqueta = etiquetaEstadoTooltip(diaCalendario, row);
+      return (
+        <div
+          key={claveFranjaTooltipDia(row)}
+          className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
+        >
+          <p className="font-semibold leading-snug text-blue-900 dark:text-white">{tit.competencia}</p>
+          {row.ficha_codigo ? (
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-800 dark:text-gray-200">
+              Ficha {row.ficha_codigo}
+            </p>
+          ) : null}
+          {tit.rap ? (
+            <p className="mt-0.5 text-[11px] font-medium leading-snug text-slate-700 dark:text-gray-200">
+              {tit.rap}
+            </p>
+          ) : null}
+          {row.programa_nombre ? (
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
+              {row.programa_nombre}
+            </p>
+          ) : null}
+          <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
+            {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
+            {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
+          </p>
+          <p
+            className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${clasesBadgeEstadoCalendario(estadoEtiqueta)}`}
+          >
+            {estadoEtiqueta}
+          </p>
+        </div>
+      );
     };
 
-    const daysOfWeek = [0, 1, 2, 3, 4, 5, 6].map(getDayAbbreviation);
+    // Cabecera: lunes → domingo (misma convención que idDia / horarios en BD).
+    const diasSemanaCortos = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
 
     const getDaysInMonth = (date: Date) => {
       const year = date.getFullYear();
@@ -751,10 +793,11 @@ const CalendarComponent: React.FC<{
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       const daysInMonth = lastDay.getDate();
-      const startingDayOfWeek = firstDay.getDay();
+      // getDay(): 0=dom … 6=sáb. Grid con lunes en la 1.ª columna → huecos iniciales:
+      const leadingEmpty = (firstDay.getDay() + 6) % 7;
 
       const days: (number | null)[] = [];
-      for (let i = 0; i < startingDayOfWeek; i++) {
+      for (let i = 0; i < leadingEmpty; i++) {
         days.push(null);
       }
       for (let d = 1; d <= daysInMonth; d++) {
@@ -846,8 +889,18 @@ const CalendarComponent: React.FC<{
       if (fechaComparar.getTime() === hoy.getTime()) {
         if (horaInicial && horaFinal) {
           const ahora = new Date();
-          const [hIni, mIni] = horaInicial.substring(0, 5).split(':').map(Number);
-          const [hFin, mFin] = horaFinal.substring(0, 5).split(':').map(Number);
+          const hiS = extraerHoraHHMM(horaInicial) ?? horaInicial.substring(0, 5);
+          const hfS = extraerHoraHHMM(horaFinal) ?? horaFinal.substring(0, 5);
+          let [hIni, mIni] = hiS.split(':').map(Number);
+          let [hFin, mFin] = hfS.split(':').map(Number);
+          const lowerJ = textoJornadaParaAjuste12h({
+            jornada_nombre: resumenClaseActual?.jornada_nombre,
+            jornada_tipo: resumenClaseActual?.jornada_tipo
+          });
+          const esTardeONoche =
+            lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+          if (esTardeONoche && hIni < 12) hIni += 12;
+          if (esTardeONoche && hFin < 12) hFin += 12;
 
           const horaInicio = new Date(ahora);
           horaInicio.setHours(hIni, mIni, 0, 0);
@@ -909,8 +962,8 @@ const CalendarComponent: React.FC<{
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {daysOfWeek.map((day) => (
-            <div key={day} className="text-center text-xs font-medium text-gray-700 dark:text-gray-300">
+          {diasSemanaCortos.map((day, i) => (
+            <div key={`dow-${i}`} className="text-center text-xs font-medium text-gray-700 dark:text-gray-300">
               {day}
             </div>
           ))}
@@ -996,34 +1049,7 @@ const CalendarComponent: React.FC<{
                       ].join(' ')}
                     >
                       {bloquesDia.length > 0 ? (
-                        bloquesDia.map((row) => {
-                          const estadoEtiqueta = etiquetaEstadoTooltip(date, row);
-                          return (
-                            <div
-                              key={claveFranjaTooltipDia(row)}
-                              className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
-                            >
-                              <p className="font-semibold leading-snug text-blue-900 dark:text-white">
-                                {row.ficha_codigo ? `${row.ficha_codigo} — ` : ''}
-                                {row.materia_nombre || 'Clase'}
-                              </p>
-                              {row.programa_nombre ? (
-                                <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
-                                  {row.programa_nombre}
-                                </p>
-                              ) : null}
-                              <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
-                                {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
-                                {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
-                              </p>
-                              <p
-                                className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${clasesBadgeEstadoCalendario(estadoEtiqueta)}`}
-                              >
-                                {estadoEtiqueta}
-                              </p>
-                            </div>
-                          );
-                        })
+                        bloquesDia.map((row) => contenidoBloqueTooltipDia(date, row))
                       ) : (
                         <p className="text-sm text-slate-800 dark:text-gray-200">
                           No hay clase el día de hoy.
@@ -1080,34 +1106,7 @@ const CalendarComponent: React.FC<{
                         '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]'
                       ].join(' ')}
                     >
-                      {bloquesDia.map((row) => {
-                        const estadoEtiqueta = etiquetaEstadoTooltip(date, row);
-                        return (
-                        <div
-                          key={claveFranjaTooltipDia(row)}
-                          className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
-                        >
-                          <p className="font-semibold leading-snug text-blue-900 dark:text-white">
-                            {row.ficha_codigo ? `${row.ficha_codigo} — ` : ''}
-                            {row.materia_nombre || 'Clase'}
-                          </p>
-                          {row.programa_nombre ? (
-                            <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
-                              {row.programa_nombre}
-                            </p>
-                          ) : null}
-                          <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
-                            {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
-                            {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
-                          </p>
-                          <p
-                            className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${clasesBadgeEstadoCalendario(estadoEtiqueta)}`}
-                          >
-                            {estadoEtiqueta}
-                          </p>
-                        </div>
-                        );
-                      })}
+                      {bloquesDia.map((row) => contenidoBloqueTooltipDia(date, row))}
                     </div>
                   }
                 >
@@ -1175,6 +1174,7 @@ interface Clase {
   competencia_nombre?: string;
   rap_nombre?: string | null;
   idMateria?: number;
+  idMateriaPadre?: number;
   programa_nombre?: string;
   fechaInicial?: string;
   fechaFinal?: string;
@@ -1185,6 +1185,7 @@ interface Clase {
   sesiones_completadas?: SesionCompletada[];
   dia_semana?: string;
   idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
+  jornada_nombre?: string;
   jornada_tipo?: string;
   estado?: string; // Estado calculado por el backend: 'PENDIENTE', 'EN CURSO', 'COMPLETADO'
   idHorarioMateria?: number;
@@ -1211,10 +1212,14 @@ interface FechaClase {
   idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
   ficha_codigo?: string;
   materia_nombre?: string;
+  competencia_nombre?: string;
+  rap_nombre?: string | null;
+  idMateriaPadre?: number;
   programa_nombre?: string;
   horaInicial?: string;
   horaFinal?: string;
   jornada_nombre?: string;
+  jornada_tipo?: string;
 }
 
 interface Ficha {
@@ -1420,18 +1425,22 @@ const ClaseDetallePage: React.FC = () => {
     }
 
     // Verificar si hoy es un día de clase
-    const diaJs = idDiaHorarioAGetDay(clase.idDia);
+    const diaJs = jsGetDayDesdeApiClase(clase);
     if (diaJs === null || ahora.getDay() !== diaJs) {
       return 'pendiente';
     }
 
     // Verificar si estamos dentro del rango de horas de la clase
-    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
+    const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
+    let [hIni, mIni] = hiS.split(':').map(Number);
+    let [hFin, mFin] = hfS.split(':').map(Number);
 
-    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
-    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
-    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
+    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
+    const esTardeOEnoche =
+      jornadaTipoUpper.includes('TARDE') ||
+      jornadaTipoUpper.includes('NOCHE') ||
+      jornadaTipoUpper.includes('NOCTURNA');
 
     if (esTardeOEnoche && hIni < 12) {
       hIni += 12;
@@ -1699,9 +1708,9 @@ const ClaseDetallePage: React.FC = () => {
 
   // Calcular la próxima fecha de clase si hoy no hay clase
   const calcularProximaFechaClase = (): string | null => {
-    if (!clase?.fechaInicial || !clase?.fechaFinal || !clase?.idDia) return null;
+    if (!clase?.fechaInicial || !clase?.fechaFinal) return null;
 
-    const diaNumero = idDiaHorarioAGetDay(clase.idDia);
+    const diaNumero = jsGetDayDesdeApiClase(clase);
     if (diaNumero === null) return null;
 
     const hoy = new Date();
@@ -1782,11 +1791,10 @@ const ClaseDetallePage: React.FC = () => {
   // El backend devuelve horas en formato 12h pero como si fueran 24h (ej: "04:00:00" = 4:00 PM si jornada es TARDE)
   const timeToMinutes = (timeString: string, jornadaTipo?: string): number => {
     if (!timeString) return 0;
-    const time = timeString.substring(0, 5); // Obtener HH:MM
+    const time = extraerHoraHHMM(timeString) ?? timeString.substring(0, 5);
     let [hours, minutes] = time.split(':').map(Number);
 
-    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12
-    const jornadaTipoUpper = jornadaTipo?.toUpperCase() || '';
+    const jornadaTipoUpper = (jornadaTipo || '').toUpperCase();
     const esTarde = jornadaTipoUpper.includes('TARDE');
     const esNoche = jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
 
@@ -1800,8 +1808,8 @@ const ClaseDetallePage: React.FC = () => {
   // Función para calcular la duración total de la clase en segundos
   const calcularDuracionClase = (): number => {
     if (!clase?.horaInicial || !clase?.horaFinal) return 0;
-    const inicio = timeToMinutes(clase.horaInicial, clase.jornada_tipo);
-    const fin = timeToMinutes(clase.horaFinal, clase.jornada_tipo);
+    const inicio = timeToMinutes(clase.horaInicial, clase.jornada_tipo || clase.jornada_nombre);
+    const fin = timeToMinutes(clase.horaFinal, clase.jornada_tipo || clase.jornada_nombre);
     // Si la hora final es menor que la inicial, asumimos que cruza medianoche
     let duracionMinutos = 0;
     if (fin <= inicio) {
@@ -1856,9 +1864,9 @@ const ClaseDetallePage: React.FC = () => {
       const dIni = parseDate(f.fechaInicial); dIni.setHours(0, 0, 0, 0);
       const dFin = f.fechaFinal ? parseDate(f.fechaFinal) : new Date(dIni); dFin.setHours(0, 0, 0, 0);
       if (dIni.getTime() === dFin.getTime()) return dIni.getTime() === hoy.getTime();
-      // Usar idDia directamente del backend (viene de la BD, sin mapeo hardcodeado)
-      if (f.idDia == null || Number.isNaN(Number(f.idDia))) return false;
-      const diaNumero = idDiaHorarioAGetDay(f.idDia);
+      // Día de clase: prioriza dia_semana del API (coherente con Mi horario / RAPs)
+      const diaNumero = jsGetDayDesdeApiClase(f);
+      if (diaNumero == null) return false;
       return (
         diaNumero !== null &&
         dIni.getTime() <= hoy.getTime() &&
@@ -1868,12 +1876,13 @@ const ClaseDetallePage: React.FC = () => {
     });
     if (!esDiaDeClase) return false;
 
-    // 3. Hora actual dentro del rango horaInicial–horaFinal del backend (sin ajuste de jornada)
-    let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-    let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
+    // 3. Hora actual dentro del rango horaInicial–horaFinal (misma lógica de jornada que el listado y el horario)
+    const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
+    const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
+    let [hIni, mIni] = hiS.split(':').map(Number);
+    let [hFin, mFin] = hfS.split(':').map(Number);
 
-    // Si jornada_tipo es TARDE o NOCHE, y la hora es menor a 12, sumar 12 (ajuste a 24h)
-    const jornadaTipoUpper = clase.jornada_tipo?.toUpperCase() || '';
+    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
     const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
 
     if (esTardeOEnoche && hIni < 12) {
@@ -1897,10 +1906,10 @@ const ClaseDetallePage: React.FC = () => {
     if (estado !== 'en_curso' || !clase?.horaInicial) return 0;
 
     const ahora = currentTime;
-    let [horaIni, minIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
+    const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
+    let [horaIni, minIni] = hiS.split(':').map(Number);
 
-    // Convertir horas según jornada_tipo
-    const jornadaTipo = clase.jornada_tipo?.toUpperCase() || '';
+    const jornadaTipo = textoJornadaParaAjuste12h(clase).toUpperCase();
     const esTarde = jornadaTipo.includes('TARDE');
     const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
 
@@ -2068,7 +2077,7 @@ const ClaseDetallePage: React.FC = () => {
           {/* Header Left */}
           <div className="flex-1">
             {(() => {
-              const tit = clase ? titulosCompetenciaYRapDetalle(clase) : { competencia: 'Sin clase', rap: null as string | null };
+              const tit = clase ? titulosCompetenciaYRapUi(clase) : { competencia: 'Sin clase', rap: null as string | null };
               const programaTxt =
                 clase?.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || 'Programa académico';
               return (
@@ -2288,12 +2297,15 @@ const ClaseDetallePage: React.FC = () => {
                   resumenClaseActual={{
                     ficha_codigo: ficha.codigo,
                     materia_nombre: clase.materia_nombre,
+                    competencia_nombre: clase.competencia_nombre,
+                    rap_nombre: clase.rap_nombre,
                     programa_nombre:
                       clase.programa_nombre || ficha.asignacion?.programa?.nombrePrograma || '',
                     horaInicial: clase.horaInicial,
                     horaFinal: clase.horaFinal,
                     idHorarioMateria: clase.idHorarioMateria,
-                    jornada_nombre: ficha.jornada?.nombreJornada || ''
+                    jornada_nombre: ficha.jornada?.nombreJornada || '',
+                    jornada_tipo: ficha.jornada?.nombreJornada || ''
                   }}
                 />
               ) : (

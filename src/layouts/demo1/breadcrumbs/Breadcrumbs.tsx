@@ -14,6 +14,9 @@ const Breadcrumbs = () => {
       
       // Si el segmento anterior es "clase" y el actual es numérico (ID), mostrar "Detalle" en lugar del ID
       let title = segment.charAt(0).toUpperCase() + segment.slice(1);
+      if (segment === 'horario' && segments[0] === 'ambiente-virtual') {
+        title = 'Horario';
+      }
       if (index > 0 && segments[index - 1] === 'clase' && /^\d+$/.test(segment)) {
         title = 'Detalle'; // Ocultar el ID, mostrar "Detalle"
       }
@@ -29,6 +32,14 @@ const Breadcrumbs = () => {
   const items = generateBreadcrumbs(pathname);
 
   const renderItems = () => {
+    /** Instructor vs aprendiz comparten prefijo /ambiente-virtual/. */
+    const ambienteVirtualCrumbHome =
+      pathname.startsWith('/ambiente-virtual/historial-raps') ||
+      pathname.startsWith('/ambiente-virtual/horario') ||
+      /^\/ambiente-virtual\/clase\//.test(pathname)
+        ? '/ambiente-virtual/historial-raps'
+        : '/ambiente-virtual/mis-clases';
+
     return items.map((item, index) => {
       const last = index === items.length - 1;
       const isClase = item.title === 'Clase';
@@ -46,9 +57,8 @@ const Breadcrumbs = () => {
               {item.title}
             </span>
           ) : isAmbienteVirtual ? (
-            // Ambiente-virtual debe navegar a historial-raps
             <Link
-              to="/ambiente-virtual/historial-raps"
+              to={ambienteVirtualCrumbHome}
               className={clsx(
                 'hover:underline',
                 item.active ? 'text-gray-700 font-medium' : 'text-gray-600'
