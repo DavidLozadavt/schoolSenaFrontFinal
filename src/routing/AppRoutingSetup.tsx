@@ -935,7 +935,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/multimedia/gestion-multimedia"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <MultimediaPage />
               </ProtectedRoute>
             }
@@ -944,7 +944,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/multimedia/eventos"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <EventsPage />
               </ProtectedRoute>
             }
@@ -953,7 +953,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/multimedia/eventos/nuevo"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <EventForm />
               </ProtectedRoute>
             }
@@ -962,7 +962,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/multimedia/eventos/editar/:id"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <EventForm />
               </ProtectedRoute>
             }

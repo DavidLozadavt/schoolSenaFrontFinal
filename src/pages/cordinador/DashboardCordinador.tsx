@@ -1,6 +1,7 @@
 import React from "react";
 import Chart from "react-apexcharts";
 import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import EventsDashboard from "@/components/capsulas/EventsDashboard";
 import { KeenIcon } from '@/components/keenicons';
 
 const Icons = {
@@ -71,6 +72,15 @@ export const DashboardCoordinador: React.FC = () => {
           <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Multimedia reciente</span>
         </div>
         <MultimediaCapsulas />
+      </section>
+      
+      <section className="mb-7.5">
+        <div className="flex items-center gap-2 mb-4">
+          <KeenIcon icon="calendar" className="text-primary text-xl" />
+          <h2 className="text-md font-bold text-gray-800 dark:text-gray-100">Eventos</h2>
+          <span className="text-2xs text-gray-400 font-normal uppercase tracking-wider">Próximas actividades</span>
+        </div>
+        <EventsDashboard />
       </section>
 
       {/* KPIs (Sección A) */}

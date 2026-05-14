@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuthContext } from '@/auth/useAuthContext';
 import { KeenIcon } from '@/components/keenicons';
 import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import EventsDashboard from '@/components/capsulas/EventsDashboard';
 
 // --- Interfaces de Datos ---
 interface AreaAsistencia {
@@ -361,7 +362,7 @@ const EstudiantesContent: React.FC = () => {
             <KeenIcon icon="calendar-8" className="text-primary" /> Eventos
           </h2>
         </div>
-        <div className="bg-white dark:bg-coal-400 rounded-2xl min-h-[130px] shadow-sm border border-dashed border-gray-200 dark:border-gray-700 w-full"></div>
+        <EventsDashboard />
       </div>
 
       {/* TWO COLUMNS LAYOUT */}

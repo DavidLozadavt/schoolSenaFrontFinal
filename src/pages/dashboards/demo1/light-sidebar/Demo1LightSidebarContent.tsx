@@ -177,6 +177,7 @@ import {
   Teams
 } from './blocks';
 import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import EventsDashboard from '@/components/capsulas/EventsDashboard';
 import { KeenIcon } from '@/components/keenicons';
 
 const Demo1LightSidebarContent = () => {
@@ -189,6 +190,15 @@ const Demo1LightSidebarContent = () => {
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">C{"\u00E1"}psulas SENA</h3>
         </div>
         <MultimediaCapsulas />
+      </div>
+
+      {/* Eventos Section */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <KeenIcon icon="calendar" className="text-primary text-xl" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Eventos Próximos</h3>
+        </div>
+        <EventsDashboard />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-y-5 lg:gap-7.5 items-stretch">
