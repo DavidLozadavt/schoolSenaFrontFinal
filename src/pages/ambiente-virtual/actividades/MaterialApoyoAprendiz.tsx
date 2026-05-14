@@ -1,8 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import clsx from 'clsx';
 import { KeenIcon } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
+import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
+import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
+
+interface MaterialApoyoCreador {
+  idPersona?: number | null;
+  nombreCompleto?: string | null;
+  email?: string | null;
+  rutaFoto?: string | null;
+  rutaFotoUrl?: string | null;
+}
 
 interface MaterialApoyoAprendizItem {
   id: number;
@@ -15,10 +26,14 @@ interface MaterialApoyoAprendizItem {
   urlVideoUrl?: string | null;
   idMateria?: number;
   materiaNombre?: string | null;
+  competenciaNombre?: string | null;
   idFicha?: number;
   fichaCodigo?: string | null;
   idRap?: number | null;
   rapNombre?: string | null;
+  idPersona?: number | null;
+  creador?: MaterialApoyoCreador | null;
+  created_at?: string | null;
 }
 
 const getDocumentUrl = (url?: string | null): string | null => {
@@ -60,7 +75,46 @@ const youtubeEmbedUrl = (raw: string): string | null => {
   return null;
 };
 
-const normalizar = (v?: string | null): string => String(v || '').toLowerCase();
+const formatearFechaCorta = (value?: string | null) => {
+  if (!value) return '';
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+};
+
+/** Foto del creador: misma regla que Mis Actividades (URLs absolutas intactas). */
+const getPerfilPublicUrl = (path?: string | null): string | null => {
+  if (!path || !String(path).trim()) return null;
+  const p = String(path).trim();
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = p.startsWith('/') ? p.slice(1) : p;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
+
+const AvatarCreadorBiblioteca: React.FC<{ src: string | null; nombre: string }> = ({ src, nombre }) => {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return <MisActividadesAvatarFallback variant="md" />;
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-10 h-10 rounded-full object-cover border-2 border-primary/50"
+      referrerPolicy="no-referrer"
+      title={nombre}
+      onError={() => setBroken(true)}
+    />
+  );
+};
 
 interface RecursosMenuState {
   id: number;
@@ -76,6 +130,8 @@ export interface MaterialApoyoAprendizProps {
   rapContextLabel?: string;
   emptyMessage?: string;
   hideGroupHeaders?: boolean;
+  /** Vista Aula Virtual: biblioteca completa del programa (sin encabezado de ficha/RAP de clase). */
+  modoBibliotecaGlobal?: boolean;
 }
 
 const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
@@ -83,8 +139,9 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
   idRap,
   fichaCodigo,
   rapContextLabel,
-  emptyMessage = 'No hay material de apoyo disponible para este RAP.',
-  hideGroupHeaders = false
+  emptyMessage,
+  hideGroupHeaders = false,
+  modoBibliotecaGlobal = false
 }) => {
   const [items, setItems] = useState<MaterialApoyoAprendizItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +198,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-        'No se pudo cargar el material de apoyo.';
+        'No se pudo cargar la biblioteca de conocimiento.';
       setError(msg);
       setItems([]);
     } finally {
@@ -153,8 +210,14 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
     void cargar();
   }, [cargar]);
 
+  const emptyMsg =
+    emptyMessage ??
+    (modoBibliotecaGlobal
+      ? 'No hay recursos en la biblioteca de conocimiento para tu programa.'
+      : 'No hay material de apoyo disponible para este RAP.');
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     if (!q) return items;
     return items.filter((item) => {
       const hasDoc = Boolean(item.urlDocumentoUrl || item.urlDocumento);
@@ -164,17 +227,21 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         hasDoc ? 'Documento' : '',
         hasLink ? 'Enlace' : '',
         hasVid ? 'Video' : '',
+        hasDoc ? 'PDF' : ''
       ].filter(Boolean);
-
-      const haystack = [
-        item.titulo,
-        item.descripcion,
-        item.rapNombre,
-        ...tipoTokens,
-      ]
-        .map(normalizar)
-        .join(' ');
-      return haystack.includes(q);
+      return filterOptionNormalized(
+        [
+          item.titulo,
+          item.descripcion,
+          item.rapNombre,
+          item.materiaNombre,
+          item.competenciaNombre,
+          item.creador?.nombreCompleto,
+          item.creador?.email,
+          ...tipoTokens
+        ],
+        q
+      );
     });
   }, [items, search]);
 
@@ -231,6 +298,13 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         const tituloFull = item.titulo || '-';
         const descripcionFull = item.descripcion || 'Sin descripción.';
         const rapFull = item.rapNombre || 'Sin RAP';
+        const competenciaFull = item.competenciaNombre || item.materiaNombre || '';
+        const materiaEtiqueta = item.materiaNombre || '';
+        const nombreCreador = item.creador?.nombreCompleto?.trim() || 'Instructor';
+        const fotoCreador =
+          getPerfilPublicUrl(item.creador?.rutaFotoUrl || item.creador?.rutaFoto) || null;
+        const fechaTxt = formatearFechaCorta(item.created_at || undefined);
+
         const linkUrl = item.urlAdicional?.startsWith('http')
           ? item.urlAdicional
           : item.urlAdicional
@@ -239,34 +313,97 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
 
         const menuAbierto = recursosMenu?.id === item.id;
 
+        const chips: { key: string; label: string; className: string }[] = [];
+        if (hasDoc) chips.push({ key: 'd', label: 'Documento', className: 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200' });
+        if (hasLink) chips.push({ key: 'l', label: 'Enlace', className: 'bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200' });
+        if (hasVideoRes) chips.push({ key: 'v', label: 'Video', className: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' });
+
         return (
           <div
             key={item.id}
-            className="rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-coal-400 dark:border-gray-700 overflow-hidden"
+            className={clsx(
+              'rounded-xl border bg-white shadow-sm dark:bg-coal-400 overflow-hidden',
+              'border-gray-200 dark:border-gray-700 border-l-4 border-l-primary'
+            )}
           >
-            <div className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={tituloFull}>
-                  {tituloFull}
-                </h4>
-                <p
-                  className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-3 sm:line-clamp-2 break-words"
-                  title={descripcionFull}
-                >
-                  {descripcionFull}
-                </p>
-                <div className="mt-2 min-w-0">
+            <div className="px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between min-w-0">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="shrink-0 pt-0.5">
+                    <AvatarCreadorBiblioteca src={fotoCreador} nombre={nombreCreador} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate" title={nombreCreador}>
+                      {nombreCreador}
+                    </p>
+                    {item.creador?.email ? (
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate" title={item.creador.email}>
+                        {item.creador.email}
+                      </p>
+                    ) : null}
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mt-1 truncate" title={tituloFull}>
+                      {tituloFull}
+                    </h4>
+                    <p
+                      className="text-xs text-gray-600 dark:text-gray-300 mt-0.5 line-clamp-3 break-words"
+                      title={descripcionFull}
+                    >
+                      {descripcionFull}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 min-w-0">
+                  {chips.map((c) => (
+                    <span
+                      key={c.key}
+                      className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium', c.className)}
+                    >
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 min-w-0 text-[11px]">
+                  {competenciaFull ? (
+                    <span
+                      className="inline-flex max-w-full rounded-full px-2 py-1 bg-amber-50 text-amber-900 dark:bg-amber-900/25 dark:text-amber-100"
+                      title={competenciaFull}
+                    >
+                      <span className="font-medium shrink-0 mr-1">Competencia:</span>
+                      <span className="truncate min-w-0">{competenciaFull}</span>
+                    </span>
+                  ) : null}
+                  {materiaEtiqueta && materiaEtiqueta !== competenciaFull ? (
+                    <span
+                      className="inline-flex max-w-full rounded-full px-2 py-1 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                      title={materiaEtiqueta}
+                    >
+                      <span className="font-medium shrink-0 mr-1">Materia:</span>
+                      <span className="truncate min-w-0">{materiaEtiqueta}</span>
+                    </span>
+                  ) : null}
                   <span
-                    className="inline-flex max-w-full rounded-full px-2 py-1 bg-violet-50 text-violet-800 text-[11px] dark:bg-violet-900/30 dark:text-violet-200"
+                    className="inline-flex max-w-full rounded-full px-2 py-1 bg-violet-50 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200"
                     title={rapFull}
                   >
                     <span className="font-medium shrink-0 mr-1">RAP:</span>
                     <span className="truncate min-w-0">{rapFull}</span>
                   </span>
+                  {!modoBibliotecaGlobal && item.fichaCodigo ? (
+                    <span className="inline-flex max-w-full rounded-full px-2 py-1 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200 text-[10px]">
+                      Ficha {item.fichaCodigo}
+                    </span>
+                  ) : null}
+                  {fechaTxt ? (
+                    <span className="inline-flex items-center rounded-full px-2 py-1 text-gray-600 dark:text-gray-400 text-[10px]">
+                      {fechaTxt}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+              <div className="shrink-0 flex flex-col items-stretch lg:items-end gap-2 w-full lg:w-auto">
                 {tieneAlguno ? (
                   <button
                     data-id="ma-aprendiz-recursos-btn"
@@ -278,12 +415,12 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                       }
                       abrirMenuRecursos(item.id, e.currentTarget);
                     }}
-                    className="inline-flex justify-center px-3 py-1.5 rounded-md text-xs font-medium border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/25 dark:text-blue-200 dark:hover:bg-blue-900/40 w-full sm:w-auto"
+                    className="inline-flex justify-center px-3 py-1.5 rounded-md text-xs font-medium border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/25 dark:text-blue-200 dark:hover:bg-blue-900/40 w-full lg:w-auto"
                   >
                     Ver recursos
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400 text-center sm:text-right">Sin recursos</span>
+                  <span className="text-xs text-gray-400 text-center lg:text-right">Sin recursos</span>
                 )}
               </div>
             </div>
@@ -295,7 +432,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
 
   return (
     <div className="space-y-4">
-      {(fichaCodigo || rapContextLabel) && (
+      {!modoBibliotecaGlobal && (fichaCodigo || rapContextLabel) && (
         <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-gray-200/90 bg-gray-50/80 px-3 py-2.5 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
           <div className="min-w-0 shrink max-w-[min(100%,220px)]">
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Ficha</p>
@@ -321,14 +458,14 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           onChange={(e) => setSearch(e.target.value)}
           type="text"
           className="input w-full"
-          placeholder="Buscar por titulo, descripcion, RAP o recurso (Documento, Enlace, Video)..."
+          placeholder="Buscar por título, descripción, competencia, RAP, materia o recurso..."
         />
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
           <KeenIcon icon="book-open" className="text-4xl text-gray-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{emptyMessage}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{emptyMsg}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
@@ -344,7 +481,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           <section key={group.key} className="rounded-xl border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700">
             <div className="border-b border-gray-100 dark:border-gray-700 px-4 py-3">
               <span className="inline-flex rounded-full px-2 py-1 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs">
-                Ficha: {group.fichaCodigo}
+                Ficha de origen: {group.fichaCodigo}
               </span>
             </div>
             {renderRows(group.items)}

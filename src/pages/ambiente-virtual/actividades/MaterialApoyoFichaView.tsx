@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { createPortal } from 'react-dom';
+import { useAuthContext } from '@/auth';
+import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
+import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
 
 export interface MaterialApoyoFichaItem {
   id: number;
@@ -13,12 +16,22 @@ export interface MaterialApoyoFichaItem {
   urlVideo?: string | null;
   urlVideoUrl?: string | null;
   idMateria?: number;
+  idPersona?: number | null;
   idFicha?: number | null;
   idRap?: number | null;
+  materiaNombre?: string | null;
+  competenciaNombre?: string | null;
   rap?: {
     id: number;
     nombre: string;
     idCompetencia?: number;
+  } | null;
+  creador?: {
+    idPersona?: number;
+    nombreCompleto?: string | null;
+    email?: string | null;
+    rutaFoto?: string | null;
+    rutaFotoUrl?: string | null;
   } | null;
 }
 
@@ -34,6 +47,16 @@ interface MenuState {
   top: number;
   left: number;
 }
+
+const getPerfilPublicUrl = (path?: string | null): string | null => {
+  if (!path || !String(path).trim()) return null;
+  const p = String(path).trim();
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  const base = (axios.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin;
+  const cleanPath = p.startsWith('/') ? p.slice(1) : p;
+  const storagePath = cleanPath.startsWith('storage/') ? cleanPath : `storage/${cleanPath}`;
+  return `${base.replace(/\/$/, '')}/${storagePath}`;
+};
 
 const PAGE_SIZE = 20;
 
@@ -67,6 +90,23 @@ const tieneDocumento = (mat: MaterialApoyoFichaItem) =>
 const tieneEnlace = (mat: MaterialApoyoFichaItem) => Boolean(mat.urlAdicional?.trim());
 const tieneVideo = (mat: MaterialApoyoFichaItem) =>
   Boolean((mat.urlVideo || mat.urlVideoUrl)?.toString().trim());
+
+const AvatarListaInstructor: React.FC<{ src: string | null; nombre: string }> = ({ src, nombre }) => {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return <MisActividadesAvatarFallback variant="sm" />;
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-8 h-8 rounded-full object-cover border border-primary/40 shrink-0"
+      title={nombre}
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+    />
+  );
+};
 
 export interface MaterialApoyoFichaViewProps {
   idFicha: number;
@@ -107,6 +147,17 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
+  const auth = useAuthContext();
+  const miPersonaId = auth?.persona?.id;
+  const esGestionUsuario = auth?.permissions?.includes('GESTION_USUARIO') ?? false;
+
+  const puedeMutarMaterial = (mat: MaterialApoyoFichaItem) => {
+    if (mat.idPersona != null && Number(mat.idPersona) > 0) {
+      return Number(mat.idPersona) === Number(miPersonaId) || esGestionUsuario;
+    }
+    return esGestionUsuario;
+  };
+
   const abrirMenuAcciones = (id: number, button: HTMLButtonElement) => {
     const menuWidth = 200;
     const menuHeight = 120;
@@ -142,7 +193,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   );
 
   const itemsFiltrados = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     if (!q) return items;
     return items.filter((it) => {
       const recursosTokens = [
@@ -151,10 +202,19 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
         tieneVideo(it) ? 'Video' : '',
       ].filter(Boolean);
 
-      const texto = [it.titulo, it.descripcion, it.rap?.nombre, ...recursosTokens]
-        .map((v) => String(v || '').toLowerCase())
-        .join(' ');
-      return texto.includes(q);
+      return filterOptionNormalized(
+        [
+          it.titulo,
+          it.descripcion,
+          it.rap?.nombre,
+          it.materiaNombre,
+          it.competenciaNombre,
+          it.creador?.nombreCompleto,
+          it.creador?.email,
+          ...recursosTokens,
+        ],
+        q
+      );
     });
   }, [items, search]);
 
@@ -190,25 +250,19 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, string> = {};
-      if (idMateriaNum) params.idMateria = String(idMateriaNum);
-      if (idRapContext && idRapContext > 0) params.idRap = String(idRapContext);
-
-      const res = await axios.get<MaterialApoyoFichaItem[]>(`fichas/${idFicha}/materiales-apoyo`, {
-        params: Object.keys(params).length ? params : undefined
-      });
+      const res = await axios.get<MaterialApoyoFichaItem[]>(`fichas/${idFicha}/materiales-apoyo`);
       const list = Array.isArray(res.data) ? res.data : [];
       setItems(list);
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-        'No se pudo cargar el material de apoyo de la ficha.';
+        'No se pudo cargar la biblioteca de conocimiento del programa.';
       setError(msg);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [idFicha, idMateriaNum, idRapContext]);
+  }, [idFicha]);
 
   const cargarRaps = useCallback(async () => {
     if (!idFicha || !idMateriaNum) {
@@ -288,6 +342,10 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   };
 
   const abrirEditar = (row: MaterialApoyoFichaItem) => {
+    if (!puedeMutarMaterial(row)) {
+      alert('No tienes permiso para editar este recurso.');
+      return;
+    }
     setEditandoId(row.id);
     setTitulo(row.titulo || '');
     setDescripcion(row.descripcion || '');
@@ -386,7 +444,11 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   };
 
   const eliminar = async (row: MaterialApoyoFichaItem) => {
-    if (!window.confirm('Eliminar este material de apoyo?')) return;
+    if (!puedeMutarMaterial(row)) {
+      alert('No tienes permiso para eliminar este recurso.');
+      return;
+    }
+    if (!window.confirm('¿Eliminar este recurso de la biblioteca de conocimiento?')) return;
     try {
       await axios.delete(`fichas/${idFicha}/materiales-apoyo/${row.id}`);
       await cargar();
@@ -398,7 +460,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   if (!idMateriaNum) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
-        No hay materia asociada a esta clase; no se puede gestionar el material de apoyo por RAP.
+        No hay materia asociada a esta clase; no se puede gestionar la biblioteca de conocimiento por RAP.
       </div>
     );
   }
@@ -410,7 +472,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-coal-400">
         <div className="min-w-0 flex-1 space-y-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Material de apoyo</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Biblioteca de conocimiento</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-gray-200/90 bg-gray-50/80 px-3 py-2.5 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
             <div className="min-w-0 shrink max-w-[min(100%,220px)]">
               <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Ficha</p>
@@ -440,12 +502,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 onChange={(e) => setSearch(e.target.value)}
                 type="text"
                 className="input w-full"
-                placeholder="Buscar por titulo, descripcion, RAP o tipo de recurso (Documento, Enlace, Video)..."
+                placeholder="Buscar por título, descripción, competencia, RAP, materia, instructor o recurso..."
               />
             </div>
             <button type="button" onClick={abrirNuevo} className="btn btn-primary text-sm shrink-0">
               <KeenIcon icon="plus" className="text-sm mr-1.5" />
-              Agregar material de apoyo
+              Agregar recurso a la biblioteca
             </button>
           </div>
         )}
@@ -597,29 +659,30 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[132px]">Recurso</th>
-                  <th className="text-left py-2.5 pl-7 pr-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Titulo</th>
-                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300">RAP</th>
-                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300">Descripcion</th>
-                  <th className="text-right py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[140px]">Acciones</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[120px]">Recurso</th>
+                  <th className="text-left py-2.5 pl-2 pr-2 text-xs font-semibold text-gray-600 dark:text-gray-300 min-w-0">Título</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[140px]">Creador</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[110px]">RAP</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 min-w-0">Descripción</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[120px]">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center">
+                    <td colSpan={6} className="py-8 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                      No hay material de apoyo disponible para este RAP.
+                    <td colSpan={6} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No hay recursos en la biblioteca de conocimiento para este programa.
                     </td>
                   </tr>
                 ) : itemsFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={6} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                       No se encontraron materiales con ese criterio.
                     </td>
                   </tr>
@@ -631,6 +694,9 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                     const accionesMenuOpen = accionesMenu?.id === mat.id;
                     const tieneAlguno =
                       tieneDocumento(mat) || tieneEnlace(mat) || tieneVideo(mat);
+                    const nombreCreador = mat.creador?.nombreCompleto?.trim() || '—';
+                    const fotoCreador = getPerfilPublicUrl(mat.creador?.rutaFotoUrl || mat.creador?.rutaFoto);
+                    const puedeMutar = puedeMutarMaterial(mat);
                     return (
                       <tr key={mat.id} className="border-b border-gray-200 dark:border-gray-700">
                         <td className="py-3 pl-3 pr-2 text-xs min-w-0 align-middle">
@@ -653,38 +719,57 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                             <span className="text-gray-400 dark:text-gray-500">—</span>
                           )}
                         </td>
-                        <td className="py-3 pl-7 pr-3 text-sm font-medium text-gray-900 dark:text-white min-w-0">
+                        <td className="py-3 pl-2 pr-2 text-sm font-medium text-gray-900 dark:text-white min-w-0">
                           <span className="block w-full truncate" title={tituloFull}>
                             {tituloFull}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-700 dark:text-gray-200 min-w-0">
-                          <span className="block w-full truncate whitespace-nowrap" title={rapFull}>
+                        <td className="py-3 px-2 text-xs text-gray-700 dark:text-gray-200 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <AvatarListaInstructor src={fotoCreador} nombre={nombreCreador} />
+                            <div className="min-w-0 flex-1">
+                              <span className="block w-full truncate font-medium" title={nombreCreador}>
+                                {nombreCreador}
+                              </span>
+                              {mat.creador?.email ? (
+                                <span className="block w-full truncate text-[10px] text-gray-500 dark:text-gray-400" title={mat.creador.email}>
+                                  {mat.creador.email}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-xs text-gray-700 dark:text-gray-200 min-w-0">
+                          <span className="block w-full truncate" title={rapFull}>
                             {rapFull}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-300 min-w-0">
-                          <span className="block w-full truncate whitespace-nowrap" title={descripcionFull}>
+                        <td className="py-3 px-2 text-xs text-gray-600 dark:text-gray-300 min-w-0">
+                          <span className="block w-full truncate" title={descripcionFull}>
                             {descripcionFull}
                           </span>
                         </td>
-                        <td className="py-3 px-3 w-[140px] text-right min-w-0">
-                          <div className="relative inline-block">
-                            <button
-                              data-id="material-apoyo-acciones-btn"
-                              type="button"
-                              onClick={(e) => {
-                                if (accionesMenuOpen) {
-                                  setAccionesMenu(null);
-                                  return;
-                                }
-                                abrirMenuAcciones(mat.id, e.currentTarget);
-                              }}
-                              className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30"
-                            >
-                              VER ACCIONES
-                            </button>
-                          </div>
+                        <td className="py-3 px-2 w-[120px] text-right min-w-0">
+                          {puedeMutar ? (
+                            <div className="relative inline-block">
+                              <button
+                                data-id="material-apoyo-acciones-btn"
+                                type="button"
+                                onClick={(e) => {
+                                  if (accionesMenuOpen) {
+                                    setAccionesMenu(null);
+                                    return;
+                                  }
+                                  abrirMenuAcciones(mat.id, e.currentTarget);
+                                }}
+                                className="inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30"
+                              >
+                                Acciones
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Solo lectura</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -770,7 +855,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
         createPortal(
           (() => {
             const active = items.find((mat) => mat.id === accionesMenu.id);
-            if (!active) return null;
+            if (!active || !puedeMutarMaterial(active)) return null;
             return (
               <div
                 data-id="material-apoyo-acciones-menu"
