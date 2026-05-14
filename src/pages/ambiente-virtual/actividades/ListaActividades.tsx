@@ -156,7 +156,7 @@ const DropdownAcciones: React.FC<{
   if (modo === 'asignadas' && idFicha && props.onVerAprendices) items.push({ icon: 'check-squared', label: 'Calificar', onClick: () => props.onVerAprendices!(act) });
   if (modo === 'asignadas' && idFicha && props.onAmpliar) items.push({ icon: 'calendar', label: 'Ampliar actividad', onClick: () => props.onAmpliar!(act) });
   if (modo === 'asignadas' && props.onQuitar && item.id != null) items.push({ icon: 'cross', label: 'Quitar', onClick: () => props.onQuitar!(item.id!) });
-  if (props.onMaterialApoyo) items.push({ icon: 'folder', label: 'Material de apoyo', onClick: () => props.onMaterialApoyo!(act) });
+  if (props.onMaterialApoyo) items.push({ icon: 'folder', label: 'Material de la actividad', onClick: () => props.onMaterialApoyo!(act) });
   if (idFicha && props.onMoverActividad && act.id != null) {
     items.push({ icon: 'arrow-two-diagonals', label: 'Mover actividad', onClick: () => props.onMoverActividad!(act) });
   }
