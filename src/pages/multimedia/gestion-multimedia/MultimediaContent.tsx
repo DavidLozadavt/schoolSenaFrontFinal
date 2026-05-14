@@ -113,8 +113,17 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
 
   const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
-  const getMediaUrl = (item: Multimedia) =>
-    item.urlMultimediaFull || item.urlMultimedia || '';
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+    const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${backendUrl}${normalizedUrl}`;
+  };
+
+  const getMediaUrl = (item: Multimedia) => {
+    return getImageUrl(item.urlMultimediaFull || item.urlMultimedia) || '';
+  };
 
   const getEmbedPreview = (url: string) => {
     if (!url) return null;
