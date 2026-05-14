@@ -111,6 +111,7 @@ import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
+import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
 import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
@@ -1121,9 +1122,21 @@ const AppRoutingSetup = (): ReactElement => {
 
           {/* Ambiente Virtual */}
           <Route
+            path="/ambiente-virtual/horario"
+            element={
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
+                <HorarioInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/ambiente-virtual/historial-raps"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
                 <HistorialRAPsPage />
               </ProtectedRoute>
             }
@@ -1163,7 +1176,9 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/clase/:id"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
                 <ClaseDetallePage />
               </ProtectedRoute>
             }

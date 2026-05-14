@@ -7,9 +7,15 @@ export const MENU_SIDEBAR: TMenuConfig = [
     path: '/'
   },
   {
+    title: 'Horario',
+    icon: 'calendar-tick',
+    path: '/ambiente-virtual/horario',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+  },
+  {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_USUARIO'], //Cambiar por GESTION_ACADEMICA
+    requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
     children: [
       {
         title: 'Configuración académica',
@@ -56,25 +62,19 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_REDES']
           }
         ]
-      },
-      {
-        title: 'Ambiente Virtual',
-        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
-        children: [
-          {
-            title: 'Mis formaciones',
-            path: '/ambiente-virtual/historial-raps',
-            requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-          }
-        ]
       }
     ]
   },
   {
-    title: 'Aula Virtual',
-    icon: 'teacher',
-    requiredPermissions: ['AULA_VIRTUAL_APRENDIZ'],
+    title: 'Ambiente Virtual',
+    icon: 'devices',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
     children: [
+      {
+        title: 'Mis formaciones',
+        path: '/ambiente-virtual/historial-raps',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
       {
         title: 'Mis clases',
         path: '/ambiente-virtual/mis-clases',

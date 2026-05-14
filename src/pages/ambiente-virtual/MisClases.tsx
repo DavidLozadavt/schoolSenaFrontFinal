@@ -15,9 +15,10 @@ interface Sesion {
   estado: 'COMPLETADA' | 'EN_CURSO' | 'PROXIMO' | 'PENDIENTE';
 }
 
-interface Materia {
+export interface Materia {
   idMateria: number;
   materia_nombre: string;
+  ficha_codigo: string;
   profesor_nombre: string;
   profesor_email: string;
   aula_nombre: string;
@@ -71,6 +72,7 @@ const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
 const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
   idMateria: toNum(raw.idMateria),
   materia_nombre: typeof raw.materia_nombre === 'string' ? raw.materia_nombre : '',
+  ficha_codigo: typeof raw.ficha_codigo === 'string' ? raw.ficha_codigo : '',
   profesor_nombre: typeof raw.profesor_nombre === 'string' ? raw.profesor_nombre : '',
   profesor_email: typeof raw.profesor_email === 'string' ? raw.profesor_email : '',
   aula_nombre: typeof raw.aula_nombre === 'string' ? raw.aula_nombre : '',
@@ -101,7 +103,7 @@ const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
  * y otra con las sesiones pobladas. Nos quedamos con la que tenga más sesiones;
  * en empate, preferimos la que tenga sesiones_completadas > 0.
  */
-const normalizarClases = (data: unknown[]): Materia[] => {
+export const normalizarClases = (data: unknown[]): Materia[] => {
   if (!Array.isArray(data)) return [];
 
   const mapa = new Map<number, Materia>();
