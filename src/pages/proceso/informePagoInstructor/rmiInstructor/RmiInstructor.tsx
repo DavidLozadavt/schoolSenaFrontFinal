@@ -208,6 +208,14 @@ const RmiInstructor = forwardRef<{ validate: () => { isValid: boolean; errors: s
     persona: authContext.persona as any
   };
 
+    const formatHorasAsignadas = (h: any, periodoObj?: Periodo) => {
+      if (h === null || h === undefined || h === '') {
+        console.warn('RMI: horasAsignadas missing or empty for periodo', periodoObj?.periodo, periodoObj);
+        return '0';
+      }
+      return h;
+    };
+
   return (
     <div className="p-5 w-full">
       <div className="mb-4">
@@ -281,7 +289,7 @@ const RmiInstructor = forwardRef<{ validate: () => { isValid: boolean; errors: s
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       Horas asignadas:
                       <span className="font-semibold text-gray-700 dark:text-gray-200 ml-1">
-                        {periodo.horasAsignadas} h
+                        {formatHorasAsignadas(periodo.horasAsignadas, periodo)} h
                       </span>
                     </span>
                   </div>
