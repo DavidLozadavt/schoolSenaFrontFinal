@@ -55,7 +55,9 @@ const RmiModal: React.FC<RmiModalProps> = ({
       const todos = response.data.data || [];
 
       const filtrados = todos.filter(
-        (h: any) => Number(h.idGradoMateria) === Number(r.idGradoMateria) && Number(h.idContrato) === Number(instructor.idContrato)
+        (h: any) =>
+          Number(h.idGradoMateria) === Number(r.idGradoMateria) &&
+          Number(h.idContrato) === Number(instructor.idContrato)
       );
 
       setMateriaSeleccionada({
@@ -530,9 +532,8 @@ const RmiModal: React.FC<RmiModalProps> = ({
           (h: any) =>
             Number(h.idGradoMateria) === Number(r.idGradoMateria) &&
             Number(h.idContrato) === Number(instructor.idContrato) &&
-            h.estado === 'ASIGNADO'
+            h.estado !== 'PENDIENTE'
         );
-
         let horasMesTotal = 0;
         const classDates = new Set<number>();
         const horariosPorDia: Record<string, string[]> = {};
