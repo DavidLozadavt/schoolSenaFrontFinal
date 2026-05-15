@@ -11,4 +11,21 @@ const toAbsoluteUrl = (pathname: string): string => {
   }
 };
 
-export { toAbsoluteUrl };
+const fixImageUrl = (path: string | null): string | null => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+
+  // Clean the path from leading slashes
+  let cleanPath = path.startsWith('/') ? path.slice(1) : path;
+
+  // Ensure it has the storage/ prefix if it's a relative path and doesn't have it
+  if (!cleanPath.startsWith('storage/') && !cleanPath.startsWith('media/') && !cleanPath.startsWith('assets/')) {
+    cleanPath = `storage/${cleanPath}`;
+  }
+
+  const apiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/';
+  const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+  return `${baseUrl}/${cleanPath}`;
+};
+
+export { toAbsoluteUrl, fixImageUrl };

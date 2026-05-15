@@ -4,6 +4,7 @@ import { useSettings } from './providers/SettingsProvider';
 import { AppRouting } from './routing';
 import { PathnameProvider } from './providers';
 import { installGlobalFormUppercase } from './utils/formUppercase';
+import { LyraAssistant } from './components/lyra';
 
 const { BASE_URL } = import.meta.env;
 
@@ -25,6 +26,7 @@ const App = () => {
     <BrowserRouter basename={BASE_URL}>
       <PathnameProvider>
         <AppRouting />
+        <LyraAssistant />
       </PathnameProvider>
     </BrowserRouter>
   );
