@@ -119,11 +119,15 @@ html {
 }
 
 #root input[data-preserve-case],
-#root textarea[data-preserve-case] {
-  text-transform: none;
+#root textarea[data-preserve-case],
+input[data-preserve-case],
+textarea[data-preserve-case] {
+  text-transform: none !important;
 }
 
 #root input[data-no-uppercase],
-#root textarea[data-no-uppercase] {
-  text-transform: none;
+#root textarea[data-no-uppercase],
+input[data-no-uppercase],
+textarea[data-no-uppercase] {
+  text-transform: none !important;
 }
