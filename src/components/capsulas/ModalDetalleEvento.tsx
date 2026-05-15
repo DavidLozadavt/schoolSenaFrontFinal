@@ -20,9 +20,10 @@ export const ModalDetalleEvento = ({ open, onClose, evento }: ModalDetalleEvento
     return `${backendUrl}${normalizedUrl}`;
   };
 
-  const date = new Date(evento.fechaInicial);
-  // Fix timezone
-  const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+  const localDate = React.useMemo(() => {
+    const [year, month, day] = evento.fechaInicial.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }, [evento.fechaInicial]);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -71,7 +72,7 @@ export const ModalDetalleEvento = ({ open, onClose, evento }: ModalDetalleEvento
                 </div>
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-coal-500 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800">
                   <Clock className="w-4 h-4 text-emerald-500" />
-                  {evento.hora}
+                  {evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}
                 </div>
               </div>
             </div>
@@ -107,7 +108,7 @@ export const ModalDetalleEvento = ({ open, onClose, evento }: ModalDetalleEvento
                   <h5 className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2">
                     <Info className="w-3 h-3 text-emerald-500" /> Sobre el evento
                   </h5>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic break-words">
                     {evento.descripcion || 'No hay descripción adicional disponible para este evento.'}
                   </p>
                </div>

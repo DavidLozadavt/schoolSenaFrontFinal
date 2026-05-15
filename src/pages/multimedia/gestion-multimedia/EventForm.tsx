@@ -29,6 +29,7 @@ export const EventForm = () => {
     fechaInicial: '',
     fechaFinal: '',
     hora: '',
+    hora_final: '',
     linkRegistro: '',
     tipoEvento: 'PRESENCIAL',
     idArea: '',
@@ -62,6 +63,7 @@ export const EventForm = () => {
           fechaInicial: evento.fechaInicial || '',
           fechaFinal: evento.fechaFinal || '',
           hora: evento.hora || '',
+          hora_final: evento.hora_final || '',
           linkRegistro: evento.linkRegistro || '',
           tipoEvento: evento.tipoEvento || 'GENERAL',
           idArea: evento.idArea || '',
@@ -221,6 +223,19 @@ export const EventForm = () => {
                   className="input"
                   value={formData.hora}
                   onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                />
+              </div>
+
+              {/* Hora Final */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-neutral-700 dark:text-neutral-300 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-500" /> Hora de Finalización
+                </label>
+                <input
+                  type="time"
+                  className="input"
+                  value={formData.hora_final}
+                  onChange={(e) => setFormData({ ...formData, hora_final: e.target.value })}
                 />
               </div>
 

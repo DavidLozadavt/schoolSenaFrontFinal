@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Film, BookImage, Play, ChevronLeft, ChevronRight, X, Music, Volume2, VolumeX } from 'lucide-react';
+import { Film, BookImage, Play, ChevronLeft, ChevronRight, X, Music, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { KeenIcon } from '@/components/keenicons';
 import { useAuthContext } from '@/auth';
 
@@ -19,9 +19,11 @@ interface MultimediaItem {
   tipo: 'historia' | 'reel';
   tipo_item: 'historia' | 'reel';
   grupos_multimedia: MultimediaFile[];
+  fecha_creacion?: string;
+  created_at?: string;
 }
 
-// === VIEWER COMPONENT ===
+// === VIEWER COMPONENT (PREMIUM UPGRADE) ===
 const MultimediaViewer = ({ 
   items, 
   initialGroupIndex, 
@@ -39,7 +41,6 @@ const MultimediaViewer = ({
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const duration = 5000;
   const audioRef = React.useRef<HTMLAudioElement>(null);
-  const playPromiseRef = React.useRef<Promise<void> | null>(null);
 
   const currentGroup = items[groupIndex];
   const currentFile = currentGroup?.grupos_multimedia?.[fileIndex];
@@ -50,7 +51,6 @@ const MultimediaViewer = ({
   if (currentFile?.cancion) {
     try {
       let parsed = currentFile.cancion;
-      // Handle deep/multiple stringification (up to 5 levels)
       for (let i = 0; i < 5; i++) {
         if (typeof parsed === 'string') {
           try {
@@ -60,78 +60,34 @@ const MultimediaViewer = ({
           } catch { break; }
         } else break;
       }
-      
       cancionUrl = parsed?.preview_url || parsed?.preview || parsed?.url || '';
       cancionTitle = parsed?.title || parsed?.name || '';
       cancionArtist = parsed?.artist || parsed?.artist_name || '';
-      
-      if (cancionUrl === 'null' || cancionUrl === 'undefined') cancionUrl = '';
-      if (cancionTitle === 'null' || cancionTitle === 'undefined') cancionTitle = '';
     } catch (e) {
       console.error('Error parsing cancion:', e);
     }
   }
 
-  // Debug log moved to effect
   React.useEffect(() => {
-    if (currentFile?.cancion) {
-      console.log('Multimedia Debug:', {
-        fileId: currentFile?.id,
-        cancionUrl,
-        cancionTitle,
-        roles
-      });
-    }
-  }, [currentFile?.id, cancionUrl, roles]);
-
-  const playAudio = async () => {
     const audio = audioRef.current;
     if (!audio || !cancionUrl) return;
-
     if (isPlaying && !isAudioMuted) {
-      try {
-        playPromiseRef.current = audio.play();
-        await playPromiseRef.current;
-      } catch (err: any) {
-        if (err.name !== 'AbortError' && err.name !== 'NotSupportedError') {
-          console.warn('Audio play failed:', err);
-        }
-      }
+      audio.play().catch(() => {});
     } else {
       audio.pause();
     }
-  };
-
-  React.useEffect(() => {
-    playAudio();
   }, [isPlaying, isAudioMuted, fileIndex, cancionUrl]);
-
-  // Global listener to "unlock" audio on first interaction within the viewer
-  React.useEffect(() => {
-    const unlockAudio = () => {
-      if (audioRef.current && isPlaying && !isAudioMuted) {
-        audioRef.current.play().catch(() => {});
-      }
-    };
-    
-    window.addEventListener('click', unlockAudio);
-    return () => window.removeEventListener('click', unlockAudio);
-  }, [isPlaying, isAudioMuted]);
 
   React.useEffect(() => {
     if (!isPlaying || !currentGroup) return;
-
     const interval = setInterval(() => {
       setProgress(p => p + (100 / (duration / 50)));
     }, 50);
-
     return () => clearInterval(interval);
   }, [isPlaying, groupIndex, fileIndex, currentGroup]);
 
   React.useEffect(() => {
-    if (progress >= 100) {
-      handleNext();
-    }
+    if (progress >= 100) handleNext();
   }, [progress]);
 
   const handleNext = () => {
@@ -159,100 +115,31 @@ const MultimediaViewer = ({
     }
   };
 
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextState = !isPlaying;
-    setIsPlaying(nextState);
-    
-    // Explicit play/pause in response to click for user activation
-    const audio = audioRef.current;
-    if (audio && cancionUrl) {
-      if (nextState && !isAudioMuted) {
-        audio.play().catch(() => {});
-      } else {
-        audio.pause();
-      }
-    }
-  };
-
   if (!currentGroup || !currentFile) return null;
 
   const mediaUrl = currentFile.urlMultimediaFull || currentFile.urlMultimedia || '';
   const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(mediaUrl);
 
-  const getMediaContent = () => {
-    if (!mediaUrl) return <div className="flex items-center justify-center h-full text-white/20">Sin contenido</div>;
-
-    // Detectar YouTube
-    const ytMatch = mediaUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/i);
-    if (ytMatch) {
-      return (
-        <iframe
-          src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=0&controls=1`}
-          className="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      );
-    }
-
-    // Detectar TikTok
-    if (mediaUrl.includes('tiktok.com')) {
-      const videoId = mediaUrl.split('/video/')[1]?.split('?')[0];
-      if (videoId) {
-        return (
-          <iframe
-            src={`https://www.tiktok.com/player/v1/${videoId}?music_info=1&description=1`}
-            className="w-full h-full border-0"
-            allow="fullscreen"
-          />
-        );
-      }
-    }
-
-    // Detectar Instagram Reels
-    if (mediaUrl.includes('instagram.com/reels/') || mediaUrl.includes('instagram.com/reel/')) {
-      const reelId = mediaUrl.includes('/reels/') ? mediaUrl.split('/reels/')[1]?.split('/')[0] : mediaUrl.split('/reel/')[1]?.split('/')[0];
-      if (reelId) {
-        return (
-          <iframe
-            src={`https://www.instagram.com/reels/${reelId}/embed`}
-            className="w-full h-full border-0"
-            allowFullScreen
-          />
-        );
-      }
-    }
-
-    if (isVideo) {
-      return (
-        <video 
-          src={mediaUrl} 
-          className="w-full h-full object-contain" 
-          autoPlay 
-          playsInline
-          onEnded={handleNext}
-        />
-      );
-    }
-
-    return <img src={mediaUrl} className="w-full h-full object-contain" alt={currentGroup.nombreGrupo} />;
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/98 z-[9999] flex items-center justify-center animate-fade-in backdrop-blur-3xl" onClick={onClose}>
+      {/* Background Ambient Glow */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full" />
+      </div>
+
       <button 
-        className="absolute top-6 right-6 text-white/50 hover:text-white p-2 z-[10000] bg-white/10 rounded-full backdrop-blur-md transition-all"
+        className="absolute top-8 right-8 text-white/50 hover:text-white p-3 z-[10000] bg-white/5 hover:bg-white/10 rounded-2xl backdrop-blur-2xl border border-white/10 transition-all transform hover:rotate-90"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       >
-        <X className="w-6 h-6" />
+        <X className="w-7 h-7" />
       </button>
 
-      <div className="absolute top-4 left-0 right-0 px-4 flex gap-1.5 z-[10001] max-w-[450px] mx-auto">
+      {/* Progress Bars (Premium Style) */}
+      <div className="absolute top-6 left-0 right-0 px-6 flex gap-2 z-[10001] max-w-[500px] mx-auto">
         {currentGroup.grupos_multimedia.map((_, i) => (
-          <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+          <div key={i} className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden backdrop-blur-md">
             <div
-              className="h-full bg-white transition-all duration-75"
+              className={`h-full bg-gradient-to-r from-white to-white/60 transition-all duration-75 shadow-[0_0_10px_rgba(255,255,255,0.5)]`}
               style={{ width: i < fileIndex ? '100%' : i === fileIndex ? `${progress}%` : '0%' }}
             />
           </div>
@@ -260,9 +147,10 @@ const MultimediaViewer = ({
       </div>
 
       <div 
-        className="w-full sm:w-[450px] h-full sm:h-[90vh] bg-black relative flex flex-col justify-center sm:rounded-2xl overflow-hidden shadow-2xl"
-        onClick={togglePlay}
+        className="w-full sm:w-[500px] h-full sm:h-[92vh] bg-black relative flex flex-col justify-center sm:rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5"
+        onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
       >
+        {/* Navigation Hotspots */}
         <div className="absolute inset-y-0 left-0 w-1/4 z-20 cursor-w-resize" onClick={(e) => { e.stopPropagation(); handlePrev(); }}></div>
         <div className="absolute inset-y-0 right-0 w-1/4 z-20 cursor-e-resize" onClick={(e) => { e.stopPropagation(); handleNext(); }}></div>
 
@@ -270,83 +158,109 @@ const MultimediaViewer = ({
           <audio key={cancionUrl} ref={audioRef} src={cancionUrl} loop className="hidden" />
         )}
 
-        <div key={`${currentGroup.id}-${fileIndex}`} className="w-full h-full">
-          {getMediaContent()}
+        <div key={`${currentGroup.id}-${fileIndex}`} className="w-full h-full animate-fade-in">
+           {isVideo ? (
+             <video src={mediaUrl} className="w-full h-full object-contain" autoPlay playsInline onEnded={handleNext} />
+           ) : (
+             <img src={mediaUrl} className="w-full h-full object-contain" alt={currentGroup.nombreGrupo} />
+           )}
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none opacity-90" />
         
-        <div className="absolute bottom-0 left-0 right-0 p-8 z-30 pointer-events-none flex flex-col justify-end">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-             <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${currentGroup.tipo_item === 'reel' ? 'bg-purple-600' : 'bg-blue-600'}`}>
-                <span>{currentGroup.tipo_item === 'reel' ? <Film className="w-3 h-3" /> : <BookImage className="w-3 h-3" />}</span>
-                <span>{currentGroup.tipo_item.toUpperCase()}</span>
-             </span>
+        <div className="absolute bottom-0 left-0 right-0 p-10 z-30 pointer-events-none flex flex-col justify-end">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black text-white backdrop-blur-2xl border border-white/20 ${currentGroup.tipo_item === 'reel' ? 'bg-purple-600/50' : 'bg-blue-600/50'}`}>
+                {currentGroup.tipo_item === 'reel' ? <Film className="w-3.5 h-3.5" /> : <BookImage className="w-3.5 h-3.5" />}
+                <span className="tracking-[0.1em] uppercase">{currentGroup.tipo_item}</span>
+             </div>
              {(cancionTitle && cancionUrl) && (
-               <button 
+               <div 
+                 className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/5 backdrop-blur-2xl text-[10px] font-bold text-white border border-white/10 hover:bg-white/10 transition-all pointer-events-auto cursor-pointer group"
                  onClick={(e) => { e.stopPropagation(); setIsAudioMuted(!isAudioMuted); }}
-                 className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-medium text-white border border-white/20 hover:bg-black/60 transition-all pointer-events-auto"
                >
-                 <Music className="w-3 h-3 text-white/80" />
-                 <span className="truncate max-w-[150px]">{cancionTitle}{cancionArtist ? ` - ${cancionArtist}` : ''}</span>
-                 {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 ml-1 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 ml-1 text-green-400" />}
-               </button>
+                 <Music className={`w-3.5 h-3.5 text-emerald-400 ${isPlaying ? 'animate-bounce' : ''}`} />
+                 <span className="truncate max-w-[180px]">{cancionTitle}</span>
+                 {isAudioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
+               </div>
              )}
           </div>
-          <h3 className="text-white font-black text-xl mb-1"><span>{currentGroup.nombreGrupo}</span></h3>
-          {currentGroup.descripcion ? (
-            <p className="text-white/80 text-sm font-medium line-clamp-3"><span>{currentGroup.descripcion}</span></p>
-          ) : (
-            <p className="text-white/60 text-sm font-medium"><span>Cápsulas formativas SENA</span></p>
-          )}
+          
+          <h3 className="text-white font-black text-2xl mb-2 uppercase tracking-tighter leading-none italic">
+            {currentGroup.nombreGrupo}
+          </h3>
+          <p className="text-white/60 text-sm font-medium line-clamp-3 leading-relaxed max-w-[90%]">
+            {currentGroup.descripcion || 'Descubre lo último de nuestra comunidad SENA.'}
+          </p>
         </div>
 
         {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
-            <div className="w-20 h-20 bg-black/40 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/20">
-              <Play className="w-8 h-8 ml-1" fill="currentColor" />
+            <div className="w-24 h-24 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center text-white border border-white/20 animate-pulse">
+              <Play className="w-10 h-10 ml-1 fill-white" />
             </div>
           </div>
         )}
       </div>
 
-      <div className="hidden lg:flex absolute inset-x-0 top-1/2 -translate-y-1/2 justify-between px-10 pointer-events-none">
+      {/* Desktop Navigation Arrows */}
+      <div className="hidden lg:flex absolute inset-x-0 top-1/2 -translate-y-1/2 justify-between px-16 pointer-events-none">
         <button 
-          className={`p-4 rounded-full bg-white/5 hover:bg-white/10 text-white backdrop-blur-md transition-all pointer-events-auto ${groupIndex === 0 && fileIndex === 0 ? 'opacity-0' : 'opacity-100'}`}
+          className={`p-5 rounded-3xl bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto ${groupIndex === 0 && fileIndex === 0 ? 'opacity-0' : 'opacity-100'}`}
           onClick={(e) => { e.stopPropagation(); handlePrev(); }}
         >
-          <ChevronLeft className="w-8 h-8" />
+          <ChevronLeft className="w-10 h-10" />
         </button>
         <button 
-          className="p-4 rounded-full bg-white/5 hover:bg-white/10 text-white backdrop-blur-md transition-all pointer-events-auto"
+          className="p-5 rounded-3xl bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto"
           onClick={(e) => { e.stopPropagation(); handleNext(); }}
         >
-          <ChevronRight className="w-8 h-8" />
+          <ChevronRight className="w-10 h-10" />
         </button>
       </div>
     </div>
   );
 };
 
-// === MAIN COMPONENT ===
+// === MAIN COMPONENT (ULTRA-PREMIUM) ===
 const MultimediaCapsulas = () => {
   const [items, setItems] = React.useState<MultimediaItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  React.useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [items]);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 400;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   React.useEffect(() => {
     const fetchMedia = async () => {
       try {
         const res = await axios.get('dashboard_multimedia');
-        const historias = (res.data.historias || []).map((h: any) => ({
-          ...h,
-          tipo_item: 'historia'
-        }));
-        const reels = (res.data.reels || []).map((r: any) => ({
-          ...r,
-          tipo_item: 'reel'
-        }));
-        
+        const historias = (res.data.historias || []).map((h: any) => ({ ...h, tipo_item: 'historia' }));
+        const reels = (res.data.reels || []).map((r: any) => ({ ...r, tipo_item: 'reel' }));
         const merged: MultimediaItem[] = [];
         const maxLen = Math.max(historias.length, reels.length);
         for (let i = 0; i < maxLen; i++) {
@@ -356,7 +270,6 @@ const MultimediaCapsulas = () => {
         setItems(merged);
       } catch (err) {
         console.error('Error fetching multimedia:', err);
-        setItems([]);
       } finally {
         setLoading(false);
       }
@@ -370,8 +283,6 @@ const MultimediaCapsulas = () => {
     const url = first.urlMultimediaFull || first.urlMultimedia || '';
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
     if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
-    const isExternal = url.includes('tiktok.com') || url.includes('instagram.com') || url.includes('facebook.com');
-    if (isExternal && !isVideo(url)) return '';
     return url;
   };
 
@@ -379,79 +290,117 @@ const MultimediaCapsulas = () => {
 
   if (loading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4 scroll-hide">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="relative shrink-0 w-[120px] sm:w-[140px] aspect-[9/16] rounded-2xl bg-gray-200 dark:bg-coal-300 animate-pulse" />
+      <div className="flex gap-6 overflow-x-auto pb-6 scroll-hide">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="relative shrink-0 w-[140px] sm:w-[160px] aspect-[9/16] rounded-[2.5rem] bg-gray-200 dark:bg-coal-300 animate-pulse border border-white/5" />
         ))}
       </div>
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="bg-gray-50 dark:bg-coal-500/50 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-gray-700 text-center">
-        <KeenIcon icon="video" className="text-3xl text-gray-300 mb-2" />
-        <p className="text-gray-400 text-sm font-medium">No hay cápsulas multimedia disponibles</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full">
-      <div className="flex gap-4 overflow-x-auto pb-2 scroll-hide snap-x">
+    <div className="w-full relative group/carousel">
+      {/* Navigation Arrows (Smart Visibility) */}
+      {canScrollLeft && (
+        <div className="absolute top-1/2 -translate-y-1/2 -left-4 z-20 hidden sm:block animate-fade-in">
+          <button 
+            onClick={() => scroll('left')}
+            className="p-3 rounded-2xl bg-white/20 backdrop-blur-3xl border border-white/30 text-white shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:bg-white/30 transition-all hover:scale-110 active:scale-95"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      {canScrollRight && (
+        <div className="absolute top-1/2 -translate-y-1/2 -right-4 z-20 hidden sm:block animate-fade-in">
+          <button 
+            onClick={() => scroll('right')}
+            className="p-3 rounded-2xl bg-white/20 backdrop-blur-3xl border border-white/30 text-white shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:bg-white/30 transition-all hover:scale-110 active:scale-95"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      <div 
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className="flex gap-5 overflow-x-auto pb-6 scroll-hide snap-x"
+      >
         {items.map((item, idx) => {
           const thumb = getThumbnail(item);
           const isReel = item.tipo_item === 'reel';
           const Icon = isReel ? Film : BookImage;
           const accentColor = isReel ? 'bg-purple-600' : 'bg-blue-600';
+          const accentGradient = isReel ? 'from-purple-600 to-indigo-900' : 'from-blue-600 to-cyan-900';
 
           return (
             <div
               key={`${item.tipo_item}-${item.id}`}
               onClick={() => {
-                // Prime the audio context on the first user interaction
                 const primeAudio = new Audio();
                 primeAudio.play().catch(() => {});
                 setViewerIndex(idx);
               }}
-              className="relative shrink-0 w-[115px] sm:w-[135px] md:w-[150px] aspect-[9/16] rounded-2xl overflow-hidden group cursor-pointer border border-transparent hover:border-white/20 transition-all snap-start shadow-lg"
+              className="relative shrink-0 w-[150px] sm:w-[180px] md:w-[200px] aspect-[9/16] rounded-[2.5rem] overflow-hidden group cursor-pointer transition-all duration-700 snap-start shadow-2xl bg-black border border-white/5 hover:border-white/20"
             >
+              {/* Dynamic Glow */}
+              <div className={`absolute -inset-4 bg-gradient-to-br ${accentGradient} opacity-0 group-hover:opacity-20 blur-3xl transition-opacity duration-700`} />
+
               {thumb ? (
-                thumb.includes('img.youtube.com') || !isVideo(thumb) ? (
-                  <img src={thumb} alt={item.nombreGrupo} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                ) : (
-                  <video src={thumb} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" muted />
-                )
+                <div className="absolute inset-0">
+                   <img src={thumb} alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0" />
+                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+                </div>
               ) : (
-                  <div className={`absolute inset-0 bg-gradient-to-br ${isReel ? 'from-purple-900 to-indigo-900' : 'from-blue-900 to-cyan-900'} flex items-center justify-center`}>
-                   <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-60 transition-opacity">
-                      <Icon className="w-10 h-10 text-white" />
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest"><span>{isReel ? 'Reel' : 'Story'}</span></span>
-                   </div>
+                <div className={`absolute inset-0 bg-gradient-to-br ${accentGradient} opacity-40 flex items-center justify-center`}>
+                   <Icon className="w-12 h-12 text-white/20" />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <div className="absolute top-3 left-3 z-10">
-                <div className={`${accentColor} p-1.5 rounded-xl shadow-lg backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform`}>
-                  <Icon className="w-3.5 h-3.5 text-white" />
+
+              {/* Floating Icon */}
+              <div className="absolute top-5 left-5 z-10">
+                <div className={`${accentColor} p-2 rounded-2xl shadow-2xl backdrop-blur-2xl border border-white/20 group-hover:scale-110 group-hover:rotate-12 transition-all`}>
+                  <Icon className="w-4 h-4 text-white" />
                 </div>
               </div>
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/40 scale-75 group-hover:scale-100 transition-transform">
-                  <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
+
+              {/* Center Play Button (Visible on Hover) */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-50 group-hover:scale-100">
+                <div className="w-14 h-14 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center text-white border border-white/20 shadow-2xl">
+                  <Play className="w-6 h-6 ml-0.5 fill-white" />
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
-                <h4 className="text-white font-bold text-[11px] sm:text-xs leading-tight mb-1 line-clamp-2"><span>{item.nombreGrupo}</span></h4>
-                <div className="flex items-center gap-1.5 text-white/60 text-[9px] font-bold uppercase tracking-wider">
-                  <span className={`w-1.5 h-1.5 rounded-full ${accentColor}`} />
-                  <span>{isReel ? 'Reel' : 'Historia'}</span>
+
+              {/* Bottom Info */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+                <div className="flex flex-col gap-2">
+                   <div className="flex items-center gap-2">
+                      <div className={`w-1 h-3 bg-gradient-to-b ${accentGradient} rounded-full`} />
+                      <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em]">{item.tipo_item}</span>
+                   </div>
+                   <h4 className="text-white font-black text-sm sm:text-base leading-tight uppercase tracking-tighter line-clamp-2 italic">
+                     {item.nombreGrupo}
+                   </h4>
+                   <div className="flex items-center gap-2 pt-2 transition-all duration-700">
+                      <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                      <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
+                        {item.fecha_creacion ? new Date(item.fecha_creacion).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Ver contenido'}
+                      </span>
+                   </div>
                 </div>
+              </div>
+
+              {/* Decorative Shimmers */}
+              <div className="absolute inset-0 pointer-events-none z-20">
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
               </div>
             </div>
           );
         })}
       </div>
+      
       {viewerIndex !== null && (
         <MultimediaViewer 
           items={items} 
@@ -459,6 +408,7 @@ const MultimediaCapsulas = () => {
           onClose={() => setViewerIndex(null)} 
         />
       )}
+      
       <style>{`
         .scroll-hide::-webkit-scrollbar { display: none; }
         .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
