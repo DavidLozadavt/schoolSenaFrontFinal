@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, MapPin, Calendar, ArrowRight, Video, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, Calendar, ArrowRight, Video, Zap, CheckCircle2, AlertCircle, Timer, Sparkles } from 'lucide-react';
 
 interface Evento {
   idEvento: number;
@@ -38,30 +38,26 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
   };
 
   useEffect(() => {
-    const startDate = new Date(`${evento.fechaInicial}T${evento.hora}`);
-    // If hora_final is missing, assume 2 hours after start
+    const startDate = new Date(`${evento.fechaInicial.split('T')[0]}T${evento.hora}`);
     const endDateStr = evento.hora_final || (() => {
        const [h, m] = evento.hora.split(':').map(Number);
        const endH = (h + 2) % 24;
        return `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     })();
-    const endDate = new Date(`${evento.fechaInicial}T${endDateStr}`);
+    const endDate = new Date(`${evento.fechaInicial.split('T')[0]}T${endDateStr}`);
 
     const calculateTime = () => {
       const now = new Date();
-      
       if (now > endDate) {
         setStatus('finished');
         setTimeLeft(null);
         return;
       }
-      
       if (now >= startDate && now <= endDate) {
         setStatus('live');
         setTimeLeft(null);
         return;
       }
-
       setStatus('pending');
       const difference = startDate.getTime() - now.getTime();
       const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -77,17 +73,14 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
   }, [evento.fechaInicial, evento.hora, evento.hora_final]);
 
   const dateData = useMemo(() => {
-    // Robust parsing to avoid timezone shifts (YYYY-MM-DD)
     const [year, month, day] = evento.fechaInicial.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    
     return {
       day: date.getDate(),
       month: new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(date).toUpperCase()
     };
   }, [evento.fechaInicial]);
 
-  const mainColor = evento.tipoEvento === 'VIRTUAL' ? 'blue' : 'emerald';
   const accentGradient = evento.tipoEvento === 'VIRTUAL' 
     ? 'from-blue-600 via-indigo-600 to-purple-600' 
     : 'from-emerald-500 via-teal-500 to-cyan-500';
@@ -95,98 +88,47 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
   return (
     <div
       onClick={() => onClick?.(evento)}
-      className={`relative shrink-0 w-[150px] sm:w-[180px] md:w-[200px] aspect-[9/16] rounded-[2.5rem] overflow-hidden group cursor-pointer transition-all duration-700 snap-start shadow-2xl bg-black border border-white/5 hover:border-white/20 ${status === 'finished' ? 'opacity-70' : ''}`}
+      className={`relative shrink-0 w-[140px] sm:w-[160px] aspect-[9/16] rounded-[2rem] overflow-hidden group cursor-pointer transition-all duration-500 snap-start shadow-xl bg-black border border-white/10 hover:border-white/30 hover:scale-[1.02] active:scale-95 ${status === 'finished' ? 'grayscale opacity-80' : ''}`}
     >
-      {/* Background Layer */}
+      {/* Background Image */}
       <div className="absolute inset-0 z-0">
         {evento.url ? (
           <>
             <img 
               src={getImageUrl(evento.url)} 
               alt={evento.nombre} 
-              className={`w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 ${status === 'finished' ? 'grayscale' : 'grayscale-[20%] group-hover:grayscale-0'}`} 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
           </>
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${accentGradient} opacity-40 flex items-center justify-center`}>
-            <Calendar className="w-12 h-12 text-white/10" />
-          </div>
+          <div className={`w-full h-full bg-gradient-to-br ${accentGradient} opacity-40`} />
         )}
       </div>
 
-      {/* Top Info */}
-      <div className="absolute top-5 left-5 right-5 flex justify-between items-start z-10">
-        <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl p-2 min-w-[45px] flex flex-col items-center shadow-xl">
-          <span className={`text-[10px] font-black text-${mainColor}-400 leading-none mb-1 tracking-tighter`}>{dateData.month}</span>
-          <span className="text-xl font-black text-white leading-none tracking-tighter">{dateData.day}</span>
-        </div>
-        
-        <div className="flex flex-col gap-2 items-end">
-          <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-white shadow-lg">
-             {evento.tipoEvento === 'VIRTUAL' ? <Video className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Status Overlay (Always Visible) */}
-      <div className="absolute top-20 left-5 right-5 z-20">
-        {status === 'live' && (
-          <div className="bg-red-500/90 backdrop-blur-md border border-red-400/50 rounded-full px-3 py-1.5 flex items-center gap-2 shadow-[0_0_20px_rgba(239,68,68,0.4)] animate-pulse">
-             <Zap className="w-3 h-3 text-white fill-white" />
-             <span className="text-[8px] font-black text-white tracking-[0.15em] uppercase">En Vivo Ahora</span>
-          </div>
-        )}
-        {status === 'finished' && (
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-1.5 flex items-center gap-2">
-             <CheckCircle2 className="w-3 h-3 text-gray-400" />
-             <span className="text-[8px] font-black text-white/60 tracking-[0.15em] uppercase">Evento Finalizado</span>
-          </div>
-        )}
-        {status === 'pending' && timeLeft && (
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-2 shadow-lg">
-             <Clock className="w-3 h-3 text-emerald-400 animate-pulse" />
-             <span className="text-[8px] font-black text-white tracking-widest uppercase">
-                {timeLeft.days > 0 ? `Faltan ${timeLeft.days}D` : `Inicia en ${timeLeft.hours}H ${timeLeft.minutes}M`}
+      {/* Glass Overlay for Content */}
+      <div className="absolute inset-x-0 bottom-0 p-4 z-10 bg-gradient-to-t from-black via-black/80 to-transparent">
+        <div className="flex flex-col gap-2">
+          {/* Status Label (Mini) */}
+          <div className="flex items-center gap-1.5 mb-1">
+             <div className={`w-1.5 h-1.5 rounded-full ${status === 'live' ? 'bg-rose-500 animate-pulse' : status === 'finished' ? 'bg-gray-500' : 'bg-primary shadow-[0_0_8px_rgba(255,255,255,0.5)]'}`} />
+             <span className="text-[7px] font-black text-white/60 uppercase tracking-[0.2em]">
+                {status === 'live' ? 'En Vivo' : status === 'finished' ? 'Terminado' : 'Pendiente'}
              </span>
           </div>
-        )}
-      </div>
 
-      {/* Countdown Large Overlay (Hover) */}
-      {status === 'pending' && timeLeft && (
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center z-10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:-translate-y-1/2">
-           <div className="flex gap-2">
-              {[{v: timeLeft.days, l: 'D'}, {v: timeLeft.hours, l: 'H'}, {v: timeLeft.minutes, l: 'M'}].map((t, i) => (
-                <div key={i} className="flex flex-col items-center bg-black/60 backdrop-blur-xl border border-white/10 w-10 h-10 rounded-xl justify-center shadow-2xl">
-                  <span className="text-xs font-black text-white leading-none">{t.v}</span>
-                  <span className="text-[6px] font-bold text-white/40 uppercase">{t.l}</span>
-                </div>
-              ))}
-           </div>
-        </div>
-      )}
-
-      {/* Bottom Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-             <div className={`w-1 h-4 bg-gradient-to-b ${accentGradient} rounded-full`} />
-             <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em]">{evento.tipoEvento}</span>
-          </div>
-
-          <h4 className="text-white font-black text-base sm:text-lg leading-[1.1] uppercase tracking-tighter line-clamp-2 italic">
+          <h4 className="text-white font-black text-xs sm:text-sm leading-tight uppercase tracking-tighter line-clamp-2 italic drop-shadow-lg">
             {evento.nombre}
           </h4>
 
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-white/10 transition-all duration-700">
-            <div className="flex items-center gap-2 text-white/70 text-[9px] font-bold">
-              <Clock className={`w-3.5 h-3.5 text-${mainColor}-400`} />
-              <span>{evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}</span>
+          <div className="flex flex-col gap-1 mt-1 opacity-80">
+            <div className="flex items-center gap-2 text-white text-[8px] font-bold">
+              <Clock className="w-3 h-3 text-white/50" />
+              <span>{evento.hora}</span>
             </div>
             {evento.area && (
-              <div className="flex items-center gap-2 text-white/70 text-[9px] font-bold">
-                <MapPin className={`w-3.5 h-3.5 text-${mainColor}-400`} />
+              <div className="flex items-center gap-2 text-white text-[8px] font-bold">
+                <MapPin className="w-3 h-3 text-white/50" />
                 <span className="truncate">{evento.area.nombre}</span>
               </div>
             )}
@@ -194,12 +136,42 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
         </div>
       </div>
 
-      {/* Action Button */}
-      <div className="absolute bottom-6 right-6 z-20 transition-all duration-700">
-         <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-2xl group-hover:scale-110">
-            <ArrowRight className="w-4 h-4" />
+      {/* Floating Date Badge (Top Left) */}
+      <div className="absolute top-3 left-3 z-20">
+         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 min-w-[35px] flex flex-col items-center shadow-2xl">
+            <span className="text-[7px] font-black text-white/60 leading-none mb-0.5 tracking-tighter">{dateData.month}</span>
+            <span className="text-sm font-black text-white leading-none tracking-tighter">{dateData.day}</span>
          </div>
+      </div>
+
+      {/* Floating Type Badge (Top Right) */}
+      <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+         <div className="p-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white shadow-xl">
+            {evento.tipoEvento === 'VIRTUAL' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+         </div>
+      </div>
+
+      {/* Hover Status Indicator */}
+      <div className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+         {status === 'pending' && timeLeft && (
+           <div className="flex flex-col items-center gap-1 bg-black/60 backdrop-blur-xl border border-white/10 p-3 rounded-2xl shadow-2xl">
+              <p className="text-[7px] font-black text-white/40 uppercase tracking-[0.2em]">Comienza en</p>
+              <p className="text-xs font-black text-white italic tracking-widest">{timeLeft.days > 0 ? `${timeLeft.days}D ${timeLeft.hours}H` : `${timeLeft.hours}H ${timeLeft.minutes}M`}</p>
+           </div>
+         )}
+         {status === 'live' && (
+            <div className="w-10 h-10 rounded-full bg-rose-500/80 backdrop-blur-md flex items-center justify-center text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]">
+               <Zap className="w-5 h-5 fill-white animate-pulse" />
+            </div>
+         )}
+      </div>
+
+      {/* Mini Progress Bar (Bottom) */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 z-20 overflow-hidden">
+         <div className={`h-full bg-gradient-to-r ${accentGradient} transition-all duration-500`} style={{ width: status === 'finished' ? '100%' : status === 'live' ? '50%' : '0%' }} />
       </div>
     </div>
   );
 };
+
+export default PremiumEventCard;

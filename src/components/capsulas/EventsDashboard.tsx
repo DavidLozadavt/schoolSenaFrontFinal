@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PremiumEventCard } from './PremiumEventCard';
-import { ModalDetalleEvento } from './ModalDetalleEvento';
+import ModalDetalleEvento from './ModalDetalleEvento';
 
 interface Evento {
   idEvento: number;
@@ -65,11 +65,11 @@ const EventsDashboard = () => {
 
         // Smart sorting: Live/Upcoming first (ASC), then Finished (DESC)
         data = data.sort((a: Evento, b: Evento) => {
-          const startA = new Date(`${a.fechaInicial}T${a.hora}`);
-          const startB = new Date(`${b.fechaInicial}T${b.hora}`);
+          const startA = new Date(`${a.fechaInicial.split('T')[0]}T${a.hora}`);
+          const startB = new Date(`${b.fechaInicial.split('T')[0]}T${b.hora}`);
           
-          const endA = a.hora_final ? new Date(`${a.fechaInicial}T${a.hora_final}`) : new Date(startA.getTime() + 2 * 60 * 60 * 1000);
-          const endB = b.hora_final ? new Date(`${b.fechaInicial}T${b.hora_final}`) : new Date(startB.getTime() + 2 * 60 * 60 * 1000);
+          const endA = a.hora_final ? new Date(`${(a.fechaFinal || a.fechaInicial).split('T')[0]}T${a.hora_final}`) : new Date(startA.getTime() + 2 * 60 * 60 * 1000);
+          const endB = b.hora_final ? new Date(`${(b.fechaFinal || b.fechaInicial).split('T')[0]}T${b.hora_final}`) : new Date(startB.getTime() + 2 * 60 * 60 * 1000);
 
           const isFinishedA = now > endA;
           const isFinishedB = now > endB;
@@ -158,11 +158,12 @@ const EventsDashboard = () => {
         ))}
       </div>
 
-      <ModalDetalleEvento 
-        open={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-        evento={selectedEventoDetalle} 
-      />
+      {modalOpen && selectedEventoDetalle && (
+        <ModalDetalleEvento 
+          onClose={() => setModalOpen(false)} 
+          evento={selectedEventoDetalle} 
+        />
+      )}
 
       <style>{`
         .scroll-hide::-webkit-scrollbar { display: none; }

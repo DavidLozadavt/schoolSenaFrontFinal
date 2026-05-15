@@ -4,6 +4,22 @@ import { Film, BookImage, Play, ChevronLeft, ChevronRight, X, Music, Volume2, Vo
 import { KeenIcon } from '@/components/keenicons';
 import { useAuthContext } from '@/auth';
 
+const getImageUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const backendUrl = (import.meta.env.VITE_APP_BACKEND_URL || import.meta.env.VITE_APP_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${backendUrl}${normalizedUrl}`;
+};
+
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const isYoutubeUrl = (url: string) => /youtube\.com|youtu\.be/.test(url);
+
 interface MultimediaFile {
   id: number;
   urlMultimedia: string;
@@ -47,22 +63,13 @@ const MultimediaViewer = ({
 
   let cancionUrl = '';
   let cancionTitle = '';
-  let cancionArtist = '';
   if (currentFile?.cancion) {
     try {
-      let parsed = currentFile.cancion;
-      for (let i = 0; i < 5; i++) {
-        if (typeof parsed === 'string') {
-          try {
-            const next = JSON.parse(parsed);
-            if (next === parsed) break;
-            parsed = next;
-          } catch { break; }
-        } else break;
-      }
+      let parsed = typeof currentFile.cancion === 'string' ? JSON.parse(currentFile.cancion) : currentFile.cancion;
+      // Desempaquetar si está anidado
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
       cancionUrl = parsed?.preview_url || parsed?.preview || parsed?.url || '';
       cancionTitle = parsed?.title || parsed?.name || '';
-      cancionArtist = parsed?.artist || parsed?.artist_name || '';
     } catch (e) {
       console.error('Error parsing cancion:', e);
     }
@@ -117,14 +124,15 @@ const MultimediaViewer = ({
 
   if (!currentGroup || !currentFile) return null;
 
-  const mediaUrl = currentFile.urlMultimediaFull || currentFile.urlMultimedia || '';
-  const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(mediaUrl);
+  const rawUrl = currentFile.urlMultimediaFull || currentFile.urlMultimedia || '';
+  const isYoutube = isYoutubeUrl(rawUrl);
+  const mediaUrl = isYoutube ? rawUrl : getImageUrl(rawUrl);
+  const isVideoFile = isYoutube || /\.(mp4|webm|ogg|mov)$/i.test(mediaUrl);
 
   return (
     <div className="fixed inset-0 bg-black/98 z-[9999] flex items-center justify-center animate-fade-in backdrop-blur-3xl" onClick={onClose}>
-      {/* Background Ambient Glow */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full" />
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[150px] rounded-full transition-all duration-1000 ${currentGroup.tipo_item === 'reel' ? 'bg-purple-600/20' : 'bg-primary/20'}`} />
       </div>
 
       <button 
@@ -134,95 +142,151 @@ const MultimediaViewer = ({
         <X className="w-7 h-7" />
       </button>
 
-      {/* Progress Bars (Premium Style) */}
-      <div className="absolute top-6 left-0 right-0 px-6 flex gap-2 z-[10001] max-w-[500px] mx-auto">
+      <div className="absolute top-8 left-0 right-0 px-6 flex gap-2 z-[10001] max-w-[550px] mx-auto">
         {currentGroup.grupos_multimedia.map((_, i) => (
-          <div key={i} className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden backdrop-blur-md">
+          <div key={i} className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden backdrop-blur-md border border-white/5">
             <div
-              className={`h-full bg-gradient-to-r from-white to-white/60 transition-all duration-75 shadow-[0_0_10px_rgba(255,255,255,0.5)]`}
+              className="h-full bg-white transition-all duration-75 shadow-[0_0_15px_rgba(255,255,255,0.6)]"
               style={{ width: i < fileIndex ? '100%' : i === fileIndex ? `${progress}%` : '0%' }}
             />
           </div>
         ))}
       </div>
 
-      <div 
-        className="w-full sm:w-[500px] h-full sm:h-[92vh] bg-black relative flex flex-col justify-center sm:rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5"
-        onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
-      >
-        {/* Navigation Hotspots */}
-        <div className="absolute inset-y-0 left-0 w-1/4 z-20 cursor-w-resize" onClick={(e) => { e.stopPropagation(); handlePrev(); }}></div>
-        <div className="absolute inset-y-0 right-0 w-1/4 z-20 cursor-e-resize" onClick={(e) => { e.stopPropagation(); handleNext(); }}></div>
+        <div 
+          className="w-full sm:w-[500px] h-full sm:h-[92vh] bg-black relative flex flex-col justify-center sm:rounded-[3rem] overflow-hidden shadow-[0_0_120px_rgba(0,0,0,0.8)] border border-white/10 group/viewer"
+          onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+        >
+          {/* Global Controls Overlay */}
+          <div className="absolute top-8 right-8 z-[60] flex items-center gap-4 pointer-events-auto">
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                const newMuted = !isAudioMuted;
+                setIsAudioMuted(newMuted);
+                
+                // YouTube postMessage unMute/mute
+                if (isYoutube) {
+                  const iframe = document.querySelector('iframe');
+                  if (iframe?.contentWindow) {
+                    iframe.contentWindow.postMessage(JSON.stringify({
+                      event: 'command',
+                      func: newMuted ? 'mute' : 'unMute',
+                      args: ''
+                    }), '*');
+                  }
+                }
+              }}
+              className="p-4 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 text-white hover:bg-white/20 transition-all shadow-2xl active:scale-90"
+              title={isAudioMuted ? "Activar sonido" : "Silenciar"}
+            >
+              {isAudioMuted ? <VolumeX className="w-6 h-6 text-rose-500" /> : <Volume2 className="w-6 h-6 text-emerald-500" />}
+            </button>
+            
+            <button 
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="p-4 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 text-white hover:bg-white/20 transition-all shadow-2xl active:scale-90"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
-        {cancionUrl && (
-          <audio key={cancionUrl} ref={audioRef} src={cancionUrl} loop className="hidden" />
-        )}
+          {/* Navigation Hotspots */}
+          <div className="absolute inset-y-0 left-0 w-1/4 z-30 cursor-pointer" onClick={(e) => { e.stopPropagation(); handlePrev(); }} />
+          <div className="absolute inset-y-0 right-0 w-1/4 z-30 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleNext(); }} />
 
-        <div key={`${currentGroup.id}-${fileIndex}`} className="w-full h-full animate-fade-in">
-           {isVideo ? (
-             <video src={mediaUrl} className="w-full h-full object-contain" autoPlay playsInline onEnded={handleNext} />
-           ) : (
-             <img src={mediaUrl} className="w-full h-full object-contain" alt={currentGroup.nombreGrupo} />
-           )}
-        </div>
+          {cancionUrl && (
+            <audio key={cancionUrl} ref={audioRef} src={cancionUrl} loop className="hidden" />
+          )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none opacity-90" />
-        
-        <div className="absolute bottom-0 left-0 right-0 p-10 z-30 pointer-events-none flex flex-col justify-end">
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black text-white backdrop-blur-2xl border border-white/20 ${currentGroup.tipo_item === 'reel' ? 'bg-purple-600/50' : 'bg-blue-600/50'}`}>
-                {currentGroup.tipo_item === 'reel' ? <Film className="w-3.5 h-3.5" /> : <BookImage className="w-3.5 h-3.5" />}
-                <span className="tracking-[0.1em] uppercase">{currentGroup.tipo_item}</span>
-             </div>
-             {(cancionTitle && cancionUrl) && (
-               <div 
-                 className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/5 backdrop-blur-2xl text-[10px] font-bold text-white border border-white/10 hover:bg-white/10 transition-all pointer-events-auto cursor-pointer group"
-                 onClick={(e) => { e.stopPropagation(); setIsAudioMuted(!isAudioMuted); }}
-               >
-                 <Music className={`w-3.5 h-3.5 text-emerald-400 ${isPlaying ? 'animate-bounce' : ''}`} />
-                 <span className="truncate max-w-[180px]">{cancionTitle}</span>
-                 {isAudioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
-               </div>
+          <div key={`${currentGroup.id}-${fileIndex}`} className="w-full h-full animate-fade-in flex items-center justify-center bg-black">
+             {isYoutube ? (
+               <iframe
+                 src={`https://www.youtube.com/embed/${getYoutubeId(mediaUrl)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${getYoutubeId(mediaUrl)}&enablejsapi=1&origin=${window.location.origin}`}
+                 className="w-full h-full aspect-[9/16] pointer-events-none"
+                 allow="autoplay; encrypted-media"
+                 allowFullScreen
+               />
+             ) : isVideoFile ? (
+               <video 
+                 src={mediaUrl} 
+                 className="w-full h-full object-contain" 
+                 autoPlay 
+                 muted={isAudioMuted} 
+                 playsInline 
+                 onEnded={handleNext} 
+                 ref={(el) => {
+                   if (el) {
+                     if (isPlaying) el.play().catch(() => {});
+                     else el.pause();
+                   }
+                 }}
+               />
+             ) : (
+               <img src={mediaUrl} className="w-full h-full object-contain" alt={currentGroup.nombreGrupo} />
              )}
           </div>
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 pointer-events-none" />
           
-          <h3 className="text-white font-black text-2xl mb-2 uppercase tracking-tighter leading-none italic">
-            {currentGroup.nombreGrupo}
-          </h3>
-          <p className="text-white/60 text-sm font-medium line-clamp-3 leading-relaxed max-w-[90%]">
-            {currentGroup.descripcion || 'Descubre lo último de nuestra comunidad SENA.'}
-          </p>
+          <div className="absolute bottom-0 left-0 right-0 p-12 z-30 pointer-events-none flex flex-col justify-end">
+            <div className="flex flex-wrap items-center gap-3 mb-5 pointer-events-auto">
+               <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black text-white backdrop-blur-3xl border border-white/20 shadow-xl ${currentGroup.tipo_item === 'reel' ? 'bg-purple-600/40' : 'bg-primary/40'}`}>
+                  {currentGroup.tipo_item === 'reel' ? <Film className="w-4 h-4" /> : <BookImage className="w-4 h-4" />}
+                  <span className="tracking-[0.2em] uppercase">{currentGroup.tipo_item}</span>
+               </div>
+               {cancionTitle && (
+                 <div 
+                   className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 backdrop-blur-3xl text-[10px] font-black text-white border border-white/10 hover:bg-white/10 transition-all cursor-pointer group shadow-xl"
+                   onClick={(e) => { e.stopPropagation(); setIsAudioMuted(!isAudioMuted); }}
+                 >
+                   <Music className={`w-4 h-4 text-emerald-400 ${isPlaying ? 'animate-pulse' : ''}`} />
+                   <span className="truncate max-w-[200px] uppercase tracking-wider">{cancionTitle}</span>
+                   {isAudioMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                 </div>
+               )}
+            </div>
+            
+            <div className="flex flex-col gap-1 mb-2">
+               <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1 italic">Publicado por {currentGroup.nombreGrupo}</p>
+               <h3 className="text-white font-black text-3xl uppercase tracking-tighter leading-none italic drop-shadow-2xl">
+                 {currentGroup.nombreGrupo}
+               </h3>
+            </div>
+            <p className="text-white/70 text-sm font-bold line-clamp-3 leading-relaxed max-w-[95%] italic">
+              {currentGroup.descripcion || 'Una experiencia única compartida por nuestra comunidad SENA.'}
+            </p>
+          </div>
+
+          {!isPlaying && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40 bg-black/20 backdrop-blur-[2px]">
+              <div className="w-24 h-24 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center text-white border border-white/20 animate-fade-in shadow-[0_0_50px_rgba(255,255,255,0.2)]">
+                <Play className="w-10 h-10 ml-1 fill-white" />
+              </div>
+            </div>
+          )}
         </div>
 
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
-            <div className="w-24 h-24 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center text-white border border-white/20 animate-pulse">
-              <Play className="w-10 h-10 ml-1 fill-white" />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Desktop Navigation Arrows */}
-      <div className="hidden lg:flex absolute inset-x-0 top-1/2 -translate-y-1/2 justify-between px-16 pointer-events-none">
+      <div className="hidden lg:flex absolute inset-x-0 top-1/2 -translate-y-1/2 justify-between px-20 pointer-events-none">
         <button 
-          className={`p-5 rounded-3xl bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto ${groupIndex === 0 && fileIndex === 0 ? 'opacity-0' : 'opacity-100'}`}
+          className={`p-6 rounded-[2rem] bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto shadow-2xl group ${groupIndex === 0 && fileIndex === 0 ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}
           onClick={(e) => { e.stopPropagation(); handlePrev(); }}
         >
-          <ChevronLeft className="w-10 h-10" />
+          <ChevronLeft className="w-12 h-12 group-hover:-translate-x-1 transition-transform" />
         </button>
         <button 
-          className="p-5 rounded-3xl bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto"
+          className="p-6 rounded-[2rem] bg-white/5 hover:bg-white/10 text-white backdrop-blur-3xl border border-white/10 transition-all pointer-events-auto shadow-2xl group"
           onClick={(e) => { e.stopPropagation(); handleNext(); }}
         >
-          <ChevronRight className="w-10 h-10" />
+          <ChevronRight className="w-12 h-12 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
     </div>
   );
 };
 
-// === MAIN COMPONENT (ULTRA-PREMIUM) ===
+// === MAIN COMPONENT ===
 const MultimediaCapsulas = () => {
   const [items, setItems] = React.useState<MultimediaItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -240,6 +304,31 @@ const MultimediaCapsulas = () => {
   };
 
   React.useEffect(() => {
+    const fetchMedia = async () => {
+      try {
+        const res = await axios.get('dashboard_multimedia');
+        
+        const historias = (res.data.historias || []).map((h: any) => ({ ...h, tipo_item: 'historia' }));
+        const reels = (res.data.reels || []).map((r: any) => ({ ...r, tipo_item: 'reel' }));
+        
+        // ORDENAR POR FECHA DE CREACIÓN (Más reciente primero)
+        const combined = [...historias, ...reels].sort((a, b) => {
+          const dateA = new Date(a.fecha_creacion || a.created_at || 0).getTime();
+          const dateB = new Date(b.fecha_creacion || b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+
+        setItems(combined);
+      } catch (err) {
+        console.error('Error fetching multimedia:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMedia();
+  }, []);
+
+  React.useEffect(() => {
     checkScroll();
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
@@ -255,44 +344,17 @@ const MultimediaCapsulas = () => {
     }
   };
 
-  React.useEffect(() => {
-    const fetchMedia = async () => {
-      try {
-        const res = await axios.get('dashboard_multimedia');
-        const historias = (res.data.historias || []).map((h: any) => ({ ...h, tipo_item: 'historia' }));
-        const reels = (res.data.reels || []).map((r: any) => ({ ...r, tipo_item: 'reel' }));
-        const merged: MultimediaItem[] = [];
-        const maxLen = Math.max(historias.length, reels.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (historias[i]) merged.push(historias[i]);
-          if (reels[i]) merged.push(reels[i]);
-        }
-        setItems(merged);
-      } catch (err) {
-        console.error('Error fetching multimedia:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMedia();
-  }, []);
-
   const getThumbnail = (item: MultimediaItem) => {
     const first = item.grupos_multimedia?.[0];
     if (!first) return '';
-    const url = first.urlMultimediaFull || first.urlMultimedia || '';
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-    if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
-    return url;
+    return first.urlMultimediaFull || first.urlMultimedia || '';
   };
-
-  const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
   if (loading) {
     return (
-      <div className="flex gap-6 overflow-x-auto pb-6 scroll-hide">
+      <div className="flex gap-5 overflow-x-auto pb-4 no-scrollbar">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="relative shrink-0 w-[140px] sm:w-[160px] aspect-[9/16] rounded-[2.5rem] bg-gray-200 dark:bg-coal-300 animate-pulse border border-white/5" />
+          <div key={i} className="shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-200 dark:bg-coal-300 animate-pulse border-2 border-white/10" />
         ))}
       </div>
     );
@@ -300,102 +362,76 @@ const MultimediaCapsulas = () => {
 
   return (
     <div className="w-full relative group/carousel">
-      {/* Navigation Arrows (Smart Visibility) */}
       {canScrollLeft && (
-        <div className="absolute top-1/2 -translate-y-1/2 -left-4 z-20 hidden sm:block animate-fade-in">
-          <button 
-            onClick={() => scroll('left')}
-            className="p-3 rounded-2xl bg-white/20 backdrop-blur-3xl border border-white/30 text-white shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:bg-white/30 transition-all hover:scale-110 active:scale-95"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-        </div>
+        <button 
+          onClick={() => scroll('left')}
+          className="absolute top-1/2 -translate-y-1/2 -left-4 z-20 w-10 h-10 rounded-full bg-white/90 dark:bg-coal-400/90 shadow-xl border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-600 hover:text-primary transition-all scale-0 group-hover/carousel:scale-100"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
       )}
 
       {canScrollRight && (
-        <div className="absolute top-1/2 -translate-y-1/2 -right-4 z-20 hidden sm:block animate-fade-in">
-          <button 
-            onClick={() => scroll('right')}
-            className="p-3 rounded-2xl bg-white/20 backdrop-blur-3xl border border-white/30 text-white shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:bg-white/30 transition-all hover:scale-110 active:scale-95"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </div>
+        <button 
+          onClick={() => scroll('right')}
+          className="absolute top-1/2 -translate-y-1/2 -right-4 z-20 w-10 h-10 rounded-full bg-white/90 dark:bg-coal-400/90 shadow-xl border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-600 hover:text-primary transition-all scale-0 group-hover/carousel:scale-100"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
       )}
 
       <div 
         ref={scrollRef}
         onScroll={checkScroll}
-        className="flex gap-5 overflow-x-auto pb-6 scroll-hide snap-x"
+        className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth px-2"
       >
         {items.map((item, idx) => {
           const thumb = getThumbnail(item);
           const isReel = item.tipo_item === 'reel';
           const Icon = isReel ? Film : BookImage;
-          const accentColor = isReel ? 'bg-purple-600' : 'bg-blue-600';
-          const accentGradient = isReel ? 'from-purple-600 to-indigo-900' : 'from-blue-600 to-cyan-900';
-
+          
           return (
             <div
               key={`${item.tipo_item}-${item.id}`}
-              onClick={() => {
-                const primeAudio = new Audio();
-                primeAudio.play().catch(() => {});
-                setViewerIndex(idx);
-              }}
-              className="relative shrink-0 w-[150px] sm:w-[180px] md:w-[200px] aspect-[9/16] rounded-[2.5rem] overflow-hidden group cursor-pointer transition-all duration-700 snap-start shadow-2xl bg-black border border-white/5 hover:border-white/20"
+              onClick={() => setViewerIndex(idx)}
+              className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer"
             >
-              {/* Dynamic Glow */}
-              <div className={`absolute -inset-4 bg-gradient-to-br ${accentGradient} opacity-0 group-hover:opacity-20 blur-3xl transition-opacity duration-700`} />
-
-              {thumb ? (
-                <div className="absolute inset-0">
-                   <img src={thumb} alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0" />
-                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
-                </div>
-              ) : (
-                <div className={`absolute inset-0 bg-gradient-to-br ${accentGradient} opacity-40 flex items-center justify-center`}>
-                   <Icon className="w-12 h-12 text-white/20" />
-                </div>
-              )}
-
-              {/* Floating Icon */}
-              <div className="absolute top-5 left-5 z-10">
-                <div className={`${accentColor} p-2 rounded-2xl shadow-2xl backdrop-blur-2xl border border-white/20 group-hover:scale-110 group-hover:rotate-12 transition-all`}>
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-              </div>
-
-              {/* Center Play Button (Visible on Hover) */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-50 group-hover:scale-100">
-                <div className="w-14 h-14 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center text-white border border-white/20 shadow-2xl">
-                  <Play className="w-6 h-6 ml-0.5 fill-white" />
-                </div>
-              </div>
-
-              {/* Bottom Info */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
-                <div className="flex flex-col gap-2">
-                   <div className="flex items-center gap-2">
-                      <div className={`w-1 h-3 bg-gradient-to-b ${accentGradient} rounded-full`} />
-                      <span className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em]">{item.tipo_item}</span>
-                   </div>
-                   <h4 className="text-white font-black text-sm sm:text-base leading-tight uppercase tracking-tighter line-clamp-2 italic">
-                     {item.nombreGrupo}
-                   </h4>
-                   <div className="flex items-center gap-2 pt-2 transition-all duration-700">
-                      <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
-                      <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
-                        {item.fecha_creacion ? new Date(item.fecha_creacion).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Ver contenido'}
-                      </span>
-                   </div>
+              <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-amber-400 via-fuchsia-500 to-indigo-600 group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-fuchsia-500/20">
+                <div className="p-[2.5px] bg-white dark:bg-coal-600 rounded-full">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden relative">
+                    {thumb ? (
+                      isYoutubeUrl(thumb) ? (
+                        <div className="w-full h-full bg-black flex items-center justify-center">
+                          <Play className="w-8 h-8 text-white fill-current" />
+                          <img src={`https://img.youtube.com/vi/${getYoutubeId(thumb)}/0.jpg`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                        </div>
+                      ) : isVideo(thumb) ? (
+                        <video 
+                          src={getImageUrl(thumb)} 
+                          className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all" 
+                          autoPlay 
+                          muted 
+                          loop 
+                          playsInline
+                        />
+                      ) : (
+                        <img src={getImageUrl(thumb)} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all" alt="" />
+                      )
+                    ) : (
+                      <div className="w-full h-full bg-gray-100 dark:bg-coal-500 flex items-center justify-center">
+                        <Icon className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    {/* Badge Tipo */}
+                    <div className="absolute bottom-1 right-1 w-5 h-5 rounded-md bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                      {isReel ? <Play className="w-2.5 h-2.5 text-white fill-current" /> : <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Decorative Shimmers */}
-              <div className="absolute inset-0 pointer-events-none z-20">
-                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-              </div>
+              <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors max-w-[80px] truncate text-center uppercase tracking-tighter">
+                {item.nombreGrupo}
+              </span>
             </div>
           );
         })}
@@ -408,13 +444,10 @@ const MultimediaCapsulas = () => {
           onClose={() => setViewerIndex(null)} 
         />
       )}
-      
-      <style>{`
-        .scroll-hide::-webkit-scrollbar { display: none; }
-        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 };
+
+const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
 export default MultimediaCapsulas;
