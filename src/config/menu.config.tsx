@@ -207,10 +207,10 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
-        title: 'Instructor lider',
+        title: 'Novedades',
         path: '/instructor-lider',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
-      },
+      }
     ]
   },
   {
