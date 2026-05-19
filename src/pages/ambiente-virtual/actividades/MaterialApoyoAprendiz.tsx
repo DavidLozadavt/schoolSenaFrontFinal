@@ -6,6 +6,12 @@ import { KeenIcon } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
+import {
+  extensionFromPath,
+  materialDocumentoActionLabel,
+  materialDocumentoBadgeClass,
+  materialDocumentoTypeLabel,
+} from './materialDocumentoSupport';
 
 interface MaterialApoyoCreador {
   idPersona?: number | null;
@@ -223,11 +229,14 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       const hasDoc = Boolean(item.urlDocumentoUrl || item.urlDocumento);
       const hasLink = Boolean(item.urlAdicional);
       const hasVid = Boolean(item.urlVideoUrl || item.urlVideo);
+      const docExt = hasDoc
+        ? extensionFromPath(item.urlDocumentoUrl || item.urlDocumento || item.titulo)
+        : '';
       const tipoTokens = [
         hasDoc ? 'Documento' : '',
         hasLink ? 'Enlace' : '',
         hasVid ? 'Video' : '',
-        hasDoc ? 'PDF' : ''
+        docExt ? materialDocumentoTypeLabel(docExt) : '',
       ].filter(Boolean);
       return filterOptionNormalized(
         [
@@ -290,6 +299,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
     <div className="space-y-3 p-3">
       {list.map((item) => {
         const docUrl = getDocumentUrl(item.urlDocumentoUrl || item.urlDocumento);
+        const docExt = extensionFromPath(item.urlDocumentoUrl || item.urlDocumento || item.titulo);
         const hasDoc = Boolean(docUrl);
         const hasLink = Boolean(item.urlAdicional);
         const hasVideoRes = Boolean(item.urlVideoUrl || item.urlVideo);
@@ -314,7 +324,15 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         const menuAbierto = recursosMenu?.id === item.id;
 
         const chips: { key: string; label: string; className: string }[] = [];
-        if (hasDoc) chips.push({ key: 'd', label: 'Documento', className: 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200' });
+        if (hasDoc) {
+          chips.push({
+            key: 'd',
+            label: docExt ? materialDocumentoTypeLabel(docExt) : 'Documento',
+            className: docExt
+              ? materialDocumentoBadgeClass(docExt)
+              : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200',
+          });
+        }
         if (hasLink) chips.push({ key: 'l', label: 'Enlace', className: 'bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200' });
         if (hasVideoRes) chips.push({ key: 'v', label: 'Video', className: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' });
 
@@ -495,6 +513,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
             const active = items.find((it) => it.id === recursosMenu.id);
             if (!active) return null;
             const docUrl = getDocumentUrl(active.urlDocumentoUrl || active.urlDocumento);
+            const docExt = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
             const linkUrl = active.urlAdicional?.startsWith('http')
               ? active.urlAdicional
               : active.urlAdicional
@@ -518,7 +537,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                     onClick={() => setRecursosMenu(null)}
                     className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
                   >
-                    Abrir documento
+                    {docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento'}
                   </a>
                 )}
                 {linkUrl && (

@@ -3,6 +3,17 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
+import {
+  MATERIAL_DOCUMENTO_ACCEPT,
+  MATERIAL_DOCUMENTO_FORMATOS_LABEL,
+  extensionFromFileName,
+  isPdfExtension,
+  materialDocumentoActionLabel,
+  materialDocumentoBadgeClass,
+  materialDocumentoKeenIcon,
+  materialDocumentoTypeLabel,
+  validateMaterialDocumentoFile,
+} from './materialDocumentoSupport';
 
 interface MaterialApoyo {
   id: number;
@@ -90,7 +101,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
 
 
   useEffect(() => {
-    if (documentoFile && documentoFile.type === 'application/pdf') {
+    if (documentoFile && isPdfExtension(extensionFromFileName(documentoFile.name))) {
       const url = URL.createObjectURL(documentoFile);
       setPreviewUrl(url);
       return () => URL.revokeObjectURL(url);
@@ -108,12 +119,15 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     e.preventDefault();
     if (!actividad?.id || !titulo.trim()) return;
     if (!documentoFile && !link.trim()) {
-      alert('Ingrese un documento PDF o un enlace (página web o YouTube)');
+      alert('Ingrese un documento o un enlace (página web o YouTube)');
       return;
     }
-    if (documentoFile && !documentoFile.name.toLowerCase().endsWith('.pdf')) {
-      alert('Solo se permiten archivos PDF');
-      return;
+    if (documentoFile) {
+      const docErr = validateMaterialDocumentoFile(documentoFile);
+      if (docErr) {
+        alert(docErr);
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -206,7 +220,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf"
+                    accept={MATERIAL_DOCUMENTO_ACCEPT}
                     onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)}
                     className="hidden"
                   />
@@ -221,6 +235,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                     {documentoFile ? documentoFile.name : 'Sin archivos seleccionados'}
                   </span>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
                 {previewUrl && (
                   <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-coal-400">
                     <iframe src={previewUrl} title="Vista previa PDF" className="w-full h-[300px] border-0" />
@@ -274,9 +289,29 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                     ) : (
                       paginatedMateriales.map((mat) => {
                         const docUrl = getDocumentUrl(mat.urlDocumentoUrl || mat.urlDocumento);
+                        const docExt = extensionFromFileName(
+                          mat.urlDocumentoUrl || mat.urlDocumento || mat.titulo
+                        );
                         return (
                           <tr key={mat.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/50 align-top">
-                            <td className="py-3 px-3 text-sm text-gray-900 dark:text-white align-top">{mat.titulo}</td>
+                            <td className="py-3 px-3 text-sm text-gray-900 dark:text-white align-top">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {docUrl ? (
+                                  <KeenIcon
+                                    icon={materialDocumentoKeenIcon(docExt)}
+                                    className="text-base shrink-0 text-gray-500 dark:text-gray-400"
+                                  />
+                                ) : null}
+                                <span className="truncate">{mat.titulo}</span>
+                                {docUrl && docExt ? (
+                                  <span
+                                    className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${materialDocumentoBadgeClass(docExt)}`}
+                                  >
+                                    {materialDocumentoTypeLabel(docExt)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
                             <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400 align-top min-w-0">
                               <div className="whitespace-pre-wrap break-words">
                                 {mat.descripcion || '-'}
@@ -296,7 +331,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                                       }
                                     }}
                                     className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-300"
-                                    title="Ver documento"
+                                    title={docExt ? materialDocumentoActionLabel(docExt) : 'Ver documento'}
                                   >
                                     <KeenIcon icon="eye" className="text-sm" />
                                   </a>

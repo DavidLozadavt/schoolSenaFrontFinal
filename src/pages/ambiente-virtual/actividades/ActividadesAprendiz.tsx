@@ -5,6 +5,13 @@ import { KeenIcon, ImageZoomModal, Toast } from '@/components';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
+import {
+  extensionFromPath,
+  materialDocumentoActionLabel,
+  materialDocumentoBadgeClass,
+  materialDocumentoKeenIcon,
+  materialDocumentoTypeLabel,
+} from './materialDocumentoSupport';
 
 type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR' | 'CORRECCION_SOLICITADA';
 
@@ -1059,20 +1066,30 @@ const ActividadesAprendiz: React.FC = () => {
                                 actividad.materialesApoyo.flatMap((material) => {
                                   const items: React.ReactNode[] = [];
                                   if (material.urlDocumento || material.urlDocumentoUrl) {
+                                    const matDocExt = extensionFromPath(
+                                      material.urlDocumentoUrl || material.urlDocumento || material.titulo
+                                    );
                                     items.push(
                                       <div
-                                        key={`${material.id}-pdf`}
+                                        key={`${material.id}-doc`}
                                         className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300"
                                       >
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                                          <KeenIcon icon="file-pdf" className="text-red-500 dark:text-red-400 shrink-0 w-4 h-4" />
+                                          <KeenIcon
+                                            icon={materialDocumentoKeenIcon(matDocExt)}
+                                            className="text-gray-600 dark:text-gray-300 shrink-0 w-4 h-4"
+                                          />
                                           <div className="min-w-0">
                                             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                                               {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Documento'}
                                             </p>
-                                            <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                                              PDF
-                                            </span>
+                                            {matDocExt ? (
+                                              <span
+                                                className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${materialDocumentoBadgeClass(matDocExt)}`}
+                                              >
+                                                {materialDocumentoTypeLabel(matDocExt)}
+                                              </span>
+                                            ) : null}
                                           </div>
                                         </div>
                                         <a
@@ -1086,7 +1103,7 @@ const ActividadesAprendiz: React.FC = () => {
                                           }}
                                           className="btn btn-sm btn-primary shrink-0 text-xs"
                                         >
-                                          Abrir PDF
+                                          {matDocExt ? materialDocumentoActionLabel(matDocExt) : 'Abrir documento'}
                                         </a>
                                       </div>
                                     );
