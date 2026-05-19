@@ -129,6 +129,8 @@ import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormati
 import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
 import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGeneral';
 import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
+import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
+import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -955,6 +957,24 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/solicitudes-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+                <SolicitudInstructorPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/mis-solicitudes-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+                <MisSolicitudesInstructorPage/>
               </ProtectedRoute>
             }
           />
