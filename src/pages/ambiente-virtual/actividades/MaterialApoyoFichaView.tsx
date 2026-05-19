@@ -5,6 +5,16 @@ import { createPortal } from 'react-dom';
 import { useAuthContext } from '@/auth';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
+import {
+  MATERIAL_DOCUMENTO_ACCEPT,
+  MATERIAL_DOCUMENTO_FORMATOS_LABEL,
+  extensionFromPath,
+  materialDocumentoActionLabel,
+  materialDocumentoBadgeClass,
+  materialDocumentoKeenIcon,
+  materialDocumentoTypeLabel,
+  validateMaterialDocumentoFile,
+} from './materialDocumentoSupport';
 
 export interface MaterialApoyoFichaItem {
   id: number;
@@ -394,12 +404,15 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       !link.trim() &&
       !videoFile
     ) {
-      alert('Ingrese al menos un recurso: documento PDF, enlace o video (archivo)');
+      alert('Ingrese al menos un recurso: documento, enlace o video (archivo)');
       return;
     }
-    if (documentoFile && !documentoFile.name.toLowerCase().endsWith('.pdf')) {
-      alert('Solo se permiten archivos PDF');
-      return;
+    if (documentoFile) {
+      const docErr = validateMaterialDocumentoFile(documentoFile);
+      if (docErr) {
+        alert(docErr);
+        return;
+      }
     }
 
     setSaving(true);
@@ -568,12 +581,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Documento PDF</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Documento</label>
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept={MATERIAL_DOCUMENTO_ACCEPT}
                   onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)}
                   className="hidden"
                 />
@@ -591,6 +604,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                   {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
                 </span>
               </div>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Enlace adicional</label>
@@ -797,6 +811,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             const active = items.find((mat) => mat.id === recursosMenu.id);
             if (!active) return null;
             const docUrl = getDocumentUrl(active.urlDocumentoUrl || active.urlDocumento);
+            const docExt = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
             const linkUrl = active.urlAdicional?.startsWith('http')
               ? active.urlAdicional
               : active.urlAdicional
@@ -820,7 +835,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                     onClick={() => setRecursosMenu(null)}
                     className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
                   >
-                    Abrir documento
+                    {docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento'}
                   </a>
                 )}
                 {linkUrl && (
