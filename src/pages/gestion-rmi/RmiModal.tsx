@@ -45,6 +45,17 @@ const RmiModal: React.FC<RmiModalProps> = ({
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
 
+  const totalHorasFormacion = fichas.reduce((accFicha, ficha) => {
+    return accFicha + (ficha.resultados?.reduce((accResult: any, r: any) => {
+      return accResult + (r.horarios?.reduce((accHorario: any, h: any) => {
+        return accHorario + Number(h.duracionHoras || 0);
+      }, 0) || 0);
+    }, 0) || 0);
+  }, 0);
+
+  const totalOtrasActividades = actividades.reduce((sum, a) => sum + Number(a.numeroHoras || 0), 0);
+  const totalHorasMes = totalHorasFormacion + totalOtrasActividades;
+
   const [calendarioOpen, setCalendarioOpen] = React.useState(false);
   const [materiaSeleccionada, setMateriaSeleccionada] = React.useState<any>(null);
   const [fichaSeleccionada, setFichaSeleccionada] = React.useState<number>(0);
@@ -792,7 +803,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
                 <div className="flex items-center justify-center px-4 py-3">
                   <img src={logoSena} alt="SENA" className="h-16 w-auto object-contain" />
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-coal-300">
+                <div className="grid grid-cols-3 divide-x divide-gray-200 dark:divide-coal-300">
                   <div className="divide-y divide-gray-200 dark:divide-coal-300">
                     <div className="px-4 py-2">
                       <p className="text-[10px] text-gray-400 uppercase font-semibold">Nombre</p>
@@ -822,6 +833,24 @@ const RmiModal: React.FC<RmiModalProps> = ({
                       </p>
                       <p className="text-xs font-bold text-gray-800 dark:text-white">
                         {persona.celular}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-200 dark:divide-coal-300 bg-blue-50/50 dark:bg-blue-500/5">
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">
+                        Horas Formación
+                      </p>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                        {totalHorasFormacion}h
+                      </p>
+                    </div>
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">
+                        Otras Act. / Total
+                      </p>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                        {totalOtrasActividades}h / <span className="text-primary font-black">{totalHorasMes}h</span>
                       </p>
                     </div>
                   </div>
