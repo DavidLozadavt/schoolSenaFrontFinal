@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, useMemo } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
-import { KeenIcon } from '@/components';
+import { KeenIcon, DataGrid } from '@/components';
 import { CommonAvatar } from '@/partials/common';
 
 import { ActivationCompanyUser } from '../network/models/_ActivationCompanyUser';
@@ -185,88 +186,133 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
     }
   };
 
-  const renderItem = (item: any, index: number) => {
-    const estado = item?.estado?.estado;
-    const persona = item?.user?.persona;
-
-    const nombreCompleto = persona
-      ? `${persona.nombre1 ?? ''} ${persona.apellido1 ?? ''}`.trim()
-      : 'Centro de formación';
-
-    const identificacion = persona?.identificacion ?? '—';
-    const foto = persona?.rutaFotoUrl;
-    return (
-      <div key={index} className="card flex flex-col items-center p-5 lg:py-10 relative">
-        {estado && (
-          <button
-            onClick={() => handleToggleStatus(item.user.id, estado)}
-            className={clsx(
-              'badge badge-outline absolute top-2 right-2 cursor-pointer transition',
-              {
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorFn: (row) => row.user?.persona,
+        id: 'usuario',
+        header: () => 'Usuario',
+        enableSorting: true,
+        cell: (info) => {
+          const persona = info.getValue() as any;
+          const row = info.row.original;
+          const nombreCompleto = persona
+            ? `${persona.nombre1 ?? ''} ${persona.apellido1 ?? ''}`.trim()
+            : 'Centro de formación';
+          const foto = persona?.rutaFotoUrl;
+          return (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden relative">
+                <CommonAvatar
+                  className="w-full h-full object-cover"
+                  image={foto}
+                  fallback={nombreCompleto.charAt(0)}
+                  imageClass="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900">{nombreCompleto}</span>
+                <span className="text-xs text-gray-500">{row.user?.email}</span>
+              </div>
+            </div>
+          );
+        },
+        meta: { className: 'min-w-[250px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.user?.persona?.identificacion ?? '—',
+        id: 'identificacion',
+        header: () => 'Identificación',
+        enableSorting: true,
+        cell: (info) => <span className="text-sm text-gray-700">{info.getValue() as string}</span>,
+        meta: { className: 'w-[150px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.roles,
+        id: 'rol',
+        header: () => 'Rol',
+        enableSorting: false,
+        cell: (info) => {
+          const roles = info.getValue() as any[];
+          if (!roles || roles.length === 0) {
+            return <span className="text-sm text-gray-500">Sin rol</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1">
+              {roles.map((rol: any) => (
+                <span key={rol.id} className="badge badge-light badge-sm">
+                  {rol.name}
+                </span>
+              ))}
+            </div>
+          );
+        },
+        meta: { className: 'w-[150px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.estado?.estado,
+        id: 'estado',
+        header: () => 'Estado',
+        enableSorting: true,
+        cell: (info) => {
+          const estado = info.getValue() as string;
+          return estado ? (
+            <button
+              onClick={() => handleToggleStatus(info.row.original.user.id, estado)}
+              className={clsx('badge badge-outline cursor-pointer transition', {
                 'badge-danger': estado === 'INACTIVO',
                 'badge-primary': estado === 'ACTIVO'
-              }
-            )}
-          >
-            {estado}
-          </button>
-        )}
-
-        <div className="mb-3.5">
-          <div className="w-20 h-20 rounded-full overflow-hidden relative">
-            <CommonAvatar
-              className="w-full h-full object-cover"
-              image={foto}
-              fallback={nombreCompleto.charAt(0)}
-              imageClass="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center gap-1.5 mb-2">
-          <span className="hover:text-primary-active text-base leading-5 font-medium text-gray-900">
-            {nombreCompleto}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-center gap-1.5 mb-1">
-          <span className="text-gray-600 text-sm font-medium">{identificacion}</span>
-        </div>
-
-        <a href="#" className="text-gray-700 text-sm hover:text-primary-active">
-          {item?.user?.email}
-        </a>
-
-        <div className="mt-4 w-full border-t pt-3 flex justify-center gap-3">
-          <button
-            title="Asignar Roles"
-            className="btn btn-sm btn-primary"
-            onClick={() => handleOpenRoles(item)}
-          >
-            <KeenIcon icon="toggle-on" />
-          </button>
-
-          {persona && (
-            <button
-              className="btn btn-sm btn-secondary"
-              title="Editar Usuario"
-              onClick={() => handleEdit(item)}
+              })}
             >
-              <KeenIcon icon="pencil" />
+              {estado}
             </button>
-          )}
+          ) : null;
+        },
+        meta: { className: 'w-[120px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        id: 'acciones',
+        header: () => 'Acciones',
+        enableSorting: false,
+        cell: (info) => {
+          const item = info.row.original;
+          const persona = item.user?.persona;
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                title="Asignar Roles"
+                className="btn btn-sm btn-icon btn-clear btn-primary"
+                onClick={() => handleOpenRoles(item)}
+              >
+                <KeenIcon icon="toggle-on" />
+              </button>
 
-          <button
-            title="Eliminar Usuario"
-            className="btn btn-sm btn-danger"
-            onClick={() => handleConfirmDelete(item.user.id)}
-          >
-            <KeenIcon icon="trash" />
-          </button>
-        </div>
-      </div>
-    );
-  };
+              {persona && (
+                <button
+                  className="btn btn-sm btn-icon btn-clear btn-secondary"
+                  title="Editar Usuario"
+                  onClick={() => handleEdit(item)}
+                >
+                  <KeenIcon icon="pencil" />
+                </button>
+              )}
+
+              <button
+                title="Eliminar Usuario"
+                className="btn btn-sm btn-icon btn-clear btn-danger"
+                onClick={() => handleConfirmDelete(item.user.id)}
+              >
+                <KeenIcon icon="trash" />
+              </button>
+            </div>
+          );
+        },
+        meta: { className: 'w-[120px]' }
+      }
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   return (
     <Fragment>
@@ -309,8 +355,15 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5">
-        {users.map((item, index) => renderItem(item, index))}
+      <div className="card card-grid min-w-full">
+        <div className="card-body">
+          <DataGrid
+            key={JSON.stringify(users)}
+            columns={columns}
+            data={users}
+            nativePagination={false}
+          />
+        </div>
       </div>
 
       <div className="card-footer mt-3 justify-center md:justify-between flex-col md:flex-row gap-3 text-gray-600 text-2sm font-medium">
