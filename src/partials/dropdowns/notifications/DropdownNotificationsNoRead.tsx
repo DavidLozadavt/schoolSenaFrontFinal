@@ -102,6 +102,11 @@ const DropdownNotificationNoRead = ({
                 <Link
                   to={route ?? '#'}
                   className="hover:text-primary-active text-gray-900 font-semibold"
+                  onClick={() => {
+                    if (item.estado_id === 1 && onMarcarLeida) {
+                      onMarcarLeida(item.id);
+                    }
+                  }}
                 >
                   {nombre1} {apellido1} {apellido2}
                 </Link>

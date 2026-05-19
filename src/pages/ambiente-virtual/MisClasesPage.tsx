@@ -62,7 +62,7 @@ const MisClasesPage: React.FC = () => {
                   className="btn btn-sm btn-primary"
                   onClick={handleVerReporte}
                 >
-                  Ver reporte de asistencias
+                  Asistencias y justificar faltas
                 </button>
               </div>
             </ToolbarActions>

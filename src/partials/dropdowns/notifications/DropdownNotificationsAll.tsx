@@ -3,7 +3,13 @@ import { getHeight } from '@/utils';
 import { useViewport } from '@/hooks';
 
 import { Link } from 'react-router-dom';
-const DropdownNotificationsAll = ({ items }: any) => {
+const DropdownNotificationsAll = ({
+  items,
+  onMarcarLeida
+}: {
+  items: any[];
+  onMarcarLeida?: (id: number) => void;
+}) => {
   const footerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState<number>(0);
   const [viewportHeight] = useViewport();
@@ -62,8 +68,17 @@ const DropdownNotificationsAll = ({ items }: any) => {
       const razonSocial = empresa?.razonSocial ?? '';
 
       return (
-        <div key={item.id}>
-          <div className="flex grow gap-2.5 px-5">
+        <div key={item.id} className="p-2">
+          <div className="flex grow gap-2.5 px-5 relative">
+            {item.estado_id === 1 && onMarcarLeida && (
+              <button
+                onClick={() => onMarcarLeida(item.id)}
+                className="absolute top-0 right-0 flex items-center justify-center w-6 h-6 rounded-full hover:bg-green-50 text-blue-300 hover:text-green-500 transition-all animate-pulse"
+                title="Marcar como leída"
+              >
+                <i className="ki-outline ki-check-circle text-base" />
+              </button>
+            )}
             <div className="relative shrink-0 mt-0.5">
               <img
                 src={rutaFotoUrl}
@@ -78,6 +93,11 @@ const DropdownNotificationsAll = ({ items }: any) => {
                 <Link
                   to={route ?? '#'}
                   className="hover:text-primary-active text-gray-900 font-semibold"
+                  onClick={() => {
+                    if (item.estado_id === 1 && onMarcarLeida) {
+                      onMarcarLeida(item.id);
+                    }
+                  }}
                 >
                   {nombre1} {apellido1} {apellido2}
                 </Link>
