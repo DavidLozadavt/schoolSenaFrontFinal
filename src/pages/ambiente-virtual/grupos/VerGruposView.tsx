@@ -210,7 +210,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
       {grupoVer && (
         <Modal open={modalVerOpen} onClose={() => { setModalVerOpen(false); setGrupoVer(null); }}>
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50" onClick={() => { setModalVerOpen(false); setGrupoVer(null); }} />
+            <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
             <div className="relative bg-white dark:bg-coal-400 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-600">
                 <div className="flex items-center gap-3">
@@ -220,6 +220,7 @@ const VerGruposView: React.FC<VerGruposViewProps> = ({ idFicha, fechaFinalClases
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">{grupoVer.nombreGrupo}</h2>
                 </div>
                 <button
+                  type="button"
                   onClick={() => { setModalVerOpen(false); setGrupoVer(null); }}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-500 text-gray-500 dark:text-gray-400 transition-colors"
                   aria-label="Cerrar"
