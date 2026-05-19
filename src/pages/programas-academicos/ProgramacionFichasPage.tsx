@@ -13,6 +13,7 @@ import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
 import { User } from 'lucide-react';
+import SolicitudInstructorForm from '../solicitud-instructor/SolicitudInstructorForm';
 
 interface Ficha {
   id: number;
@@ -95,6 +96,7 @@ export const ProgramacionFichasPage = () => {
   const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
   const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
   const [fichaSelected, setFichaSelected] = useState<any | null>(null);
+  const [solicitud, setSolicitud] = useState<boolean>(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fichaIdToEdit, setFichaIdToEdit] = useState<number | null>(null);
@@ -757,6 +759,18 @@ export const ProgramacionFichasPage = () => {
                               <i className="ki-outline ki-book-square text-base"></i>
                             </button>
 
+                            {esInstructorSena && <button
+                              type='button'
+                              onClick={() => {
+                                setSolicitud(true);
+                                setFichaSelected(ficha);
+                              }}
+                              title="Solicitud de instructor"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-user text-base"></i>
+                            </button>}
+
                             {puedeEditarEliminar(ficha) && (
                               <button
                                 type="button"
@@ -831,6 +845,15 @@ export const ProgramacionFichasPage = () => {
           )}
         </div>
       </div>
+
+      {solicitud && <SolicitudInstructorForm
+        open={solicitud}
+        onClose={() => setSolicitud(false)}
+        onSave={() => setSolicitud(false)}
+        ficha={fichaSelected}
+        programa={program?.name}
+      />}
+
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
         onClose={() => setAsignarFicha(null)}

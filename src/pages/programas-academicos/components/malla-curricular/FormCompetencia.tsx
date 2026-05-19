@@ -47,7 +47,12 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     idAreaConocimiento: Yup.number()
       .nullable(),
     descripcion: Yup.string().nullable(),
-    horas: Yup.number().required('Las horas son requeridas').positive('Debe ser un número positivo')
+    horas: Yup.number()
+      .when('idMateriaPadre', {
+        is: (val: any) => val !== null && val !== undefined,
+        then: (schema) => schema.required('Las horas son requeridas').positive('Debe ser un número positivo'),
+        otherwise: (schema) => schema.notRequired().nullable()
+      })
   });
 
   // Configuración de Formik
@@ -58,7 +63,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       descripcion: '',
       idCompany: empresa?.id,
       horas: 0,
-      idMateriaPadre: null as number | null
+      idMateriaPadre: idMateriaPadre || null
     },
     enableReinitialize: true,
     validationSchema,
@@ -125,7 +130,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         idFicha: idFicha,
         idGradoPrograma: idGradoPrograma,
         creditos: values.horas ? values.horas / 48 : 0,
-        idMateriaPadre: idMateriaPadre || null,
+        idMateriaPadre: values.idMateriaPadre,
         idPrograma: programId,
         ...(!competenciaId && { idPrograma: programId })
       };
@@ -227,7 +232,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                    Horas <span className="text-red-500">*</span>
+                    Horas {(formik.values.idMateriaPadre || idMateriaPadre) && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="number"
