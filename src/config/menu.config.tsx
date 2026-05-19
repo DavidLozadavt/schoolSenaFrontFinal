@@ -212,6 +212,16 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
+        title: 'Solicitudes Instructor',
+        path: '/solicitudes-instructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Mis Solicitudes',
+        path: '/mis-solicitudes-instructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
         title: 'Novedades',
         path: '/instructor-lider',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
