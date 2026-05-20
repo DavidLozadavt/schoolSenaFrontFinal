@@ -945,6 +945,18 @@ const RmiModal: React.FC<RmiModalProps> = ({
                               {r.competencia ?? (
                                 <span className="text-gray-400 italic">Sin competencia</span>
                               )}
+                              {r.esCompartida && (
+                                <div className="mt-1 flex flex-col gap-1">
+                                  <span className="inline-flex items-center gap-1 w-fit text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap">
+                                    <i className="ki-outline ki-users text-[10px]" /> Compartida
+                                  </span>
+                                  {r.compartidoCon?.length > 0 && (
+                                    <span className="text-[10px] text-gray-500 italic block leading-tight">
+                                      con {r.compartidoCon.join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-coal-300">
                               {r.resultadoAprendizaje ?? (
