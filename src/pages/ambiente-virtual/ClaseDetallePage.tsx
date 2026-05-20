@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   extraerHoraHHMM,
@@ -29,6 +29,8 @@ import {
 } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
+import JustificacionesInstructorPage from './JustificacionesInstructorPage';
+import ListaAsistenciasGlobalPage from './ListaAsistenciasGlobalPage';
 
 /** YYYY-MM-DD en calendario local (no usar toISOString() para claves: desfasa el día en UTC). */
 const formatYmdLocal = (d: Date): string => {
@@ -1269,12 +1271,22 @@ interface Estudiante {
   estado?: string;
 }
 
-type MenuOption = 'estudiantes' | 'agregar-actividades' | 'actividades-asignadas' | 'juicios-evaluativos' | 'ver-grupos' | 'calificaciones' | 'material-apoyo';
+type MenuOption =
+  | 'estudiantes'
+  | 'agregar-actividades'
+  | 'actividades-asignadas'
+  | 'juicios-evaluativos'
+  | 'ver-grupos'
+  | 'calificaciones'
+  | 'material-apoyo'
+  | 'justificaciones-pendientes'
+  | 'lista-asistencias';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const locationState = location.state as {
     returnTo?: string;
     activeMenu?: MenuOption;
@@ -1302,6 +1314,18 @@ const ClaseDetallePage: React.FC = () => {
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
+  const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
+
+  useEffect(() => {
+    const menuQuery = searchParams.get('menu');
+    if (
+      menuQuery === 'justificaciones-pendientes' ||
+      menuQuery === 'lista-asistencias'
+    ) {
+      setActiveMenu(menuQuery);
+    }
+  }, [searchParams]);
+
   const isDesktop = useResponsive('up', 'lg');
   /** En desktop: colapsado = solo iconos; expandido = menú con texto. En móvil siempre se muestran etiquetas. */
   const [menuClaseExpandido, setMenuClaseExpandido] = useState(true);
@@ -2433,6 +2457,34 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="document" className={`shrink-0 text-base ${activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Biblioteca de conocimiento</span>
                 </button>
+                {modoCalendario !== 'aprendiz' && (
+                  <>
+                    <button
+                      type="button"
+                      title="Justificaciones pendientes"
+                      onClick={() => setActiveMenu('justificaciones-pendientes')}
+                      className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'justificaciones-pendientes'
+                        ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                        }`}
+                    >
+                      <KeenIcon icon="time" className={`shrink-0 text-base ${activeMenu === 'justificaciones-pendientes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                      <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Justificaciones pendientes</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="Lista de asistencias"
+                      onClick={() => setActiveMenu('lista-asistencias')}
+                      className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'lista-asistencias'
+                        ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+                        }`}
+                    >
+                      <KeenIcon icon="chart-line-up" className={`shrink-0 text-base ${activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
+                      <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Lista de asistencias</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -2619,6 +2671,22 @@ const ClaseDetallePage: React.FC = () => {
                       ? `${clase.instructor.persona.nombre1} ${clase.instructor.persona.apellido1}`.toUpperCase()
                       : 'NO ASIGNADO'
                   }
+                />
+              )}
+
+              {activeMenu === 'justificaciones-pendientes' && modoCalendario !== 'aprendiz' && (
+                <JustificacionesInstructorPage
+                  embedded
+                  idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
+                  idHorarioMateria={idHorarioMateriaClase}
+                />
+              )}
+
+              {activeMenu === 'lista-asistencias' && modoCalendario !== 'aprendiz' && (
+                <ListaAsistenciasGlobalPage
+                  embedded
+                  defaultIdFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
+                  defaultIdHorarioMateria={idHorarioMateriaClase}
                 />
               )}
             </div>
