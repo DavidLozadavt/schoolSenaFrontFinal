@@ -30,6 +30,16 @@ interface Ficha {
   resultados: ResultadoPlano[];
 }
 
+interface FichaLider {
+  idFicha: number;
+  codigoFicha: string;
+  programaFormacion: string;
+  codigoPrograma: string;
+  jornada: string;
+  sede: string;
+  porcentajeEjecucion: number;
+}
+
 interface Actividad {
   id: number;
   tituloActividad?: string;
@@ -54,6 +64,7 @@ const toNum = (v: unknown): number => {
 
 const toStr = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
+
 const normalizarResultado = (raw: any): ResultadoPlano => ({
   idHorario: toNum(raw?.idHorario),
   competencia: toStr(raw?.competencia),
@@ -69,11 +80,30 @@ const normalizarResultado = (raw: any): ResultadoPlano => ({
 });
 
 const normalizarFicha = (raw: any): Ficha => ({
-  idFicha: toNum(raw?.idFicha),
-  codigoFicha: toStr(raw?.codigoFicha),
-  programaFormacion: toStr(raw?.programaFormacion),
-  codigoPrograma: toStr(raw?.codigoPrograma),
+  idFicha: toNum(raw?.idFicha ?? raw?.id),
+  codigoFicha: toStr(raw?.codigoFicha ?? raw?.codigo),
+  programaFormacion: toStr(raw?.programaFormacion ?? raw?.asignacion?.programa?.nombrePrograma),
+  codigoPrograma: toStr(raw?.codigoPrograma ?? raw?.asignacion?.programa?.codigoPrograma),
   resultados: Array.isArray(raw?.resultados) ? raw.resultados.map(normalizarResultado) : [],
+});
+
+const normalizarFichaLider = (raw: any): FichaLider => ({
+  idFicha: toNum(raw?.idFicha ?? raw?.id),
+  codigoFicha: toStr(raw?.codigoFicha ?? raw?.codigo),
+  programaFormacion: toStr(
+    raw?.programaFormacion ??
+    raw?.asignacion?.programa?.nombrePrograma ??
+    raw?.asignacion?.programa?.nombre ??
+    raw?.asignacion?.programa?.denominacion
+  ),
+  codigoPrograma: toStr(
+    raw?.codigoPrograma ??
+    raw?.asignacion?.programa?.codigoPrograma ??
+    raw?.asignacion?.programa?.codigo
+  ),
+  jornada: toStr(raw?.jornada?.nombreJornada ?? raw?.jornada?.nombre ?? raw?.jornada?.jornada),
+  sede: toStr(raw?.sede?.nombre ?? raw?.sede?.sede),
+  porcentajeEjecucion: toNum(raw?.porcentajeEjecucion ?? raw?.porcentaje_ejecucion),
 });
 
 const normalizarActividad = (raw: any): Actividad => ({
@@ -428,6 +458,278 @@ function getTitulo(act: Actividad): string {
   return act.tituloActividad || act.titulo || act.nombre || "Sin nombre";
 }
 
+type ExpandableFichaItem = {
+  idFicha: number;
+  codigoFicha: string;
+  programaFormacion: string;
+  codigoPrograma: string;
+  raps: number;
+  sesiones: number;
+  horas: number;
+  resultados: ResultadoPlano[];
+};
+
+function getFichaMetrics(ficha: Ficha, baseDate = new Date()) {
+  const resultados = Array.isArray(ficha.resultados) ? ficha.resultados : [];
+
+  return resultados.reduce(
+    (metrics, rap) => {
+      const calculado = deriveSesionesYHoras(rap, baseDate);
+
+      metrics.raps += 1;
+      metrics.sesiones += calculado.cantidadSesiones;
+      metrics.horas += calculado.duracionHoras;
+
+      return metrics;
+    },
+    { raps: 0, sesiones: 0, horas: 0 }
+  );
+}
+
+type ExpandableFichaSectionProps = {
+  title: string;
+  subtitle: string;
+  accent: "blue" | "emerald";
+  items: ExpandableFichaItem[];
+  emptyText: string;
+  emptyResultsText?: string;
+};
+
+const ExpandableFichaSection: React.FC<ExpandableFichaSectionProps> = ({
+  title,
+  subtitle,
+  accent,
+  items,
+  emptyText,
+  emptyResultsText = "Sin RAPs u horarios disponibles para esta ficha.",
+}) => {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const isBlue = accent === "blue";
+
+  const styles = isBlue
+    ? {
+        wrapper: "border-blue-100 dark:border-blue-900/40 bg-blue-50/30 dark:bg-blue-900/10",
+        line: "bg-blue-600",
+        count: "bg-blue-600 text-white",
+        badge: "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400",
+        pill: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300",
+      }
+    : {
+        wrapper: "border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-900/10",
+        line: "bg-emerald-500",
+        count: "bg-emerald-600 text-white",
+        badge: "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
+        pill: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300",
+      };
+
+  return (
+    <section className={`rounded-2xl border ${styles.wrapper} p-3`}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-start gap-2 min-w-0">
+          <div className={`w-1 h-5 rounded-full mt-0.5 ${styles.line}`} />
+
+          <div className="min-w-0">
+            <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-gray-900 dark:text-white">
+              {title}
+            </h3>
+
+            <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+              {subtitle}
+            </p>
+          </div>
+        </div>
+
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black ${styles.count}`}>
+          {items.length} {items.length === 1 ? "ficha" : "fichas"}
+        </span>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-coal-400/60 p-4 text-center">
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+            {emptyText}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
+          {items.map((item, idx) => {
+            const isOpen = expandedId === item.idFicha;
+
+            const resultadosCalculados = (item.resultados || []).map((rap) => {
+              const calculado = deriveSesionesYHoras(rap);
+
+              return {
+                ...rap,
+                cantidadSesionesCalculada: calculado.cantidadSesiones,
+                duracionHorasCalculada: calculado.duracionHoras,
+              };
+            });
+
+            return (
+              <article
+                key={`${title}-${item.idFicha || item.codigoFicha}-${idx}`}
+                className="rounded-xl bg-white dark:bg-coal-400 border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedId((prev) => (prev === item.idFicha ? null : item.idFicha))
+                  }
+                  className="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-coal-300/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`shrink-0 w-9 h-9 rounded-lg border-2 flex items-center justify-center ${styles.badge}`}>
+                      <span className="font-extrabold text-[9px] leading-none">
+                        {item.codigoFicha?.slice(0, 5) || "----"}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[11px] font-black text-gray-900 dark:text-white uppercase truncate">
+                        {item.programaFormacion || "Sin programa"}
+                      </h4>
+
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                        Ficha <strong>{item.codigoFicha || "-"}</strong> · Prog. {item.codigoPrograma || "-"}
+                      </p>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-4 shrink-0 px-3 border-l border-gray-100 dark:border-gray-700">
+                      <div className="text-center">
+                        <p className="font-black text-sm text-blue-600 dark:text-blue-400 leading-none">
+                          {item.raps}
+                        </p>
+                        <p className="text-[8px] uppercase mt-1 text-gray-400">RAPs</p>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="font-black text-sm text-orange-500 dark:text-orange-400 leading-none">
+                          {item.sesiones}
+                        </p>
+                        <p className="text-[8px] uppercase mt-1 text-gray-400">Sesiones</p>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="font-black text-sm text-green-600 dark:text-green-400 leading-none">
+                          {Number(item.horas).toFixed(0)}
+                        </p>
+                        <p className="text-[8px] uppercase mt-1 text-gray-400">Horas</p>
+                      </div>
+                    </div>
+
+                    <span className={`hidden lg:inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${styles.pill}`}>
+                      {isOpen ? "Ocultar" : "Ver"}
+                    </span>
+
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  <div className="md:hidden mt-2 grid grid-cols-3 gap-1.5">
+                    <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 py-1.5 text-center">
+                      <p className="font-black text-xs text-blue-600 dark:text-blue-400">{item.raps}</p>
+                      <p className="text-[8px] uppercase text-gray-500">RAPs</p>
+                    </div>
+
+                    <div className="rounded-lg bg-orange-50 dark:bg-orange-900/20 py-1.5 text-center">
+                      <p className="font-black text-xs text-orange-500 dark:text-orange-400">{item.sesiones}</p>
+                      <p className="text-[8px] uppercase text-gray-500">Sesiones</p>
+                    </div>
+
+                    <div className="rounded-lg bg-green-50 dark:bg-green-900/20 py-1.5 text-center">
+                      <p className="font-black text-xs text-green-600 dark:text-green-400">{Number(item.horas).toFixed(0)}</p>
+                      <p className="text-[8px] uppercase text-gray-500">Horas</p>
+                    </div>
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/10 p-2">
+                    {resultadosCalculados.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-4 text-center">
+                        <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                          {emptyResultsText}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {resultadosCalculados.map((rap, ri) => (
+                          <div
+                            key={`${rap.idHorario}-${ri}`}
+                            className="rounded-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-400 px-3 py-2"
+                          >
+                            <div className="grid grid-cols-1 xl:grid-cols-[1fr_270px] gap-3 items-center">
+                              <div className="min-w-0">
+                                <div className="flex items-start gap-2">
+                                  <span className="shrink-0 rounded-md bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-[8px] font-black uppercase text-blue-700 dark:text-blue-300">
+                                    {getDiaLabel(rap.idDia)}
+                                  </span>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[9px] font-black uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-0.5">
+                                      Competencia
+                                    </p>
+
+                                    <p className="text-[10.5px] font-bold text-gray-800 dark:text-gray-100 leading-snug line-clamp-1">
+                                      {rap.competencia || "Sin competencia registrada"}
+                                    </p>
+
+                                    <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mt-1 mb-0.5">
+                                      RAP / Resultado
+                                    </p>
+
+                                    <p className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 leading-snug line-clamp-1">
+                                      {rap.resultadoAprendizaje || "Sin resultado registrado"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <div className="rounded-md bg-gray-50 dark:bg-coal-500 border border-gray-100 dark:border-gray-700 px-2 py-1.5 text-center">
+                                  <p className="text-[8px] font-black uppercase text-gray-400">Horario</p>
+                                  <p className="text-[10px] font-bold text-gray-700 dark:text-gray-200 mt-0.5 whitespace-nowrap">
+                                    {fmtH(rap.horaInicial)} - {fmtH(rap.horaFinal)}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 px-2 py-1.5 text-center">
+                                  <p className="text-[8px] font-black uppercase text-orange-400">Sesiones</p>
+                                  <p className="text-[11px] font-black text-orange-600 dark:text-orange-300 mt-0.5">
+                                    {rap.cantidadSesionesCalculada}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 px-2 py-1.5 text-center">
+                                  <p className="text-[8px] font-black uppercase text-green-500">Horas</p>
+                                  <p className="text-[11px] font-black text-green-600 dark:text-green-300 mt-0.5">
+                                    {rap.duracionHorasCalculada.toFixed(1)}h
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};
+
 // ─── SEMAFORO DE HORAS RMI (HELPERS) ──────────────────────────────────────────
 
 /** YYYY-MM desde una fecha (calendario local). */
@@ -650,15 +952,17 @@ const ProfesoresContent: React.FC = () => {
       : 'Instructor');
 
   const [fichas, setFichas] = useState<Ficha[]>([]);
+  const [fichasLider, setFichasLider] = useState<FichaLider[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-  const [fichasPage, setFichasPage] = useState(1);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDay, setSelectedDay] = useState(new Date());
+  const [selectedFichaId, setSelectedFichaId] = useState<number | null>(null);
+  const [fichaCalendarMonth, setFichaCalendarMonth] = useState(new Date());
+  const [selectedFichaDay, setSelectedFichaDay] = useState(new Date());
   
 
-  // Fichas del instructor (endpoint autónomo, sin params)                                              
+  // Fichas donde el instructor da formación. Este endpoint trae resultados/RAPs y horarios.
   useEffect(() => {
     axios.get("instructores/mi-dashboard")
       .then((r) => {
@@ -668,6 +972,33 @@ const ProfesoresContent: React.FC = () => {
       })
       .catch(() => setFichas([]));
   }, []);
+
+  // Fichas donde el instructor es líder. Este endpoint trae ficha, programa, jornada y sede.
+  useEffect(() => {
+    axios.get("instructor-lider")
+      .then((r) => {
+        const d = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
+        const normalizadas = Array.isArray(d) ? d.map(normalizarFichaLider) : [];
+        setFichasLider(normalizadas);
+      })
+      .catch(() => setFichasLider([]));
+  }, []);
+
+  useEffect(() => {
+    if (fichas.length === 0) {
+      if (selectedFichaId !== null) setSelectedFichaId(null);
+      return;
+    }
+
+    const exists = fichas.some((f) => f.idFicha === selectedFichaId);
+
+    if (selectedFichaId === null || !exists) {
+      const today = new Date();
+      setSelectedFichaId(fichas[0].idFicha);
+      setFichaCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+      setSelectedFichaDay(today);
+    }
+  }, [fichas, selectedFichaId]);
 
   //        Actividades por evaluar                                                                                                                               
   useEffect(() => {
@@ -821,19 +1152,25 @@ const ProfesoresContent: React.FC = () => {
     };
   }, [dataRmi, currentMonth, calendarView, selectedDay]);
 
-  // ── Fichas en formación y Paginación ─────────────────────────────────────
+  // ── Fichas en formación ───────────────────────────────────────────────────
   const fichasFormacion = useMemo(() => fichas.filter(f => Array.isArray(f.resultados) && f.resultados.length > 0), [fichas]);
-  const itemsPerPage = 4;
-  const totalPages = Math.ceil(fichasFormacion.length / itemsPerPage);
-  const currentFichas = fichasFormacion.slice((fichasPage - 1) * itemsPerPage, fichasPage * itemsPerPage);
 
   //        Conteos de Actividades                                                                                                                                                 
   const calificadas = useMemo(() => actividades.filter(act => getEstadoLabel(act.estado) === 'CALIFICADO').length, [actividades]);
   const porCalificar = actividadesPorEvaluar.length;
   //        Calendario (Controles)                                                                                                                                                 
 
-  const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  const nextMonth = () => {
+    const next = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    setCurrentMonth(next);
+    setSelectedFichaDay(next);
+  };
+
+  const prevMonth = () => {
+    const previous = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    setCurrentMonth(previous);
+    setSelectedFichaDay(previous);
+  };
   
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -883,6 +1220,24 @@ const ProfesoresContent: React.FC = () => {
   const blanks = Array.from({ length: startDay }, (_, i) => i);
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+  const fichaYear = fichaCalendarMonth.getFullYear();
+  const fichaMonth = fichaCalendarMonth.getMonth();
+  const fichaDaysInMonth = new Date(fichaYear, fichaMonth + 1, 0).getDate();
+  const fichaFirstDayOfMonth = new Date(fichaYear, fichaMonth, 1).getDay();
+  const fichaStartDay = fichaFirstDayOfMonth === 0 ? 6 : fichaFirstDayOfMonth - 1;
+  const fichaDaysArray = Array.from({ length: fichaDaysInMonth }, (_, i) => i + 1);
+  const fichaBlanks = Array.from({ length: fichaStartDay }, (_, i) => i);
+
+  const changeFichaMonth = (amount: number) => {
+    const next = new Date(fichaCalendarMonth.getFullYear(), fichaCalendarMonth.getMonth() + amount, 1);
+    setFichaCalendarMonth(next);
+    setSelectedFichaDay(next);
+  };
+
+  const prevFichaMonth = () => changeFichaMonth(-1);
+  const nextFichaMonth = () => changeFichaMonth(1);
+
+
   const sessionsByDate = useMemo(() => {
     const map: Record<string, UpcomingSession[]> = {};
     upcomingSessions.forEach(s => {
@@ -917,6 +1272,63 @@ const ProfesoresContent: React.FC = () => {
     );
   }, [upcomingSessions, currentWeekRange]);
 
+  const selectedFicha = useMemo(() => {
+    return fichasFormacion.find((f) => f.idFicha === selectedFichaId) ?? null;
+  }, [fichasFormacion, selectedFichaId]);
+
+  const selectedFichaSessions = useMemo(() => {
+    return selectedFicha ? getInstructorSessions([selectedFicha], fichaCalendarMonth) : [];
+  }, [selectedFicha, fichaCalendarMonth]);
+
+  const selectedFichaMonthSessions = useMemo(() => {
+    return selectedFichaSessions.filter(
+      (s) => s.fechaObj.getFullYear() === fichaYear && s.fechaObj.getMonth() === fichaMonth
+    );
+  }, [selectedFichaSessions, fichaYear, fichaMonth]);
+
+  const selectedFichaSessionsByDate = useMemo(() => {
+    const map: Record<string, UpcomingSession[]> = {};
+
+    selectedFichaSessions.forEach((s) => {
+      if (!map[s.fechaStr]) map[s.fechaStr] = [];
+      map[s.fechaStr].push(s);
+    });
+
+    return map;
+  }, [selectedFichaSessions]);
+
+  const fichasFormacionAccordion = useMemo<ExpandableFichaItem[]>(() => {
+    return fichasFormacion.map((ficha) => ({
+      idFicha: ficha.idFicha,
+      codigoFicha: ficha.codigoFicha,
+      programaFormacion: ficha.programaFormacion,
+      codigoPrograma: ficha.codigoPrograma,
+      resultados: ficha.resultados || [],
+      ...getFichaMetrics(ficha, currentMonth),
+    }));
+  }, [fichasFormacion, currentMonth]);
+
+  const fichasLiderAccordion = useMemo<ExpandableFichaItem[]>(() => {
+    return fichasLider.map((fichaLider) => {
+      const fichaConHorario = fichas.find(
+        (ficha) => ficha.idFicha === fichaLider.idFicha || ficha.codigoFicha === fichaLider.codigoFicha
+      );
+
+      const metrics = fichaConHorario
+        ? getFichaMetrics(fichaConHorario, currentMonth)
+        : { raps: 0, sesiones: 0, horas: 0 };
+
+      return {
+        idFicha: fichaLider.idFicha,
+        codigoFicha: fichaLider.codigoFicha,
+        programaFormacion: fichaLider.programaFormacion,
+        codigoPrograma: fichaLider.codigoPrograma,
+        resultados: fichaConHorario?.resultados || [],
+        ...metrics,
+      };
+    });
+  }, [fichasLider, fichas, currentMonth]);
+
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-screen">
       <header className="mb-2">
@@ -938,8 +1350,7 @@ const ProfesoresContent: React.FC = () => {
         </div>
         <MultimediaCapsulas />
       </section>
-
-      {/*        EVENTOS SECTION (Blank placeholder)        */}
+       {/* --- EVENTOS SECTION --- */}
       <section className="w-full space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-emerald-500 rounded-full"></div>
@@ -949,143 +1360,239 @@ const ProfesoresContent: React.FC = () => {
         </div>
         <EventsDashboard />
       </section>
-
-      {/* --- KPI General --- */}
-      <div className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-blue-200 dark:border-blue-900/50 p-5 w-full mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 md:gap-8">
-          <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-blue-500 dark:text-blue-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> Fichas</p>
-            <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-300 leading-none">{totalFichas}</p>
-            <p className="text-[10px] mt-1 text-gray-500 uppercase tracking-wider">asignadas</p>
-          </div>
-          <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
-          <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-green-500 dark:text-green-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> RAPs</p>
-            <p className="text-3xl font-extrabold text-green-600 dark:text-green-300 leading-none">{totalRAPs}</p>
-          </div>
-          <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
-          <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-orange-500 dark:text-orange-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">    </span> Sesiones</p>
-            <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-300 leading-none">{totalSesiones}</p>
-          </div>
-          <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
-          <div className="text-center md:text-left flex-1 min-w-[100px]">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-amber-500 dark:text-amber-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm">      </span> Horas</p>
-            <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-300 leading-none">{totalHoras.toFixed(1)}</p>
-          </div>
-          <div className="hidden md:block w-px h-12 bg-gray-200 dark:bg-gray-700"></div>
-          <Link 
-            to="/ambiente-virtual/historial-raps"
-            state={{ activeMenu: 'actividades-asignadas' }}
-            className="text-center md:text-left flex-1 min-w-[120px] block hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all duration-300 p-2 rounded-xl group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
-          >
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1 text-purple-500 dark:text-purple-400 flex items-center justify-center md:justify-start gap-1"><span className="text-sm transition-transform group-hover:scale-110">    </span> Por evaluar</p>
-            <p className="text-3xl font-extrabold text-purple-600 dark:text-purple-300 leading-none">{actividadesPorEvaluar.length}</p>
-            <p className="text-[10px] mt-1 text-gray-500 uppercase tracking-wider pl-8">pendientes</p>
-          </Link>
-        </div>
-      </div>
-
-      {/* --- FICHAS SECTION (Full width) --- */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
-          <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
-            Fichas, Sesiones y RAPs
-          </h2>
-        </div>
-
-        {currentFichas.length === 0 && (
-          <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-            <span className="text-4xl">    </span>
-            <p className="mt-3 text-gray-500 dark:text-gray-400 font-semibold">Sin fichas asignadas en este periodo</p>
-          </div>
-        )}
-
-        {currentFichas.map((ficha, fi) => {
-          const isOpen = expanded[ficha.idFicha];
-
-          const resultadosCalculados = ficha.resultados.map((rap) => {
-            const calculado = deriveSesionesYHoras(rap);
-
-            return {
-              ...rap,
-              cantidadSesionesCalculada: calculado.cantidadSesiones,
-              duracionHorasCalculada: calculado.duracionHoras,
-            };
-          });
-
-          const horasF = resultadosCalculados.reduce((a, r) => a + r.duracionHorasCalculada, 0);
-          const sesF = resultadosCalculados.reduce((a, r) => a + r.cantidadSesionesCalculada, 0);
-
-          return (
-            <div key={ficha.idFicha} className="bg-white dark:bg-coal-400 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden">
-              <button
-                onClick={() => setExpanded((p) => ({ ...p, [ficha.idFicha]: !p[ficha.idFicha] }))}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-coal-300/30 transition-colors text-left"
-              >
-                <div className={`shrink-0 w-10 h-10 rounded-lg border-2 flex items-center justify-center ${FICHA_BG[fi % FICHA_BG.length]}`}>
-                  <span className={`font-extrabold text-[10px] leading-none ${FICHA_TEXT[fi % FICHA_TEXT.length]}`}>
-                    {ficha.codigoFicha?.slice(0, 5)}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase truncate">{ficha.programaFormacion}</h2>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                    Ficha <strong>{ficha.codigoFicha}</strong>    Prog. {ficha.codigoPrograma}
-                  </p>
-                </div>
-                <div className="hidden sm:flex items-center gap-8 shrink-0 text-xs text-gray-500 dark:text-gray-400 px-4 border-l border-gray-100 dark:border-gray-700">
-                  <div className="text-center"><p className="font-extrabold text-lg text-blue-600 dark:text-blue-400 leading-none">{ficha.resultados.length}</p><p className="text-[10px] uppercase mt-1">RAPs</p></div>
-                  <div className="text-center"><p className="font-extrabold text-lg text-orange-500 dark:text-orange-400 leading-none">{sesF}</p><p className="text-[10px] uppercase mt-1">Sesiones</p></div>
-                  <div className="text-center"><p className="font-extrabold text-lg text-green-600 dark:text-green-400 leading-none">{horasF.toFixed(0)}</p><p className="text-[10px] uppercase mt-1">Horas</p></div>
-                </div>
-                <svg className={`w-5 h-5 text-gray-400 ml-2 transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {isOpen && (
-                <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/10">
-                  {ficha.resultados.length === 0 ? <p className="text-center text-xs text-gray-400 py-8">Sin RAPs.</p> : (
-                    <div className="overflow-x-auto p-4">
-                      <table className="w-full text-xs min-w-[700px] bg-white dark:bg-coal-400 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                        <thead>
-                          <tr className="bg-gray-100 dark:bg-coal-300">
-                            {["Competencia", "RAP / Resultado", "Día", "Horario", "Sesiones", "Horas"].map((h) => (
-                              <th key={h} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                          {resultadosCalculados.map((rap, ri) => (
-                            <tr key={`${rap.idHorario}-${ri}`} className="hover:bg-gray-50/80 dark:hover:bg-coal-300/30 transition-colors">
-                              <td className="px-4 py-3 text-[11px] font-semibold text-blue-600 dark:text-blue-400 max-w-[180px]"><span className="line-clamp-2">{rap.competencia || "   "}</span></td>
-                              <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[220px]"><span className="line-clamp-2">{rap.resultadoAprendizaje || "   "}</span></td>
-                              <td className="px-4 py-3"><span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase">{getDiaLabel(rap.idDia)}</span></td>
-                              <td className="px-4 py-3 font-mono text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-coal-500/30 rounded">{fmtH(rap.horaInicial)} - {fmtH(rap.horaFinal)}</td>
-                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-extrabold text-xs">{rap.cantidadSesionesCalculada}</span></td>
-                              <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center w-10 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-extrabold text-xs">{rap.duracionHorasCalculada.toFixed(1)}h</span></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+      {/* --- HORARIO POR FICHA / RESUMEN DE RESPONSABILIDADES --- */}
+      <section className="grid grid-cols-1 2xl:grid-cols-[1.05fr_0.95fr] gap-6">
+        {/* IZQUIERDA: CALENDARIO + KPI */}
+        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+            <div>
+              <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
+                Horario por ficha
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Consulta el calendario y pasa el cursor sobre los días marcados para ver el detalle.
+              </p>
             </div>
-          );
-        })}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-6">
-            <button onClick={() => setFichasPage(p => Math.max(1, p - 1))} disabled={fichasPage === 1} className="px-4 py-2 rounded-lg bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-coal-300 transition-colors font-medium text-sm shadow-sm">Anterior</button>
-            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Página {fichasPage} de {totalPages}</span>
-            <button onClick={() => setFichasPage(p => Math.min(totalPages, p + 1))} disabled={fichasPage === totalPages} className="px-4 py-2 rounded-lg bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-coal-300 transition-colors font-medium text-sm shadow-sm">Siguiente</button>
           </div>
-        )}
+
+          {fichasFormacion.length === 0 ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-coal-500/20 p-6 text-center">
+              <KeenIcon icon="calendar" className="text-4xl text-gray-300 mb-3" />
+              <h3 className="text-sm font-black text-gray-900 dark:text-white">
+                No tienes fichas de formación asignadas
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Cuando tengas fichas de formación, aquí aparecerá tu horario.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+              {/* MINI CALENDARIO */}
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-coal-500/20 p-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-1">
+                      Filtro por ficha
+                    </p>
+                    <select
+                      value={selectedFichaId ?? ""}
+                      onChange={(e) => {
+                        setSelectedFichaId(toNum(e.target.value));
+                        setSelectedFichaDay(new Date(fichaYear, fichaMonth, 1));
+                      }}
+                      disabled={fichasFormacion.length === 0}
+                      className="w-full min-w-[240px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 px-3 py-2.5 text-xs font-bold text-gray-800 dark:text-white outline-none focus:border-blue-400 disabled:opacity-60"
+                    >
+                      {fichasFormacion.map((ficha) => (
+                        <option key={ficha.idFicha} value={ficha.idFicha}>
+                          Ficha {ficha.codigoFicha} - {ficha.programaFormacion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Sesiones del mes</p>
+                    <p className="text-2xl font-black text-blue-600 dark:text-blue-300 mt-1">{selectedFichaSessions.length}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={prevFichaMonth}
+                    className="w-8 h-8 rounded-full hover:bg-white dark:hover:bg-coal-400 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                  >
+                    <KeenIcon icon="left" />
+                  </button>
+
+                  <div className="text-center">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white capitalize">
+                      {monthNames[fichaMonth]} {fichaYear}
+                    </h3>
+                    <p className="text-[10px] font-semibold text-gray-400">
+                      {selectedFicha ? `Ficha ${selectedFicha.codigoFicha}` : "Sin ficha"}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={nextFichaMonth}
+                    className="w-8 h-8 rounded-full hover:bg-white dark:hover:bg-coal-400 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                  >
+                    <KeenIcon icon="right" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-gray-400 uppercase mb-2">
+                  <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1.5">
+                  {fichaBlanks.map((blank) => (
+                    <div key={`ficha-blank-${blank}`} className="h-11" />
+                  ))}
+
+                  {fichaDaysArray.map((day) => {
+                    const date = new Date(fichaYear, fichaMonth, day);
+                    const dateStr = formatDateKey(date);
+                    const daySessions = selectedFichaSessionsByDate[dateStr] ?? [];
+                    const hasSessions = daySessions.length > 0;
+                    const isSelected = selectedFichaDay.toDateString() === date.toDateString();
+
+                    return (
+                      <div key={`ficha-day-wrap-${day}`} className="relative group">
+                        <button
+                          key={`ficha-day-${day}`}
+                          type="button"
+                          onClick={() => setSelectedFichaDay(date)}
+                          className={`relative h-11 w-full rounded-xl text-xs font-bold transition-all flex items-center justify-center border
+                            ${
+                              isSelected
+                                ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20"
+                                : hasSessions
+                                  ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                  : "bg-white dark:bg-coal-400 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700 hover:border-blue-200"
+                            }
+                          `}
+                        >
+                          {day}
+                          {hasSessions && (
+                            <span className={`absolute bottom-1.5 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} />
+                          )}
+                        </button>
+
+                        {hasSessions && (
+                          <div className="pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-64 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 shadow-xl p-3 group-hover:block">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Horario del día</p>
+                                <p className="text-xs font-bold text-gray-800 dark:text-white mt-1">
+                                  {date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-[10px] font-black text-blue-600 dark:text-blue-300">
+                                {daySessions.length}
+                              </span>
+                            </div>
+                            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                              {daySessions.map((session) => (
+                                <div key={session.id} className="rounded-xl bg-gray-50 dark:bg-coal-500/20 border border-gray-100 dark:border-gray-700 p-2.5">
+                                  <p className="text-[11px] font-bold text-gray-800 dark:text-white line-clamp-2">{session.materia}</p>
+                                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                                    <span>{session.horaInicial} - {session.horaFinal}</span>
+                                    <span className="truncate">{session.aula}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* RESUMEN GENERAL */}
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-400 p-4">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white">
+                      Resumen general
+                    </h3>
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mt-1">
+                      Indicadores principales del instructor.
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-300">
+                    <KeenIcon icon="chart-line-up" className="text-xl" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-blue-50/70 dark:bg-blue-900/15 border border-blue-100 dark:border-blue-900/30 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-500 dark:text-blue-400">Fichas</p>
+                    <p className="text-3xl font-black text-blue-600 dark:text-blue-300 leading-none mt-2">{totalFichas}</p>
+                    <p className="text-[10px] mt-2 text-gray-500 uppercase tracking-wider">Asignadas</p>
+                  </div>
+                  <div className="rounded-2xl bg-green-50/70 dark:bg-green-900/15 border border-green-100 dark:border-green-900/30 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-500 dark:text-green-400">RAPs</p>
+                    <p className="text-3xl font-black text-green-600 dark:text-green-300 leading-none mt-2">{totalRAPs}</p>
+                    <p className="text-[10px] mt-2 text-gray-500 uppercase tracking-wider">Programados</p>
+                  </div>
+                  <div className="rounded-2xl bg-orange-50/70 dark:bg-orange-900/15 border border-orange-100 dark:border-orange-900/30 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-500 dark:text-orange-400">Sesiones</p>
+                    <p className="text-3xl font-black text-orange-600 dark:text-orange-300 leading-none mt-2">{totalSesiones}</p>
+                    <p className="text-[10px] mt-2 text-gray-500 uppercase tracking-wider">Planeadas</p>
+                  </div>
+                  <div className="rounded-2xl bg-amber-50/70 dark:bg-amber-900/15 border border-amber-100 dark:border-amber-900/30 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500 dark:text-amber-400">Horas</p>
+                    <p className="text-3xl font-black text-amber-600 dark:text-amber-300 leading-none mt-2">{totalHoras.toFixed(1)}</p>
+                    <p className="text-[10px] mt-2 text-gray-500 uppercase tracking-wider">Acumuladas</p>
+                  </div>
+                  <Link 
+                    to="/ambiente-virtual/historial-raps"
+                    state={{ activeMenu: 'actividades-asignadas' }}
+                    className="col-span-2 rounded-2xl bg-purple-50/70 dark:bg-purple-900/15 border border-purple-100 dark:border-purple-900/30 p-4 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-purple-500 dark:text-purple-400">Por evaluar</p>
+                        <p className="text-3xl font-black text-purple-600 dark:text-purple-300 leading-none mt-2">{actividadesPorEvaluar.length}</p>
+                        <p className="text-[10px] mt-2 text-gray-500 uppercase tracking-wider">Pendientes</p>
+                      </div>
+                      <div className="w-11 h-11 rounded-2xl bg-white dark:bg-coal-400 border border-purple-100 dark:border-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-300">
+                        <KeenIcon icon="document" className="text-xl" />
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* DERECHA: FICHAS SEPARADAS POR TIPO */}
+        <div className="space-y-4">
+          <ExpandableFichaSection
+            title="Fichas de formación"
+            subtitle="Haz clic en una ficha para ver su detalle"
+            accent="blue"
+            items={fichasFormacionAccordion}
+            emptyText="No tienes fichas de formación registradas."
+          />
+
+          <ExpandableFichaSection
+            title="Fichas como líder"
+            subtitle="Haz clic en una ficha para ver su detalle como líder"
+            accent="emerald"
+            items={fichasLiderAccordion}
+            emptyText="No tienes fichas registradas como instructor líder."
+            emptyResultsText="Esta ficha líder aún no tiene RAPs u horarios disponibles en el dashboard."
+          />
+        </div>
       </section>
 
-      {/*        BOTTOM GRID: Calendario (Left) / Actividades (Right)        */}
+            {/*        BOTTOM GRID: Calendario (Left) / Actividades (Right)        */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
         
         {/* LEFT COLUMN: Calendar */}

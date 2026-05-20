@@ -9,13 +9,15 @@ import {
 } from '@/partials/toolbar';
 import React, { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, BookImage, Film } from 'lucide-react';
+import { Calendar, BookImage, Film, FileCode } from 'lucide-react';
 import EventsContent from './EventsContent';
+import { FormIntegrationWizard } from './FormIntegrationWizard';
 
 const EventsPage = () => {
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
   const [reloadContent, setReloadContent] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   return (
     <Fragment>
@@ -35,6 +37,13 @@ const EventsPage = () => {
               >
                 <BookImage className="w-4 h-4" />
                 Gestionar Historias
+              </button>
+              <button
+                className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 ml-2"
+                onClick={() => setShowWizard(true)}
+              >
+                <FileCode className="w-4 h-4" />
+                Integrar Formulario
               </button>
               <button
                 className="btn btn-sm bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2 ml-2"
@@ -67,6 +76,15 @@ const EventsPage = () => {
 
         <EventsContent reload={reloadContent} />
       </Container>
+
+      <FormIntegrationWizard 
+        open={showWizard} 
+        onClose={() => setShowWizard(false)} 
+        onSave={() => {
+          setShowWizard(false);
+          setReloadContent(prev => !prev);
+        }}
+      />
     </Fragment>
   );
 };

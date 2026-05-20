@@ -308,8 +308,21 @@ const MultimediaCapsulas = () => {
       try {
         const res = await axios.get('dashboard_multimedia');
         
-        const historias = (res.data.historias || []).map((h: any) => ({ ...h, tipo_item: 'historia' }));
-        const reels = (res.data.reels || []).map((r: any) => ({ ...r, tipo_item: 'reel' }));
+        const historias = (res.data.historias || [])
+          .map((h: any) => ({
+            ...h,
+            grupos_multimedia: h.grupos_multimedia || h.grupos_multimedia || [],
+            tipo_item: 'historia'
+          }))
+          .filter((h: any) => (h.grupos_multimedia || []).length > 0);
+
+        const reels = (res.data.reels || [])
+          .map((r: any) => ({
+            ...r,
+            grupos_multimedia: r.grupos_multimedia || r.grupos_multimedia || [],
+            tipo_item: 'reel'
+          }))
+          .filter((r: any) => (r.grupos_multimedia || []).length > 0);
         
         // ORDENAR POR FECHA DE CREACIÓN (Más reciente primero)
         const combined = [...historias, ...reels].sort((a, b) => {
