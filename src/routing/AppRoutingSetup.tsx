@@ -112,6 +112,7 @@ import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
+import MisActividadesInstructorPage from '@/pages/ambiente-virtual/MisActividadesInstructorPage';
 import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
@@ -1168,6 +1169,16 @@ const AppRoutingSetup = (): ReactElement => {
                 requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
               >
                 <HistorialRAPsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/instructor/mis-actividades"
+            element={
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
+                <MisActividadesInstructorPage />
               </ProtectedRoute>
             }
           />

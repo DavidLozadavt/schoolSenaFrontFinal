@@ -76,6 +76,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
+        title: 'Mis actividades',
+        path: '/ambiente-virtual/instructor/mis-actividades',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
         title: 'Mis clases',
         path: '/ambiente-virtual/mis-clases',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
