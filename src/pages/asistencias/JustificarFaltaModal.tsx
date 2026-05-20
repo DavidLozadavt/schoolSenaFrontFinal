@@ -4,14 +4,15 @@ import { KeenIcon } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 
 export interface RegistroParaJustificar {
-  idAsistencia: number;
-  fecha: string;
-  nombreArea: string;
+  idAsistencia?: number;
+  fecha?: string;
+  nombreArea?: string;
 }
 
 interface JustificarFaltaModalProps {
   open: boolean;
-  registro: RegistroParaJustificar | null;
+  registro?: RegistroParaJustificar | null;
+  modo?: 'individual' | 'rango';
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -29,11 +30,14 @@ const maxFileSize = 5 * 1024 * 1024;
 const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
   open,
   registro,
+  modo = 'individual',
   onClose,
   onSuccess
 }) => {
   const [tipoExcusa, setTipoExcusa] = useState<string>(TIPOS_EXCUSA[0]);
   const [observacion, setObservacion] = useState('');
+  const [fechaInicial, setFechaInicial] = useState('');
+  const [fechaFinal, setFechaFinal] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +48,10 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
       setObservacion('');
       setArchivo(null);
       setError(null);
+      setFechaInicial('');
+      setFechaFinal('');
     }
-  }, [open, registro?.idAsistencia]);
+  }, [open, registro?.idAsistencia, modo]);
 
   const formatearFecha = (fechaStr: string): string => {
     if (!fechaStr) return '';
@@ -85,10 +91,21 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registro?.idAsistencia) return;
+    if (modo === 'individual' && !registro?.idAsistencia) return;
+    
+    if (modo === 'rango') {
+      if (!fechaInicial || !fechaFinal) {
+        setError('Debes seleccionar la fecha inicial y final.');
+        return;
+      }
+      if (new Date(fechaFinal) < new Date(fechaInicial)) {
+        setError('La fecha final no puede ser menor a la fecha inicial.');
+        return;
+      }
+    }
 
     if (!observacion.trim()) {
-      setError('Describe el motivo de la inasistencia.');
+      setError('Describe el motivo de la inasistencia o permiso.');
       return;
     }
 
@@ -97,14 +114,24 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
 
     try {
       const formData = new FormData();
-      formData.append('idAsistencia', String(registro.idAsistencia));
       formData.append('tipoExcusa', tipoExcusa);
-      formData.append('observacionExcusa', observacion.trim());
+      
+      if (modo === 'individual') {
+        formData.append('idAsistencia', String(registro?.idAsistencia));
+        formData.append('observacionExcusa', observacion.trim());
+      } else {
+        formData.append('fechaInicial', fechaInicial);
+        formData.append('fechaFinal', fechaFinal);
+        formData.append('observacion', observacion.trim());
+      }
+      
       if (archivo) {
         formData.append('archivoSoporte', archivo);
       }
 
-      await axios.post('solicitar-justificacion-asistencia', formData, {
+      const endpoint = modo === 'individual' ? 'solicitar-justificacion-asistencia' : 'solicitar-justificacion-asistencia-rango';
+
+      await axios.post(endpoint, formData, {
         headers: { Accept: 'application/json' }
       });
 
@@ -115,20 +142,20 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
       setError(
         ax?.response?.data?.message ||
           ax?.response?.data?.error ||
-          'No se pudo enviar la justificación. Intenta de nuevo.'
+          'No se pudo enviar la solicitud. Intenta de nuevo.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  if (!open || !registro) return null;
+  if (!open) return null;
 
   return (
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[520px] top-[10%] p-4">
         <ModalHeader>
-          <ModalTitle>Justificar inasistencia</ModalTitle>
+          <ModalTitle>{modo === 'individual' ? 'Justificar inasistencia' : 'Solicitar permiso por fechas'}</ModalTitle>
           <button
             type="button"
             className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
@@ -139,18 +166,52 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
           </button>
         </ModalHeader>
         <ModalBody>
-          <div className="mb-4 rounded-lg bg-gray-50 dark:bg-coal-300 px-3 py-2 text-sm">
-            <p className="text-gray-600 dark:text-gray-400">
-              <span className="font-medium text-gray-800 dark:text-white">Fecha:</span>{' '}
-              {formatearFecha(registro.fecha)}
-            </p>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              <span className="font-medium text-gray-800 dark:text-white">Área:</span>{' '}
-              {registro.nombreArea}
-            </p>
-          </div>
+          {modo === 'individual' && registro && (
+            <div className="mb-4 rounded-lg bg-gray-50 dark:bg-coal-300 px-3 py-2 text-sm">
+              <p className="text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-800 dark:text-white">Fecha:</span>{' '}
+                {formatearFecha(registro.fecha || '')}
+              </p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                <span className="font-medium text-gray-800 dark:text-white">Área:</span>{' '}
+                {registro.nombreArea}
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {modo === 'rango' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    Fecha Inicial <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="input input-sm w-full"
+                    value={fechaInicial}
+                    onChange={(e) => setFechaInicial(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    Fecha Final <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="input input-sm w-full"
+                    value={fechaFinal}
+                    onChange={(e) => setFechaFinal(e.target.value)}
+                    required
+                    min={fechaInicial}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
                 Tipo de excusa
@@ -176,7 +237,7 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
               <textarea
                 value={observacion}
                 onChange={(e) => setObservacion(e.target.value)}
-                placeholder="Describe el motivo de tu inasistencia..."
+                placeholder="Describe el motivo..."
                 rows={4}
                 className="textarea textarea-sm w-full resize-none"
                 disabled={loading}
@@ -209,7 +270,7 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
             )}
 
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Tu instructor recibirá una notificación para aprobar o denegar esta justificación.
+              Tu instructor recibirá una notificación para aprobar o denegar esta solicitud.
             </p>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -217,7 +278,7 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
                 Cancelar
               </button>
               <button type="submit" className="btn btn-sm btn-primary" disabled={loading}>
-                {loading ? 'Enviando...' : 'Enviar justificación'}
+                {loading ? 'Enviando...' : 'Enviar solicitud'}
               </button>
             </div>
           </form>
@@ -228,3 +289,4 @@ const JustificarFaltaModal: React.FC<JustificarFaltaModalProps> = ({
 };
 
 export default JustificarFaltaModal;
+

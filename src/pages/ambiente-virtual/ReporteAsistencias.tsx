@@ -70,6 +70,7 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
   const [justificacionSeleccionada, setJustificacionSeleccionada] = useState<JustificacionData | null>(null);
   const [registroParaJustificar, setRegistroParaJustificar] = useState<RegistroParaJustificar | null>(null);
   const [modalJustificarAbierto, setModalJustificarAbierto] = useState(false);
+  const [justificarModo, setJustificarModo] = useState<'individual' | 'rango'>('individual');
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
   const fetchAsistencias = useCallback(async () => {
@@ -180,13 +181,18 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
     return registro.puedeJustificar !== false;
   };
 
-  const abrirJustificar = (registro: RegistroDetallado) => {
-    if (!registro.idAsistencia) return;
-    setRegistroParaJustificar({
-      idAsistencia: registro.idAsistencia,
-      fecha: registro.fecha,
-      nombreArea: registro.nombreArea
-    });
+  const abrirJustificar = (registro?: RegistroDetallado) => {
+    if (registro?.idAsistencia) {
+      setJustificarModo('individual');
+      setRegistroParaJustificar({
+        idAsistencia: registro.idAsistencia,
+        fecha: registro.fecha,
+        nombreArea: registro.nombreArea
+      });
+    } else {
+      setJustificarModo('rango');
+      setRegistroParaJustificar(null);
+    }
     setModalJustificarAbierto(true);
   };
 
@@ -295,6 +301,15 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
                 Registro de asistencias por área. En cada inasistencia puedes solicitar justificación para que tu instructor la apruebe.
               </ToolbarDescription>
             </ToolbarHeading>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => abrirJustificar()}
+              >
+                <KeenIcon icon="calendar-add" />
+                Solicitar permiso por fechas
+              </button>
+            </div>
           </Toolbar>
         </Container>
       )}
@@ -532,12 +547,13 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
       <JustificarFaltaModal
         open={modalJustificarAbierto}
         registro={registroParaJustificar}
+        modo={justificarModo}
         onClose={() => {
           setModalJustificarAbierto(false);
           setRegistroParaJustificar(null);
         }}
         onSuccess={() => {
-          setMensajeExito('Justificación enviada. Tu instructor la revisará pronto.');
+          setMensajeExito('Solicitud enviada. Tu instructor la revisará pronto.');
           fetchAsistencias();
           setTimeout(() => setMensajeExito(null), 5000);
         }}

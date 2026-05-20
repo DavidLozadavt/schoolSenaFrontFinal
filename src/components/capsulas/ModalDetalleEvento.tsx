@@ -4,7 +4,7 @@ import { X, Calendar, Clock, MapPin, Share2, Info, Bell, Video, Link as LinkIcon
 interface Evento {
   idEvento: number;
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   fechaInicial: string;
   fechaFinal?: string;
   hora: string;

@@ -15,10 +15,14 @@ import { getAsistenciaDocumentUrl } from '@/utils/asistenciaDocumentUrl';
 
 interface JustificacionPendiente {
   id: number;
+  tipo?: 'individual' | 'rango';
+  idJustificacion?: number;
   idAsistencia?: number;
   estado?: string;
   observacion?: string | null;
   fechaClase?: string | null;
+  fechaInicial?: string | null;
+  fechaFinal?: string | null;
   fecha?: string | null;
   estudiante?: {
     nombre?: string;
@@ -34,6 +38,8 @@ interface JustificacionPendiente {
     tipoExcusa?: string;
     observacion?: string | null;
     urlDocumento?: string | null;
+    fechaInicialJustificacion?: string | null;
+    fechaFinalJustificacion?: string | null;
   };
 }
 
@@ -54,7 +60,7 @@ const identificacionEstudiante = (j: JustificacionPendiente): string =>
 
 const fechaClase = (j: JustificacionPendiente): string => j.fechaClase || j.fecha || '';
 
-const formatearFecha = (fechaStr: string): string => {
+const formatearFecha = (fechaStr: string | null | undefined): string => {
   if (!fechaStr) return '—';
   try {
     const fecha = new Date(fechaStr);
@@ -146,7 +152,8 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
     setProcesandoId(item.id);
     try {
       await axios.post('responder-justificacion-asistencia', {
-        idJustificacion: item.id,
+        idJustificacion: item.idJustificacion || item.id,
+        tipoJustificacion: item.tipo || 'individual',
         accion,
         observacionInstructor
       });
@@ -224,7 +231,20 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                      <div className="flex items-center gap-2 mb-1">
+                        {item.tipo === 'rango' ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                            <KeenIcon icon="calendar" className="text-[10px]" />
+                            Rango de fechas
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded bg-gray-100 dark:bg-coal-300 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                            <KeenIcon icon="calendar-tick" className="text-[10px]" />
+                            Falta individual
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-semibold text-gray-900 dark:text-white truncate mt-1">
                         {nombreEstudiante(item)}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -232,9 +252,18 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
                         {item.codigoFicha ? ` · Ficha ${item.codigoFicha}` : ''}
                       </p>
                       <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                        <span className="font-medium">{item.nombreArea || item.nombreMateria || 'Clase'}</span>
-                        {' · '}
-                        {formatearFecha(fechaClase(item))}
+                        {item.tipo === 'rango' ? (
+                          <>
+                            <span className="font-medium">Periodo de permiso:</span>{' '}
+                            {formatearFecha(item.fechaInicial)} al {formatearFecha(item.fechaFinal)}
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium">{item.nombreArea || item.nombreMateria || 'Clase'}</span>
+                            {' · '}
+                            {formatearFecha(fechaClase(item))}
+                          </>
+                        )}
                       </p>
                       {item.excusa?.tipoExcusa && (
                         <span className="inline-flex mt-2 items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
@@ -299,10 +328,21 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
                 <p className="text-xs text-gray-500">Estudiante</p>
                 <p className="text-sm font-medium">{nombreEstudiante(detalle)}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Fecha de clase</p>
-                <p className="text-sm">{formatearFecha(fechaClase(detalle))}</p>
-              </div>
+              
+              {detalle.tipo === 'rango' ? (
+                <div>
+                  <p className="text-xs text-gray-500">Periodo de permiso</p>
+                  <p className="text-sm">
+                    Del {formatearFecha(detalle.fechaInicial)} al {formatearFecha(detalle.fechaFinal)}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-gray-500">Fecha de clase</p>
+                  <p className="text-sm">{formatearFecha(fechaClase(detalle))}</p>
+                </div>
+              )}
+
               {detalle.excusa?.tipoExcusa && (
                 <div>
                   <p className="text-xs text-gray-500">Tipo de excusa</p>
