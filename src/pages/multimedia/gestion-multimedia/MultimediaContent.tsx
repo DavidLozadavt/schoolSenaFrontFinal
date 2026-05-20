@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useConfirm } from '@/hooks';
 import { ArrowLeftCircle, ArrowRightCircle, Image as ImageIcon, Film, BookImage } from 'lucide-react';
 import { ModalMultimedia } from './ModalMultimedia';
+import MultimediaViewModal from './MultimediaViewModal';
 
 interface ContentProps {
   reload: boolean;
@@ -34,9 +35,11 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
   const [selectedGrupo, setSelectedGrupo] = useState<GrupoMultimedia | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [error, setError] = useState<string>('');
   const { confirmAction } = useConfirm();
   const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem(storageFilterId) || '');
+  const [isArchived, setIsArchived] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 6;
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -45,11 +48,11 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
     localStorage.setItem(storageFilterId, searchTerm);
   }, [searchTerm]);
 
-  const fetchData = async () => {
+  const fetchData = async (archived = isArchived) => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`multimedia_by_company?tipo=${tipo}`);
+      const response = await axios.get(`multimedia_by_company?tipo=${tipo}&archived=${archived}`);
       const gruposFormateados = response.data.map((grupo: any) => ({
         ...grupo,
         grupos_multimedia: (grupo.grupos_multimedia || []).map((item: any) => ({
@@ -77,9 +80,14 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(isArchived);
     setCurrentPage(0);
-  }, [reload, tipo]);
+  }, [reload, tipo, isArchived]);
+
+  const toggleArchive = () => {
+    setIsArchived(!isArchived);
+    setCurrentPage(0);
+  };
 
   const deleteHistoria = async (id: number) => {
     confirmAction('¿Eliminar este grupo permanentemente?', async () => {
@@ -157,29 +165,52 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
     <div className="relative w-full py-8 select-none">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 px-2 gap-4">
-        <h2 className={`text-3xl font-extrabold flex items-center gap-2 text-neutral-900 dark:text-slate-50`}>
-          <TipoIcon className={`w-7 h-7 ${tipoColor}`} />
-          {tipoLabel}
-          <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
-            ({filteredData.length} {tipo === 'reel' ? 'reels' : 'historias'})
-          </span>
-        </h2>
+        <div className="flex flex-col gap-1">
+          <h2 className={`text-3xl font-extrabold flex items-center gap-2 text-neutral-900 dark:text-slate-50`}>
+            <TipoIcon className={`w-7 h-7 ${isArchived ? 'text-neutral-400' : tipoColor}`} />
+            {isArchived ? `${tipoLabel} Pasadas (+24h)` : tipoLabel}
+            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
+              ({filteredData.length} {tipo === 'reel' ? 'reels' : 'historias'})
+            </span>
+          </h2>
+          {isArchived && tipo === 'historia' && (
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 italic">
+              Historias que han expirado después de 24 horas
+            </p>
+          )}
+        </div>
 
-        <div className="relative flex gap-4 items-center w-full sm:w-auto">
-          <KeenIcon
-            icon="magnifier"
-            className="absolute left-0 ml-3 leading-none text-gray-500 -translate-y-1/2 text-md top-1/2"
-          />
-          <input
-            type="text"
-            placeholder={`Buscar ${tipoLabel.toLowerCase()}...`}
-            className="pl-8 input input-sm w-full sm:w-auto"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(0);
-            }}
-          />
+        <div className="flex flex-wrap gap-4 items-center w-full sm:w-auto">
+          {tipo === 'historia' && (
+            <button
+              onClick={toggleArchive}
+              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-lg ${
+                isArchived 
+                  ? 'bg-blue-600 text-white shadow-blue-500/20' 
+                  : 'bg-white dark:bg-neutral-900 text-neutral-500 border border-neutral-100 dark:border-white/5'
+              }`}
+            >
+              <KeenIcon icon="archive" className="text-sm" />
+              {isArchived ? 'Ver Recientes' : 'Ver Archivo'}
+            </button>
+          )}
+
+          <div className="relative flex items-center flex-1 sm:flex-initial min-w-[240px]">
+            <KeenIcon
+              icon="magnifier"
+              className="absolute left-0 ml-3 leading-none text-gray-500 -translate-y-1/2 text-md top-1/2"
+            />
+            <input
+              type="text"
+              placeholder={`Buscar ${tipoLabel.toLowerCase()}...`}
+              className="pl-8 input input-sm w-full focus:ring-blue-500/20"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(0);
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -282,32 +313,49 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
                         )}
                       </div>
 
-                      <div className="mt-4 flex gap-3">
+                      <div className="mt-4 grid grid-cols-2 gap-3">
                         <button
                           onClick={() => {
                             setSelectedGrupo(grupo);
                             setIsModalOpen(true);
                           }}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl
                                      bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400
-                                     hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-sm font-medium"
+                                     hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all text-xs font-bold"
                           title="Editar"
                         >
-                          <KeenIcon icon="notepad-edit" className="text-base" />
+                          <KeenIcon icon="notepad-edit" className="text-sm" />
                           Editar
                         </button>
 
                         <button
                           onClick={() => deleteHistoria(grupo.id)}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl
                                      bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400
-                                     hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium"
+                                     hover:bg-red-100 dark:hover:bg-red-900/40 transition-all text-xs font-bold"
                           title="Eliminar"
                         >
-                          <KeenIcon icon="trash" className="text-base" />
-                          Eliminar
+                          <KeenIcon icon="trash" className="text-sm" />
+                          Borrar
                         </button>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          // Aquí iría la lógica para "Ver" la historia a pantalla completa o modal de vista
+                          setSelectedGrupo(grupo);
+                          setIsViewModalOpen(true);
+                        }}
+                        className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                                   text-white shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]
+                                   text-xs font-black uppercase tracking-widest
+                                   ${tipo === 'reel' 
+                                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-purple-500/25' 
+                                      : 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-blue-500/25'}`}
+                      >
+                        <KeenIcon icon="eye" className="text-sm" />
+                        Ver {tipoLabel}
+                      </button>
                     </div>
                   </div>
                 );
@@ -327,34 +375,36 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
           </div>
 
           {/* Paginación */}
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <div className="flex justify-center mt-6 gap-2">
               <button
                 disabled={currentPage === 0}
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
-                className="px-3 py-1 bg-gray-200 dark:bg-neutral-700 rounded-lg disabled:opacity-40 text-sm"
+                className="btn btn-sm btn-light rounded-xl disabled:opacity-50"
               >
-                «
+                Anterior
               </button>
               {Array.from({ length: totalPages }).map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentPage(idx)}
-                  className={`px-3 py-1 rounded-lg text-sm ${
+                  className={`px-4 h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
                     currentPage === idx
-                      ? tipo === 'reel' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-neutral-700'
+                      ? tipo === 'reel' 
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
+                        : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 border border-neutral-200 dark:border-neutral-800'
                   }`}
                 >
-                  {idx + 1}
+                  Página {idx + 1}
                 </button>
               ))}
               <button
                 disabled={currentPage >= totalPages - 1}
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
-                className="px-3 py-1 bg-gray-200 dark:bg-neutral-700 rounded-lg disabled:opacity-40 text-sm"
+                className="btn btn-sm btn-light rounded-xl disabled:opacity-50"
               >
-                »
+                Siguiente
               </button>
             </div>
           )}
@@ -383,6 +433,15 @@ const MultimediaContent = ({ reload, tipo, onEdit }: ContentProps) => {
           setSelectedGrupo(null);
         }}
         onSave={handleAfterSave}
+      />
+
+      <MultimediaViewModal
+        open={isViewModalOpen}
+        grupo={selectedGrupo}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedGrupo(null);
+        }}
       />
 
       <style>{`

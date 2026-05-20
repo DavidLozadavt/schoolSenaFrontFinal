@@ -60,8 +60,23 @@ const EventsDashboard = () => {
     const fetchEvents = async () => {
       try {
         const res = await axios.get('eventos-multimedia');
-        let data = res.data || [];
+        // Handle both simple array and Laravel paginated response
+        let data = Array.isArray(res.data) ? res.data : (res.data.data || []);
         const now = new Date();
+
+        // Filter: Hide finished events if more than 12 hours have passed since their end time
+        const twelveHoursInMs = 12 * 60 * 60 * 1000;
+        data = data.filter((evento: Evento) => {
+          const start = new Date(`${evento.fechaInicial.split('T')[0]}T${evento.hora}`);
+          const end = evento.hora_final 
+            ? new Date(`${(evento.fechaFinal || evento.fechaInicial).split('T')[0]}T${evento.hora_final}`) 
+            : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+          
+          if (now > end && (now.getTime() - end.getTime()) > twelveHoursInMs) {
+            return false;
+          }
+          return true;
+        });
 
         // Smart sorting: Live/Upcoming first (ASC), then Finished (DESC)
         data = data.sort((a: Evento, b: Evento) => {

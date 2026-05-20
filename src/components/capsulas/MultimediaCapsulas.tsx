@@ -308,8 +308,30 @@ const MultimediaCapsulas = () => {
       try {
         const res = await axios.get('dashboard_multimedia');
         
-        const historias = (res.data.historias || []).map((h: any) => ({ ...h, tipo_item: 'historia' }));
-        const reels = (res.data.reels || []).map((r: any) => ({ ...r, tipo_item: 'reel' }));
+        const now = new Date();
+        const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+
+        // Filter: Keep only files that are less than 24 hours old for historias
+        const historias = (res.data.historias || [])
+          .map((h: any) => {
+            const filteredFiles = (h.grupos_multimedia || []).filter((file: any) => {
+              const fileDate = new Date(file.created_at || file.fecha_creacion || h.created_at || 0);
+              return (now.getTime() - fileDate.getTime()) <= twentyFourHoursInMs;
+            });
+            return { ...h, grupos_multimedia: filteredFiles, tipo_item: 'historia' };
+          })
+          .filter((h: any) => h.grupos_multimedia.length > 0);
+
+        // Filter: Keep only files that are less than 24 hours old for reels
+        const reels = (res.data.reels || [])
+          .map((r: any) => {
+            const filteredFiles = (r.grupos_multimedia || []).filter((file: any) => {
+              const fileDate = new Date(file.created_at || file.fecha_creacion || r.created_at || 0);
+              return (now.getTime() - fileDate.getTime()) <= twentyFourHoursInMs;
+            });
+            return { ...r, grupos_multimedia: filteredFiles, tipo_item: 'reel' };
+          })
+          .filter((r: any) => r.grupos_multimedia.length > 0);
         
         // ORDENAR POR FECHA DE CREACIÓN (Más reciente primero)
         const combined = [...historias, ...reels].sort((a, b) => {
