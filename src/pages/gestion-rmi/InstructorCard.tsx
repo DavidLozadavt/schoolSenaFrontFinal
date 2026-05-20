@@ -117,6 +117,13 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
     setRmiModalOpen(true);
   };
 
+  const handleVerHorarioMensual = async () => {
+    if (fichas.length === 0) {
+      await fetchFichas();
+    }
+    setHorarioMensualOpen(true);
+  };
+
   const handleRevertir = async () => {
     setDisableActionRmi(true);
     const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
@@ -263,11 +270,16 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
             {/* Acciones */}
             <div className="mt-3 w-2/3 flex gap-2 m-1">
               <button
-                onClick={() => setHorarioMensualOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
+                onClick={handleVerHorarioMensual}
+                disabled={loadingRmi}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all disabled:opacity-50"
                 title="Ver Horario"
               >
-                <i className="ki-outline ki-calendar text-base" />
+                {loadingRmi ? (
+                  <div className="w-3.5 h-3.5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <i className="ki-outline ki-calendar text-base" />
+                )}
               </button>
               <button
                 onClick={handleVerRmi}
@@ -334,8 +346,9 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
       <HorarioMensual
         isOpen={horarioMensualOpen}
         onClose={() => setHorarioMensualOpen(false)}
-        instructor={instructor}
+        instructor={instructorState}
         periodo={periodo}
+        fichas={fichas}
       />
       {/* Modal RMI */}
       <RmiModal

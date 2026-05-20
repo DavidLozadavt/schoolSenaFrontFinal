@@ -9,6 +9,7 @@ interface HorarioMensualProps {
   onClose: () => void;
   instructor: Instructor;
   periodo?: string; // "2025-12"
+  fichas?: any[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -20,9 +21,10 @@ function idDiaToJsDay(idDiaArg: any): number {
   return idDia === 7 ? 0 : idDia;
 }
 
-function parseLocalDate(str: string): Date {
-  const [y, m, d] = str.split('T')[0].split('-').map(Number);
-  return new Date(y, m - 1, d);
+function parseDateYmd(dateStr: string): [number, number, number] {
+  const part = (dateStr || '').split('T')[0].split(' ')[0];
+  const [y, m, d] = part.split('-').map(Number);
+  return [y, m, d];
 }
 
 function formatHora12(time: string): string {
@@ -42,21 +44,30 @@ function buildMonthDays(year: number, month: number): (Date | null)[] {
   return arr;
 }
 
-/** Días del mes (números) en que aplica el horario según su idDia y rango de fechas */
-function getDiasActivos(h: HorarioMateria, year: number, month: number): Set<number> {
-  const jsDay = idDiaToJsDay(h.idDia);
-  const start = parseLocalDate(h.fechaInicial);
-  const end = parseLocalDate(h.fechaFinal);
-  const firstOfMonth = new Date(year, month, 1);
-  const lastOfMonth = new Date(year, month + 1, 0);
-  const from = start < firstOfMonth ? firstOfMonth : start;
-  const to = end > lastOfMonth ? lastOfMonth : end;
-
+/** Días del mes (números) en que aplica el horario según idDia y rango recortado al mes del periodo */
+function getDiasActivos(h: any, year: number, month: number): Set<number> {
+  const fIniStr = h.fechaInicial || h.fechaInicio;
+  const fFinStr = h.fechaFinal || h.fechaFin;
   const active = new Set<number>();
-  const cursor = new Date(from);
-  while (cursor <= to) {
-    if (cursor.getDay() === jsDay) active.add(cursor.getDate());
-    cursor.setDate(cursor.getDate() + 1);
+  if (!fIniStr || !fFinStr) return active;
+
+  const [yI, mI_str, dI] = parseDateYmd(fIniStr);
+  const [yF, mF_str, dF] = parseDateYmd(fFinStr);
+  const jsDayRequired = idDiaToJsDay(h.idDia);
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const targetMonth = month + 1;
+  const monthStart = year * 10000 + targetMonth * 100 + 1;
+  const monthEnd = year * 10000 + targetMonth * 100 + daysInMonth;
+  const ini = Math.max(yI * 10000 + mI_str * 100 + dI, monthStart);
+  const fin = Math.min(yF * 10000 + mF_str * 100 + dF, monthEnd);
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const isDay = new Date(year, month, i).getDay() === jsDayRequired;
+    const cur = year * 10000 + targetMonth * 100 + i;
+    if (isDay && cur >= ini && cur <= fin) {
+      active.add(i);
+    }
   }
   return active;
 }
@@ -72,18 +83,26 @@ interface Fila {
   horasMes: number;
 }
 
-function agruparFilas(horarios: HorarioMateria[], year: number, month: number): Fila[] {
+function agruparFilas(horarios: any[], year: number, month: number): Fila[] {
   const map = new Map<string, Fila>();
 
   for (const h of horarios) {
-    const key = `${h.horaInicial}|${h.horaFinal}`;
+    const horaIni = h.horaInicio || h.horaInicial;
+    const horaFin = h.horaFin || h.horaFinal;
+    if (!horaIni || !horaFin) continue;
+
+    const key = `${horaIni}|${horaFin}`;
+
+    const [hI, mI] = horaIni.toString().split(':').map(Number);
+    const [hF, mF] = horaFin.toString().split(':').map(Number);
+    const sessionHours = (hF * 60 + mF - (hI * 60 + mI)) / 60;
 
     if (!map.has(key)) {
       map.set(key, {
         key,
-        horaInicial: h.horaInicial,
-        horaFinal: h.horaFinal,
-        duracionHoras: h.duracionSesion, // ← duración de una sesión
+        horaInicial: horaIni,
+        horaFinal: horaFin,
+        duracionHoras: sessionHours,
         diasActivos: [],
         activosPorDia: new Map(),
         horasMes: 0
@@ -96,10 +115,10 @@ function agruparFilas(horarios: HorarioMateria[], year: number, month: number): 
     const idDia = Number(h.idDia);
     if (!fila.diasActivos.includes(idDia)) fila.diasActivos.push(idDia);
     const diasExistentes = fila.activosPorDia.get(idDia) || new Set<number>();
-    
-    diasMes.forEach(d => diasExistentes.add(d));
+
+    diasMes.forEach((d: number) => diasExistentes.add(d));
     fila.activosPorDia.set(idDia, diasExistentes);
-    fila.horasMes += diasMes.size * Number(h.duracionSesion);
+    fila.horasMes += Number(h.duracionHoras || 0);
   }
 
   return Array.from(map.values()).sort((a, b) => a.horaInicial.localeCompare(b.horaInicial));
@@ -145,7 +164,8 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
   isOpen,
   onClose,
   instructor,
-  periodo
+  periodo,
+  fichas
 }) => {
   if (!isOpen) return null;
 
@@ -171,38 +191,67 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
     .toLocaleDateString('es-CO', { month: 'long' })
     .toUpperCase();
 
-  const horarios = useMemo(
-    () => instructor.horarios.filter((h) => h.estado === 'ASIGNADO'),
-    [instructor.horarios]
-  );
+  const horarios = useMemo(() => {
+    const lista =
+      fichas && fichas.length > 0
+        ? fichas.flatMap((f) => (f.resultados || []).flatMap((r: any) => r.horarios || []))
+        : instructor.horarios || [];
+    return lista.filter((h: any) => {
+      const ini = h.horaInicio || h.horaInicial;
+      const fin = h.horaFin || h.horaFinal;
+      return ini && fin && h.estado !== 'PENDIENTE';
+    });
+  }, [instructor.horarios, fichas]);
 
   const filas = useMemo(() => agruparFilas(horarios, year, month), [horarios, year, month]);
-  const totalHorasMes = useMemo(() => filas.reduce((acc, f) => acc + f.horasMes, 0), [filas]);
+  const totalHorasMes = useMemo(
+    () => horarios.reduce((acc, h) => acc + Number(h.duracionHoras || 0), 0),
+    [horarios]
+  );
 
   const handleExportExcel = useCallback(() => {
     const dataToExport: any[] = [];
 
     // Información del instructor
     dataToExport.push({ 'HORARIO MENSUAL DEL INSTRUCTOR': '' });
-    dataToExport.push({ 'PERÍODO': periodoLabel });
-    dataToExport.push({ 'NOMBRE': fullName, 'CÉDULA': persona.identificacion });
-    dataToExport.push({ 'CORREO ELECTRÓNICO': persona.email, 'NÚMERO DE CONTACTO': persona.celular });
+    dataToExport.push({ PERÍODO: periodoLabel });
+    dataToExport.push({ NOMBRE: fullName, CÉDULA: persona.identificacion });
+    dataToExport.push({
+      'CORREO ELECTRÓNICO': persona.email,
+      'NÚMERO DE CONTACTO': persona.celular
+    });
     dataToExport.push({});
 
     // Encabezados
-    const headers = ['HORA INICIAL', 'HORA FINAL', 'DURACIÓN (HORAS)', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO', 'HORAS MES'];
+    const headers = [
+      'HORA INICIAL',
+      'HORA FINAL',
+      'DURACIÓN (HORAS)',
+      'LUNES',
+      'MARTES',
+      'MIÉRCOLES',
+      'JUEVES',
+      'VIERNES',
+      'SÁBADO',
+      'DOMINGO',
+      'HORAS MES'
+    ];
     dataToExport.push(Object.fromEntries(headers.map((h) => [h, h])));
 
     // Datos de las filas
     filas.forEach((fila) => {
       const diasSemana = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
       const diasData: { [key: string]: string } = {};
-      
+
       [1, 2, 3, 4, 5, 6, 7].forEach((idDia) => {
         const diaNombre = diasSemana[idDia - 1];
         if (fila.diasActivos.includes(idDia)) {
           const diasMes = fila.activosPorDia.get(idDia);
-          diasData[diaNombre] = diasMes ? Array.from(diasMes).sort((a, b) => a - b).join(', ') : '';
+          diasData[diaNombre] = diasMes
+            ? Array.from(diasMes)
+                .sort((a, b) => a - b)
+                .join(', ')
+            : '';
         } else {
           diasData[diaNombre] = '';
         }
@@ -212,13 +261,13 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
         'HORA INICIAL': formatHora12(fila.horaInicial),
         'HORA FINAL': formatHora12(fila.horaFinal),
         'DURACIÓN (HORAS)': fila.duracionHoras,
-        'LUNES': diasData['LUNES'] || '',
-        'MARTES': diasData['MARTES'] || '',
-        'MIÉRCOLES': diasData['MIÉRCOLES'] || '',
-        'JUEVES': diasData['JUEVES'] || '',
-        'VIERNES': diasData['VIERNES'] || '',
-        'SÁBADO': diasData['SÁBADO'] || '',
-        'DOMINGO': diasData['DOMINGO'] || '',
+        LUNES: diasData['LUNES'] || '',
+        MARTES: diasData['MARTES'] || '',
+        MIÉRCOLES: diasData['MIÉRCOLES'] || '',
+        JUEVES: diasData['JUEVES'] || '',
+        VIERNES: diasData['VIERNES'] || '',
+        SÁBADO: diasData['SÁBADO'] || '',
+        DOMINGO: diasData['DOMINGO'] || '',
         'HORAS MES': Math.round(fila.horasMes)
       });
     });
@@ -243,7 +292,6 @@ const HorarioMensual: React.FC<HorarioMensualProps> = ({
     const nombreArchivo = `Horario_Mensual_${fullName.replace(/\s+/g, '_')}_${fecha}.xlsx`;
     XLSX.writeFile(wb, nombreArchivo);
   }, [filas, totalHorasMes, periodoLabel, fullName, persona]);
-
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

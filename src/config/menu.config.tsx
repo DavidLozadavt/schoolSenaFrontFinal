@@ -15,7 +15,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
+    requiredPermissions: ['GESTION_ACADEMICA', 'AULA_VIRTUAL_INSTRUCTOR'],
     children: [
       {
         title: 'Configuración académica',
@@ -24,17 +24,17 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Planeación',
             path: '/gestion-academica/configuracion/redes',
-            requiredPermissions: ['GESTION_USUARIO']
+            requiredPermissions: ['GESTION_ACADEMICA']
           },
           {
             title: 'Periodos',
             path: '/gestion-academica/configuracion/periodos',
-            requiredPermissions: ['GESTION_USUARIO'] //Cambiar por GESTION_PERIODOS
+            requiredPermissions: ['GESTION_PERIODOS'] //Cambiar por GESTION_PERIODOS
           },
           {
             title: 'Jornadas',
             path: '/gestion-academica/configuracion/jornadas',
-            requiredPermissions: ['GESTION_USUARIO'] // Cambiar por GESTION_JORNADAS
+            requiredPermissions: ['GESTION_JORNADAS'] // Cambiar por GESTION_JORNADAS
           },
           {
             title: 'Regionales',
@@ -44,17 +44,17 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Centro Formación',
             path: '/centrosFormacion',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_CENTROS_FORMACION
+            requiredPermissions: ['GESTION_CENTROS_FORMACION'] //Cambiar por GESTION_CENTROS_FORMACION
           },
           {
             title: 'Sedes',
             path: '/sedesSena',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_SEDES
+            requiredPermissions: ['GESTION_SEDES'] //Cambiar por GESTION_SEDES
           },
           {
             title: 'Ambientes',
             path: '/ambientes',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_AMBIENTES
+            requiredPermissions: ['GESTION_AMBIENTES'] //Cambiar por GESTION_AMBIENTES
           },
           {
             title: 'Redes',
