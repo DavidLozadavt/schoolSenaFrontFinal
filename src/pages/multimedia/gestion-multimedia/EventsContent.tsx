@@ -12,17 +12,21 @@ interface Evento {
   fechaInicial: string;
   fechaFinal?: string;
   hora: string;
+  hora_final?: string;
   url?: string;
   linkRegistro?: string;
   tipoEvento: string;
   estado: string;
-  esPublico: boolean;
+  esPublico?: boolean;
   idArea?: number;
   area?: {
-    id: number;
+    id?: number;
     nombre: string;
   };
+  formUrl?: string;
+  formProvider?: string;
 }
+
 
 interface EventsContentProps {
   reload: boolean;

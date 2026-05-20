@@ -13,9 +13,9 @@ interface Evento {
   linkRegistro?: string;
   tipoEvento: string;
   estado: string;
-  esPublico: boolean;
+  esPublico?: boolean;
   area?: {
-    id: number;
+    id?: number;
     nombre: string;
   };
   formUrl?: string;

@@ -16,12 +16,16 @@ interface Evento {
   linkRegistro?: string;
   tipoEvento: string;
   estado: string;
-  esPublico: boolean;
+  esPublico?: boolean;
+  idArea?: number;
   area?: {
-    id: number;
+    id?: number;
     nombre: string;
   };
+  formUrl?: string;
+  formProvider?: string;
 }
+
 
 const EventsDashboard = () => {
   const [eventos, setEventos] = useState<Evento[]>([]);

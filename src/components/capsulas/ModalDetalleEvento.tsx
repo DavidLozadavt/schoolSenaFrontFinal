@@ -7,7 +7,7 @@ import { KeenIcon } from '@/components';
 interface Evento {
   idEvento: number;
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   fechaInicial: string;
   fechaFinal?: string;
   hora: string;
@@ -16,12 +16,16 @@ interface Evento {
   linkRegistro?: string;
   tipoEvento: string;
   estado: string;
+  esPublico?: boolean;
+  idArea?: number;
   area?: {
+    id?: number;
     nombre: string;
   };
   formUrl?: string;
   formProvider?: string;
 }
+
 
 interface ModalDetalleEventoProps {
   evento: Evento;

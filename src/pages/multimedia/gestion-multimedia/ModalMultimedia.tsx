@@ -360,8 +360,9 @@ const ModalMultimedia = ({ open, tipo = 'historia', data, onClose, onSave }: Mod
   const accentColor = tipo === 'reel' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700';
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalContent className="w-full max-w-[1000px] top-[5%] p-0 relative bg-white dark:bg-neutral-950 rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-white/5 shadow-2xl">
+    <>
+      <Modal open={open} onClose={onClose}>
+        <ModalContent className="w-full max-w-[1000px] top-[5%] p-0 relative bg-white dark:bg-neutral-950 rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-white/5 shadow-2xl">
         {saving && (
           <div className="absolute inset-0 flex items-center justify-center z-[9999] bg-white/60 dark:bg-black/40 backdrop-blur-md">
             <div className="bg-white dark:bg-neutral-900 shadow-2xl rounded-3xl px-8 py-6 flex flex-col items-center gap-4 border border-blue-100 dark:border-white/5 animate-in fade-in zoom-in duration-300">
@@ -641,6 +642,7 @@ const ModalMultimedia = ({ open, tipo = 'historia', data, onClose, onSave }: Mod
         </ModalFooter>
       </ModalContent>
       
+      </Modal>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -656,7 +658,7 @@ const ModalMultimedia = ({ open, tipo = 'historia', data, onClose, onSave }: Mod
           background: rgba(155, 155, 155, 0.4);
         }
       `}</style>
-    </Modal>
+    </>
   );
 };
 

@@ -3,13 +3,14 @@ import { Modal as MuiModal, ModalProps as BaseModalProps } from '@mui/base/Modal
 import { ModalBackdrop } from './ModalBackdrop';
 import clsx from 'clsx';
 
-interface IModalProps extends BaseModalProps {
+interface IModalProps extends Omit<BaseModalProps, 'children'> {
   zIndex?: number;
   className?: string; // For content-specific Tailwind styles
   /** Permite cerrar al hacer clic en el overlay. Por defecto false (evita perder formularios). */
   closeOnBackdropClick?: boolean;
   /** Permite cerrar con la tecla Escape. Por defecto false. */
   closeOnEscapeKeyDown?: boolean;
+  children?: React.ReactNode;
 }
 
 // Forwarding ref to ensure this component can hold a ref
