@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useMemo } from 'react';
+import { Fragment, useEffect, useState, useMemo, useContext } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
 import { KeenIcon, DataGrid } from '@/components';
@@ -12,6 +12,7 @@ import { useConfirm } from '@/hooks';
 import { enqueueSnackbar } from 'notistack';
 import { RoleModel } from '../account/members/roles/models/_Role';
 import clsx from 'clsx';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface IAvatar {
   className: string;
@@ -34,6 +35,8 @@ interface usuariosContentTypeProps {
 }
 
 const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
+  const authContext = useContext(AuthContext);
+
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [roles, setRoles] = useState<RoleModel[]>([]);
   const [activation, setActivation] = useState<ActivationCompanyUser | null>(null);
@@ -46,6 +49,7 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   const [user, setUser] = useState<ActivationCompanyUser[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const [sortOrder, setSortOrder] = useState('1');
 
   // Estados para paginación
@@ -72,7 +76,10 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
         params: {
           search: search,
           per_page: perPage,
-          page: page
+          page: page,
+          state_id: statusFilter,
+          sort_order: sortOrder,
+          role_id: roleFilter
         }
       });
 
@@ -157,27 +164,21 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   };
 
   useEffect(() => {
-    fetchUsers();
     fetchRoles();
   }, []);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(currentPage);
   }, [reload]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      setCurrentPage(1);
       fetchUsers(1);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [search]);
-
-  useEffect(() => {
-    if (perPage) {
-      fetchUsers(1);
-    }
-  }, [perPage]);
+  }, [search, statusFilter, sortOrder, roleFilter, perPage]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -327,9 +328,22 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">Todos</option>
+            <option value="">Todos los estados</option>
             <option value="1">Activos</option>
             <option value="2">Inactivos</option>
+          </select>
+
+          <select
+            className="select select-sm w-36"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">Todos los roles</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id?.toString() ?? ''}>
+                {role.name}
+              </option>
+            ))}
           </select>
 
           <select
