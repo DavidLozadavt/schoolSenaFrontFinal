@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import clsx from 'clsx';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -308,6 +309,31 @@ const CLASE_CALENDARIO_TOOLTIP_SURFACE =
 
 /** Padding del contenido (va dentro del panel con overflow oculto en el borde). */
 const CLASE_CALENDARIO_TOOLTIP_INNER_PAD = 'p-3';
+
+/** Cortes fijos en dos líneas para etiquetas largas del menú lateral de la clase. */
+const LINEAS_MENU_CLASE: Record<string, readonly [string, string]> = {
+  'Biblioteca de conocimiento': ['Biblioteca de', 'conocimiento'],
+  'Justificaciones pendientes': ['Justificaciones', 'pendientes'],
+  'Lista de asistencias': ['Lista de', 'asistencias'],
+  'Juicios evaluativos': ['Juicios', 'evaluativos'],
+  'Calificar actividad': ['Calificar', 'actividad'],
+  'Crear actividad': ['Crear', 'actividad']
+};
+
+function EtiquetaMenuClase({ etiqueta }: { etiqueta: string }) {
+  const lineas = LINEAS_MENU_CLASE[etiqueta];
+  if (lineas) {
+    return (
+      <span className="flex min-w-0 max-w-full flex-1 flex-col gap-0 leading-[1.3] whitespace-normal">
+        <span className="block max-w-full">{lineas[0]}</span>
+        <span className="block max-w-full">{lineas[1]}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="block min-w-0 max-w-full flex-1 leading-snug whitespace-normal">{etiqueta}</span>
+  );
+}
 
 function clasesBadgeEstadoCalendario(etiqueta: string): string {
   if (etiqueta === 'Tu clase en curso') {
@@ -1331,6 +1357,17 @@ const ClaseDetallePage: React.FC = () => {
   const [menuClaseExpandido, setMenuClaseExpandido] = useState(true);
   const mostrarEtiquetasMenu = !isDesktop || menuClaseExpandido;
   const menuSoloIconos = isDesktop && !menuClaseExpandido;
+  const claseBotonItemMenu = (activo: boolean) =>
+    clsx(
+      'w-full max-w-full min-w-0 rounded-lg border border-transparent text-xs font-medium transition-colors whitespace-normal',
+      mostrarEtiquetasMenu
+        ? 'flex items-start gap-2 px-2 py-2 text-left'
+        : 'flex items-center justify-center px-1.5 py-2',
+      activo
+        ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
+        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+    );
+  const claseIconoItemMenu = 'mt-0.5 shrink-0 text-base leading-none';
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -2345,10 +2382,15 @@ const ClaseDetallePage: React.FC = () => {
       {/* Bottom Section: menú colapsado (solo iconos, 1/12) o expandido (texto, 2/12) */}
       <div className="grid grid-cols-1 min-w-0 lg:grid-cols-12 gap-3 sm:gap-4 lg:items-start">
         <div
-          className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-2' : 'lg:col-span-1'}`}
+          className={clsx(
+            'min-w-0 w-full max-w-full',
+            menuClaseExpandido ? 'lg:col-span-3 lg:w-[13.75rem] lg:max-w-[13.75rem]' : 'lg:col-span-1'
+          )}
         >
-          <div className="card min-w-0 self-start w-full">
-            <div className={`card-body ${menuSoloIconos ? 'p-2 sm:p-2.5' : 'p-3.5 sm:p-4'}`}>
+          <div className="card min-w-0 w-full max-w-full self-start overflow-hidden">
+            <div
+              className={`card-body min-w-0 w-full max-w-full overflow-x-hidden ${menuSoloIconos ? 'p-2 sm:p-2.5' : 'p-3.5 sm:p-4'}`}
+            >
               {isDesktop ? (
                 <button
                   type="button"
@@ -2372,90 +2414,113 @@ const ClaseDetallePage: React.FC = () => {
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">MENÚ</span>
                 </div>
               )}
-              <div id="menu-clase-items" className="space-y-1">
+              <div id="menu-clase-items" className="min-w-0 w-full max-w-full space-y-1 overflow-x-hidden">
                 <button
                   type="button"
                   title="Estudiantes"
                   onClick={() => setActiveMenu('estudiantes')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'estudiantes'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'estudiantes')}
                 >
-                  <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Estudiantes</span>
+                  <KeenIcon
+                    icon="users"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Estudiantes" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Crear actividad"
                   onClick={() => setActiveMenu('agregar-actividades')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'agregar-actividades'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'agregar-actividades')}
                 >
-                  <KeenIcon icon="plus-circle" className={`text-base shrink-0 ${activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Crear actividad</span>
+                  <KeenIcon
+                    icon="plus-circle"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Crear actividad" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Calificar actividad"
                   onClick={() => setActiveMenu('actividades-asignadas')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'actividades-asignadas'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'actividades-asignadas')}
                 >
-                  <KeenIcon icon="check-squared" className={`text-base shrink-0 ${activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Calificar actividad</span>
+                  <KeenIcon
+                    icon="check-squared"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificar actividad" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Ver grupos"
                   onClick={() => setActiveMenu('ver-grupos')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'ver-grupos'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'ver-grupos')}
                 >
-                  <KeenIcon icon="users" className={`shrink-0 text-base ${activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Ver grupos</span>
+                  <KeenIcon
+                    icon="users"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Ver grupos" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Calificaciones"
                   onClick={() => setActiveMenu('calificaciones')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'calificaciones'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'calificaciones')}
                 >
-                  <KeenIcon icon="chart-line" className={`shrink-0 text-base ${activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Calificaciones</span>
+                  <KeenIcon
+                    icon="chart-line"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificaciones" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Juicios evaluativos"
                   onClick={() => setActiveMenu('juicios-evaluativos')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'juicios-evaluativos'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'juicios-evaluativos')}
                 >
-                  <KeenIcon icon="chart-simple" className={`shrink-0 text-base ${activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Juicios evaluativos</span>
+                  <KeenIcon
+                    icon="chart-simple"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Juicios evaluativos" /> : null}
                 </button>
                 <button
                   type="button"
                   title="Biblioteca de conocimiento"
                   onClick={() => setActiveMenu('material-apoyo')}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'material-apoyo'
-                    ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                    }`}
+                  className={claseBotonItemMenu(activeMenu === 'material-apoyo')}
                 >
-                  <KeenIcon icon="document" className={`shrink-0 text-base ${activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Biblioteca de conocimiento</span>
+                  <KeenIcon
+                    icon="document"
+                    className={clsx(
+                      claseIconoItemMenu,
+                      activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                    )}
+                  />
+                  {mostrarEtiquetasMenu ? (
+                    <EtiquetaMenuClase etiqueta="Biblioteca de conocimiento" />
+                  ) : null}
                 </button>
                 {modoCalendario !== 'aprendiz' && (
                   <>
@@ -2463,25 +2528,37 @@ const ClaseDetallePage: React.FC = () => {
                       type="button"
                       title="Justificaciones pendientes"
                       onClick={() => setActiveMenu('justificaciones-pendientes')}
-                      className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'justificaciones-pendientes'
-                        ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                        }`}
+                      className={claseBotonItemMenu(activeMenu === 'justificaciones-pendientes')}
                     >
-                      <KeenIcon icon="time" className={`shrink-0 text-base ${activeMenu === 'justificaciones-pendientes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                      <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Justificaciones pendientes</span>
+                      <KeenIcon
+                        icon="time"
+                        className={clsx(
+                          claseIconoItemMenu,
+                          activeMenu === 'justificaciones-pendientes'
+                            ? 'text-primary'
+                            : 'text-gray-500 dark:text-gray-400'
+                        )}
+                      />
+                      {mostrarEtiquetasMenu ? (
+                        <EtiquetaMenuClase etiqueta="Justificaciones pendientes" />
+                      ) : null}
                     </button>
                     <button
                       type="button"
                       title="Lista de asistencias"
                       onClick={() => setActiveMenu('lista-asistencias')}
-                      className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors border border-transparent ${mostrarEtiquetasMenu ? 'gap-2 px-2 py-1.5 justify-start' : 'justify-center px-1.5 py-2'} ${activeMenu === 'lista-asistencias'
-                        ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
-                        }`}
+                      className={claseBotonItemMenu(activeMenu === 'lista-asistencias')}
                     >
-                      <KeenIcon icon="chart-line-up" className={`shrink-0 text-base ${activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`} />
-                      <span className={mostrarEtiquetasMenu ? 'whitespace-nowrap' : 'sr-only'}>Lista de asistencias</span>
+                      <KeenIcon
+                        icon="chart-line-up"
+                        className={clsx(
+                          claseIconoItemMenu,
+                          activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                        )}
+                      />
+                      {mostrarEtiquetasMenu ? (
+                        <EtiquetaMenuClase etiqueta="Lista de asistencias" />
+                      ) : null}
                     </button>
                   </>
                 )}
@@ -2491,7 +2568,7 @@ const ClaseDetallePage: React.FC = () => {
         </div>
 
         {/* Contenido principal: min-w-0 evita que tablas empujen scroll horizontal a la página */}
-        <div className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-10' : 'lg:col-span-11'}`}>
+        <div className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-9' : 'lg:col-span-11'}`}>
           <div className="card min-w-0">
             <div className="card-body min-w-0 p-4 sm:p-5">
               {/* Estudiantes Section */}
