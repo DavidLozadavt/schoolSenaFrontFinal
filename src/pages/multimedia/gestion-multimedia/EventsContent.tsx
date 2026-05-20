@@ -47,12 +47,33 @@ const EventsContent = ({ reload }: EventsContentProps) => {
     setLoading(true);
     try {
       const response = await axios.get(`eventos-multimedia?page=${page}&per_page=6&search=${search}&archived=${archived}`);
-      setEventos(response.data.data);
-      setPagination(response.data);
+      const responseData = response.data;
+      if (responseData) {
+        if (Array.isArray(responseData)) {
+          setEventos(responseData);
+          setPagination({
+            total: responseData.length,
+            current_page: 1,
+            last_page: 1,
+            per_page: responseData.length
+          });
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          setEventos(responseData.data);
+          setPagination(responseData);
+        } else {
+          setEventos([]);
+          setPagination(null);
+        }
+      } else {
+        setEventos([]);
+        setPagination(null);
+      }
       setCurrentPage(page);
     } catch (err) {
       console.error('Error al obtener eventos:', err);
       setError('Error al cargar eventos');
+      setEventos([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }

@@ -90,7 +90,7 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
   return (
     <div
       onClick={() => onClick?.(evento)}
-      className={`relative shrink-0 w-[140px] sm:w-[160px] aspect-[9/16] rounded-[2rem] overflow-hidden group cursor-pointer transition-all duration-500 snap-start shadow-xl bg-black border border-white/10 hover:border-white/30 hover:scale-[1.02] active:scale-95 ${status === 'finished' ? 'grayscale opacity-80' : ''}`}
+      className={`relative shrink-0 w-[140px] sm:w-[160px] aspect-[9/16] rounded-[2rem] overflow-hidden group cursor-pointer transition-all duration-500 snap-start shadow-xl bg-black border border-white/10 hover:border-white/30 hover:scale-[1.02] active:scale-95 ${evento.estado === 'FINALIZADO' ? 'grayscale opacity-80' : ''}`}
     >
       {/* Background Image */}
       <div className="absolute inset-0 z-0">

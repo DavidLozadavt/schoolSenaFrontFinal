@@ -1,1 +1,0 @@
-<?php require '..\..\backend\SchoolSenaBackFinal\vendor\autoload.php'; \ = require_once '..\..\backend\SchoolSenaBackFinal\bootstrap\app.php'; \ = \->make(Illuminate\Contracts\Http\Kernel::class); \ = \->handle(Illuminate\Http\Request::create('/api/justificaciones-pendientes-instructor', 'GET')); echo \->getContent();
