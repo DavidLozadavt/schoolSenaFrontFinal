@@ -94,6 +94,7 @@ import { CobrosPolizasPage } from '@/pages/cobros-polizas';
 import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage';
 import EventsPage from '@/pages/multimedia/gestion-multimedia/EventsPage';
 import { EventForm } from '@/pages/multimedia/gestion-multimedia/EventForm';
+import { EventShowPage } from '@/pages/multimedia/gestion-multimedia/EventShowPage';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
@@ -984,6 +985,15 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/multimedia/eventos/show/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <EventShowPage />
               </ProtectedRoute>
             }
           />
