@@ -27,6 +27,10 @@ interface RmiModalProps {
   actividades?: Actividad[];
   onRefresh?: () => void;
   readOnlyAsociacion?: boolean;
+  onAceptar?: () => void;
+  onRechazar?: () => void;
+  onRevertir?: () => void;
+  disableActionRmi?: boolean;
 }
 
 const RmiModal: React.FC<RmiModalProps> = ({
@@ -37,7 +41,11 @@ const RmiModal: React.FC<RmiModalProps> = ({
   fichas,
   onRefresh,
   readOnlyAsociacion,
-  actividades = []
+  actividades = [],
+  onAceptar,
+  onRechazar,
+  onRevertir,
+  disableActionRmi
 }) => {
   if (!isOpen) return null;
 
@@ -1065,6 +1073,50 @@ const RmiModal: React.FC<RmiModalProps> = ({
 
           {/* ── Footer ── */}
           <div className="px-6 py-3 border-t border-gray-100 dark:border-coal-300 bg-white dark:bg-coal-500 flex justify-end gap-2 shrink-0">
+            {instructor.estado === 'PENDIENTE' && onAceptar && onRechazar && (
+              <>
+                <button
+                  onClick={onAceptar}
+                  className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
+                  disabled={disableActionRmi}
+                >
+                  {!disableActionRmi ? (
+                    <i className="ki-outline ki-check-circle text-base" />
+                  ) : (
+                    <i className="ki-outline ki-loading text-base animate-spin" />
+                  )}
+                  Aceptar
+                </button>
+                <button
+                  onClick={onRechazar}
+                  className="flex items-center gap-2 px-4 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
+                  disabled={disableActionRmi}
+                >
+                  {!disableActionRmi ? (
+                    <i className="ki-outline ki-cross-circle text-base" />
+                  ) : (
+                    <i className="ki-outline ki-loading text-base animate-spin" />
+                  )}
+                  Rechazar
+                </button>
+              </>
+            )}
+
+            {(instructor.estado === 'ACEPTADO' || instructor.estado === 'RECHAZADO') && onRevertir && (
+              <button
+                onClick={onRevertir}
+                className="flex items-center gap-2 px-4 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
+                disabled={disableActionRmi}
+              >
+                {!disableActionRmi ? (
+                  <i className="ki-outline ki-arrow-circle-left text-base" />
+                ) : (
+                  <i className="ki-outline ki-loading text-base animate-spin" />
+                )}
+                Revertir
+              </button>
+            )}
+
             <button
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
@@ -1073,7 +1125,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-xs bg-gray-50 hover:bg-gray-100 font-semibold text-gray-700 dark:text-gray-400 dark:bg-coal-400 dark:hover:bg-coal-300 rounded-lg transition-all border border-gray-200 dark:border-coal-300"
             >
               <X size={13} /> Cerrar
             </button>
