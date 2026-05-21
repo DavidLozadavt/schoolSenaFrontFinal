@@ -77,6 +77,28 @@ interface Materia {
   DocUrl?: string;
 }
 
+
+interface PermisoAsistencia {
+  tienePermiso?: boolean;
+  estado?: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | string;
+  fechaInicial?: string | null;
+  fechaFinal?: string | null;
+  tipoExcusa?: string | null;
+  observacion?: string | null;
+  archivoSoporte?: string | null;
+  archivoSoporteUrl?: string | null;
+  urlDocumento?: string | null;
+  autorizadoPor?: string | null;
+  fechaRespuesta?: string | null;
+  observacionInstructor?: string | null;
+  excusa?: {
+    tipoExcusa?: string | null;
+    observacion?: string | null;
+    fechaInicialJustificacion?: string | null;
+    fechaFinalJustificacion?: string | null;
+    urlDocumento?: string | null;
+  };
+}
 interface StudentData {
   id: number;
   idFicha: number;
@@ -94,6 +116,8 @@ interface StudentData {
   matricula: Matricula;
   ficha: Ficha;
   materia: Materia;
+  evaluador?: Persona | null;
+  permisoAsistencia?: PermisoAsistencia | null;
 }
 
 interface StudentListProps {
@@ -129,6 +153,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
   // Estado para Acudiente
   const [showAcudienteModal, setShowAcudienteModal] = useState<boolean>(false);
   const [selectedAcudiente, setSelectedAcudiente] = useState<Persona | null>(null);
+  const [selectedPermiso, setSelectedPermiso] = useState<PermisoAsistencia | null>(null);
 
   // Estado para Anotaciones Disciplinarias
   const [showAnotacionesModal, setShowAnotacionesModal] = useState<boolean>(false);
@@ -413,6 +438,61 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     );
   };
 
+  const getPermisoEstado = (permiso?: PermisoAsistencia | null): string => {
+    return String(permiso?.estado || '').toUpperCase();
+  };
+
+  const estudianteTienePermiso = (permiso?: PermisoAsistencia | null): boolean => {
+    if (!permiso) return false;
+
+    const estado = getPermisoEstado(permiso);
+    return permiso.tienePermiso === true || ['PENDIENTE', 'APROBADO', 'RECHAZADO'].includes(estado);
+  };
+
+  const getPermisoBadgeClass = (estado?: string): string => {
+    const estadoNormalizado = String(estado || '').toUpperCase();
+
+    if (estadoNormalizado === 'APROBADO') {
+      return 'bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/25 dark:text-green-300 dark:border-green-700/60';
+    }
+
+    if (estadoNormalizado === 'PENDIENTE') {
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/25 dark:text-yellow-300 dark:border-yellow-700/60';
+    }
+
+    return 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/25 dark:text-red-300 dark:border-red-700/60';
+  };
+
+  const getPermisoLabel = (permiso?: PermisoAsistencia | null): string => {
+    const estado = getPermisoEstado(permiso);
+
+    if (estado === 'APROBADO') return 'Permiso aprobado';
+    if (estado === 'PENDIENTE') return 'Permiso pendiente';
+    if (estado === 'RECHAZADO') return 'Permiso rechazado';
+
+    return 'Tiene permiso';
+  };
+
+  const getPermisoTipoExcusa = (permiso?: PermisoAsistencia | null): string => {
+    return permiso?.tipoExcusa || permiso?.excusa?.tipoExcusa || 'Sin tipo registrado';
+  };
+
+  const getPermisoObservacion = (permiso?: PermisoAsistencia | null): string => {
+    return permiso?.observacion || permiso?.excusa?.observacion || 'Sin observación registrada';
+  };
+
+  const getPermisoFechaInicial = (permiso?: PermisoAsistencia | null): string => {
+    return permiso?.fechaInicial || permiso?.excusa?.fechaInicialJustificacion || 'Sin fecha inicial';
+  };
+
+  const getPermisoFechaFinal = (permiso?: PermisoAsistencia | null): string => {
+    return permiso?.fechaFinal || permiso?.excusa?.fechaFinalJustificacion || 'Sin fecha final';
+  };
+
+  const getPermisoArchivoUrl = (permiso?: PermisoAsistencia | null): string | null => {
+    return permiso?.archivoSoporteUrl || permiso?.urlDocumento || permiso?.excusa?.urlDocumento || null;
+  };
+
   // Función para mostrar detalles del estudiante
   const showStudentDetails = (student: StudentData) => {
     setSelectedStudent(student);
@@ -515,7 +595,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       // Tabla de estudiantes - Fila de encabezado
       const headerRow = worksheet.getRow(8);
-      headerRow.values = ['#', 'Nombre Completo', 'Identificación', 'Estado'];
+      headerRow.values = ['#', 'Nombre Completo', 'Identificación', 'Estado', 'Permiso'];
 
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -539,7 +619,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           index + 1,
           getFullName(student),
           getStudentIdentificacion(student),
-          'En formación'
+          'En formación',
+          estudianteTienePermiso(student.permisoAsistencia)
+            ? getPermisoLabel(student.permisoAsistencia)
+            : 'Sin permiso'
         ]);
 
         row.eachCell((cell, colNumber) => {
@@ -550,17 +633,17 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             right: { style: 'thin', color: { argb: 'FFEEEEEE' } }
           };
 
-          if (colNumber === 1 || colNumber === 4) {
+          if (colNumber === 1 || colNumber === 4 || colNumber === 5) {
             cell.alignment = { horizontal: 'center' };
           }
         });
       });
 
-      // Anchos de columna
       worksheet.getColumn(1).width = 5;
       worksheet.getColumn(2).width = 45;
       worksheet.getColumn(3).width = 20;
       worksheet.getColumn(4).width = 18;
+      worksheet.getColumn(5).width = 24;
 
       const buffer = await workbook.xlsx.writeBuffer();
 
@@ -631,9 +714,10 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             <thead>
               <tr>
                 <th class="text-center" style="width: 5%">#</th>
-                <th style="width: 45%">Nombre Completo</th>
-                <th style="width: 25%">Identificación</th>
-                <th class="text-center" style="width: 25%">Estado</th>
+                <th style="width: 35%">Nombre Completo</th>
+                <th style="width: 20%">Identificación</th>
+                <th class="text-center" style="width: 20%">Estado</th>
+                <th class="text-center" style="width: 20%">Permiso</th>
               </tr>
             </thead>
 
@@ -646,6 +730,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                       <td>${getFullName(s)}</td>
                       <td>${getStudentIdentificacion(s)}</td>
                       <td class="text-center">En formación</td>
+                      <td class="text-center">${estudianteTienePermiso(s.permisoAsistencia) ? getPermisoLabel(s.permisoAsistencia) : 'Sin permiso'}</td>
                     </tr>
                   `
                 )
@@ -871,8 +956,22 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                   </Tooltip>
 
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate">
-                    {email}
-                  </p>
+                      {email}
+                    </p>
+
+                    {estudianteTienePermiso(student.permisoAsistencia) && (
+                      <div className="mb-2">
+                        <Tooltip title="Clic para ver permiso" placement="top" arrow>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPermiso(student.permisoAsistencia || null)}
+                            className={`inline-flex items-center justify-center px-2 py-1 text-[10px] font-bold rounded-full cursor-pointer transition-opacity hover:opacity-80 ${getPermisoBadgeClass(student.permisoAsistencia?.estado)}`}
+                          >
+                            {getPermisoLabel(student.permisoAsistencia)}
+                          </button>
+                        </Tooltip>
+                      </div>
+                    )}
 
                   <div className="mb-3">{getStatusBadge(student.estado)}</div>
 
@@ -1214,6 +1313,97 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                 <button onClick={closeAcudienteModal} className="btn btn-sm btn-secondary">
                   Cerrar
                 </button>
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {selectedPermiso && (
+        <Modal open={true} onClose={() => setSelectedPermiso(null)}>
+          <ModalContent className="max-w-[520px] top-[15%] p-4">
+            <ModalHeader>
+              <ModalTitle className="flex items-center gap-2">
+                <KeenIcon icon="notepad-edit" className="text-blue-600 dark:text-blue-400" />
+                Información del permiso
+              </ModalTitle>
+
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-200 dark:hover:bg-coal-500/40 transition-colors shrink-0"
+                onClick={() => setSelectedPermiso(null)}
+              >
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+
+            <ModalBody className="py-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Estado</label>
+                  <p className="mt-1">
+                    <span className={`inline-block px-2 py-1 text-xs font-bold rounded ${getPermisoBadgeClass(selectedPermiso.estado)}`}>
+                      {getPermisoEstado(selectedPermiso) || 'SIN ESTADO'}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Desde</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{getPermisoFechaInicial(selectedPermiso)}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Hasta</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{getPermisoFechaFinal(selectedPermiso)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Tipo / Razón</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">{getPermisoTipoExcusa(selectedPermiso)}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Observación del aprendiz</label>
+                  <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">
+                    {getPermisoObservacion(selectedPermiso)}
+                  </p>
+                </div>
+
+                {selectedPermiso.autorizadoPor && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Atendido por</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">
+                      {selectedPermiso.autorizadoPor}
+                      {selectedPermiso.fechaRespuesta ? ` (${selectedPermiso.fechaRespuesta})` : ''}
+                    </p>
+                  </div>
+                )}
+
+                {selectedPermiso.observacionInstructor && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Respuesta del instructor líder</label>
+                    <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">
+                      {selectedPermiso.observacionInstructor}
+                    </p>
+                  </div>
+                )}
+
+                {getPermisoArchivoUrl(selectedPermiso) && (
+                  <div className="pt-2">
+                    <a
+                      href={getPermisoArchivoUrl(selectedPermiso) || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
+                    >
+                      <KeenIcon icon="file-down" className="text-base" />
+                      Ver archivo soporte adjunto
+                    </a>
+                  </div>
+                )}
               </div>
             </ModalBody>
           </ModalContent>

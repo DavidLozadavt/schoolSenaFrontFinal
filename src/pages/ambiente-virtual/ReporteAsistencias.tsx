@@ -472,71 +472,98 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
               </button>
             </ModalHeader>
             <ModalBody className="py-5 space-y-4">
-              {justificacionSeleccionada.excusa?.tipoExcusa && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Tipo de Excusa</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.tipoExcusa}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-coal-300 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Tipo de Excusa</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {justificacionSeleccionada.excusa?.tipoExcusa ? (
+                      <span className="inline-flex items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-bold text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                        {justificacionSeleccionada.excusa.tipoExcusa}
+                      </span>
+                    ) : (
+                      'No especificado'
+                    )}
+                  </p>
                 </div>
-              )}
+                
+                <div className="bg-gray-50 dark:bg-coal-300 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Estado Actual</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {justificacionSeleccionada.estado === 'APROBADA' || justificacionSeleccionada.estado === 'APROBADO' ? (
+                      <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <KeenIcon icon="check" className="text-sm" /> Aprobada
+                      </span>
+                    ) : justificacionSeleccionada.estado === 'RECHAZADA' || justificacionSeleccionada.estado === 'RECHAZADO' ? (
+                      <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <KeenIcon icon="cross" className="text-sm" /> Rechazada
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                        <KeenIcon icon="time" className="text-sm" /> Pendiente
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
 
               {justificacionSeleccionada.excusa?.observacion && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Observación</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.observacion}</p>
+                <div className="bg-gray-50 dark:bg-coal-300 p-4 rounded-xl border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">Observación</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{justificacionSeleccionada.excusa.observacion}"</p>
                 </div>
               )}
 
               {justificacionSeleccionada.excusa?.urlDocumento && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Documento de Soporte</p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2">
-                    {(() => {
-                      const originalUrl = justificacionSeleccionada.excusa.urlDocumento;
-                      // Si la URL ya es completa y empieza con /excusas/, convertir a /storage/excusas/
-                      let docUrl: string | null = originalUrl;
-                      if (originalUrl && originalUrl.startsWith('http://')) {
-                        try {
-                          const urlObj = new URL(originalUrl);
-                          if (urlObj.pathname.startsWith('/excusas/')) {
+                    <KeenIcon icon="file" className="text-blue-600 dark:text-blue-400 text-lg" />
+                    <div>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Documento de Soporte</p>
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400">Ver archivo adjunto</p>
+                    </div>
+                  </div>
+                  {(() => {
+                    const originalUrl = justificacionSeleccionada.excusa.urlDocumento;
+                    let docUrl: string | null = originalUrl;
+                    if (originalUrl && originalUrl.startsWith('http://')) {
+                      try {
+                        const urlObj = new URL(originalUrl);
+                        if (urlObj.pathname.startsWith('/excusas/')) {
+                          const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+                          docUrl = base + '/storage' + urlObj.pathname;
+                        } else if (urlObj.pathname.startsWith('/storage/')) {
+                          if (urlObj.hostname === 'localhost' && !urlObj.port) {
                             const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-                            docUrl = base + '/storage' + urlObj.pathname;
-                          } else if (urlObj.pathname.startsWith('/storage/')) {
-                            // Si ya tiene /storage/, solo corregir el puerto si es necesario
-                            if (urlObj.hostname === 'localhost' && !urlObj.port) {
-                              const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-                              docUrl = base + urlObj.pathname;
-                            } else {
-                              docUrl = originalUrl;
-                            }
+                            docUrl = base + urlObj.pathname;
                           } else {
                             docUrl = originalUrl;
                           }
-                        } catch {
+                        } else {
                           docUrl = originalUrl;
                         }
-                      } else if (originalUrl && !originalUrl.startsWith('http')) {
-                        // Si es una ruta relativa, usar getDocumentUrl
-                        docUrl = getAsistenciaDocumentUrl(originalUrl);
+                      } catch {
+                        docUrl = originalUrl;
                       }
-                      return docUrl ? (
-                        <a
-                          href={docUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (docUrl) {
-                              window.open(docUrl, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium cursor-pointer"
-                        >
-                          <KeenIcon icon="file-pdf" className="w-4 h-4 text-red-500 dark:text-red-400" />
-                          Ver PDF
-                        </a>
-                      ) : null;
-                    })()}
-                  </div>
+                    } else if (originalUrl && !originalUrl.startsWith('http')) {
+                      docUrl = getAsistenciaDocumentUrl(originalUrl);
+                    }
+                    return docUrl ? (
+                      <a
+                        href={docUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (docUrl) {
+                            window.open(docUrl, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className="btn btn-sm btn-primary shrink-0"
+                      >
+                        Abrir Documento
+                      </a>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </ModalBody>
