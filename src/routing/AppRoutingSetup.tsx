@@ -786,7 +786,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/perfil"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute requiredPermissions={[]}>
                 <PerfilPage />
               </ProtectedRoute>
             }
