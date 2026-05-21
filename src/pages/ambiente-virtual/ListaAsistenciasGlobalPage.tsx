@@ -66,12 +66,14 @@ const extraerFichas = (payload: unknown): FichaOption[] => {
 };
 
 const formatearFecha = (fechaStr: string): string => {
-  if (!fechaStr) return '—';
+  if (!fechaStr) return '';
   try {
-    const fecha = new Date(fechaStr);
+    const normalized = fechaStr.length === 10 ? `${fechaStr}T12:00:00` : fechaStr;
+    const fecha = new Date(normalized);
     if (isNaN(fecha.getTime())) return fechaStr;
     return fecha.toLocaleDateString('es-CO', {
-      day: '2-digit',
+      weekday: 'short',
+      day: 'numeric',
       month: 'short',
       year: 'numeric'
     });

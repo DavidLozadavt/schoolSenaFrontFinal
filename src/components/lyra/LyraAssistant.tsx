@@ -138,7 +138,7 @@ const LyraAssistant = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { persona, roles } = useAuthContext();
-    const { messages, setMessages, isOpen, setIsOpen, conversationId, setHighlightedBusinessId, setFiltersApplied, isPoweredOn, setIsPoweredOn } = useLyra();
+    const { messages, setMessages, isOpen, setIsOpen, conversationId, setHighlightedBusinessId, setFiltersApplied, isPoweredOn, setIsPoweredOn, checkHealth } = useLyra();
     const { pusher } = usePusher();
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -240,8 +240,9 @@ const LyraAssistant = () => {
                     }
                 })
                 .catch(err => {
-                    console.warn('Lyra unreachable during init. Powering off.');
+                    console.info('Lyra unreachable during init. Powering off.');
                     setIsPoweredOn(false);
+                    didInitVoice.current = false; // Reset to allow retry when back online
                 });
             }
         }
@@ -545,6 +546,12 @@ const LyraAssistant = () => {
         setActivePersonality(newPersonality);
         sessionStorage.setItem('lyra_personality', newPersonality);
         setShowMenu(false);
+
+        if (!isPoweredOn) {
+            console.info('Lyra is offline. Skipping initialization request.');
+            return;
+        }
+
         setMessages([]); // Limpiamos para obtener el nuevo saludo
         
         const match = location.pathname.match(/\/empresa\/(\d+)/);
@@ -620,8 +627,14 @@ const LyraAssistant = () => {
                                 
                                 {/* Active State Indicator */}
                                 <span className="absolute top-2 right-2 flex h-4 w-4 z-20">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-violet-500 border-2 border-white shadow-sm"></span>
+                                    <span className={clsx(
+                                        "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                                        isPoweredOn ? "bg-green-400" : "bg-red-400"
+                                    )}></span>
+                                    <span className={clsx(
+                                        "relative inline-flex rounded-full h-4 w-4 border-2 border-white shadow-sm",
+                                        isPoweredOn ? "bg-green-500" : "bg-red-500"
+                                    )}></span>
                                 </span>
                             </motion.button>
                         )}
@@ -722,6 +735,19 @@ const LyraAssistant = () => {
                     )}
                 </div>
 
+                {/* Test Phase Notice Banner */}
+                <div className="flex-shrink-0 mx-5 mt-3.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 dark:bg-amber-500/5 dark:border-amber-500/10 flex items-start gap-3 animate-fade-in-up">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                        <KeenIcon icon="information-2" className="text-base" />
+                    </div>
+                    <div className="flex flex-col gap-0.5 text-left">
+                        <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400">Asistente en Fase de Prueba</h4>
+                        <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
+                            Lyra se encuentra en etapa de prueba y ajuste tras su reciente integración al proyecto de SchoolSena.
+                        </p>
+                    </div>
+                </div>
+
                 {voiceError && (<div className="flex-shrink-0 mx-3 mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">⚠️ {voiceError}</div>)}
 
                 {/* Messages */}
@@ -739,12 +765,12 @@ const LyraAssistant = () => {
                                 El servicio de asistencia no está disponible en este momento. Por favor, intenta más tarde.
                             </p>
                             
-                            <button 
-                                onClick={() => window.location.reload()}
+                            {/* <button 
+                                onClick={checkHealth}
                                 className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-coal-400 text-gray-700 dark:text-gray-200 font-bold text-sm hover:bg-gray-200 dark:hover:bg-coal-300 transition-all active:scale-95"
                             >
                                 Reintentar conexión
-                            </button>
+                            </button> */}
                         </div>
                     ) : !hasSelectedPersonality ? (
                         <div className="flex flex-col items-center justify-center p-6 bg-white/80 backdrop-blur-md rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100/50 dark:bg-coal-500/50 dark:border-white/5 animate-fade-in-up text-center mt-auto mb-auto relative overflow-hidden">
@@ -798,7 +824,7 @@ const LyraAssistant = () => {
                                     <div className={clsx(
                                         'max-w-[85%] rounded-3xl px-5 py-4 text-[14.5px] leading-relaxed break-words shadow-sm',
                                         isUser 
-                                            ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-[0_8px_20px_rgba(124,58,237,0.25)] border border-indigo-500/50' 
+                                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-sm shadow-[0_8px_20px_rgba(59,130,246,0.25)] border border-blue-500/50' 
                                             : 'bg-white dark:bg-[#1E1E2D]/90 dark:backdrop-blur-xl rounded-bl-sm shadow-[0_8px_25px_rgba(0,0,0,0.06)] border border-gray-100/80 dark:border-white/10'
                                     )}>
                                         <div className="w-full">
@@ -806,8 +832,8 @@ const LyraAssistant = () => {
                                                 components={{
                                                     p: ({children}: any) => <p className={clsx("mb-2.5 last:mb-0 font-medium leading-relaxed", isUser ? "text-white" : "text-gray-800 dark:!text-white")}>{children}</p>,
                                                     strong: ({children}: any) => <strong className={clsx("font-extrabold", isUser ? "text-white" : "text-indigo-600 dark:!text-indigo-300")}>{children}</strong>,
-                                                    a: ({children, href}: any) => <a href={href} className={clsx("hover:underline font-bold transition-all hover:opacity-80 break-words", isUser ? "text-indigo-100" : "text-indigo-600 dark:text-indigo-400")} target="_blank" rel="noreferrer">{children}</a>,
-                                                    li: ({children}: any) => <li className={clsx("ml-5 my-1.5 list-disc", isUser ? "text-white marker:text-indigo-200" : "text-gray-800 dark:!text-white marker:text-indigo-500")}>{children}</li>,
+                                                    a: ({children, href}: any) => <a href={href} className={clsx("hover:underline font-bold transition-all hover:opacity-80 break-words", isUser ? "text-blue-100" : "text-indigo-600 dark:text-indigo-400")} target="_blank" rel="noreferrer">{children}</a>,
+                                                    li: ({children}: any) => <li className={clsx("ml-5 my-1.5 list-disc", isUser ? "text-white marker:text-blue-200" : "text-gray-800 dark:!text-white marker:text-indigo-500")}>{children}</li>,
                                                     ul: ({children}: any) => <ul className="mb-3 space-y-1">{children}</ul>
                                                 }}
                                             >

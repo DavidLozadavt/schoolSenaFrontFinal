@@ -121,6 +121,7 @@ import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
 import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
 import GruposPage from '@/pages/ambiente-virtual/GruposPage';
+import JustificacionesInstructorPage from '@/pages/ambiente-virtual/JustificacionesInstructorPage';
 import BibliotecaConocimientoPage from '@/pages/ambiente-virtual/BibliotecaConocimientoPage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
@@ -1242,6 +1243,16 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ']}>
                 <BibliotecaConocimientoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/justificaciones-pendientes"
+            element={
+              <ProtectedRoute
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+              >
+                <JustificacionesInstructorPage />
               </ProtectedRoute>
             }
           />
