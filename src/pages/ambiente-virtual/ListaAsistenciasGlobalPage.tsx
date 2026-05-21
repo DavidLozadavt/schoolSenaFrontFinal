@@ -6,7 +6,6 @@ import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import {
   Toolbar,
-  ToolbarActions,
   ToolbarDescription,
   ToolbarHeading,
   ToolbarPageTitle
@@ -328,8 +327,6 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
                 Consulta las asistencias de todas tus fichas y aprendices con filtros por fecha
               </ToolbarDescription>
             </ToolbarHeading>
-            <ToolbarActions>
-            </ToolbarActions>
           </Toolbar>
         </Container>
       )}
