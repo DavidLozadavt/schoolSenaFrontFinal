@@ -1256,6 +1256,7 @@ interface Clase {
   horaFinal?: string;
   total_sesiones?: number;
   sesiones_dadas?: number;
+  sesiones_restantes?: number;
   sesiones_completadas?: SesionCompletada[];
   dia_semana?: string;
   idDia: number; // ID del día desde la BD: 1=Lunes, 2=Martes, ..., 7=Domingo
