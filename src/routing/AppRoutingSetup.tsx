@@ -183,6 +183,7 @@ const AppRoutingSetup = (): ReactElement => {
   return (
     <Routes>
       <Route path="/formulario/:slug" element={<FormPublicPage />} />
+      <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
       
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>

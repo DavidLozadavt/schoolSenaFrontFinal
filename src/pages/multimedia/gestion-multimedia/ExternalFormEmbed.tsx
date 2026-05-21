@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ExternalLink, AlertCircle, FileText } from 'lucide-react';
 
-export type FormProvider = 'google' | 'microsoft' | 'typeform' | 'tally' | 'jotform' | 'other';
+export type FormProvider = 'google' | 'microsoft' | 'typeform' | 'tally' | 'jotform' | 'interno' | 'other';
 
 interface ExternalFormEmbedProps {
   url: string;
@@ -18,6 +18,7 @@ const PROVIDER_LABELS: Record<FormProvider, string> = {
   typeform: 'Typeform',
   tally: 'Tally',
   jotform: 'Jotform',
+  interno: 'Formulario Interno (VirtualT)',
   other: 'Formulario Externo',
 };
 
@@ -27,6 +28,7 @@ const PROVIDER_COLORS: Record<FormProvider, { bg: string; text: string; border: 
   typeform: { bg: 'bg-neutral-900 dark:bg-white', text: 'text-neutral-900 dark:text-white', border: 'border-neutral-500/20', shadow: 'shadow-neutral-500/20' },
   tally: { bg: 'bg-neutral-800', text: 'text-neutral-700 dark:text-neutral-300', border: 'border-neutral-500/20', shadow: 'shadow-neutral-500/20' },
   jotform: { bg: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20', shadow: 'shadow-orange-500/20' },
+  interno: { bg: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20', shadow: 'shadow-orange-500/20' },
   other: { bg: 'bg-gray-500', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-500/20', shadow: 'shadow-gray-500/20' },
 };
 

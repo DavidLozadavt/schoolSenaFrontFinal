@@ -25,6 +25,7 @@ export const EventForm = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
   const [areas, setAreas] = useState<any[]>([]);
+  const [formulariosInternos, setFormulariosInternos] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -38,7 +39,8 @@ export const EventForm = () => {
     crearHistoria: true,
     idGrupoMultimedia: null as number | null,
     formUrl: '',
-    formProvider: 'other'
+    formProvider: 'interno',
+    idFormularioInterno: '' as string | number
   });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -53,6 +55,18 @@ export const EventForm = () => {
       }
     };
     fetchAreas();
+  }, []);
+
+  useEffect(() => {
+    const fetchFormularios = async () => {
+      try {
+        const response = await axios.get('/formularios');
+        setFormulariosInternos(response.data);
+      } catch (err) {
+        console.error('Error al cargar formularios:', err);
+      }
+    };
+    fetchFormularios();
   }, []);
 
   useEffect(() => {
@@ -85,7 +99,8 @@ export const EventForm = () => {
           crearHistoria: false,
           idGrupoMultimedia: evento.grupo_multimedia ? (evento.idGrupoMultimedia || true) : null,
           formUrl: evento.formUrl || '',
-          formProvider: evento.formProvider || 'other'
+          formProvider: evento.formProvider || 'interno',
+          idFormularioInterno: evento.idFormularioInterno || ''
         });
         const getImageUrl = (url?: string) => {
           if (!url) return null;
@@ -119,9 +134,32 @@ export const EventForm = () => {
     setLoading(true);
 
     const data = new FormData();
+    
+    // Construct dynamic formUrl and linkRegistro for internal forms if applicable
+    let finalFormUrl = formData.formUrl;
+    let finalLinkRegistro = formData.linkRegistro;
+    
+    if (formData.formProvider === 'interno' && formData.idFormularioInterno) {
+      finalFormUrl = `/formulario-publico/${formData.idFormularioInterno}`;
+      finalLinkRegistro = `/formulario-publico/${formData.idFormularioInterno}`;
+    } else if (formData.formProvider !== 'interno') {
+      // Clear idFormularioInterno if another provider is chosen
+      formData.idFormularioInterno = '';
+    }
+
     Object.entries(formData).forEach(([key, value]) => {
       if (key === 'idArea' && value === '') {
         // No añadir o añadir null
+      } else if (key === 'formUrl') {
+        data.append(key, finalFormUrl);
+      } else if (key === 'linkRegistro') {
+        data.append(key, finalLinkRegistro);
+      } else if (key === 'idFormularioInterno') {
+        if (formData.formProvider === 'interno' && value) {
+          data.append(key, value.toString());
+        } else {
+          data.append(key, '');
+        }
       } else if (value !== null && value !== undefined) {
         data.append(key, value.toString());
       }
@@ -378,10 +416,11 @@ export const EventForm = () => {
                     <KeenIcon icon="setting-2" className="text-orange-500 text-xs" /> Plataforma de Formulario
                   </label>
                   <select
-                    className="select bg-white dark:bg-neutral-900 border-neutral-200 dark:border-white/10 rounded-2xl h-12"
+                    className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 focus:border-orange-500/30 rounded-2xl h-12 px-4 font-semibold text-sm text-neutral-800 dark:text-white transition-all outline-none appearance-none cursor-pointer"
                     value={formData.formProvider}
                     onChange={(e) => setFormData({ ...formData, formProvider: e.target.value })}
                   >
+                    <option value="interno">Formulario Interno (VirtualT)</option>
                     <option value="other">Otro / Enlace Externo</option>
                     <option value="google">Google Forms</option>
                     <option value="microsoft">Microsoft Forms</option>
@@ -391,47 +430,98 @@ export const EventForm = () => {
                   </select>
                 </div>
 
-                {/* Link Directo (Legacy) */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-neutral-400 uppercase tracking-widest flex items-center gap-2">
-                    <LinkIcon className="w-3 h-3" /> Enlace Externo (Opcional)
-                  </label>
-                  <input
-                    type="url"
-                    className="input bg-white dark:bg-neutral-900 border-neutral-200 dark:border-white/10 rounded-2xl h-12 opacity-60 text-xs"
-                    placeholder="https://pagina-externa.com"
-                    value={formData.linkRegistro}
-                    style={{ textTransform: 'none' }}
-                    onChange={(e) => setFormData({ ...formData, linkRegistro: e.target.value })}
-                  />
-                </div>
+                {/* Conditional Form Selection / Link Directo */}
+                {formData.formProvider === 'interno' ? (
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                      <FileText className="w-3 h-3 text-orange-500" /> Formulario Interno a Vincular
+                    </label>
+                    <select
+                      className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 focus:border-orange-500/30 rounded-2xl h-12 px-4 font-semibold text-sm text-neutral-800 dark:text-white transition-all outline-none appearance-none cursor-pointer"
+                      value={formData.idFormularioInterno}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          idFormularioInterno: selectedId,
+                          formUrl: selectedId ? `/formulario-publico/${selectedId}` : '',
+                          linkRegistro: selectedId ? `/formulario-publico/${selectedId}` : ''
+                        });
+                      }}
+                    >
+                      <option value="">Selecciona un formulario interno</option>
+                      {formulariosInternos.map((form) => (
+                        <option key={form.id} value={form.id}>
+                          {form.titulo} ({form.preguntas_count || 0} preg. - {form.estado})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+                      <LinkIcon className="w-3 h-3" /> Enlace Externo (Opcional)
+                    </label>
+                    <input
+                      type="url"
+                      className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 focus:border-orange-500/30 rounded-2xl h-12 px-4 font-semibold text-sm text-neutral-800 dark:text-white transition-all outline-none"
+                      placeholder="https://pagina-externa.com"
+                      value={formData.linkRegistro}
+                      style={{ textTransform: 'none' }}
+                      onChange={(e) => setFormData({ ...formData, linkRegistro: e.target.value })}
+                    />
+                  </div>
+                )}
 
-                {/* URL Embebida (Featured) */}
-                <div className="md:col-span-2 p-6 rounded-3xl bg-white dark:bg-neutral-900 border-2 border-orange-500/20 shadow-lg shadow-orange-500/5 space-y-3 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                     <LinkIcon className="w-20 h-20 text-orange-500 -rotate-12" />
-                  </div>
-                  
-                  <label className="text-xs font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 animate-pulse" /> URL del Formulario Integrado
-                  </label>
-                  <input
-                    type="url"
-                    className="input border-neutral-200 dark:border-white/10 rounded-2xl h-14 font-medium"
-                    placeholder="Pega aquí el enlace de compartir (ej. Google Forms)"
-                    value={formData.formUrl}
-                    style={{ textTransform: 'none' }}
-                    onChange={(e) => setFormData({ ...formData, formUrl: e.target.value })}
-                  />
-                  <div className="flex items-start gap-3 mt-2">
-                    <div className="w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                       <KeenIcon icon="information-2" className="text-[10px] text-orange-500" />
+                {/* Conditional Preview / Custom Integration Box */}
+                {formData.formProvider === 'interno' ? (
+                  <div className="md:col-span-2 p-6 rounded-3xl bg-orange-500/5 dark:bg-orange-500/10 border-2 border-orange-500/20 shadow-lg shadow-orange-500/5 space-y-3 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                       <FileText className="w-20 h-20 text-orange-500 -rotate-12" />
                     </div>
-                    <p className="text-[10px] text-neutral-400 font-medium leading-relaxed">
-                      RECOMENDADO: Usa esta opción para que el formulario se abra **dentro del modal** del evento. Mejora la conversión y mantiene a los usuarios en tu plataforma.
+                    
+                    <label className="text-xs font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 animate-pulse" /> Integración Inteligente de Formulario
+                    </label>
+                    <p className="text-sm font-bold text-neutral-800 dark:text-white">
+                      ¡Excelente elección! Los usuarios se inscribirán directamente dentro de la plataforma.
                     </p>
+                    <div className="flex items-start gap-3 mt-2">
+                      <div className="w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                         <KeenIcon icon="information-2" className="text-[10px] text-orange-500" />
+                      </div>
+                      <p className="text-[10px] text-neutral-400 font-medium leading-relaxed">
+                        Esta integración habilitará la <strong>inscripción automática e instantánea</strong>. Cuando los usuarios completen este formulario interno, su asistencia al evento quedará confirmada de inmediato en su perfil.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="md:col-span-2 p-6 rounded-3xl bg-white dark:bg-neutral-900 border-2 border-orange-500/20 shadow-lg shadow-orange-500/5 space-y-3 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                       <LinkIcon className="w-20 h-20 text-orange-500 -rotate-12" />
+                    </div>
+                    
+                    <label className="text-xs font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 animate-pulse" /> URL del Formulario Integrado
+                    </label>
+                    <input
+                      type="url"
+                      className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 focus:border-orange-500/30 rounded-2xl h-14 px-4 font-medium text-sm text-neutral-800 dark:text-white transition-all outline-none"
+                      placeholder="Pega aquí el enlace de compartir (ej. Google Forms)"
+                      value={formData.formUrl}
+                      style={{ textTransform: 'none' }}
+                      onChange={(e) => setFormData({ ...formData, formUrl: e.target.value })}
+                    />
+                    <div className="flex items-start gap-3 mt-2">
+                      <div className="w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                         <KeenIcon icon="information-2" className="text-[10px] text-orange-500" />
+                      </div>
+                      <p className="text-[10px] text-neutral-400 font-medium leading-relaxed">
+                        RECOMENDADO: Usa esta opción para que el formulario se abra **dentro del modal** del evento. Mejora la conversión y mantiene a los usuarios en tu plataforma.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

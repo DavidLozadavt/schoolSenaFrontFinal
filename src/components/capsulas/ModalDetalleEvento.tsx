@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Clock, MapPin, Share2, Info, Bell, Video, Link as LinkIcon, Timer, Sparkles, Map, AlertCircle, CheckCircle2, Copy, ExternalLink, ArrowRight } from 'lucide-react';
 import { useSnackbar } from 'notistack';
 import { KeenIcon } from '@/components';
@@ -24,6 +25,7 @@ interface Evento {
   };
   formUrl?: string;
   formProvider?: string;
+  idFormularioInterno?: number | string;
 }
 
 
@@ -33,6 +35,7 @@ interface ModalDetalleEventoProps {
 }
 
 const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose }) => {
+  const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
   const [eventStatus, setEventStatus] = useState<'pending' | 'live' | 'finished' | 'cancelled'>('pending');
   const [isRegistered, setIsRegistered] = useState(false);
@@ -77,9 +80,14 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   };
 
   const handleExternalFormClick = () => {
-    window.open(evento.linkRegistro || evento.formUrl, '_blank');
-    if (!isRegistered) {
-      setShowConfirmButton(true);
+    if (evento.formProvider === 'interno' && evento.idFormularioInterno) {
+      onClose();
+      navigate(`/formulario-publico/${evento.idFormularioInterno}`);
+    } else {
+      window.open(evento.linkRegistro || evento.formUrl, '_blank');
+      if (!isRegistered) {
+        setShowConfirmButton(true);
+      }
     }
   };
 

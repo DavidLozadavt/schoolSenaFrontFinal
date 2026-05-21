@@ -44,41 +44,183 @@ const FormBuilderPage: React.FC = () => {
     switch (templateId) {
       case 'satisfaccion':
         templateData = {
-          titulo: 'Encuesta de Satisfacción',
-          descripcion: 'Ayúdanos a mejorar nuestros servicios',
-          colorTema: '#10b981',
+          titulo: '🌟 Encuesta de Satisfacción de Usuario',
+          descripcion: '¡Tu opinión es sumamente valiosa para nosotros! Por favor, tómate unos minutos para evaluar tu experiencia y ayudarnos a perfeccionar continuamente la calidad de nuestros servicios y procesos académicos.',
+          colorTema: '#10b981', // Emerald Green
           estado: 'borrador',
           requiereAutenticacion: false,
           preguntas: [
-            { id: `q-1`, tipo: 'escala_lineal', titulo: '¿Qué tan satisfecho estás con el servicio?', esObligatoria: true, orden: 1, configuracion: { min: 1, max: 5, minLabel: 'Poco', maxLabel: 'Mucho' }, opciones: [] },
-            { id: `q-2`, tipo: 'texto_largo', titulo: 'Comentarios adicionales', esObligatoria: false, orden: 2, opciones: [] }
+            { 
+              id: `q-1`, 
+              tipo: 'escala_lineal', 
+              titulo: '⭐ ¿Qué tan satisfecho estás con la atención recibida por nuestro personal?', 
+              descripcion: 'Califica de 1 a 5 tu interacción en general con nuestro equipo.',
+              esObligatoria: true, 
+              orden: 1, 
+              configuracion: { min: 1, max: 5, minLabel: 'Muy insatisfecho 😞', maxLabel: 'Excelente servicio 😄' }, 
+              opciones: [] 
+            },
+            { 
+              id: `q-2`, 
+              tipo: 'opcion_multiple', 
+              titulo: '✨ ¿Recomendarías nuestros programas o servicios a un amigo o colega?', 
+              descripcion: 'Tu recomendación es el reflejo de nuestro compromiso.',
+              esObligatoria: true, 
+              orden: 2, 
+              opciones: [
+                { id: 'o1', texto: 'Sí, definitivamente 💖', orden: 1 }, 
+                { id: 'o2', texto: 'Probablemente sí 👍', orden: 2 }, 
+                { id: 'o3', texto: 'Tal vez, con ciertas mejoras 🤔', orden: 3 },
+                { id: 'o4', texto: 'No, por el momento ❌', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-3`, 
+              tipo: 'casillas', 
+              titulo: '🛠️ ¿Qué aspectos de nuestro servicio destacarías positivamente? (Selecciona todas las opciones aplicables)', 
+              descripcion: 'Selecciona las áreas donde sientas que sobresalimos.',
+              esObligatoria: false, 
+              orden: 3, 
+              opciones: [
+                { id: 'o5', texto: 'Amabilidad, respeto y trato profesional del personal 👤', orden: 1 }, 
+                { id: 'o6', texto: 'Rapidez de respuesta y solución efectiva de dudas ⚡', orden: 2 }, 
+                { id: 'o7', texto: 'Calidad, estructura y utilidad del servicio formativo 💎', orden: 3 }, 
+                { id: 'o8', texto: 'Comodidad, tecnología y accesibilidad de las instalaciones 🏢', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-4`, 
+              tipo: 'texto_largo', 
+              titulo: '💬 ¿Tienes alguna sugerencia específica o comentario adicional para mejorar?', 
+              descripcion: 'Tu feedback es el motor que impulsa nuestro crecimiento continuo.',
+              esObligatoria: false, 
+              orden: 4, 
+              opciones: [] 
+            }
           ]
         };
         break;
       case 'evaluacion':
         templateData = {
-          titulo: 'Evaluación de Evento',
-          descripcion: 'Evalúa el evento reciente',
-          colorTema: '#3b82f6',
+          titulo: '📊 Evaluación y Feedback de Evento',
+          descripcion: '¡Muchas gracias por acompañarnos en este evento! Te agradecemos de corazón que completes esta breve evaluación académica y logística, la cual nos permitirá seguir diseñando espacios de formación de altísimo impacto para ti.',
+          colorTema: '#3b82f6', // Bright Blue
           estado: 'borrador',
-          requiereAutenticacion: true,
+          requiereAutenticacion: false,
           preguntas: [
-            { id: `q-1`, tipo: 'opcion_multiple', titulo: '¿Asististe al evento?', esObligatoria: true, orden: 1, opciones: [{ id: 'o1', texto: 'Sí', orden: 1 }, { id: 'o2', texto: 'No', orden: 2 }] },
-            { id: `q-2`, tipo: 'escala_lineal', titulo: '¿Cómo calificarías la organización?', esObligatoria: true, orden: 2, configuracion: { min: 1, max: 5, minLabel: 'Mala', maxLabel: 'Excelente' }, opciones: [] }
+            { 
+              id: `q-1`, 
+              tipo: 'opcion_multiple', 
+              titulo: '🎯 ¿El contenido expuesto en el evento cumplió con tus expectativas iniciales?', 
+              descripcion: 'Indica si los temas abordados se alinearon con los objetivos propuestos.',
+              esObligatoria: true, 
+              orden: 1, 
+              opciones: [
+                { id: 'o1', texto: 'Totalmente de acuerdo ⭐⭐⭐⭐⭐', orden: 1 }, 
+                { id: 'o2', texto: 'De acuerdo ⭐⭐⭐', orden: 2 }, 
+                { id: 'o3', texto: 'En desacuerdo ⭐⭐', orden: 3 },
+                { id: 'o4', texto: 'Totalmente en desacuerdo ⭐', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-2`, 
+              tipo: 'escala_lineal', 
+              titulo: '⏱️ ¿Cómo calificarías la organización logística y el cumplimiento del cronograma?', 
+              descripcion: 'Valora la puntualidad de los ponentes, la fluidez técnica y el soporte del evento.',
+              esObligatoria: true, 
+              orden: 2, 
+              configuracion: { min: 1, max: 5, minLabel: 'Logística deficiente ⚠️', maxLabel: 'Logística impecable 💯' }, 
+              opciones: [] 
+            },
+            { 
+              id: `q-3`, 
+              tipo: 'casillas', 
+              titulo: '💡 ¿Qué módulos o dinámicas te resultaron más útiles e interesantes?', 
+              descripcion: 'Puedes marcar varias opciones según tu experiencia en la jornada.',
+              esObligatoria: false, 
+              orden: 3, 
+              opciones: [
+                { id: 'o5', texto: 'Conferencias magistrales y ponencias teóricas 🎙️', orden: 1 }, 
+                { id: 'o6', texto: 'Talleres prácticos, laboratorios e interacción en vivo 💻', orden: 2 }, 
+                { id: 'o7', texto: 'Espacio participativo de debate, preguntas y respuestas 🗣️', orden: 3 }, 
+                { id: 'o8', texto: 'Material didáctico interactivo, diapositivas y guías de apoyo 📄', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-4`, 
+              tipo: 'texto_largo', 
+              titulo: '🚀 ¿Qué temáticas adicionales o áreas de interés te gustaría que abordáramos en próximos eventos?', 
+              descripcion: 'Escribe libremente los temas académicos o tecnológicos de tu preferencia.',
+              esObligatoria: false, 
+              orden: 4, 
+              opciones: [] 
+            }
           ]
         };
         break;
       case 'registro':
         templateData = {
-          titulo: 'Registro de Evento',
-          descripcion: 'Inscríbete en nuestro próximo evento',
-          colorTema: '#f59e0b',
+          titulo: '📝 Formulario de Inscripción y Registro Oficial',
+          descripcion: '¡Asegura tu cupo de forma inmediata! Completa este registro para reservar tu plaza en nuestra próxima actividad formativa. El enlace de acceso y el cronograma del evento te serán enviados a tu correo electrónico.',
+          colorTema: '#f59e0b', // Amber Orange
           estado: 'borrador',
           requiereAutenticacion: false,
           preguntas: [
-            { id: `q-1`, tipo: 'texto_corto', titulo: 'Nombre completo', esObligatoria: true, orden: 1, opciones: [] },
-            { id: `q-2`, tipo: 'texto_corto', titulo: 'Correo electrónico', esObligatoria: true, orden: 2, opciones: [] },
-            { id: `q-3`, tipo: 'fecha', titulo: 'Fecha de nacimiento', esObligatoria: false, orden: 3, opciones: [] }
+            { 
+              id: `q-1`, 
+              tipo: 'texto_corto', 
+              titulo: '👤 Nombre completo del participante', 
+              descripcion: 'Por favor, escribe tu nombre tal como deseas que figure en tu certificado digital.',
+              esObligatoria: true, 
+              orden: 1, 
+              opciones: [] 
+            },
+            { 
+              id: `q-2`, 
+              tipo: 'texto_corto', 
+              titulo: '📧 Correo electrónico institucional o personal de contacto', 
+              descripcion: 'Aquí te enviaremos las credenciales de acceso a la sala virtual y memorias del evento.',
+              esObligatoria: true, 
+              orden: 2, 
+              opciones: [] 
+            },
+            { 
+              id: `q-3`, 
+              tipo: 'desplegable', 
+              titulo: '💼 ¿A qué perfil o área sectorial perteneces actualmente?', 
+              descripcion: 'Esto nos permite adaptar los enfoques prácticos de la sesión.',
+              esObligatoria: true, 
+              orden: 3, 
+              opciones: [
+                { id: 'o1', texto: 'Estudiante en formación académica 🎓', orden: 1 }, 
+                { id: 'o2', texto: 'Docente / Instructor / Tutor educativo 🏫', orden: 2 }, 
+                { id: 'o3', texto: 'Profesional activo de la industria 🏢', orden: 3 }, 
+                { id: 'o4', texto: 'Emprendedor / Director / Consultor independiente 🚀', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-4`, 
+              tipo: 'casillas', 
+              titulo: '📢 ¿Cómo te enteraste de la convocatoria para este evento?', 
+              descripcion: 'Nos ayuda a saber qué medios de comunicación son más efectivos.',
+              esObligatoria: false, 
+              orden: 4, 
+              opciones: [
+                { id: 'o5', texto: 'Publicación oficial en Redes Sociales (Facebook, Instagram, LinkedIn) 📱', orden: 1 }, 
+                { id: 'o6', texto: 'Boletín de novedades enviado por Correo Electrónico ✉️', orden: 2 }, 
+                { id: 'o7', texto: 'Recomendación directa de un colega, familiar o amigo 👥', orden: 3 }, 
+                { id: 'o8', texto: 'Anuncio destacado en nuestro Portal Web VirtualT 🌐', orden: 4 }
+              ] 
+            },
+            { 
+              id: `q-5`, 
+              tipo: 'fecha', 
+              titulo: '📅 Fecha recomendada para tu sesión introductoria opcional', 
+              descripcion: 'Si deseas una sesión rápida de inducción técnica a la plataforma, elige la fecha ideal.',
+              esObligatoria: false, 
+              orden: 5, 
+              opciones: [] 
+            }
           ]
         };
         break;
@@ -196,7 +338,7 @@ const FormBuilderPage: React.FC = () => {
   };
 
   const copyPublicLink = () => {
-    const url = `${window.location.origin}/formulario/${formData.slug}`;
+    const url = `${window.location.origin}/formulario/${id}`;
     navigator.clipboard.writeText(url);
     showToast('Enlace copiado al portapapeles', 'success');
   };
@@ -209,54 +351,49 @@ const FormBuilderPage: React.FC = () => {
   );
 
   return (
-    <div className="container-xxl p-0 position-relative pb-20">
+    <div className="max-w-[760px] mx-auto px-4 pb-20">
       
       {/* Simple Toast */}
       {toast && (
-        <div className={`position-fixed bottom-0 end-0 p-5 z-index-3`} style={{ zIndex: 1050 }}>
-          <div className={`toast show align-items-center text-white border-0 ${toast.type === 'success' ? 'bg-success' : 'bg-danger'}`} role="alert">
-            <div className="d-flex">
-              <div className="toast-body fw-bold fs-6">
-                <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} fs-4 me-2 text-white`}></i>
-                {toast.message}
-              </div>
-            </div>
-          </div>
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl transition-all duration-300 transform scale-100 border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 backdrop-blur-xl animate-bounce-short">
+          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} fs-5`}></i>
+          <span className="text-xs font-black uppercase tracking-wider">{toast.message}</span>
         </div>
       )}
 
       {/* Header Actions */}
-      <div className="d-flex justify-content-between align-items-center mb-6">
-        <button className="btn btn-sm btn-light fw-bolder d-flex align-items-center" onClick={() => navigate('/formularios')}>
-          <i className="bi bi-arrow-left me-2"></i> Volver a formularios
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <button className="btn btn-sm btn-light font-black uppercase tracking-widest text-[9px] py-3.5 px-6 rounded-xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all border border-neutral-150 dark:border-white/5" onClick={() => navigate('/formularios')}>
+          <i className="bi bi-arrow-left"></i> Volver a formularios
         </button>
 
-        {formData.estado === 'publicado' && formData.slug && (
-          <div className="d-flex align-items-center bg-light-success border border-success border-dashed rounded px-4 py-2 cursor-pointer hover-elevate-up" onClick={copyPublicLink} title="Copiar enlace">
-            <i className="bi bi-link-45deg fs-2 text-success me-2"></i>
-            <span className="fw-bolder text-success fs-7">Enlace público: /formulario/{formData.slug}</span>
-            <i className="bi bi-clipboard fs-6 text-success ms-3"></i>
+        {formData.estado === 'publicado' && (
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-dashed border-emerald-500/25 rounded-2xl px-5 py-3 cursor-pointer hover:scale-[1.01] transition-all text-emerald-600 dark:text-emerald-400" onClick={copyPublicLink} title="Copiar enlace">
+            <i className="bi bi-link-45deg fs-4"></i>
+            <span className="text-[10px] font-black uppercase tracking-widest">Enlace público: /formulario/{id}</span>
+            <i className="bi bi-clipboard fs-6 ms-2"></i>
           </div>
         )}
       </div>
 
       {/* Main Builder Card */}
-      <div className="d-flex flex-column mb-8 shadow-sm bg-body" style={{ borderTop: `10px solid ${formData.colorTema}`, borderRadius: '12px' }}>
-        <div className="card border-0 bg-transparent">
-          <div className="card-header align-items-center border-bottom-0 pt-6">
-            <h3 className="card-title text-gray-800 fw-black fs-2">Editor de Formulario</h3>
-            <div className="card-toolbar d-flex flex-wrap gap-2">
+      <div className="flex flex-col mb-8 bg-white dark:bg-neutral-900 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl overflow-hidden relative" style={{ borderTop: `10px solid ${formData.colorTema}` }}>
+        <div className="p-8 md:p-12 flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center border-b border-neutral-100 dark:border-white/5 pb-6 mb-2 gap-4">
+            <h3 className="text-xl font-black uppercase tracking-tight text-neutral-800 dark:text-white">Editor de Formulario</h3>
+            
+            <div className="flex flex-wrap items-center gap-3">
               
               {/* Tab Selector inside builder */}
-              <div className="d-flex bg-light rounded p-1 me-2">
+              <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200/20 shadow-inner">
                 <button
-                  className={`btn btn-sm fw-bolder px-4 ${activeTab === 'editor' ? 'bg-body text-gray-900 shadow-sm' : 'btn-color-muted'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('editor')}
                 >
                   <i className="bi bi-ui-checks me-1"></i> Preguntas
                 </button>
                 <button
-                  className={`btn btn-sm fw-bolder px-4 ${activeTab === 'respuestas' ? 'bg-body text-gray-900 shadow-sm' : 'btn-color-muted'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('respuestas')}
                   disabled={!id}
                 >
@@ -264,90 +401,116 @@ const FormBuilderPage: React.FC = () => {
                 </button>
               </div>
 
-              <button className="btn btn-sm btn-light-primary" onClick={() => window.open(`/formulario/${formData.slug || 'preview'}`, '_blank')} disabled={!id} title="Vista previa">
-                <i className="bi bi-eye fs-4"></i>
+              <button 
+                className="btn btn-sm btn-light hover:scale-105 active:scale-95 transition-all text-neutral-500 hover:text-blue-500 py-3 px-4 rounded-xl border border-neutral-100 dark:border-white/5" 
+                onClick={() => window.open(`/formulario/${id || 'preview'}`, '_blank')} 
+                disabled={!id} 
+                title="Vista previa"
+              >
+                <i className="bi bi-eye fs-5"></i>
               </button>
 
               <button 
-                className={`btn btn-sm ${formData.estado === 'publicado' ? 'btn-light-success' : 'btn-light-warning'}`} 
+                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
                 onClick={toggleEstado}
                 disabled={saving || !id}
               >
-                <i className={`bi ${formData.estado === 'publicado' ? 'bi-globe2' : 'bi-lock'} me-1`}></i>
+                <i className={`bi ${formData.estado === 'publicado' ? 'bi-globe2' : 'bi-lock'} me-1.5`}></i>
                 {formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}
               </button>
 
-              <button className="btn btn-sm btn-primary fw-bolder d-flex align-items-center" onClick={() => handleSave()} disabled={saving || activeTab !== 'editor'}>
+              <button 
+                className="btn btn-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/20" 
+                onClick={() => handleSave()} 
+                disabled={saving || activeTab !== 'editor'}
+              >
                 {saving ? (
-                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  <div className="w-3.5 h-3.5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
                 ) : (
-                  <i className="bi bi-save me-2"></i>
+                  <i className="bi bi-save"></i>
                 )}
-                Guardar
+                <span>Guardar</span>
               </button>
             </div>
           </div>
           
           {activeTab === 'editor' && (
-            <div className="card-body pb-10">
-              <input
-                type="text"
-                className="form-control form-control-flush fs-2hx fw-black mb-4 text-body bg-transparent border-0 border-bottom border-transparent hover-border-gray-200 focus-border-primary transition"
-                value={formData.titulo}
-                onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                placeholder="Título del formulario"
-              />
-              <textarea
-                className="form-control form-control-flush fs-4 mb-8 text-body bg-transparent border-0 border-bottom border-transparent hover-border-gray-200 focus-border-primary transition"
-                value={formData.descripcion || ''}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                placeholder="Descripción del formulario"
-                rows={2}
-              ></textarea>
-              <div className="row g-5 align-items-center p-5 bg-body border border-dashed border-gray-300 rounded-3">
-                 <div className="col-12 col-md-6 d-flex align-items-center">
-                   <div className="d-flex align-items-center justify-content-center w-40px h-40px rounded-circle bg-body shadow-sm me-4">
-                      <i className="bi bi-palette-fill fs-3" style={{ color: formData.colorTema }}></i>
-                   </div>
-                   <div className="d-flex flex-column">
-                      <label className="fs-6 fw-bold text-body">Color del tema</label>
-                      <span className="fs-8 text-muted">Elige el color principal del formulario</span>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5 mb-4">
+                
+                {/* Título del Formulario */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Título del Formulario</label>
+                  <input
+                    type="text"
+                    className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-lg font-black text-neutral-800 dark:text-white rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    value={formData.titulo}
+                    onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                    placeholder="Escribe el título oficial del formulario..."
+                  />
+                </div>
+
+                {/* Descripción del Formulario */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Descripción o Instrucciones</label>
+                  <textarea
+                    className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-sm font-semibold text-neutral-850 dark:text-neutral-200 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    value={formData.descripcion || ''}
+                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    placeholder="Escribe una breve descripción o instrucciones para guiar a los participantes..."
+                    rows={3}
+                    style={{ resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                
+              </div>
+
+              {/* Tema y Configuración */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-neutral-50/50 dark:bg-neutral-800/10 border border-dashed border-neutral-250 dark:border-white/5 rounded-3xl">
+                 <div className="flex items-center justify-between p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-800 shadow-sm">
+                        <i className="bi bi-palette-fill fs-4" style={{ color: formData.colorTema }}></i>
+                     </div>
+                     <div className="flex flex-col">
+                        <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white">Color del tema</label>
+                        <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">Elige el color principal</span>
+                     </div>
                    </div>
                    <input 
                      type="color" 
-                     className="form-control form-control-color w-40px h-40px p-0 ms-auto border-0 rounded overflow-hidden shadow-sm cursor-pointer" 
+                     className="w-10 h-10 p-0 border-0 rounded-xl cursor-pointer overflow-hidden shadow-sm shrink-0" 
                      value={formData.colorTema} 
                      onChange={(e) => setFormData({ ...formData, colorTema: e.target.value })} 
                    />
                  </div>
                  
-                 <div className="col-12 col-md-6">
-                    <div className="d-flex align-items-center justify-content-between bg-body p-4 rounded-3 shadow-sm border border-gray-200">
-                       <div className="d-flex flex-column">
-                          <label className="form-check-label fs-6 fw-bold text-body" htmlFor="reqAuth">
-                            Limitar a usuarios registrados
-                          </label>
-                          <span className="fs-8 text-muted">Requiere iniciar sesión</span>
-                       </div>
-                       <div className="form-check form-switch form-check-custom form-check-solid">
-                         <input 
-                           className="form-check-input h-25px w-45px" 
-                           type="checkbox" 
-                           checked={formData.requiereAutenticacion}
-                           onChange={(e) => setFormData({ ...formData, requiereAutenticacion: e.target.checked })}
-                           id="reqAuth" 
-                         />
-                       </div>
+                 <div className="flex items-center justify-between p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
+                    <div className="flex flex-col">
+                       <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white" htmlFor="reqAuth">
+                         Limitar a usuarios
+                       </label>
+                       <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">Requiere iniciar sesión</span>
+                    </div>
+                    <div className="form-check form-switch form-check-custom form-check-solid flex items-center">
+                      <input 
+                        className="form-check-input h-[24px] w-[44px] cursor-pointer" 
+                        type="checkbox" 
+                        checked={formData.requiereAutenticacion}
+                        onChange={(e) => setFormData({ ...formData, requiereAutenticacion: e.target.checked })}
+                        id="reqAuth" 
+                      />
                     </div>
                  </div>
               </div>
+
             </div>
           )}
         </div>
       </div>
 
       {activeTab === 'editor' ? (
-        <div className="questions-container position-relative">
+        <div className="questions-container relative">
           {formData.preguntas.map((q, idx) => (
             <QuestionCard
               key={q.id}
@@ -365,10 +528,9 @@ const FormBuilderPage: React.FC = () => {
           ))}
 
           {/* Floating action button for new question */}
-          <div className="d-flex justify-content-center mt-8 mb-10 pb-10">
-            <button className="btn btn-primary btn-icon rounded-circle w-60px h-60px shadow-lg hover-elevate-up pulse pulse-white" onClick={addQuestion} title="Agregar pregunta" style={{ backgroundColor: formData.colorTema, borderColor: formData.colorTema }}>
+          <div className="flex justify-center mt-8 mb-10 pb-10">
+            <button className="w-14 h-14 rounded-full shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center transition-all duration-300" onClick={addQuestion} title="Agregar pregunta" style={{ backgroundColor: formData.colorTema }}>
               <i className="bi bi-plus fs-1 text-white"></i>
-              <span className="pulse-ring border-5"></span>
             </button>
           </div>
         </div>

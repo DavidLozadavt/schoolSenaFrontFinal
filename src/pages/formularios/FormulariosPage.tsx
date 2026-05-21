@@ -16,7 +16,12 @@ import {
   Plus,
   Trash2,
   Sparkles,
-  Eye
+  Eye,
+  Smile,
+  ClipboardCheck,
+  UserPlus,
+  MessageSquare,
+  Layers
 } from 'lucide-react';
 import { Container } from '@/components/container';
 import { useLayout } from '@/providers';
@@ -33,7 +38,16 @@ import { compactReactSelectClassNames, compactReactSelectNoOptions } from '@/com
 
 import { useNavigate } from 'react-router-dom';
 
-
+interface FormularioInterno {
+  id: number;
+  titulo: string;
+  descripcion?: string | null;
+  estado: string;
+  preguntas_count?: number;
+  respuestas_count?: number;
+  created_at: string;
+  [key: string]: any;
+}
 
 const FormulariosPage: React.FC = () => {
   const { currentLayout } = useLayout();
@@ -51,7 +65,7 @@ const FormulariosPage: React.FC = () => {
   const [toast, setToast] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   
   // Internal Forms State
-  const [internalForms, setInternalForms] = useState<any[]>([]);
+  const [internalForms, setInternalForms] = useState<FormularioInterno[]>([]);
   const [loadingInternalForms, setLoadingInternalForms] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -97,7 +111,7 @@ const FormulariosPage: React.FC = () => {
     const fetchInternalForms = async () => {
       setLoadingInternalForms(true);
       try {
-        const response = await axios.get('/api/formularios');
+        const response = await axios.get('/formularios');
         setInternalForms(response.data);
       } catch (error) {
         console.error('Error fetching internal forms:', error);
@@ -176,7 +190,7 @@ const FormulariosPage: React.FC = () => {
                 className="btn btn-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-orange-500/20 rounded-xl px-5 py-2.5"
               >
                 <PlusCircle className="w-4 h-4" />
-                Vincular Formulario Externo
+                <span>Vincular Formulario Externo</span>
               </button>
             </ToolbarActions>
           </Toolbar>
@@ -195,7 +209,7 @@ const FormulariosPage: React.FC = () => {
             }`}
           >
             <Globe className="w-4 h-4" />
-            Integración de Formularios Externos
+            <span>Integración de Formularios Externos</span>
           </button>
           <button
             onClick={() => setActiveTab('internal')}
@@ -206,7 +220,7 @@ const FormulariosPage: React.FC = () => {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Estructura de Formularios Internos (Demo)
+            <span>Estructura de Formularios Internos (Demo)</span>
           </button>
         </div>
 
@@ -269,7 +283,7 @@ const FormulariosPage: React.FC = () => {
                         <div className="flex items-center justify-between text-[10px] font-semibold text-neutral-400 mt-1 border-t border-neutral-100 dark:border-white/5 pt-3">
                           <span className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-neutral-300" />
-                            {e.fechaInicial}
+                            <span>{e.fechaInicial}</span>
                           </span>
                           
                           {e.formUrl && (
@@ -312,14 +326,14 @@ const FormulariosPage: React.FC = () => {
                           </div>
                           <div>
                             <h4 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white">Formulario Activo</h4>
-                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Vinculado al evento: {selectedEvent.nombre}</p>
+                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Vinculado al evento: <span>{selectedEvent.nombre}</span></p>
                           </div>
                         </div>
                         <button
                           onClick={() => handleDeleteExternalLink(selectedEvent.idEvento)}
                           className="btn btn-sm bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
                         >
-                          Eliminar Enlace
+                          <span>Eliminar Enlace</span>
                         </button>
                       </div>
 
@@ -336,7 +350,9 @@ const FormulariosPage: React.FC = () => {
                       </div>
                       <h3 className="text-lg font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2">Sin Formulario Vinculado</h3>
                       <p className="text-xs text-neutral-400 leading-relaxed font-semibold mb-8">
-                        El evento <span className="text-orange-500 font-bold">"{selectedEvent.nombre}"</span> no tiene un formulario de registro asociado todavía.
+                        <span>El evento </span>
+                        <span className="text-orange-500 font-bold">"{selectedEvent.nombre}"</span>
+                        <span> no tiene un formulario de registro asociado todavía.</span>
                       </p>
                       <button
                         onClick={() => {
@@ -344,7 +360,7 @@ const FormulariosPage: React.FC = () => {
                         }}
                         className="btn btn-primary w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 transform active:scale-95 transition-all"
                       >
-                        Vincular Formulario Ahora
+                        <span>Vincular Formulario Ahora</span>
                       </button>
                     </div>
                   )
@@ -364,68 +380,101 @@ const FormulariosPage: React.FC = () => {
             
             <div className="col-span-1">
               <div className="bg-white dark:bg-neutral-900 p-8 md:p-10 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl flex flex-col gap-8">
-                <div className="d-flex justify-content-between align-items-center">
+                
+                {/* Header Section */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 dark:border-white/5 pb-6">
                   <div>
                     <h2 className="text-xl font-black uppercase tracking-tight text-neutral-800 dark:text-white flex items-center gap-3">
-                      <div className="w-2.5 h-8 bg-blue-600 rounded-full" />
-                      Mis Formularios Internos
+                      <span className="w-2.5 h-8 bg-blue-600 rounded-full animate-pulse inline-block" />
+                      <span>Mis Formularios Internos</span>
                     </h2>
-                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Crea y gestiona formularios directamente en la plataforma</p>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mt-1">Crea y gestiona formularios directamente en la plataforma</p>
                   </div>
                   <button 
                     onClick={() => navigate('/formularios/builder')}
-                    className="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg px-6 py-3 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                    className="btn btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg shadow-blue-500/20 px-6 py-3.5 flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 text-xs font-black uppercase tracking-wider"
                   >
-                    <PlusCircle className="w-5 h-5" />
-                    Crear Desde Cero
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Crear Desde Cero</span>
                   </button>
                 </div>
 
                 {/* Templates Section */}
-                <div className="mb-4">
-                  <h3 className="text-sm font-bold text-neutral-600 dark:text-neutral-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-orange-500" /> Plantillas predeterminadas
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-orange-500" /> <span>Plantillas predeterminadas para inicio rápido</span>
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Satisfaccion */}
                     <div 
-                      className="card border border-neutral-200 dark:border-white/10 hover:border-emerald-500 transition-all cursor-pointer bg-emerald-500/5 hover:bg-emerald-500/10"
+                      className="group relative rounded-3xl border border-emerald-500/10 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.06] hover:border-emerald-500/30 transition-all duration-300 cursor-pointer p-6 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-emerald-500/5 hover:-translate-y-1"
                       onClick={() => navigate('/formularios/builder', { state: { template: 'satisfaccion' } })}
                     >
-                      <div className="card-body p-5">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500 text-white flex items-center justify-center mb-3">
-                          <i className="bi bi-emoji-smile fs-3"></i>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-all duration-300" />
+                      <div>
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
+                          <Smile className="w-6 h-6" />
                         </div>
-                        <h4 className="fw-bolder fs-5 text-gray-800 mb-1">Satisfacción</h4>
-                        <p className="text-muted fs-7 mb-0">Encuesta rápida de satisfacción de servicio.</p>
+                        <h4 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2">
+                          Satisfacción
+                        </h4>
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
+                          Encuesta rápida para evaluar la satisfacción de un servicio o experiencia.
+                        </p>
+                      </div>
+                      <div className="mt-6 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span>Usar plantilla</span> <Plus className="w-3 h-3" />
                       </div>
                     </div>
+
+                    {/* Evaluacion de Evento */}
                     <div 
-                      className="card border border-neutral-200 dark:border-white/10 hover:border-blue-500 transition-all cursor-pointer bg-blue-500/5 hover:bg-blue-500/10"
+                      className="group relative rounded-3xl border border-blue-500/10 bg-blue-500/[0.02] hover:bg-blue-500/[0.06] hover:border-blue-500/30 transition-all duration-300 cursor-pointer p-6 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-blue-500/5 hover:-translate-y-1"
                       onClick={() => navigate('/formularios/builder', { state: { template: 'evaluacion' } })}
                     >
-                      <div className="card-body p-5">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center mb-3">
-                          <i className="bi bi-clipboard-check fs-3"></i>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-all duration-300" />
+                      <div>
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
+                          <ClipboardCheck className="w-6 h-6" />
                         </div>
-                        <h4 className="fw-bolder fs-5 text-gray-800 mb-1">Evaluación de Evento</h4>
-                        <p className="text-muted fs-7 mb-0">Para recopilar feedback de los asistentes.</p>
+                        <h4 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2">
+                          Evaluación de Evento
+                        </h4>
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
+                          Recopila feedback estructurado y opiniones directas de tus asistentes.
+                        </p>
+                      </div>
+                      <div className="mt-6 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span>Usar plantilla</span> <Plus className="w-3 h-3" />
                       </div>
                     </div>
+
+                    {/* Registro */}
                     <div 
-                      className="card border border-neutral-200 dark:border-white/10 hover:border-orange-500 transition-all cursor-pointer bg-orange-500/5 hover:bg-orange-500/10"
+                      className="group relative rounded-3xl border border-orange-500/10 bg-orange-500/[0.02] hover:bg-orange-500/[0.06] hover:border-orange-500/30 transition-all duration-300 cursor-pointer p-6 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-orange-500/5 hover:-translate-y-1"
                       onClick={() => navigate('/formularios/builder', { state: { template: 'registro' } })}
                     >
-                      <div className="card-body p-5">
-                        <div className="w-10 h-10 rounded-lg bg-orange-500 text-white flex items-center justify-center mb-3">
-                          <i className="bi bi-person-plus fs-3"></i>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all duration-300" />
+                      <div>
+                        <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
+                          <UserPlus className="w-6 h-6" />
                         </div>
-                        <h4 className="fw-bolder fs-5 text-gray-800 mb-1">Registro</h4>
-                        <p className="text-muted fs-7 mb-0">Formulario básico para registrar participantes.</p>
+                        <h4 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2">
+                          Registro
+                        </h4>
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
+                          Formulario para capturar inscripciones, datos clave y datos personales.
+                        </p>
+                      </div>
+                      <div className="mt-6 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span>Usar plantilla</span> <Plus className="w-3 h-3" />
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Existing Forms Section */}
                 <div className="mt-2 border-t border-neutral-100 dark:border-white/5 pt-8">
                   {loadingInternalForms ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-3 text-neutral-400">
@@ -435,34 +484,71 @@ const FormulariosPage: React.FC = () => {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {internalForms.map((f) => (
-                        <div key={f.id} className="card shadow-sm border border-neutral-100 hover:border-blue-300 transition-all">
-                          <div className="card-body p-6 flex flex-col justify-between" style={{ minHeight: '200px' }}>
-                            <div>
-                              <div className="d-flex justify-content-between align-items-start mb-4">
-                                <h4 className="fw-bolder fs-4 text-gray-800 text-truncate" style={{ maxWidth: '85%' }}>{f.titulo}</h4>
-                                <span className={`badge ${f.estado === 'publicado' ? 'badge-light-success' : 'badge-light-warning'}`}>
-                                  {f.estado === 'publicado' ? 'Publicado' : 'Borrador'}
-                                </span>
-                              </div>
-                              <p className="text-muted fs-6 mb-4 text-truncate">{f.descripcion || 'Sin descripción'}</p>
-                              <div className="d-flex align-items-center text-muted fs-7 mb-6">
-                                <Calendar className="w-4 h-4 me-2" />
-                                {new Date(f.created_at).toLocaleDateString()}
-                              </div>
+                        <div 
+                          key={f.id} 
+                          className="group relative bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-white/5 rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1 flex flex-col justify-between"
+                          style={{ minHeight: '220px' }}
+                        >
+                          <div>
+                            {/* Card Header: Title & Status */}
+                            <div className="flex justify-between items-start gap-4 mb-3">
+                              <h4 
+                                className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white truncate flex-1" 
+                                title={f.titulo}
+                              >
+                                {f.titulo}
+                              </h4>
+                              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
+                                f.estado === 'publicado' 
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                              }`}>
+                                {f.estado === 'publicado' ? 'Publicado' : 'Borrador'}
+                              </span>
                             </div>
                             
-                            <div className="d-flex justify-content-end gap-2 border-top pt-4">
+                            {/* Description */}
+                            <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium line-clamp-2 mb-4 leading-relaxed h-8">
+                              {f.descripcion || 'Sin descripción o instrucciones adicionales.'}
+                            </p>
+
+                            {/* Info Row: Questions / Responses / Date */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 items-center text-[10px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-wider mb-6">
+                              <span className="flex items-center gap-1.5 bg-neutral-50 dark:bg-neutral-800/40 px-2 py-1 rounded-lg">
+                                <Layers className="w-3.5 h-3.5 text-neutral-300" />
+                                <span>{`${f.preguntas_count ?? 0} ${f.preguntas_count === 1 ? 'Pregunta' : 'Preguntas'}`}</span>
+                              </span>
+                              
+                              <span className="flex items-center gap-1.5 bg-neutral-50 dark:bg-neutral-800/40 px-2 py-1 rounded-lg">
+                                <MessageSquare className="w-3.5 h-3.5 text-neutral-300" />
+                                <span>{`${f.respuestas_count ?? 0} ${f.respuestas_count === 1 ? 'Respuesta' : 'Respuestas'}`}</span>
+                              </span>
+                              
+                              <span className="flex items-center gap-1.5 px-1 py-1">
+                                <Calendar className="w-3.5 h-3.5 text-neutral-300" />
+                                <span>{new Date(f.created_at).toLocaleDateString()}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Footer Actions */}
+                          <div className="flex items-center justify-between border-t border-neutral-100 dark:border-white/5 pt-4 mt-auto">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-neutral-300 group-hover:text-blue-500/70 transition-colors">
+                              Formulario Interno
+                            </span>
+                            
+                            <div className="flex gap-2">
                               <button 
                                 onClick={() => navigate(`/formularios/builder/${f.id}`)}
-                                className="btn btn-sm btn-light-primary btn-icon"
-                                title="Editar"
+                                className="p-2.5 bg-neutral-50 hover:bg-blue-500/10 text-neutral-500 hover:text-blue-600 dark:bg-neutral-800/40 dark:hover:bg-blue-500/20 dark:text-neutral-400 dark:hover:text-blue-400 rounded-xl transition-all active:scale-90"
+                                title="Configurar y Editar Preguntas"
                               >
                                 <Settings className="w-4 h-4" />
                               </button>
                               <button 
-                                onClick={() => window.open(`/formulario-publico/${f.slug}`, '_blank')}
-                                className="btn btn-sm btn-light-success btn-icon"
-                                title="Ver Formulario Público"
+                                onClick={() => window.open(`/formulario-publico/${f.id}`, '_blank')}
+                                className="p-2.5 bg-neutral-50 hover:bg-emerald-500/10 text-neutral-500 hover:text-emerald-600 dark:bg-neutral-800/40 dark:hover:bg-emerald-500/20 dark:text-neutral-400 dark:hover:text-emerald-400 rounded-xl transition-all active:scale-90"
+                                title="Ver Vista Pública"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
@@ -472,10 +558,22 @@ const FormulariosPage: React.FC = () => {
                       ))}
 
                       {internalForms.length === 0 && (
-                        <div className="col-span-full text-center py-16 opacity-50 border-2 border-dashed border-neutral-200 rounded-3xl">
-                          <FileText className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
-                          <p className="text-sm font-black uppercase tracking-widest">No tienes formularios internos creados</p>
-                          <p className="text-xs text-neutral-400 mt-2">Haz clic en el botón superior para crear el primero.</p>
+                        <div className="col-span-full text-center py-20 border border-dashed border-neutral-200 dark:border-white/10 rounded-[2rem] bg-neutral-50/50 dark:bg-neutral-800/5 flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800/40 rounded-2xl flex items-center justify-center mb-4 text-neutral-300">
+                            <FileText className="w-8 h-8" />
+                          </div>
+                          <h3 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-1">
+                            No tienes formularios creados
+                          </h3>
+                          <p className="text-xs text-neutral-400 max-w-xs leading-relaxed font-semibold mb-6">
+                            Comienza diseñando un formulario interactivo desde cero o utilizando una de nuestras plantillas.
+                          </p>
+                          <button
+                            onClick={() => navigate('/formularios/builder')}
+                            className="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg px-5 py-3 text-xs font-black uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                          >
+                            <span>Crear Primer Formulario</span>
+                          </button>
                         </div>
                       )}
                     </div>
