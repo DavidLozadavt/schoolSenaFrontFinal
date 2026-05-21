@@ -95,6 +95,9 @@ import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage
 import EventsPage from '@/pages/multimedia/gestion-multimedia/EventsPage';
 import { EventForm } from '@/pages/multimedia/gestion-multimedia/EventForm';
 import { EventShowPage } from '@/pages/multimedia/gestion-multimedia/EventShowPage';
+import FormulariosPage from '@/pages/formularios/FormulariosPage';
+import FormBuilderPage from '@/pages/formularios/builder/FormBuilderPage';
+import FormPublicPage from '@/pages/formularios/public/FormPublicPage';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
@@ -180,6 +183,9 @@ const AppRoutingSetup = (): ReactElement => {
 
   return (
     <Routes>
+      <Route path="/formulario/:slug" element={<FormPublicPage />} />
+      <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
+      
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
           <Route path="/" element={getActiveDashboard()} />
@@ -942,6 +948,31 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <MultimediaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/formularios"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormulariosPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formularios/builder"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formularios/builder/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormBuilderPage />
               </ProtectedRoute>
             }
           />

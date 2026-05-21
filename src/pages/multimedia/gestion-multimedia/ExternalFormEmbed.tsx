@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
+import { ExternalLink, AlertCircle, FileText } from 'lucide-react';
 
-export type FormProvider = 'google' | 'microsoft' | 'typeform' | 'tally' | 'jotform' | 'other';
+export type FormProvider = 'google' | 'microsoft' | 'typeform' | 'tally' | 'jotform' | 'interno' | 'other';
 
 interface ExternalFormEmbedProps {
   url: string;
@@ -9,38 +9,44 @@ interface ExternalFormEmbedProps {
   title?: string;
 }
 
+// Providers that block iframe embedding via CSP (frame-ancestors 'none')
+const NON_EMBEDDABLE_IFRAME: FormProvider[] = ['google', 'other'];
+
+const PROVIDER_LABELS: Record<FormProvider, string> = {
+  google: 'Google Forms',
+  microsoft: 'Microsoft Forms',
+  typeform: 'Typeform',
+  tally: 'Tally',
+  jotform: 'Jotform',
+  interno: 'Formulario Interno (VirtualT)',
+  other: 'Formulario Externo',
+};
+
+const PROVIDER_COLORS: Record<FormProvider, { bg: string; text: string; border: string; shadow: string }> = {
+  google: { bg: 'bg-purple-500', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/20', shadow: 'shadow-purple-500/20' },
+  microsoft: { bg: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', shadow: 'shadow-blue-500/20' },
+  typeform: { bg: 'bg-neutral-900 dark:bg-white', text: 'text-neutral-900 dark:text-white', border: 'border-neutral-500/20', shadow: 'shadow-neutral-500/20' },
+  tally: { bg: 'bg-neutral-800', text: 'text-neutral-700 dark:text-neutral-300', border: 'border-neutral-500/20', shadow: 'shadow-neutral-500/20' },
+  jotform: { bg: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20', shadow: 'shadow-orange-500/20' },
+  interno: { bg: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20', shadow: 'shadow-orange-500/20' },
+  other: { bg: 'bg-gray-500', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-500/20', shadow: 'shadow-gray-500/20' },
+};
+
 const ExternalFormEmbed: React.FC<ExternalFormEmbedProps> = ({ url, provider, title = 'Formulario de Registro' }) => {
   const embedUrl = useMemo(() => {
     if (!url) return '';
 
     try {
-      const uri = new URL(url);
-
       switch (provider) {
-        case 'google':
-          // Transform viewform to viewform?embedded=true
-          if (url.includes('docs.google.com/forms')) {
-            return url.includes('embedded=true') ? url : `${url}${url.includes('?') ? '&' : '?'}embedded=true`;
-          }
-          return url;
-
         case 'microsoft':
-          // Transform view.aspx to embed.aspx
           if (url.includes('forms.office.com')) {
             return url.replace('/Pages/ResponsePage.aspx', '/Pages/EmbedPage.aspx');
           }
           return url;
 
         case 'typeform':
-          // Typeform URLs are usually embeddable as is, but we can ensure they are clean
-          return url;
-
         case 'tally':
-          // Tally URLs work directly
-          return url;
-
         case 'jotform':
-          // Jotform embed usually needs a specific format or works with direct link in some cases
           return url;
 
         default:
@@ -52,48 +58,64 @@ const ExternalFormEmbed: React.FC<ExternalFormEmbedProps> = ({ url, provider, ti
     }
   }, [url, provider]);
 
-  const canEmbed = useMemo(() => {
-    const embeddableProviders: FormProvider[] = ['google', 'microsoft', 'typeform', 'tally', 'jotform'];
-    return embeddableProviders.includes(provider);
-  }, [provider]);
+  const canIframeEmbed = !NON_EMBEDDABLE_IFRAME.includes(provider);
+  const colors = PROVIDER_COLORS[provider];
+  const label = PROVIDER_LABELS[provider];
 
   if (!url) return null;
 
-  if (!canEmbed) {
+  // For Google Forms and other providers that block iframe via CSP:
+  // Show a styled redirect card instead of a broken iframe
+  if (!canIframeEmbed) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-neutral-50 dark:bg-neutral-800/50 rounded-[2.5rem] border border-dashed border-neutral-200 dark:border-neutral-700 text-center">
-        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6">
-          <ExternalLink className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+      <div className="w-full flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-black text-neutral-900 dark:text-white flex items-center gap-3">
+            <div className={`w-2 h-8 ${colors.bg} rounded-full`} />
+            Formulario de Inscripción
+          </h3>
         </div>
-        <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-3">Registro Externo</h3>
-        <p className="text-neutral-500 dark:text-neutral-400 max-w-sm mb-8">
-          Este evento utiliza una plataforma externa para el registro. Haz clic abajo para completar tu inscripción.
-        </p>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-primary px-10 py-4 rounded-2xl shadow-xl shadow-blue-500/20 font-black tracking-wide transform active:scale-95 transition-all"
-        >
-          COMPLETAR REGISTRO
-          <ExternalLink className="ml-2 w-5 h-5" />
-        </a>
+
+        <div className={`flex flex-col items-center justify-center p-12 bg-neutral-50 dark:bg-neutral-800/50 rounded-[2.5rem] border ${colors.border} text-center`}>
+          <div className={`w-20 h-20 ${colors.bg} bg-opacity-10 rounded-[1.5rem] flex items-center justify-center mb-6`}>
+            <FileText className={`w-10 h-10 ${colors.text}`} />
+          </div>
+          <span className={`text-[10px] font-black uppercase tracking-widest ${colors.text} mb-3`}>{label}</span>
+          <h3 className="text-xl font-black text-neutral-900 dark:text-white mb-3">{title}</h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mb-2 leading-relaxed">
+            Este formulario se abrirá en una nueva pestaña de tu navegador.
+            La plataforma <strong>{label}</strong> no permite la visualización embebida por políticas de seguridad.
+          </p>
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-500 max-w-sm mb-8 font-semibold">
+            Al hacer clic serás redirigido de forma segura al formulario original.
+          </p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 px-10 py-4 ${colors.bg} text-white rounded-2xl shadow-xl ${colors.shadow} font-black text-xs uppercase tracking-widest transform hover:scale-105 active:scale-95 transition-all`}
+          >
+            ABRIR FORMULARIO
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
       </div>
     );
   }
 
+  // For providers that support iframe embedding (Microsoft, Typeform, Tally, Jotform)
   return (
     <div className="w-full flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h3 className="text-2xl font-black text-neutral-900 dark:text-white flex items-center gap-3">
-          <div className="w-2 h-8 bg-orange-500 rounded-full" />
+          <div className={`w-2 h-8 ${colors.bg} rounded-full`} />
           Formulario de Inscripción
         </h3>
         <a 
           href={url} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-sm font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors"
+          className={`text-sm font-bold ${colors.text} hover:opacity-80 flex items-center gap-1 transition-colors`}
         >
           Abrir en pestaña nueva
           <ExternalLink className="w-4 h-4" />

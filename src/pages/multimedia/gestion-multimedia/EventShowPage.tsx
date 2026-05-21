@@ -35,6 +35,7 @@ interface Evento {
   };
   formUrl?: string;
   formProvider?: string;
+  idFormularioInterno?: number | string;
 }
 
 export const EventShowPage = () => {

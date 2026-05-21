@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Clock, MapPin, Share2, Info, Bell, Video, Link as LinkIcon, Timer, Sparkles, Map, AlertCircle, CheckCircle2, Copy, ExternalLink, ArrowRight } from 'lucide-react';
 import { useSnackbar } from 'notistack';
 import { KeenIcon } from '@/components';
@@ -24,6 +25,7 @@ interface Evento {
   };
   formUrl?: string;
   formProvider?: string;
+  idFormularioInterno?: number | string;
 }
 
 
@@ -33,6 +35,7 @@ interface ModalDetalleEventoProps {
 }
 
 const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose }) => {
+  const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
   const [eventStatus, setEventStatus] = useState<'pending' | 'live' | 'finished' | 'cancelled'>('pending');
   const [isRegistered, setIsRegistered] = useState(false);
@@ -77,9 +80,16 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   };
 
   const handleExternalFormClick = () => {
-    window.open(evento.linkRegistro || evento.formUrl, '_blank');
-    if (!isRegistered) {
-      setShowConfirmButton(true);
+    if (evento.formProvider === 'interno' && evento.idFormularioInterno) {
+      onClose();
+      navigate(`/formulario-publico/${evento.idFormularioInterno}`, {
+        state: { fromEventId: evento.idEvento }
+      });
+    } else {
+      window.open(evento.linkRegistro || evento.formUrl, '_blank');
+      if (!isRegistered) {
+        setShowConfirmButton(true);
+      }
     }
   };
 
@@ -211,7 +221,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
         </div>
 
         {/* Right Section: Content */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* Header */}
           <div className="flex items-center justify-between px-10 py-8 border-b border-neutral-100 dark:border-white/5">
              <div className="flex items-center gap-3">
@@ -240,11 +250,11 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                </div>
              )}
 
-             <div className="space-y-4">
-                <h2 className="text-4xl md:text-5xl font-black text-neutral-900 dark:text-white uppercase tracking-tighter leading-[0.9] italic transform -skew-x-6">
+             <div className="space-y-4 w-full min-w-0">
+                <h2 className="text-4xl md:text-5xl font-black text-neutral-900 dark:text-white uppercase tracking-tighter leading-[0.9] italic transform -skew-x-6 break-words [word-break:break-word] w-full">
                   {evento.nombre}
                 </h2>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                    <div className="flex items-center gap-2 bg-neutral-50 dark:bg-white/5 px-4 py-2 rounded-xl">
                       <Clock className="w-4 h-4 text-orange-500" />
                       <span className="text-[11px] font-black text-neutral-600 dark:text-neutral-400 uppercase tracking-widest">{evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}</span>
@@ -259,31 +269,31 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
              </div>
 
              {/* Description */}
-             <div className="relative">
+             <div className="relative w-full min-w-0">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full" />
-                <div className="pl-8 space-y-4 text-base leading-relaxed text-neutral-600 dark:text-neutral-400 font-medium italic">
+                <div className="pl-8 space-y-4 text-base leading-relaxed text-neutral-600 dark:text-neutral-400 font-medium italic break-words [word-break:break-word] w-full">
                    {evento.descripcion || 'Descubre una experiencia única diseñada para nuestra comunidad académica. No te pierdas ningún detalle.'}
                 </div>
              </div>
 
              {/* Countdown / Status */}
              {eventStatus === 'pending' && timeLeft && (
-                <div className="p-8 rounded-[3rem] bg-neutral-950 dark:bg-black/40 border border-white/5 text-white flex items-center justify-between shadow-2xl relative overflow-hidden group">
+                <div className="p-6 sm:p-8 rounded-[3rem] bg-neutral-950 dark:bg-black/40 border border-white/5 text-white flex flex-col lg:flex-row gap-6 items-center justify-between shadow-2xl relative overflow-hidden group w-full min-w-0">
                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                   <div className="flex flex-col relative z-10">
+                   <div className="flex flex-col items-center lg:items-start relative z-10 text-center lg:text-left">
                       <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">Faltan</span>
                       <span className="text-2xl font-black italic uppercase tracking-tighter mt-1">Para el Inicio</span>
                    </div>
-                   <div className="flex gap-6 relative z-10">
+                   <div className="flex flex-wrap gap-4 sm:gap-6 justify-center relative z-10 w-full lg:w-auto">
                       {[
                         { v: timeLeft.d, l: 'Días' },
                         { v: timeLeft.h, l: 'Horas' },
                         { v: timeLeft.m, l: 'Min' },
                         { v: timeLeft.s, l: 'Seg' }
                       ].map((u, i) => (
-                        <div key={i} className="flex flex-col items-center min-w-[50px]">
-                           <span className="text-4xl font-black tabular-nums tracking-tighter leading-none">{String(u.v).padStart(2, '0')}</span>
-                           <span className="text-[8px] font-black text-white/30 uppercase tracking-widest mt-2">{u.l}</span>
+                        <div key={i} className="flex flex-col items-center min-w-[45px] sm:min-w-[50px]">
+                           <span className="text-3xl sm:text-4xl font-black tabular-nums tracking-tighter leading-none">{String(u.v).padStart(2, '0')}</span>
+                           <span className="text-[8px] font-black text-white/30 uppercase tracking-widest mt-1 sm:mt-2">{u.l}</span>
                         </div>
                       ))}
                    </div>
@@ -322,7 +332,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                       <CheckCircle2 className="w-5 h-5" />
                       Usuario Inscrito
                     </div>
-                  ) : (evento.linkRegistro || evento.formUrl) && eventStatus !== 'finished' && eventStatus !== 'cancelled' ? (
+                  ) : (evento.linkRegistro || evento.formUrl || (evento.formProvider === 'interno' && evento.idFormularioInterno)) && eventStatus !== 'finished' && eventStatus !== 'cancelled' ? (
                     <button 
                       onClick={handleExternalFormClick}
                       className="flex-[3] h-16 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_15px_30px_rgba(249,115,22,0.3)] hover:scale-[1.02] active:scale-95"
@@ -331,10 +341,27 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                       Inscribirme Ahora
                       <ArrowRight className="w-5 h-5 ml-1" />
                     </button>
-                  ) : (
+                  ) : eventStatus === 'finished' ? (
                     <div className="flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 border border-dashed border-neutral-300 dark:border-white/10">
                       <AlertCircle className="w-5 h-5" />
-                      Inscripciones Cerradas
+                      Evento Finalizado
+                    </div>
+                  ) : eventStatus === 'cancelled' ? (
+                    <div className="flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 border border-dashed border-neutral-300 dark:border-white/10">
+                      <AlertCircle className="w-5 h-5" />
+                      Evento Cancelado
+                    </div>
+                  ) : (
+                    <div className="flex-[3] h-16 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black text-[10px] uppercase tracking-[0.05em] rounded-2xl flex items-center justify-center gap-3 border border-blue-500/20 shadow-inner px-4 text-center">
+                      <Calendar className="w-5 h-5 text-blue-500 shrink-0" />
+                      <span>
+                        No requiere inscripción previa. ¡Te esperamos el{' '}
+                        {new Date(evento.fechaInicial).toLocaleDateString('es-ES', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                        })}!
+                      </span>
                     </div>
                   )}
                   

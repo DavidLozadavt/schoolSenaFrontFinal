@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PremiumEventCard } from './PremiumEventCard';
 import ModalDetalleEvento from './ModalDetalleEvento';
@@ -28,6 +29,7 @@ interface Evento {
 
 
 const EventsDashboard = () => {
+  const location = useLocation();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEventoDetalle, setSelectedEventoDetalle] = useState<Evento | null>(null);
@@ -116,6 +118,19 @@ const EventsDashboard = () => {
     fetchEvents();
   }, []);
 
+  useEffect(() => {
+    if (location.state?.openEventId && eventos.length > 0) {
+      const eventId = Number(location.state.openEventId);
+      const eventToOpen = eventos.find(e => e.idEvento === eventId);
+      if (eventToOpen) {
+        setSelectedEventoDetalle(eventToOpen);
+        setModalOpen(true);
+        // Clear navigation state to prevent repeated auto-opening
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, eventos]);
+
   if (loading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4 scroll-hide">
@@ -128,9 +143,10 @@ const EventsDashboard = () => {
 
   if (eventos.length === 0) {
     return (
-      <div className="bg-gray-50 dark:bg-coal-500/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-gray-800 text-center">
-        <CalendarIcon className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-        <p className="text-gray-400 text-sm font-medium uppercase tracking-widest">No hay eventos próximos</p>
+      <div className="bg-gray-50 dark:bg-coal-600/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-white/5 text-center">
+        <CalendarIcon className="w-10 h-10 text-orange-400 dark:text-orange-500 mx-auto mb-2 animate-pulse" />
+        <p className="text-gray-700 dark:text-gray-200 text-sm font-semibold uppercase tracking-widest">No hay eventos próximos</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Vuelve más tarde para ver nuevos eventos programados.</p>
       </div>
     );
   }
