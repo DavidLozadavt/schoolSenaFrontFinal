@@ -4,12 +4,28 @@ import { useParams, useNavigate, useLocation, useSearchParams } from 'react-rout
 import axios from 'axios';
 import {
   extraerHoraHHMM,
+  filasCalendarioDesdeClasesAsignadas,
   horaClaveClaseAsignada,
   normalizarHoraCampoClaseApi,
+  sesionesCompletadasPorHorarioDesdeClases,
+  fechasVisiblesCalendarioClase,
+  fechasVisiblesCalendarioMultiplesFranjas,
+  fetchHistorialSesionesInstructor,
+  ymdPendientesCalendarioFranjas,
+  mesCalendarioInicialClase,
+  claseOcurreEnFecha,
+  sesionCompletadaEnFecha,
+  sesionesCompletadasCalendarioDetalleClase,
+  unificarSesionesCompletadas,
+  ymdFromFechaSesion,
+  ymdSetSesionesCompletadas,
   textoJornadaParaAjuste12h,
   titulosCompetenciaYRapUi,
-  jsGetDayDesdeApiClase
+  jsGetDayDesdeApiClase,
+  type ClaseAsignadaInstructorBase,
+  type HistorialSesionInstructorItem,
 } from '@/utils/clasesAsignadasLogica';
+import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { useResponsive } from '@/hooks';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
@@ -272,6 +288,9 @@ interface ClaseTooltipDia {
   horaFinal: string;
   jornada_nombre: string;
   jornada_tipo?: string;
+  /** Bloque por sesión ya guardada en BD (badge Completada, aunque hoy siga la franja). */
+  bloqueSesionRegistrada?: boolean;
+  numeroSesion?: number;
 }
 
 /** Misma ficha + franja + competencia + RAP (como en horario/listado) → un bloque; evita duplicar idHorarioMateria equivalentes. */
@@ -339,11 +358,8 @@ function clasesBadgeEstadoCalendario(etiqueta: string): string {
   if (etiqueta === 'Tu clase en curso') {
     return 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200';
   }
-  if (etiqueta === 'En curso') {
-    return 'bg-blue-100 text-blue-900 dark:bg-blue-500/35 dark:text-blue-50';
-  }
-  if (etiqueta === 'Pendiente') {
-    return 'bg-amber-50 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100';
+  if (etiqueta === 'En curso' || etiqueta === 'Pendiente') {
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100';
   }
   if (etiqueta === 'En espera') {
     return 'bg-white text-gray-700 border border-gray-200 dark:bg-transparent dark:text-gray-300 dark:border-gray-600';
@@ -352,7 +368,10 @@ function clasesBadgeEstadoCalendario(etiqueta: string): string {
     return 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200';
   }
   if (etiqueta === 'Completada' || etiqueta === 'Sesión ya vista') {
-    return 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100';
+    return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-100';
+  }
+  if (etiqueta === 'Próximo') {
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100';
   }
   if (etiqueta === 'Pasada' || etiqueta === 'Clase pasada' || etiqueta === 'Día pasado') {
     return 'bg-slate-100 text-slate-700 dark:bg-white/12 dark:text-gray-200';
@@ -377,11 +396,19 @@ const CalendarComponent: React.FC<{
   sesionesCompletadas?: Array<{ fechaSesion: string; numeroSesion?: number }>;
   /** Todas las sesiones registradas por horario (varias materias el mismo día). */
   sesionesCompletadasPorHorario?: SesionesPorHorarioMap;
-  /** Instructor: varias franjas/día en tooltip. Aprendiz: solo esta materia/horario. */
+  /**
+   * Clases para armar el tooltip por día.
+   * Instructor: todas las del docente (varias fichas el mismo día, ej. mañana 3411909 + noche 3412038).
+   * Aprendiz: solo la ficha/materia actual.
+   */
+  clasesFranjaCalendario?: ClaseAsignadaInstructorBase[];
   modoCalendario?: 'instructor' | 'aprendiz';
   horaInicial?: string;
   horaFinal?: string;
   resumenClaseActual?: ResumenClaseCalendario;
+  /** Fila de `clases-asignadas` de esta franja (alineación con Mi horario). */
+  filaClaseAsignada?: ClaseAsignadaInstructorBase | null;
+  ahoraRef?: Date;
 }> = ({
   fechaInicio,
   fechaFin,
@@ -391,19 +418,16 @@ const CalendarComponent: React.FC<{
   idHorarioMateria,
   sesionesCompletadas = [],
   sesionesCompletadasPorHorario = {},
+  clasesFranjaCalendario = [],
   modoCalendario = 'instructor',
   horaInicial,
   horaFinal,
-  resumenClaseActual
+  resumenClaseActual,
+  filaClaseAsignada = null,
+  ahoraRef = new Date()
 }) => {
-    /** Aprendiz: solo esta clase; instructor: todas las franjas del API. */
-    const todasLasFechasCalendario = useMemo(() => {
-      if (modoCalendario === 'aprendiz' && idHorarioMateria != null) {
-        const id = Number(idHorarioMateria);
-        return todasLasFechasClase.filter((fc) => Number(fc.idHorarioMateria) === id);
-      }
-      return todasLasFechasClase;
-    }, [modoCalendario, todasLasFechasClase, idHorarioMateria]);
+    /** Todas las franjas de la ficha (ej. miércoles y viernes). */
+    const todasLasFechasCalendario = useMemo(() => todasLasFechasClase, [todasLasFechasClase]);
 
     const sesionesCompletadasPorHorarioEfectivo = useMemo(() => {
       if (modoCalendario !== 'aprendiz' || idHorarioMateria == null) {
@@ -448,141 +472,110 @@ const CalendarComponent: React.FC<{
     // Si fechaFin es NULL o vacía, usar solo fechaInicio (clase de un solo día)
     const fechaFinParaUsar = fechaFin && fechaFin.trim() !== '' ? fechaFin : fechaInicio;
 
-    // Si no hay fechas, usar el mes actual
-    const initialDate = fechaInicio ? parseDate(fechaInicio) || new Date() : new Date();
-    const [currentMonth, setCurrentMonth] = useState(initialDate);
+    const [currentMonth, setCurrentMonth] = useState(() =>
+      mesCalendarioInicialClase(fechaInicio, fechaFinParaUsar)
+    );
+
+    useEffect(() => {
+      setCurrentMonth(mesCalendarioInicialClase(fechaInicio, fechaFinParaUsar));
+    }, [fechaInicio, fechaFinParaUsar]);
 
     const inicio = fechaInicio ? parseDate(fechaInicio) : null;
     const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
 
-    // Calcular todas las fechas de clase usando las fechas del backend y sesiones completadas
-    const fechasClase = useMemo(() => {
-      const fechas: Date[] = [];
+    /** Todas las fechas de sesiones completadas (misma lista que Mis formaciones → Completado). */
+    const sesionesCompletadasUnificadas = useMemo(() => {
+      const idHm = idHorarioMateria != null ? Number(idHorarioMateria) : NaN;
+      const extra = Number.isFinite(idHm)
+        ? (sesionesCompletadasPorHorarioEfectivo[idHm] ??
+            sesionesCompletadasPorHorarioEfectivo[String(idHm)])
+        : undefined;
+      return unificarSesionesCompletadas(
+        sesionesCompletadas,
+        filaClaseAsignada?.sesiones_completadas,
+        extra
+      );
+    }, [
+      sesionesCompletadas,
+      filaClaseAsignada,
+      idHorarioMateria,
+      sesionesCompletadasPorHorarioEfectivo
+    ]);
 
-      const primeraSesionFecha = sesionesCompletadas.find((s) => s.fechaSesion)?.fechaSesion;
-      const diaClaseJsResuelto = resolverGetDayClaseCalendario({
-        idDia,
-        diaSemana,
-        fechaInicio,
-        filasHorario: todasLasFechasCalendario,
-        filaHorario: todasLasFechasCalendario[0],
-        primeraSesionFecha,
-        sesionesParaInferir: sesionesCompletadas
-      });
+    const filasCalendarioPayload = useMemo((): Array<
+      Parameters<typeof fechasVisiblesCalendarioClase>[0]
+    > => {
+      const filas: Array<Parameters<typeof fechasVisiblesCalendarioClase>[0]> = [];
+      const seenHm = new Set<number>();
 
-      /** Todos los días JS (0=dom … 6=sáb) con clase según las filas de horario + fallback de la clase actual. */
-      const diasSemanaCalendarioJs = new Set<number>();
       for (const fc of todasLasFechasCalendario) {
-        const dj = jsGetDayDesdeApiClase(fc);
-        if (dj !== null && dj >= 0 && dj <= 6) diasSemanaCalendarioJs.add(dj);
-      }
-      if (diaClaseJsResuelto !== null && diaClaseJsResuelto >= 0 && diaClaseJsResuelto <= 6) {
-        diasSemanaCalendarioJs.add(diaClaseJsResuelto);
-      }
-
-      const sesionDiaPermitido = (wd: number): boolean => {
-        if (diasSemanaCalendarioJs.size > 0) return diasSemanaCalendarioJs.has(wd);
-        if (diaClaseJsResuelto !== null) return wd === diaClaseJsResuelto;
-        return true;
-      };
-
-      /** Rango real del horario: la clase a veces trae fechaFinal corta; horarioMateria puede ir más lejos. */
-      let minRango: Date | null = null;
-      let maxRango: Date | null = null;
-      const bumpMin = (d: Date | null | undefined) => {
-        if (!d || isNaN(d.getTime())) return;
-        const x = new Date(d);
-        x.setHours(0, 0, 0, 0);
-        if (!minRango || x.getTime() < minRango.getTime()) minRango = x;
-      };
-      const bumpMax = (d: Date | null | undefined) => {
-        if (!d || isNaN(d.getTime())) return;
-        const x = new Date(d);
-        x.setHours(0, 0, 0, 0);
-        if (!maxRango || x.getTime() > maxRango.getTime()) maxRango = x;
-      };
-
-      bumpMin(parseDate(fechaInicio));
-      bumpMax(parseDate(fechaFinParaUsar));
-      todasLasFechasCalendario.forEach((fc) => {
-        if (fc.fechaInicial) bumpMin(parseDate(fc.fechaInicial));
-        if (fc.fechaFinal) bumpMax(parseDate(fc.fechaFinal));
-        else if (fc.fechaInicial) bumpMax(parseDate(fc.fechaInicial));
-      });
-
-      // Si tenemos todas las fechas del backend, usarlas directamente (aprendiz: ya filtradas a esta materia)
-      if (todasLasFechasCalendario && todasLasFechasCalendario.length > 0) {
-        todasLasFechasCalendario.forEach((fechaClase) => {
-          if (fechaClase.fechaInicial) {
-            const fechaIni = parseDate(fechaClase.fechaInicial);
-            if (fechaIni) {
-              fechaIni.setHours(0, 0, 0, 0);
-              // Si fechaFinal es NULL o igual a fechaInicial, es una clase de un solo día
-              const fechaFin = fechaClase.fechaFinal ? parseDate(fechaClase.fechaFinal) : fechaIni;
-              if (fechaFin) {
-                fechaFin.setHours(0, 0, 0, 0);
-                // Si son la misma fecha, agregar solo esa
-                if (fechaIni.getTime() === fechaFin.getTime()) {
-                  const diaJsUnico = jsGetDayDesdeApiClase(fechaClase);
-                  if (diaJsUnico === null || fechaIni.getDay() === diaJsUnico) {
-                    fechas.push(new Date(fechaIni));
-                  }
-                } else {
-                  // Si hay rango, agregar todas las fechas en el rango que coincidan con el día
-                  const diaJs = jsGetDayDesdeApiClase(fechaClase);
-                  if (diaJs !== null) {
-                    const fechaActual = new Date(fechaIni);
-                    while (fechaActual <= fechaFin) {
-                      if (fechaActual.getDay() === diaJs) {
-                        fechas.push(new Date(fechaActual));
-                      }
-                      fechaActual.setDate(fechaActual.getDate() + 1);
-                    }
-                  }
-                }
-              }
-            }
-          }
+        const id = Number(fc.idHorarioMateria);
+        if (!fc.fechaInicial?.trim() || !Number.isFinite(id) || seenHm.has(id)) continue;
+        seenHm.add(id);
+        const sesionesFranja =
+          (sesionesCompletadasPorHorarioEfectivo[id] ??
+            sesionesCompletadasPorHorarioEfectivo[String(id)]) ??
+          (id === idHorarioMateria ? sesionesCompletadas : []);
+        filas.push({
+          fechaInicial: fc.fechaInicial,
+          fechaFinal: fc.fechaFinal ?? null,
+          idDia: fc.idDia,
+          dia_semana: fc.dia_semana,
+          horaInicial: fc.horaInicial,
+          horaFinal: fc.horaFinal,
+          jornada_nombre: fc.jornada_nombre,
+          jornada_tipo: fc.jornada_tipo,
+          sesiones_restantes: filaClaseAsignada?.sesiones_restantes,
+          total_sesiones: filaClaseAsignada?.total_sesiones,
+          sesiones_dadas: filaClaseAsignada?.sesiones_dadas,
+          sesiones_completadas: Array.isArray(sesionesFranja) ? sesionesFranja : []
         });
       }
 
-      // Sesiones ya dictadas: mismo rango extendido (coherente con sesiones en BD fuera del fechaFinal “corto” de clase)
-      const cursoIni = minRango ? new Date(minRango) : null;
-      const cursoFin = maxRango ? new Date(maxRango) : null;
-      if (cursoIni) cursoIni.setHours(0, 0, 0, 0);
-      if (cursoFin) cursoFin.setHours(0, 0, 0, 0);
+      if (filas.length === 0 && fechaInicio?.trim()) {
+        filas.push({
+          fechaInicial: fechaInicio,
+          fechaFinal: fechaFinParaUsar,
+          idDia,
+          dia_semana: diaSemana,
+          horaInicial: horaInicial ?? '',
+          horaFinal: horaFinal ?? '',
+          jornada_nombre: resumenClaseActual?.jornada_nombre,
+          jornada_tipo: resumenClaseActual?.jornada_tipo,
+          sesiones_restantes: filaClaseAsignada?.sesiones_restantes,
+          total_sesiones: filaClaseAsignada?.total_sesiones,
+          sesiones_dadas: filaClaseAsignada?.sesiones_dadas,
+          sesiones_completadas: sesionesCompletadasUnificadas
+        });
+      }
+      return filas;
+    }, [
+      todasLasFechasCalendario,
+      filaClaseAsignada,
+      fechaInicio,
+      fechaFinParaUsar,
+      idDia,
+      diaSemana,
+      sesionesCompletadasUnificadas,
+      sesionesCompletadasPorHorarioEfectivo,
+      sesionesCompletadas,
+      idHorarioMateria,
+      horaInicial,
+      horaFinal,
+      resumenClaseActual
+    ]);
 
-      sesionesCompletadas.forEach((sesion) => {
-        if (sesion.fechaSesion) {
-          const fechaSesion = parseDate(sesion.fechaSesion);
-          if (fechaSesion) {
-            fechaSesion.setHours(0, 0, 0, 0);
-            if (cursoIni && cursoFin) {
-              if (
-                fechaSesion.getTime() < cursoIni.getTime() ||
-                fechaSesion.getTime() > cursoFin.getTime()
-              ) {
-                return;
-              }
-            }
-            if (!sesionDiaPermitido(fechaSesion.getDay())) {
-              return;
-            }
-            const existe = fechas.some((f) => f.getTime() === fechaSesion.getTime());
-            if (!existe) {
-              fechas.push(new Date(fechaSesion));
-            }
-          }
-        }
-      });
+    /** Miércoles, viernes, etc.: ocurrencias programadas + sesiones en BD. */
+    const fechasClase = useMemo(
+      () => fechasVisiblesCalendarioMultiplesFranjas(filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef),
+      [filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef]
+    );
 
-      // Eliminar duplicados
-      const fechasUnicas = fechas.filter((fecha, index, self) =>
-        index === self.findIndex(f => f.getTime() === fecha.getTime())
-      );
-
-      return fechasUnicas.sort((a, b) => a.getTime() - b.getTime());
-    }, [todasLasFechasCalendario, fechaInicio, fechaFinParaUsar, idDia, diaSemana, sesionesCompletadas]);
+    /** Días sin sesión en BD pero con clase programada (azul). */
+    const ymdPendienteClase = useMemo(
+      () => ymdPendientesCalendarioFranjas(filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef),
+      [filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef]
+    );
 
     const formatHora12Tooltip = (timeString: string, jornadaNombre: string): string => {
       if (!timeString) return '—';
@@ -600,129 +593,267 @@ const CalendarComponent: React.FC<{
       return `${hour12}:${minutes || '00'} ${esPM ? 'p. m.' : 'a. m.'}`;
     };
 
-    /** Instructor: varias franjas ese día. Aprendiz: solo esta materia (una fila por día). */
+    const rowTooltipDesdeClase = (c: ClaseAsignadaInstructorBase | FechaClase): ClaseTooltipDia => ({
+      idHorarioMateria: Number(c.idHorarioMateria),
+      ficha_codigo: String(c.ficha_codigo ?? ''),
+      materia_nombre: String(c.materia_nombre ?? ''),
+      programa_nombre: String(c.programa_nombre ?? ''),
+      competencia_nombre: c.competencia_nombre,
+      rap_nombre: c.rap_nombre ?? null,
+      horaInicial: String(c.horaInicial ?? ''),
+      horaFinal: String(c.horaFinal ?? ''),
+      jornada_nombre: String(c.jornada_nombre ?? ''),
+      jornada_tipo: String(c.jornada_tipo ?? '')
+    });
+
+    const filaCalendarioActual = useMemo((): ClaseAsignadaInstructorBase | null => {
+      if (filaClaseAsignada?.fechaInicial?.trim()) {
+        return {
+          ...filaClaseAsignada,
+          sesiones_completadas: sesionesCompletadasUnificadas
+        };
+      }
+      if (!resumenClaseActual?.idHorarioMateria || !fechaInicio) return null;
+      return {
+        ficha_id: 0,
+        ficha_codigo: resumenClaseActual.ficha_codigo ?? '',
+        programa_nombre: resumenClaseActual.programa_nombre ?? '',
+        materia_nombre: resumenClaseActual.materia_nombre ?? '',
+        competencia_nombre: resumenClaseActual.competencia_nombre ?? '',
+        rap_nombre: resumenClaseActual.rap_nombre ?? null,
+        idMateriaPadre: null,
+        jornada_nombre: resumenClaseActual.jornada_nombre ?? '',
+        jornada_tipo: resumenClaseActual.jornada_tipo ?? '',
+        dia_semana: diaSemana ?? '',
+        idDia: idDia ?? 0,
+        horaInicial: resumenClaseActual.horaInicial ?? '',
+        horaFinal: resumenClaseActual.horaFinal ?? '',
+        fechaInicial: fechaInicio,
+        fechaFinal: fechaFinParaUsar,
+        idHorarioMateria: resumenClaseActual.idHorarioMateria,
+        sesiones_completadas: sesionesCompletadasUnificadas
+      };
+    }, [
+      filaClaseAsignada,
+      resumenClaseActual,
+      fechaInicio,
+      fechaFinParaUsar,
+      diaSemana,
+      idDia,
+      sesionesCompletadasUnificadas
+    ]);
+
+    const ymdConSesionCompletada = useMemo(() => {
+      const set = ymdSetSesionesCompletadas(sesionesCompletadasUnificadas);
+      for (const s of sesionesCompletadas ?? []) {
+        const ymd = ymdFromFechaSesion(s.fechaSesion);
+        if (ymd) set.add(ymd);
+      }
+      if (filaCalendarioActual) {
+        for (const s of filaCalendarioActual.sesiones_completadas ?? []) {
+          const ymd = ymdFromFechaSesion(s.fechaSesion);
+          if (ymd) set.add(ymd);
+        }
+      }
+      return set;
+    }, [sesionesCompletadasUnificadas, sesionesCompletadas, filaCalendarioActual]);
+
+    /** API detalle + clases-asignadas: todas las materias/franjas de la ficha en el tooltip. */
+    const franjasTooltipCalendario = useMemo(() => {
+      const byHm = new Map<number, FechaClase | ClaseAsignadaInstructorBase>();
+      const registrar = (fc: FechaClase | ClaseAsignadaInstructorBase) => {
+        const id = Number(fc.idHorarioMateria);
+        if (!Number.isFinite(id) || id <= 0 || !String(fc.fechaInicial ?? '').trim()) return;
+        byHm.set(id, fc);
+      };
+      for (const fc of todasLasFechasCalendario) registrar(fc);
+      for (const c of clasesFranjaCalendario) registrar(c);
+      return Array.from(byHm.values());
+    }, [todasLasFechasCalendario, clasesFranjaCalendario]);
+
+    /** Tooltip por día: una fila por horario (sin duplicar programada + sesión). */
     const clasesPorDiaCalendario = useMemo(() => {
       const map = new Map<string, ClaseTooltipDia[]>();
+      const clavesPorYmd = new Map<string, Set<string>>();
 
-      const pickMejorFranjaDuplicada = (
-        a: ClaseTooltipDia,
-        b: ClaseTooltipDia,
-        ymd: string,
-        preferId: number | undefined
-      ): ClaseTooltipDia => {
-        if (preferId != null) {
-          if (a.idHorarioMateria === preferId) return a;
-          if (b.idHorarioMateria === preferId) return b;
+      const agregarEnDia = (ymd: string, row: ClaseTooltipDia, claveBloque: string) => {
+        let claves = clavesPorYmd.get(ymd);
+        if (!claves) {
+          claves = new Set();
+          clavesPorYmd.set(ymd, claves);
         }
-        const sesA = getSesionesParaHorario(a.idHorarioMateria).some(
-          (s) => s.fechaSesion?.split('T')[0] === ymd
-        );
-        const sesB = getSesionesParaHorario(b.idHorarioMateria).some(
-          (s) => s.fechaSesion?.split('T')[0] === ymd
-        );
-        if (sesA !== sesB) return sesA ? a : b;
-        return a.idHorarioMateria <= b.idHorarioMateria ? a : b;
+        if (claves.has(claveBloque)) return;
+        claves.add(claveBloque);
+        const prev = map.get(ymd) ?? [];
+        map.set(ymd, [...prev, row]);
       };
 
-      const agregar = (ymd: string, row: ClaseTooltipDia) => {
-        if (!map.has(ymd)) map.set(ymd, []);
-        const list = map.get(ymd)!;
-        const k = claveFranjaTooltipDia(row);
-        const dupIdx = list.findIndex((x) => claveFranjaTooltipDia(x) === k);
-        if (dupIdx >= 0) {
-          list[dupIdx] = pickMejorFranjaDuplicada(
-            list[dupIdx],
-            row,
-            ymd,
-            resumenClaseActual?.idHorarioMateria
-          );
-          return;
+      const sesionesUnicasFranja = (
+        c: ClaseAsignadaInstructorBase | FechaClase
+      ): Array<{ fechaSesion: string; numeroSesion?: number }> => {
+        const idHm = Number(c.idHorarioMateria);
+        const listas = [
+          ...(c as ClaseAsignadaInstructorBase).sesiones_completadas ?? [],
+          ...getSesionesParaHorario(idHm)
+        ];
+        const visto = new Set<string>();
+        const out: Array<{ fechaSesion: string; numeroSesion?: number }> = [];
+        for (const s of listas) {
+          const ymd = ymdFromFechaSesion(s.fechaSesion);
+          if (!ymd) continue;
+          const k = `${ymd}|${s.numeroSesion ?? ''}`;
+          if (visto.has(k)) continue;
+          visto.add(k);
+          out.push(s);
         }
-        if (!list.some((x) => x.idHorarioMateria === row.idHorarioMateria)) {
-          list.push(row);
-        }
+        return out;
       };
 
-      todasLasFechasCalendario.forEach((fc) => {
-        if (!fc.fechaInicial || !fc.idHorarioMateria) return;
-        const fechaIni = parseDate(fc.fechaInicial);
-        if (!fechaIni) return;
-        fechaIni.setHours(0, 0, 0, 0);
-        const fechaFinFc = fc.fechaFinal ? parseDate(fc.fechaFinal) : fechaIni;
-        if (!fechaFinFc) return;
-        fechaFinFc.setHours(0, 0, 0, 0);
-
-        const row: ClaseTooltipDia = {
-          idHorarioMateria: fc.idHorarioMateria,
-          ficha_codigo: fc.ficha_codigo || '',
-          materia_nombre: fc.materia_nombre || '',
-          programa_nombre: fc.programa_nombre || '',
-          competencia_nombre: fc.competencia_nombre,
-          rap_nombre: fc.rap_nombre ?? null,
-          horaInicial: fc.horaInicial || '',
-          horaFinal: fc.horaFinal || '',
-          jornada_nombre: fc.jornada_nombre || '',
-          jornada_tipo: fc.jornada_tipo || ''
-        };
-
-        if (fechaIni.getTime() === fechaFinFc.getTime()) {
-          const diaJsUnico = jsGetDayDesdeApiClase(fc);
-          if (diaJsUnico === null || fechaIni.getDay() === diaJsUnico) {
-            agregar(formatYmdLocal(fechaIni), row);
-          }
-        } else {
-          const diaJs = jsGetDayDesdeApiClase(fc);
-          if (diaJs !== null) {
-            const cur = new Date(fechaIni);
-            while (cur <= fechaFinFc) {
-              if (cur.getDay() === diaJs) {
-                agregar(formatYmdLocal(cur), row);
-              }
-              cur.setDate(cur.getDate() + 1);
-            }
-          }
-        }
-      });
-
-      if (resumenClaseActual?.idHorarioMateria) {
-        const fb: ClaseTooltipDia = {
-          idHorarioMateria: resumenClaseActual.idHorarioMateria,
-          ficha_codigo: resumenClaseActual.ficha_codigo || '',
-          materia_nombre: resumenClaseActual.materia_nombre || '',
-          programa_nombre: resumenClaseActual.programa_nombre || '',
-          competencia_nombre: resumenClaseActual.competencia_nombre,
-          rap_nombre: resumenClaseActual.rap_nombre ?? null,
-          horaInicial: resumenClaseActual.horaInicial || '',
-          horaFinal: resumenClaseActual.horaFinal || '',
-          jornada_nombre: resumenClaseActual.jornada_nombre || '',
-          jornada_tipo: resumenClaseActual.jornada_tipo || ''
-        };
-        fechasClase.forEach((d) => {
-          const ymd = formatYmdLocal(new Date(d));
-          const list = map.get(ymd);
-          if (!list?.some((x) => x.idHorarioMateria === fb.idHorarioMateria)) {
-            agregar(ymd, fb);
-          }
+      const finVentanaFranjaEnDia = (row: ClaseTooltipDia, diaCalendario: Date): Date => {
+        const ahora = ahoraRef;
+        let [hIni, mIni] = (
+          extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5)
+        )
+          .split(':')
+          .map(Number);
+        let [hFin, mFin] = (
+          extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5)
+        )
+          .split(':')
+          .map(Number);
+        const lowerJ = textoJornadaParaAjuste12h({
+          jornada_nombre: row.jornada_nombre,
+          jornada_tipo: row.jornada_tipo
         });
+        const esTardeONoche =
+          lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
+        if (esTardeONoche && hIni < 12) hIni += 12;
+        if (esTardeONoche && hFin < 12) hFin += 12;
+        const hi = new Date(diaCalendario);
+        hi.setHours(hIni, mIni || 0, 0, 0);
+        const hf = new Date(diaCalendario);
+        hf.setHours(hFin, mFin || 0, 0, 0);
+        if (hf.getTime() < hi.getTime()) hf.setDate(hf.getDate() + 1);
+        return hf;
+      };
+
+      /** Una sola tarjeta por idHorarioMateria y día. */
+      const bloqueTooltipFranjaEnYmd = (
+        c: ClaseAsignadaInstructorBase | FechaClase,
+        dia: Date,
+        ymd: string
+      ): ClaseTooltipDia | null => {
+        const sesionesHoy = sesionesUnicasFranja(c).filter(
+          (s) => ymdFromFechaSesion(s.fechaSesion) === ymd
+        );
+        const ocurre = claseOcurreEnFecha(c, dia);
+        if (!ocurre && sesionesHoy.length === 0) return null;
+
+        const base = rowTooltipDesdeClase(c);
+        const hf = finVentanaFranjaEnDia(base, dia);
+        const franjaTerminada = ahoraRef.getTime() > hf.getTime();
+
+        if (ocurre && !franjaTerminada) {
+          return base;
+        }
+        if (sesionesHoy.length > 0) {
+          const ultima = sesionesHoy[sesionesHoy.length - 1]!;
+          return {
+            ...base,
+            bloqueSesionRegistrada: true,
+            numeroSesion: ultima.numeroSesion
+          };
+        }
+        if (ocurre) {
+          return base;
+        }
+        return null;
+      };
+
+      const ymdsDia = new Set<string>([
+        ...ymdConSesionCompletada,
+        ...ymdPendienteClase,
+        ...fechasClase.map((d) => formatYmdLocal(d)),
+        formatYmdLocal(
+          new Date(ahoraRef.getFullYear(), ahoraRef.getMonth(), ahoraRef.getDate())
+        )
+      ]);
+
+      const porH = sesionesCompletadasPorHorarioEfectivo || {};
+      for (const key of Object.keys(porH)) {
+        for (const s of porH[key] ?? []) {
+          const ymd = ymdFromFechaSesion(s.fechaSesion);
+          if (ymd) ymdsDia.add(ymd);
+        }
       }
 
-      map.forEach((list) => {
-        list.sort((a, b) => (a.horaInicial || '').localeCompare(b.horaInicial || ''));
-      });
+      const lookupHm = new Map<number, ClaseAsignadaInstructorBase | FechaClase>();
+      for (const fc of franjasTooltipCalendario) {
+        const id = Number(fc.idHorarioMateria);
+        if (id > 0) lookupHm.set(id, fc);
+      }
+      for (const c of clasesFranjaCalendario) {
+        const id = Number(c.idHorarioMateria);
+        if (id > 0) lookupHm.set(id, c);
+      }
+
+      for (const ymd of ymdsDia) {
+        const parts = ymd.split('-').map(Number);
+        if (parts.length !== 3) continue;
+        const dia = new Date(parts[0], parts[1] - 1, parts[2]);
+        dia.setHours(0, 0, 0, 0);
+        const horariosYa = new Set<number>();
+
+        const registrarFranja = (c: ClaseAsignadaInstructorBase | FechaClase) => {
+          const idHm = Number(c.idHorarioMateria);
+          if (!idHm || horariosYa.has(idHm)) return;
+          const bloque = bloqueTooltipFranjaEnYmd(c, dia, ymd);
+          if (!bloque) return;
+          horariosYa.add(idHm);
+          agregarEnDia(ymd, bloque, `hm|${idHm}|${ymd}`);
+        };
+
+        for (const c of clasesFranjaCalendario) registrarFranja(c);
+
+        for (const key of Object.keys(porH)) {
+          const idHm = Number(key);
+          if (!Number.isFinite(idHm) || idHm <= 0 || horariosYa.has(idHm)) continue;
+          const fc = lookupHm.get(idHm);
+          if (fc) registrarFranja(fc);
+        }
+      }
+
+      for (const [, rows] of map) {
+        rows.sort((a, b) => (a.horaInicial || '').localeCompare(b.horaInicial || ''));
+      }
 
       return map;
-    }, [todasLasFechasCalendario, fechasClase, resumenClaseActual, getSesionesParaHorario]);
+    }, [
+      ymdConSesionCompletada,
+      ymdPendienteClase,
+      fechasClase,
+      franjasTooltipCalendario,
+      clasesFranjaCalendario,
+      ahoraRef,
+      getSesionesParaHorario,
+      sesionesCompletadasPorHorarioEfectivo
+    ]);
 
     const etiquetaEstadoTooltip = (diaCalendario: Date, row: ClaseTooltipDia): string => {
-      const ahora = new Date();
+      const ahora = ahoraRef;
       const hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
       hoy0.setHours(0, 0, 0, 0);
       const d0 = new Date(diaCalendario.getFullYear(), diaCalendario.getMonth(), diaCalendario.getDate());
       d0.setHours(0, 0, 0, 0);
       const ymd = formatYmdLocal(d0);
 
-      const sesionesRow = getSesionesParaHorario(row.idHorarioMateria);
-      const sesionRegistrada = sesionesRow.some((s) => s.fechaSesion?.split('T')[0] === ymd);
+      if (row.bloqueSesionRegistrada) {
+        return modoCalendario === 'aprendiz' ? 'Sesión ya vista' : 'Completada';
+      }
+
+      const sesionRegistrada = getSesionesParaHorario(row.idHorarioMateria).some(
+        (s) => ymdFromFechaSesion(s.fechaSesion) === ymd
+      );
 
       let [hIni, mIni] = (extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5))
         .split(':')
@@ -780,7 +911,7 @@ const CalendarComponent: React.FC<{
       const estadoEtiqueta = etiquetaEstadoTooltip(diaCalendario, row);
       return (
         <div
-          key={claveFranjaTooltipDia(row)}
+          key={`${claveFranjaTooltipDia(row)}|${row.bloqueSesionRegistrada ? 'ses' : 'prog'}|${row.numeroSesion ?? ''}`}
           className="border-b border-slate-200 pb-2 last:border-0 last:pb-0 dark:border-white/15"
         >
           <p className="font-semibold leading-snug text-blue-900 dark:text-white">{tit.competencia}</p>
@@ -834,125 +965,33 @@ const CalendarComponent: React.FC<{
       return days;
     };
 
+    /**
+     * Colores del calendario:
+     * - Naranja: hoy (celda completa)
+     * - Verde: cualquier día con sesión en `sesionMateria`
+     * - Azul: clase programada ese día y aún sin sesión en BD
+     */
     const getDateStatus = (day: number): 'hoy' | 'proxima' | 'pasada' | 'normal' => {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       date.setHours(0, 0, 0, 0);
 
-      // Formatear la fecha para comparación (YYYY-MM-DD)
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-      const hoyLocal = new Date();
+      const hoyLocal = new Date(ahoraRef.getFullYear(), ahoraRef.getMonth(), ahoraRef.getDate());
       hoyLocal.setHours(0, 0, 0, 0);
-      const hoyTime = hoyLocal.getTime();
-      const dateTime = date.getTime();
+      const dateStr = formatYmdLocal(date);
 
-      // Naranja = día actual en el calendario (aunque no haya clase ese día).
-      if (dateTime === hoyTime) {
+      if (date.getTime() === hoyLocal.getTime()) {
         return 'hoy';
       }
 
-      // Verificar si esta fecha es una fecha de clase usando comparación de strings
-      let esFechaClase = false;
-
-      for (const fecha of fechasClase) {
-        const fechaClase = new Date(fecha);
-        fechaClase.setHours(0, 0, 0, 0);
-        const fechaClaseStr = `${fechaClase.getFullYear()}-${String(fechaClase.getMonth() + 1).padStart(2, '0')}-${String(fechaClase.getDate()).padStart(2, '0')}`;
-
-        // Comparar tanto por timestamp como por string para mayor seguridad
-        if (fechaClaseStr === dateStr || fechaClase.getTime() === date.getTime()) {
-          esFechaClase = true;
-          break;
-        }
-      }
-
-      if (!esFechaClase) {
-        return 'normal';
-      }
-
-      if (dateTime > hoyTime) {
-        return 'proxima';
-      }
-
-      if (dateTime < hoyTime) {
+      if (ymdConSesionCompletada.has(dateStr)) {
         return 'pasada';
       }
 
+      if (ymdPendienteClase.has(dateStr)) {
+        return 'proxima';
+      }
+
       return 'normal';
-    };
-
-    // Sesiones registradas en BD para el mapa efectivo (instructor: todas las franjas; aprendiz: solo este horario)
-    const tieneSesionCompletada = (fecha: Date): boolean => {
-      const fechaStr = formatYmdLocal(fecha);
-      for (const list of Object.values(sesionesCompletadasPorHorarioEfectivo || {})) {
-        if (
-          Array.isArray(list) &&
-          list.some((sesion) => sesion.fechaSesion?.split('T')[0] === fechaStr)
-        ) {
-          return true;
-        }
-      }
-      return sesionesCompletadas.some((sesion) => {
-        if (!sesion.fechaSesion) return false;
-        const sesionFecha = sesion.fechaSesion.split('T')[0];
-        return sesionFecha === fechaStr;
-      });
-    };
-
-    // Determinar el estado de una fecha específica
-    const getEstadoFecha = (fecha: Date): 'completada' | 'pendiente' | 'en_curso' => {
-      const fechaStr = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const fechaComparar = new Date(fecha);
-      fechaComparar.setHours(0, 0, 0, 0);
-
-      // Verificar si está completada
-      const esCompletada = tieneSesionCompletada(fecha);
-      if (esCompletada) {
-        return 'completada';
-      }
-
-      // Si es hoy, verificar si está en curso
-      if (fechaComparar.getTime() === hoy.getTime()) {
-        if (horaInicial && horaFinal) {
-          const ahora = new Date();
-          const hiS = extraerHoraHHMM(horaInicial) ?? horaInicial.substring(0, 5);
-          const hfS = extraerHoraHHMM(horaFinal) ?? horaFinal.substring(0, 5);
-          let [hIni, mIni] = hiS.split(':').map(Number);
-          let [hFin, mFin] = hfS.split(':').map(Number);
-          const lowerJ = textoJornadaParaAjuste12h({
-            jornada_nombre: resumenClaseActual?.jornada_nombre,
-            jornada_tipo: resumenClaseActual?.jornada_tipo
-          });
-          const esTardeONoche =
-            lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-          if (esTardeONoche && hIni < 12) hIni += 12;
-          if (esTardeONoche && hFin < 12) hFin += 12;
-
-          const horaInicio = new Date(ahora);
-          horaInicio.setHours(hIni, mIni, 0, 0);
-          const horaFinalClase = new Date(ahora);
-          horaFinalClase.setHours(hFin, mFin, 0, 0);
-
-          if (horaFinalClase.getTime() < horaInicio.getTime()) {
-            horaFinalClase.setDate(horaFinalClase.getDate() + 1);
-          }
-
-          if (ahora.getTime() >= horaInicio.getTime() && ahora.getTime() <= horaFinalClase.getTime()) {
-            return 'en_curso';
-          }
-        }
-        return 'pendiente';
-      }
-
-      // Si es pasada y no está completada, es pendiente (no se completó)
-      if (fechaComparar.getTime() < hoy.getTime()) {
-        return 'pendiente';
-      }
-
-      // Si es futura, es pendiente
-      return 'pendiente';
     };
 
     const days = getDaysInMonth(currentMonth);
@@ -1006,6 +1045,7 @@ const CalendarComponent: React.FC<{
             const esFechaClase = status !== 'normal';
             const ymdKey = formatYmdLocal(date);
             const bloquesDia = clasesPorDiaCalendario.get(ymdKey) || [];
+            const bloquesTooltip = bloquesDia;
 
             /** Colores fijos (inline) para que no dependan de Tailwind/CSS del tema. */
             const layoutCal = 'h-8 w-full flex items-center justify-center text-sm rounded transition-colors';
@@ -1017,10 +1057,10 @@ const CalendarComponent: React.FC<{
                     fontWeight: 600
                   }
                 : status === 'proxima'
-                  ? { backgroundColor: '#dbeafe', color: '#1e3a8a' }
-                  : status === 'pasada'
-                    ? { backgroundColor: '#dcfce7', color: '#166534' }
-                    : undefined;
+                    ? { backgroundColor: '#dbeafe', color: '#1e3a8a' }
+                    : status === 'pasada'
+                      ? { backgroundColor: '#dcfce7', color: '#166534' }
+                      : undefined;
 
             const baseClass =
               status === 'normal'
@@ -1091,7 +1131,7 @@ const CalendarComponent: React.FC<{
               );
             }
 
-            if (esFechaClase && bloquesDia.length > 0) {
+            if (esFechaClase && bloquesTooltip.length > 0) {
               return (
                 <DefaultTooltip
                   key={index}
@@ -1134,7 +1174,7 @@ const CalendarComponent: React.FC<{
                         '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]'
                       ].join(' ')}
                     >
-                      {bloquesDia.map((row) => contenidoBloqueTooltipDia(date, row))}
+                      {bloquesTooltip.map((row) => contenidoBloqueTooltipDia(date, row))}
                     </div>
                   }
                 >
@@ -1143,11 +1183,7 @@ const CalendarComponent: React.FC<{
               );
             }
 
-            return (
-              <div key={index} className={baseClass}>
-                {day}
-              </div>
-            );
+            return <React.Fragment key={index}>{celda}</React.Fragment>;
           })}
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs">
@@ -1155,7 +1191,7 @@ const CalendarComponent: React.FC<{
             <>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Verde — clases ya pasadas</span>
+                <span className="text-gray-700 dark:text-gray-300">Verde — sesión completada</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
@@ -1174,12 +1210,22 @@ const CalendarComponent: React.FC<{
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Próximas clases</span>
+                <span className="text-gray-700 dark:text-gray-300">Pendientes (faltan por dictar)</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Clases pasadas</span>
+                <span className="text-gray-700 dark:text-gray-300">Completadas (sesión registrada)</span>
               </div>
+              {sesionesCompletadasUnificadas.length > 0 ? (
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                  {sesionesCompletadasUnificadas.length} sesión
+                  {sesionesCompletadasUnificadas.length === 1 ? '' : 'es'} completada
+                  {ymdPendienteClase.size > 0
+                    ? ` · ${ymdPendienteClase.size} pendiente${ymdPendienteClase.size === 1 ? '' : 's'}`
+                    : ''}
+                  . Usa ← → si faltan días en este mes.
+                </p>
+              ) : null}
             </>
           )}
         </div>
@@ -1330,17 +1376,208 @@ const ClaseDetallePage: React.FC = () => {
     if (v === 'aprendiz' || v === 'instructor') return v;
     return 'instructor';
   }, [locationState?.vistaCalendario]);
+
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [clase, setClase] = useState<Clase | null>(null);
   const [todasLasFechasClase, setTodasLasFechasClase] = useState<FechaClase[]>([]);
+  const { clases: clasesInstructorCalendario } = useClasesInstructorAsignadas();
+  const [historialSesionesInstructor, setHistorialSesionesInstructor] = useState<
+    HistorialSesionInstructorItem[]
+  >([]);
   const [sesionesCompletadasPorHorario, setSesionesCompletadasPorHorario] =
     useState<SesionesPorHorarioMap>({});
+  const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
+
+  useEffect(() => {
+    if (modoCalendario !== 'instructor') {
+      setHistorialSesionesInstructor([]);
+      return;
+    }
+    fetchHistorialSesionesInstructor()
+      .then(setHistorialSesionesInstructor)
+      .catch(() => setHistorialSesionesInstructor([]));
+  }, [modoCalendario, id]);
+
+  /** Misma fuente que Mis formaciones → Completado (historial + clases-asignadas). */
+  const clasesInstructorParaCalendario = useMemo((): ClaseAsignadaInstructorBase[] => {
+    const porHm = new Map<number, ClaseAsignadaInstructorBase>();
+    for (const c of clasesInstructorCalendario) {
+      porHm.set(c.idHorarioMateria, { ...c, sesiones_completadas: [...(c.sesiones_completadas ?? [])] });
+    }
+    for (const item of historialSesionesInstructor) {
+      const raw = item.clase as Record<string, unknown>;
+      const idHm = Number(raw.idHorarioMateria);
+      if (!Number.isFinite(idHm) || idHm <= 0) continue;
+      const ymd = ymdFromFechaSesion(item.sesion.fechaSesion);
+      if (!ymd) continue;
+      const ses = {
+        fechaSesion: ymd,
+        numeroSesion: Number(item.sesion.numeroSesion)
+      };
+      const prev = porHm.get(idHm);
+      if (prev) {
+        const list = [...(prev.sesiones_completadas ?? [])];
+        if (
+          !list.some(
+            (s) => ymdFromFechaSesion(s.fechaSesion) === ymd && s.numeroSesion === ses.numeroSesion
+          )
+        ) {
+          list.push(ses);
+        }
+        porHm.set(idHm, { ...prev, sesiones_completadas: list });
+      } else {
+        porHm.set(idHm, {
+          ficha_id: Number(raw.ficha_id) || 0,
+          ficha_codigo: String(raw.ficha_codigo ?? ''),
+          programa_nombre: String(raw.programa_nombre ?? ''),
+          materia_nombre: String(raw.materia_nombre ?? ''),
+          competencia_nombre: String(raw.competencia_nombre ?? ''),
+          rap_nombre: (raw.rap_nombre as string | null) ?? null,
+          idMateriaPadre: null,
+          jornada_nombre: String(raw.jornada_nombre ?? ''),
+          jornada_tipo: String(raw.jornada_tipo ?? ''),
+          dia_semana: String(raw.dia_semana ?? ''),
+          idDia: Number(raw.idDia) || 0,
+          horaInicial: String(raw.horaInicial ?? ''),
+          horaFinal: String(raw.horaFinal ?? ''),
+          fechaInicial: String(raw.fechaInicial ?? ''),
+          fechaFinal: raw.fechaFinal != null ? String(raw.fechaFinal) : null,
+          idHorarioMateria: idHm,
+          sesiones_completadas: [ses]
+        });
+      }
+    }
+    return Array.from(porHm.values());
+  }, [clasesInstructorCalendario, historialSesionesInstructor]);
+
+  const codigoFichaCalendario = String(ficha?.codigo ?? clase?.ficha_codigo ?? '').trim();
+
+  const clasesFranjaMismaFicha = useMemo((): ClaseAsignadaInstructorBase[] => {
+    if (!codigoFichaCalendario) return clasesInstructorParaCalendario;
+    return clasesInstructorParaCalendario.filter(
+      (c) => String(c.ficha_codigo ?? '').trim() === codigoFichaCalendario
+    );
+  }, [clasesInstructorParaCalendario, codigoFichaCalendario]);
+
+  const todasLasFechasCalendarioApi = useMemo((): FechaClase[] => {
+    const byHm = new Map<number, FechaClase>();
+    const registrar = (fc: FechaClase) => {
+      const id = Number(fc.idHorarioMateria);
+      if (!Number.isFinite(id) || id <= 0 || !String(fc.fechaInicial ?? '').trim()) return;
+      byHm.set(id, fc);
+    };
+
+    for (const fc of todasLasFechasClase) registrar(fc);
+    if (modoCalendario === 'instructor' && clasesInstructorParaCalendario.length > 0) {
+      for (const fc of filasCalendarioDesdeClasesAsignadas(
+        clasesInstructorParaCalendario
+      ) as FechaClase[]) {
+        registrar(fc);
+      }
+    }
+
+    let filas = Array.from(byHm.values());
+
+    if (codigoFichaCalendario) {
+      const mismaFicha = filas.filter(
+        (fc) => String(fc.ficha_codigo ?? '').trim() === codigoFichaCalendario
+      );
+      if (mismaFicha.length > 0) filas = mismaFicha;
+    } else if (idHorarioMateriaClase != null && Number.isFinite(idHorarioMateriaClase)) {
+      const delHorario = filas.filter(
+        (fc) => Number(fc.idHorarioMateria) === idHorarioMateriaClase
+      );
+      if (delHorario.length > 0) filas = delHorario;
+    }
+    return filas;
+  }, [
+    modoCalendario,
+    clasesInstructorParaCalendario,
+    todasLasFechasClase,
+    idHorarioMateriaClase,
+    codigoFichaCalendario
+  ]);
+
+  /** Misma fuente que Mis formaciones → Completado (ficha + todos los horarios relacionados). */
+  const sesionesCalendarioFranja = useMemo(() => {
+    const idHm = Number(clase?.idHorarioMateria ?? idHorarioMateriaClase ?? 0);
+    const idsHorariosRelacionados = [
+      ...new Set(
+        [
+          idHm,
+          ...todasLasFechasClase.map((fc) => Number(fc.idHorarioMateria)),
+          ...clasesInstructorParaCalendario
+            .filter((c) => String(c.ficha_codigo ?? '') === String(ficha?.codigo ?? ''))
+            .map((c) => c.idHorarioMateria)
+        ].filter((n) => Number.isFinite(n) && n > 0)
+      )
+    ];
+    return sesionesCompletadasCalendarioDetalleClase({
+      idHorarioMateria: idHm,
+      fichaCodigo: ficha?.codigo,
+      historial: historialSesionesInstructor,
+      clasesInstructor: clasesInstructorParaCalendario,
+      sesionesPorHorario: sesionesCompletadasPorHorario,
+      idsHorariosRelacionados,
+      sesionesClaseDetalle: clase?.sesiones_completadas
+    });
+  }, [
+    clase,
+    clasesInstructorParaCalendario,
+    ficha,
+    todasLasFechasClase,
+    idHorarioMateriaClase,
+    sesionesCompletadasPorHorario,
+    historialSesionesInstructor
+  ]);
+
+  const filaClaseCalendarioApi = useMemo((): ClaseAsignadaInstructorBase | null => {
+    const idHm = clase?.idHorarioMateria ?? idHorarioMateriaClase;
+    if (!idHm) return null;
+    const fromApi = clasesInstructorParaCalendario.find((c) => c.idHorarioMateria === idHm);
+    if (fromApi) {
+      return { ...fromApi, sesiones_completadas: sesionesCalendarioFranja };
+    }
+    if (!clase?.fechaInicial) return null;
+    return {
+      ficha_id: 0,
+      ficha_codigo: ficha?.codigo ?? '',
+      programa_nombre: clase.programa_nombre ?? '',
+      materia_nombre: clase.materia_nombre ?? '',
+      competencia_nombre: clase.competencia_nombre ?? clase.materia_nombre ?? '',
+      rap_nombre: clase.rap_nombre ?? null,
+      idMateriaPadre: clase.idMateriaPadre ?? null,
+      jornada_nombre: clase.jornada_nombre ?? ficha?.jornada?.nombreJornada ?? '',
+      jornada_tipo: clase.jornada_tipo ?? clase.jornada_nombre ?? '',
+      dia_semana: clase.dia_semana ?? '',
+      idDia: clase.idDia,
+      horaInicial: clase.horaInicial ?? '',
+      horaFinal: clase.horaFinal ?? '',
+      fechaInicial: clase.fechaInicial,
+      fechaFinal: clase.fechaFinal ?? null,
+      idHorarioMateria: idHm,
+      sesiones_completadas: sesionesCalendarioFranja,
+      total_sesiones: clase.total_sesiones,
+      sesiones_dadas: clase.sesiones_dadas,
+      sesiones_restantes: clase.sesiones_restantes
+    };
+  }, [clase, clasesInstructorParaCalendario, ficha, idHorarioMateriaClase, sesionesCalendarioFranja]);
+
+  const sesionesCompletadasPorHorarioApi = useMemo((): SesionesPorHorarioMap => {
+    if (modoCalendario === 'instructor' && clasesInstructorParaCalendario.length > 0) {
+      return {
+        ...sesionesCompletadasPorHorarioDesdeClases(clasesInstructorParaCalendario),
+        ...sesionesCompletadasPorHorario
+      };
+    }
+    return sesionesCompletadasPorHorario;
+  }, [modoCalendario, clasesInstructorParaCalendario, sesionesCompletadasPorHorario]);
+
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEstudiante, setSearchEstudiante] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenu, setActiveMenu] = useState<MenuOption>(locationState?.activeMenu || 'estudiantes');
-  const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
 
   useEffect(() => {
     const menuQuery = searchParams.get('menu');
@@ -1572,6 +1809,18 @@ const ClaseDetallePage: React.FC = () => {
           setFicha(fichaData);
           if (claseData) {
             const norm = normalizarClaseDetalleApi(claseData);
+            const sesionesRoot = response.data?.data?.sesionesCompletadas;
+            const sesionesLista = Array.isArray(sesionesRoot)
+              ? sesionesRoot
+              : Array.isArray((response.data?.data as { sesiones_completadas?: unknown })?.sesiones_completadas)
+                ? (response.data?.data as { sesiones_completadas: unknown[] }).sesiones_completadas
+                : [];
+            if (norm && sesionesLista.length > 0) {
+              norm.sesiones_completadas = unificarSesionesCompletadas(
+                norm.sesiones_completadas,
+                sesionesLista as Array<{ fechaSesion?: unknown; numeroSesion?: number }>
+              ) as Clase['sesiones_completadas'];
+            }
             setClase(norm ?? (claseData as Clase));
           } else {
             setClase(null);
@@ -2334,8 +2583,8 @@ const ClaseDetallePage: React.FC = () => {
 
         {/* Right Column: Calendar - Mucho más pequeño */}
         <div className="lg:col-span-4">
-          <div className="card h-full flex flex-col">
-            <div className="card-body p-4 flex flex-col h-full">
+          <div className="card h-fit self-start w-full">
+            <div className="card-body grow-0 p-4">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 {modoCalendario === 'aprendiz'
                   ? 'Calendario de tus clases'
@@ -2343,18 +2592,25 @@ const ClaseDetallePage: React.FC = () => {
               </h2>
               {clase?.fechaInicial ? (
                 <CalendarComponent
-                  key={`cal-${clase.idHorarioMateria}-${clase.fechaInicial}`}
+                  key={`cal-${clase.idHorarioMateria}-${sesionesCalendarioFranja.length}-${historialSesionesInstructor.length}`}
                   fechaInicio={clase.fechaInicial}
                   fechaFin={clase.fechaFinal || clase.fechaInicial}
                   diaSemana={clase.dia_semana}
-                  todasLasFechasClase={todasLasFechasClase}
+                  todasLasFechasClase={todasLasFechasCalendarioApi}
+                  clasesFranjaCalendario={
+                    modoCalendario === 'instructor'
+                      ? clasesInstructorParaCalendario
+                      : clasesFranjaMismaFicha
+                  }
                   idDia={clase.idDia}
                   idHorarioMateria={clase.idHorarioMateria}
-                  sesionesCompletadas={clase.sesiones_completadas || []}
-                  sesionesCompletadasPorHorario={sesionesCompletadasPorHorario}
+                  sesionesCompletadas={sesionesCalendarioFranja}
+                  sesionesCompletadasPorHorario={sesionesCompletadasPorHorarioApi}
                   modoCalendario={modoCalendario}
                   horaInicial={clase.horaInicial}
                   horaFinal={clase.horaFinal}
+                  filaClaseAsignada={filaClaseCalendarioApi}
+                  ahoraRef={currentTime}
                   resumenClaseActual={{
                     ficha_codigo: ficha.codigo,
                     materia_nombre: clase.materia_nombre,
@@ -2379,17 +2635,17 @@ const ClaseDetallePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section: menú colapsado (solo iconos, 1/12) o expandido (texto, 2/12) */}
-      <div className="grid grid-cols-1 min-w-0 lg:grid-cols-12 gap-3 sm:gap-4 lg:items-start">
+      {/* Menú ancho fijo + contenido al lado (flex evita hueco entre menú y panel). */}
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
         <div
           className={clsx(
-            'min-w-0 w-full max-w-full',
-            menuClaseExpandido ? 'lg:col-span-3 lg:w-[13.75rem] lg:max-w-[13.75rem]' : 'lg:col-span-1'
+            'min-w-0 w-full shrink-0 self-start',
+            menuClaseExpandido ? 'lg:w-[13.75rem]' : 'lg:w-[4.25rem]'
           )}
         >
-          <div className="card min-w-0 w-full max-w-full self-start overflow-hidden">
+          <div className="card h-fit w-full max-w-full shrink-0 self-start overflow-hidden">
             <div
-              className={`card-body min-w-0 w-full max-w-full overflow-x-hidden ${menuSoloIconos ? 'p-2 sm:p-2.5' : 'p-3.5 sm:p-4'}`}
+              className={`card-body grow-0 min-w-0 w-full max-w-full overflow-x-hidden ${menuSoloIconos ? 'p-2 sm:p-2.5' : 'p-3.5 sm:p-4'}`}
             >
               {isDesktop ? (
                 <button
@@ -2568,7 +2824,7 @@ const ClaseDetallePage: React.FC = () => {
         </div>
 
         {/* Contenido principal: min-w-0 evita que tablas empujen scroll horizontal a la página */}
-        <div className={`min-w-0 ${menuClaseExpandido ? 'lg:col-span-9' : 'lg:col-span-11'}`}>
+        <div className="min-w-0 w-full flex-1">
           <div className="card min-w-0">
             <div className="card-body min-w-0 p-4 sm:p-5">
               {/* Estudiantes Section */}
