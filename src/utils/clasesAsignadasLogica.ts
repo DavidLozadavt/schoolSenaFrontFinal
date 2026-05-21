@@ -462,21 +462,22 @@ export type SesionCalendarioClase = {
   numeroSesion?: number;
 };
 
-export type ClaseAsignadaInstructorBase = ClaseAsignadaClaveLogica & {
-  ficha_id: number;
-  ficha_codigo: string;
-  programa_nombre: string;
-  materia_nombre: string;
-  competencia_nombre: string;
-  rap_nombre: string | null;
-  idMateriaPadre: number | null;
-  dia_semana: string;
-  fechaInicial: string;
-  fechaFinal: string | null;
-  instructor_nombre?: string;
-  aula_nombre?: string | null;
-  sesiones_completadas?: SesionCalendarioClase[];
-};
+export type ClaseAsignadaInstructorBase = ClaseAsignadaClaveLogica &
+  FilaConteoSesionesClase & {
+    ficha_id: number;
+    ficha_codigo: string;
+    programa_nombre: string;
+    materia_nombre: string;
+    competencia_nombre: string;
+    rap_nombre: string | null;
+    idMateriaPadre: number | null;
+    dia_semana: string;
+    fechaInicial: string;
+    fechaFinal: string | null;
+    instructor_nombre?: string;
+    aula_nombre?: string | null;
+    sesiones_completadas?: SesionCalendarioClase[];
+  };
 
 export type FilaCalendarioClaseAsignada = {
   idHorarioMateria?: number;
@@ -543,15 +544,17 @@ export function normalizarClaseAsignadaInstructorDesdeApi(
 
   const sesiones: SesionCalendarioClase[] = Array.isArray(raw.sesiones_completadas)
     ? (raw.sesiones_completadas as Record<string, unknown>[])
-        .map((s) => {
+        .map((s): SesionCalendarioClase | null => {
           const ymd = ymdFromFechaSesion(s.fechaSesion);
           if (!ymd) return null;
-          return {
-            fechaSesion: ymd,
-            numeroSesion: toNumClaseApi(s.numeroSesion)
-          };
+          const numeroSesion = toNumClaseApi(s.numeroSesion);
+          const item: SesionCalendarioClase = { fechaSesion: ymd };
+          if (numeroSesion > 0) {
+            item.numeroSesion = numeroSesion;
+          }
+          return item;
         })
-        .filter((x): x is SesionCalendarioClase => x != null)
+        .filter((x): x is SesionCalendarioClase => x !== null)
     : [];
 
   return {
@@ -574,7 +577,16 @@ export function normalizarClaseAsignadaInstructorDesdeApi(
     idHorarioMateria,
     instructor_nombre: String(raw.instructor_nombre ?? ''),
     aula_nombre: aulaRaw.length > 0 ? aulaRaw : null,
-    sesiones_completadas: sesiones
+    sesiones_completadas: sesiones,
+    ...(raw.total_sesiones != null && raw.total_sesiones !== ''
+      ? { total_sesiones: toNumClaseApi(raw.total_sesiones) }
+      : {}),
+    ...(raw.sesiones_dadas != null && raw.sesiones_dadas !== ''
+      ? { sesiones_dadas: toNumClaseApi(raw.sesiones_dadas) }
+      : {}),
+    ...(raw.sesiones_restantes != null && raw.sesiones_restantes !== ''
+      ? { sesiones_restantes: toNumClaseApi(raw.sesiones_restantes) }
+      : {})
   };
 }
 
