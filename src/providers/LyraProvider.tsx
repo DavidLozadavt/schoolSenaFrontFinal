@@ -71,23 +71,10 @@ export const LyraProvider = ({ children }: { children: ReactNode }) => {
     const { pusher } = usePusher();
     const [isPoweredOn, setIsPoweredOn] = useState(true);
 
-    // ── 1. INITIAL HEALTH CHECK ONLY (Rely on Pusher for Real-time) ──
+    // ── 1. INITIAL HEALTH CHECK DISABLED ──
     useEffect(() => {
-        const checkHealth = async () => {
-            try {
-                const lyraUrl = import.meta.env.VITE_LYRA_API_URL || 'http://127.0.0.1:8099';
-                const response = await fetch(`${lyraUrl}/status`, { 
-                    signal: AbortSignal.timeout(3000) 
-                });
-                if (!response.ok) throw new Error('Unreachable');
-                const result = await response.json();
-                setIsPoweredOn(result?.data?.status === 'online');
-            } catch (error) {
-                setIsPoweredOn(false);
-            }
-        };
-
-        checkHealth();
+        // Disabled HTTP status requests to avoid connection errors in local development
+        setIsPoweredOn(false);
     }, []);
 
     // ── 2. PUSHER REAL-TIME SYNC (Instant updates) ──

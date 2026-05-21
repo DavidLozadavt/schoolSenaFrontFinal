@@ -154,12 +154,12 @@ const EventsContent = ({ reload }: EventsContentProps) => {
           <h2 className="text-3xl font-extrabold flex items-center gap-2 text-neutral-900 dark:text-slate-50">
             <Calendar className={`w-7 h-7 ${isArchived ? 'text-neutral-400' : 'text-orange-500'}`} />
             {isArchived ? 'Eventos Finalizados' : 'Eventos Próximos'}
-            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
+            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-400">
               ({pagination?.total || 0} eventos)
             </span>
           </h2>
           {isArchived && (
-            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 italic">
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500 italic">
               Historial de eventos marcados como finalizados
             </p>
           )}

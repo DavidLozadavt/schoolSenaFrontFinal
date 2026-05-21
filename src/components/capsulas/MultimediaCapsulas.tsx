@@ -373,6 +373,16 @@ const MultimediaCapsulas = () => {
     );
   }
 
+  if (items.length === 0) {
+    return (
+      <div className="bg-gray-50 dark:bg-coal-600/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-white/5 text-center">
+        <Sparkles className="w-10 h-10 text-orange-400 dark:text-orange-500 mx-auto mb-2 animate-pulse" />
+        <p className="text-gray-700 dark:text-gray-200 text-sm font-semibold uppercase tracking-widest">No hay cápsulas multimedia disponibles</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sube nuevas historias o reels para compartir con la comunidad.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full relative group/carousel">
       {canScrollLeft && (
@@ -442,7 +452,7 @@ const MultimediaCapsulas = () => {
                   </div>
                 </div>
               </div>
-              <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors max-w-[80px] truncate text-center uppercase tracking-tighter">
+              <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-200 group-hover:text-primary transition-colors max-w-[80px] truncate text-center uppercase tracking-tighter">
                 {item.nombreGrupo}
               </span>
             </div>
