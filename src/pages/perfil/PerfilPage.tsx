@@ -71,7 +71,7 @@ const PerfilPage = () => {
 
   const checkProfileAccess = async () => {
     try {
-      const response = await axios.get('profile/access-check', {
+      const response = await axios.get(`profile/access-check?_=${Date.now()}`, {
         headers: {
           Authorization: `Bearer ${auth}`,
           'Content-Type': 'application/json'
@@ -371,8 +371,8 @@ const PerfilPage = () => {
     try {
       console.log('Verificando estado después de cambiar contraseña...');
 
-      // Verificar el estado actual del perfil
-      const response = await axios.get('profile/access-check', {
+      // Verificar el estado actual del perfil con un cache buster para evitar respuestas cacheadas en producción
+      const response = await axios.get(`profile/access-check?_=${Date.now()}`, {
         headers: {
           Authorization: `Bearer ${auth}`,
           'Content-Type': 'application/json'
