@@ -295,7 +295,7 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
 
   return (
     <Modal open={isOpen} onClose={onClose}>
-      <ModalContent className="max-w-[520px] top-[10%] p-4">
+      <ModalContent className="max-w-[520px] top-[10%] p-4 max-h-[90vh] overflow-y-auto">
         <ModalHeader>
           <ModalTitle>Lista de Asistencia</ModalTitle>
           <div className="flex items-center gap-3">
