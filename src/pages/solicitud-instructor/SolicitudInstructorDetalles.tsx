@@ -11,7 +11,7 @@ const SolicitudInstructorDetalles = ({ open, onClose, solicitud }: Props) => {
 
     return (
         <Modal open={open} onClose={onClose}>
-            <ModalContent className="max-w-2xl p-4 top-[5%]">
+            <ModalContent className="max-w-2xl p-4">
                 <ModalHeader>
                     <ModalTitle>Detalles de la Solicitud</ModalTitle>
                     <button
