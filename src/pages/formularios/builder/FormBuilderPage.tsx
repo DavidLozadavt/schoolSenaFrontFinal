@@ -10,7 +10,16 @@ const FormBuilderPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'editor' | 'respuestas'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'respuestas'>(
+    window.history.state?.usr?.activeTab || 'editor'
+  );
+
+  useEffect(() => {
+    if (window.history.state?.usr?.activeTab) {
+      setActiveTab(window.history.state.usr.activeTab);
+    }
+  }, [id]);
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   const [formData, setFormData] = useState<FormData>({

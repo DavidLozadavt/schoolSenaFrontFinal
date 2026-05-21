@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PremiumEventCard } from './PremiumEventCard';
 import ModalDetalleEvento from './ModalDetalleEvento';
@@ -28,6 +29,7 @@ interface Evento {
 
 
 const EventsDashboard = () => {
+  const location = useLocation();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEventoDetalle, setSelectedEventoDetalle] = useState<Evento | null>(null);
@@ -115,6 +117,19 @@ const EventsDashboard = () => {
     };
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openEventId && eventos.length > 0) {
+      const eventId = Number(location.state.openEventId);
+      const eventToOpen = eventos.find(e => e.idEvento === eventId);
+      if (eventToOpen) {
+        setSelectedEventoDetalle(eventToOpen);
+        setModalOpen(true);
+        // Clear navigation state to prevent repeated auto-opening
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, eventos]);
 
   if (loading) {
     return (

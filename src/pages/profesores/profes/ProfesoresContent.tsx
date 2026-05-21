@@ -1830,10 +1830,9 @@ const ProfesoresContent: React.FC = () => {
                     </span>
                   </div>
                   <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-                    {resumenMesCalendario.completadas} día
-                    {resumenMesCalendario.completadas === 1 ? '' : 's'} con sesión ·{' '}
-                    {resumenMesCalendario.pendientes} pendiente
-                    {resumenMesCalendario.pendientes === 1 ? '' : 's'} (misma regla que detalle de clase).
+                    <span>{resumenMesCalendario.completadas} {resumenMesCalendario.completadas === 1 ? 'día' : 'días'} con sesión</span>
+                    <span> · </span>
+                    <span>{resumenMesCalendario.pendientes} {resumenMesCalendario.pendientes === 1 ? 'pendiente' : 'pendientes'} (misma regla que detalle de clase).</span>
                   </p>
                 </>
               ) : calendarView === 'week' ? (

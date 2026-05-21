@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FormData } from '../builder/formBuilderTypes';
 import { 
@@ -14,11 +14,15 @@ import {
   Smile,
   ClipboardCheck,
   UserPlus,
-  Layers
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
 
 const FormPublicPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fromEventId = location.state?.fromEventId;
   const [form, setForm] = useState<FormData | null>(null);
   const [respuestas, setRespuestas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +117,16 @@ const FormPublicPage: React.FC = () => {
 
     try {
       await axios.post(`/formulario-publico/${slug}/responder`, { respuestas });
+      
+      // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
+      if (fromEventId) {
+        try {
+          await axios.post(`/eventos-multimedia/${fromEventId}/register`);
+        } catch (regErr) {
+          console.error('Error registering user to event after response submission:', regErr);
+        }
+      }
+
       setEnviado(true);
       window.scrollTo(0, 0);
     } catch (err: any) {
@@ -143,12 +157,21 @@ const FormPublicPage: React.FC = () => {
           </div>
           <h2 className="text-lg font-black uppercase tracking-tight text-neutral-800 dark:text-white">Formulario No Disponible</h2>
           <p className="text-xs text-neutral-500 font-semibold leading-relaxed">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full py-4 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-800 dark:text-white font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all"
-          >
-            Reintentar
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 py-4 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-800 dark:text-white font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all"
+            >
+              Reintentar
+            </button>
+            <button
+              onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
+              className="flex-1 py-4 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -174,15 +197,24 @@ const FormPublicPage: React.FC = () => {
             <h2 className="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">¡Registro Exitoso!</h2>
             <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed">Tu respuesta ha sido registrada y guardada con éxito en nuestra plataforma educativa.</p>
 
-            {!form.requiereAutenticacion && (
+            <div className="flex flex-col sm:flex-row gap-3 w-full mt-4 justify-center">
+              {!form.requiereAutenticacion && (
+                <button
+                  className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
+                  style={{ backgroundColor: form.colorTema, boxShadow: `0 10px 15px -3px ${form.colorTema}35` }}
+                  onClick={() => window.location.reload()}
+                >
+                  Enviar otra respuesta
+                </button>
+              )}
               <button
-                className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all mt-4"
-                style={{ backgroundColor: form.colorTema, boxShadow: `0 10px 15px -3px ${form.colorTema}35` }}
-                onClick={() => window.location.reload()}
+                className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
               >
-                Enviar otra respuesta
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver al Dashboard</span>
               </button>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -261,6 +293,19 @@ const FormPublicPage: React.FC = () => {
 
       {/* Centered content column */}
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-28">
+        
+        {/* Back Button */}
+        <button
+          type="button"
+          onClick={() => {
+            navigate('/', { state: { openEventId: fromEventId } });
+          }}
+          className="group mb-6 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-fit cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
+          <span>Volver al Dashboard</span>
+        </button>
+
         <form onSubmit={handleSubmit}>
           {/* Main Title Card */}
           <div 

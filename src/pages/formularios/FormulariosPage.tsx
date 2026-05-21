@@ -21,7 +21,9 @@ import {
   ClipboardCheck,
   UserPlus,
   MessageSquare,
-  Layers
+  Layers,
+  Pencil,
+  Users
 } from 'lucide-react';
 import { Container } from '@/components/container';
 import { useLayout } from '@/providers';
@@ -139,6 +141,19 @@ const FormulariosPage: React.FC = () => {
     } catch (error) {
       console.error(error);
       showToast('Error al desvincular el formulario', 'error');
+    }
+  };
+
+  const handleDeleteInternalForm = async (formId: number) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar permanentemente este formulario y todas sus preguntas/respuestas?')) return;
+    
+    try {
+      await axios.delete(`/formularios/${formId}`);
+      showToast('Formulario eliminado con éxito', 'success');
+      setInternalForms(prev => prev.filter(f => f.id !== formId));
+    } catch (error) {
+      console.error(error);
+      showToast('Error al eliminar el formulario', 'error');
     }
   };
 
@@ -538,19 +553,49 @@ const FormulariosPage: React.FC = () => {
                             </span>
                             
                             <div className="flex gap-2">
-                              <button 
-                                onClick={() => navigate(`/formularios/builder/${f.id}`)}
-                                className="p-2.5 bg-neutral-50 hover:bg-blue-500/10 text-neutral-500 hover:text-blue-600 dark:bg-neutral-800/40 dark:hover:bg-blue-500/20 dark:text-neutral-400 dark:hover:text-blue-400 rounded-xl transition-all active:scale-90"
-                                title="Configurar y Editar Preguntas"
-                              >
-                                <Settings className="w-4 h-4" />
-                              </button>
+                              {/* Ver Vista Pública */}
                               <button 
                                 onClick={() => window.open(`/formulario-publico/${f.id}`, '_blank')}
                                 className="p-2.5 bg-neutral-50 hover:bg-emerald-500/10 text-neutral-500 hover:text-emerald-600 dark:bg-neutral-800/40 dark:hover:bg-emerald-500/20 dark:text-neutral-400 dark:hover:text-emerald-400 rounded-xl transition-all active:scale-90"
                                 title="Ver Vista Pública"
                               >
                                 <Eye className="w-4 h-4" />
+                              </button>
+
+                              {/* Editar Preguntas */}
+                              <button 
+                                onClick={() => navigate(`/formularios/builder/${f.id}`, { state: { activeTab: 'editor' } })}
+                                className="p-2.5 bg-neutral-50 hover:bg-blue-500/10 text-neutral-500 hover:text-blue-600 dark:bg-neutral-800/40 dark:hover:bg-blue-500/20 dark:text-neutral-400 dark:hover:text-blue-400 rounded-xl transition-all active:scale-90"
+                                title="Editar Preguntas"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+
+                              {/* Configurar */}
+                              <button 
+                                onClick={() => navigate(`/formularios/builder/${f.id}`)}
+                                className="p-2.5 bg-neutral-50 hover:bg-amber-500/10 text-neutral-500 hover:text-amber-600 dark:bg-neutral-800/40 dark:hover:bg-amber-500/20 dark:text-neutral-400 dark:hover:text-amber-400 rounded-xl transition-all active:scale-90"
+                                title="Configurar Formulario"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+
+                              {/* Ver Usuarios Funcionales */}
+                              <button 
+                                onClick={() => navigate(`/formularios/builder/${f.id}`, { state: { activeTab: 'respuestas' } })}
+                                className="p-2.5 bg-neutral-50 hover:bg-purple-500/10 text-neutral-500 hover:text-purple-600 dark:bg-neutral-800/40 dark:hover:bg-purple-500/20 dark:text-neutral-400 dark:hover:text-purple-400 rounded-xl transition-all active:scale-90"
+                                title="Ver Usuarios Funcionales"
+                              >
+                                <Users className="w-4 h-4" />
+                              </button>
+
+                              {/* Eliminar Formulario */}
+                              <button 
+                                onClick={() => handleDeleteInternalForm(f.id)}
+                                className="p-2.5 bg-neutral-50 hover:bg-rose-500/10 text-neutral-500 hover:text-rose-600 dark:bg-neutral-800/40 dark:hover:bg-rose-500/20 dark:text-neutral-400 dark:hover:text-rose-400 rounded-xl transition-all active:scale-90"
+                                title="Eliminar Formulario"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
