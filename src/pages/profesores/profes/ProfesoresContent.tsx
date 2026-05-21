@@ -5,6 +5,15 @@ import { useAuthContext } from "@/auth/useAuthContext";
 import { KeenIcon } from "@/components/keenicons";
 import MultimediaCapsulas from "@/components/capsulas/MultimediaCapsulas";
 import EventsDashboard from "@/components/capsulas/EventsDashboard";
+import {
+  calendarioInstructorEnRango,
+  clasesInstructorConHistorial,
+  fetchHistorialSesionesInstructor,
+  sesionesCalendarioInstructorEnRango,
+  type EstadoDiaCalendarioInstructor,
+  type HistorialSesionInstructorItem
+} from "@/utils/clasesAsignadasLogica";
+import { useClasesInstructorAsignadas } from "@/hooks/useClasesInstructorAsignadas";
 
 // --- Types ---
 
@@ -939,9 +948,43 @@ function getSemaforoHorasAcumulado(horas: number, meta: number): SemaforoAcum {
 
 // --- REELS DATA & COMPONENT ---
 
+/** Mismos colores que el calendario del detalle de clase. */
+function estiloCeldaMiCalendarioInstructor(estado: EstadoDiaCalendarioInstructor | undefined): {
+  className: string;
+  style?: React.CSSProperties;
+} {
+  switch (estado) {
+    case 'hoy':
+      return {
+        className: 'font-semibold',
+        style: { backgroundColor: '#fed7aa', color: '#9a3412' }
+      };
+    case 'completada':
+      return {
+        className: 'font-semibold',
+        style: { backgroundColor: '#dcfce7', color: '#166534' }
+      };
+    case 'pendiente':
+      return {
+        className: 'font-semibold',
+        style: { backgroundColor: '#dbeafe', color: '#1e3a8a' }
+      };
+    default:
+      return {
+        className:
+          'text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium'
+      };
+  }
+}
+
+function colorPuntoMiCalendarioInstructor(estado: EstadoDiaCalendarioInstructor | undefined): string {
+  if (estado === 'hoy') return 'bg-[#9a3412]';
+  if (estado === 'completada') return 'bg-[#166534]';
+  if (estado === 'pendiente') return 'bg-[#1e3a8a]';
+  return 'bg-primary';
+}
 
 // --- Main Component ---
-
 
 const ProfesoresContent: React.FC = () => {
   const { user, persona } = useAuthContext();
@@ -954,6 +997,22 @@ const ProfesoresContent: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [fichasLider, setFichasLider] = useState<FichaLider[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
+  const { clases: clasesHorarioInstructor } = useClasesInstructorAsignadas();
+  const [historialSesionesInstructor, setHistorialSesionesInstructor] = useState<
+    HistorialSesionInstructorItem[]
+  >([]);
+
+  const clasesInstructorCalendario = useMemo(
+    () => clasesInstructorConHistorial(clasesHorarioInstructor, historialSesionesInstructor),
+    [clasesHorarioInstructor, historialSesionesInstructor]
+  );
+
+  useEffect(() => {
+    fetchHistorialSesionesInstructor()
+      .then(setHistorialSesionesInstructor)
+      .catch(() => setHistorialSesionesInstructor([]));
+  }, []);
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDay, setSelectedDay] = useState(new Date());
@@ -1019,8 +1078,45 @@ const ProfesoresContent: React.FC = () => {
     [actividades]
   );
 
-  // Calendario (Generación de Sesiones)                                                                                                       
-  const upcomingSessions = useMemo(() => getInstructorSessions(fichas, currentMonth), [fichas, currentMonth]);
+  // Calendario: misma lógica que detalle de clase (sesiones BD + pendientes + hoy).
+  const calendarioInstructor = useMemo(() => {
+    const anchor = calendarView === "day" ? selectedDay : currentMonth;
+    const year = anchor.getFullYear();
+    const month = anchor.getMonth();
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month + 2, 0);
+    return calendarioInstructorEnRango(clasesInstructorCalendario, startDate, endDate, new Date());
+  }, [clasesInstructorCalendario, currentMonth, calendarView, selectedDay]);
+
+  const upcomingSessions = useMemo((): UpcomingSession[] => {
+    const anchor = calendarView === "day" ? selectedDay : currentMonth;
+    const year = anchor.getFullYear();
+    const month = anchor.getMonth();
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month + 2, 0);
+    return sesionesCalendarioInstructorEnRango(
+      clasesInstructorCalendario,
+      startDate,
+      endDate,
+      new Date()
+    );
+  }, [clasesInstructorCalendario, currentMonth, calendarView, selectedDay]);
+
+  const estadoDiaCalendario = calendarioInstructor.estadoPorYmd;
+
+  const resumenMesCalendario = useMemo(() => {
+    const y = currentMonth.getFullYear();
+    const m = currentMonth.getMonth();
+    let completadas = 0;
+    let pendientes = 0;
+    for (const [ymd, est] of Object.entries(estadoDiaCalendario)) {
+      const parts = ymd.split('-').map(Number);
+      if (parts.length !== 3 || parts[0] !== y || parts[1] - 1 !== m) continue;
+      if (est === 'completada') completadas += 1;
+      if (est === 'pendiente') pendientes += 1;
+    }
+    return { completadas, pendientes };
+  }, [estadoDiaCalendario, currentMonth]);
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const { totalFichas, totalRAPs } = useMemo(() => {
@@ -1666,19 +1762,27 @@ const ProfesoresContent: React.FC = () => {
                     {daysArray.map(day => {
                       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                       const daySessions = sessionsByDate[dateStr] || [];
-                      const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
+                      const estadoDia = estadoDiaCalendario[dateStr];
+                      const { className: celdaCls, style: celdaStyle } =
+                        estiloCeldaMiCalendarioInstructor(estadoDia);
+                      const mostrarMarcador =
+                        daySessions.length > 0 || (estadoDia && estadoDia !== 'normal');
                       return (
                         <div
                           key={day}
                           onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${isToday ? "bg-primary text-black font-black shadow-md shadow-primary/30" : "text-gray-700 dark:text-gray-300 hover:ring-1 hover:ring-primary/20 font-medium"} ${daySessions.length > 0 && !isToday ? `${rmiCalculations.semaforoMes.bgLight} ${rmiCalculations.semaforoMes.text} font-bold` : ""}`}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls}`}
+                          style={celdaStyle}
                         >
                           <span className="z-10">{day}</span>
-                          {daySessions.length > 0 && (
+                          {mostrarMarcador && daySessions.length > 0 && (
                             <>
                               <div className="absolute bottom-1.5 flex gap-1 z-10">
                                 {daySessions.slice(0, 3).map((_, i) => (
-                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : rmiCalculations.semaforoMes.bg}`} />
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
+                                  />
                                 ))}
                               </div>
 
@@ -1699,6 +1803,9 @@ const ProfesoresContent: React.FC = () => {
                                       </div>
                                       <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">{s.materia}</p>
                                       <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{s.aula}</p>
+                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                                        {s.estado}
+                                      </p>
                                     </div>
                                   ))}
                                 </div>
@@ -1711,6 +1818,23 @@ const ProfesoresContent: React.FC = () => {
                       );
                     })}
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-gray-600 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#fed7aa' }} /> Hoy
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dcfce7' }} /> Completada
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dbeafe' }} /> Pendiente
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                    {resumenMesCalendario.completadas} día
+                    {resumenMesCalendario.completadas === 1 ? '' : 's'} con sesión ·{' '}
+                    {resumenMesCalendario.pendientes} pendiente
+                    {resumenMesCalendario.pendientes === 1 ? '' : 's'} (misma regla que detalle de clase).
+                  </p>
                 </>
               ) : calendarView === 'week' ? (
                 <>
@@ -1762,9 +1886,12 @@ const ProfesoresContent: React.FC = () => {
                       dayDate.setHours(0, 0, 0, 0);
 
                       const dateStr = formatDateKey(dayDate);
-                      const isToday = new Date().toDateString() === dayDate.toDateString();
                       const isInSelectedWeek = isDateInRange(dayDate, currentWeekRange.start, currentWeekRange.end);
                       const daySessions = isInSelectedWeek ? sessionsByDate[dateStr] || [] : [];
+                      const estadoDia = isInSelectedWeek ? estadoDiaCalendario[dateStr] : undefined;
+                      const { className: celdaCls, style: celdaStyle } = isInSelectedWeek
+                        ? estiloCeldaMiCalendarioInstructor(estadoDia)
+                        : { className: 'text-gray-700 dark:text-gray-300 font-medium' };
 
                       return (
                         <div
@@ -1773,33 +1900,20 @@ const ProfesoresContent: React.FC = () => {
                             setSelectedDay(dayDate);
                             setCalendarView('day');
                           }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer
-                            ${
-                              isToday
-                                ? "bg-primary text-black font-black shadow-md shadow-primary/30"
-                                : "text-gray-700 dark:text-gray-300 font-medium"
-                            }
-                            ${
-                              isInSelectedWeek && !isToday && daySessions.length > 0
-                                ? `${rmiCalculations.semaforoMes.bgLight} ${rmiCalculations.semaforoMes.text} ring-1 ${rmiCalculations.semaforoMes.border} font-bold`
-                                : ""
-                            }
-                            ${
-                              !isInSelectedWeek
-                                ? "opacity-30 hover:opacity-60"
-                                : "hover:ring-1 hover:ring-primary/30"
-                            }
-                          `}
+                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls} ${
+                            !isInSelectedWeek ? 'opacity-30 hover:opacity-60' : ''
+                          }`}
+                          style={isInSelectedWeek ? celdaStyle : undefined}
                         >
                           <span className="z-10">{day}</span>
 
-                          {daySessions.length > 0 && (
+                          {isInSelectedWeek && daySessions.length > 0 && (
                             <>
                               <div className="absolute bottom-1.5 flex gap-1 z-10">
                                 {daySessions.slice(0, 3).map((_, i) => (
                                   <div
                                     key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : rmiCalculations.semaforoMes.bg}`}
+                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
                                   />
                                 ))}
                               </div>
@@ -1836,6 +1950,9 @@ const ProfesoresContent: React.FC = () => {
                                       <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
                                         {s.aula}
                                       </p>
+                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                                        {s.estado}
+                                      </p>
                                     </div>
                                   ))}
                                 </div>
@@ -1867,7 +1984,8 @@ const ProfesoresContent: React.FC = () => {
                   </div>
                   
                   {(() => {
-                    const daySessions = getInstructorSessions(fichas, selectedDay).filter(s => s.fechaObj.toDateString() === selectedDay.toDateString());
+                    const dateStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
+                    const daySessions = sessionsByDate[dateStr] || [];
                     if (daySessions.length === 0) {
                       return (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">

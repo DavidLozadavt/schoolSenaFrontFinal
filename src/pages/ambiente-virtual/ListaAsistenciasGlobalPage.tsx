@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -6,7 +6,6 @@ import { KeenIcon } from '@/components';
 import { Container } from '@/components/container';
 import {
   Toolbar,
-  ToolbarActions,
   ToolbarDescription,
   ToolbarHeading,
   ToolbarPageTitle
@@ -114,6 +113,33 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
   const [idFicha, setIdFicha] = useState(defaultIdFicha ? String(defaultIdFicha) : '');
   const [busqueda, setBusqueda] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Cerrar menú de exportación al hacer clic afuera o presionar Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   useEffect(() => {
     axios
@@ -301,50 +327,14 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
                 Consulta las asistencias de todas tus fichas y aprendices con filtros por fecha
               </ToolbarDescription>
             </ToolbarHeading>
-            <ToolbarActions>
-              <div className="relative">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light border border-gray-300"
-                  onClick={() => setShowExportMenu((v) => !v)}
-                >
-                  <KeenIcon icon="file-down" className="me-1" />
-                  Exportar
-                </button>
-                {showExportMenu && (
-                  <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-coal-400">
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-green-50"
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        exportToExcel();
-                      }}
-                    >
-                      <KeenIcon icon="file-down" /> Excel
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50"
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        exportToPDF();
-                      }}
-                    >
-                      <KeenIcon icon="file" /> PDF
-                    </button>
-                  </div>
-                )}
-              </div>
-            </ToolbarActions>
           </Toolbar>
         </Container>
       )}
 
       <Container>
         <div className={embedded ? 'space-y-4' : 'py-4 space-y-4'}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400">
+            <div className="md:col-span-3 lg:col-span-2">
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Desde</label>
               <input
                 type="date"
@@ -353,7 +343,7 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
                 className="input input-sm w-full mt-1"
               />
             </div>
-            <div>
+            <div className="md:col-span-3 lg:col-span-2">
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Hasta</label>
               <input
                 type="date"
@@ -362,7 +352,7 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
                 className="input input-sm w-full mt-1"
               />
             </div>
-            <div className="sm:col-span-2">
+            <div className="md:col-span-6 lg:col-span-4">
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
                 Buscar estudiante
               </label>
@@ -374,17 +364,77 @@ const ListaAsistenciasGlobalPage: React.FC<ListaAsistenciasGlobalPageProps> = ({
                 className="input input-sm w-full mt-1"
               />
             </div>
-            <div className="flex items-end">
-              <button
-                type="button"
-                className="btn btn-sm btn-primary w-full"
-                onClick={fetchAsistencias}
-                disabled={loading}
-              >
-                {loading ? 'Cargando...' : 'Aplicar filtros'}
-              </button>
+            <div className="md:col-span-12 lg:col-span-4 flex items-end gap-2">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary flex-1"
+                  onClick={fetchAsistencias}
+                  disabled={loading}
+                >
+                  {loading ? 'Cargando...' : 'Aplicar filtros'}
+                </button>
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowExportMenu((prev) => !prev)}
+                    className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm h-[38px]"
+                  >
+                    <KeenIcon icon="file-down" className="text-base" />
+                    Exportar
+
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        showExportMenu ? 'rotate-180' : ''
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {showExportMenu && (
+                    <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-coal-400">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          exportToPDF();
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-gray-200 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+                      >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300">
+                          <KeenIcon icon="document" className="text-base" />
+                        </span>
+
+                        <span>Exportar PDF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowExportMenu(false);
+                          exportToExcel();
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-green-50 hover:text-green-700 dark:text-gray-200 dark:hover:bg-green-900/20 dark:hover:text-green-300"
+                      >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300">
+                          <KeenIcon icon="file-down" className="text-base" />
+                        </span>
+
+                        <span>Exportar Excel</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
           {error && (
             <div

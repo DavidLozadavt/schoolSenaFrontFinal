@@ -1,6 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/container';
 import { KeenIcon } from '@/components';
@@ -12,11 +11,14 @@ import {
   ModalTitle
 } from '@/components/modal';
 import {
-  dedupeClasesAsignadasInstructorPorClaveLogica,
   extraerHoraHHMM,
   titulosCompetenciaYRapUi,
-  columnaHorarioApiClase
+  columnaHorarioApiClase,
+  claseVisibleEnGrillaHorario,
+  minutosFranjaHorarioClase,
+  tipoJornadaClaseAsignada
 } from '@/utils/clasesAsignadasLogica';
+import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 
 /** Columnas Lun–Dom; BD `idDia` 1=Lun … 7=Dom. */
 const DIAS_CORTO = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
@@ -94,11 +96,7 @@ const MESES_ES = [
 ] as const;
 
 function tipoJornadaVisual(clase: ClaseHorario): TipoJornadaVisual {
-  const j = `${clase.jornada_nombre} ${clase.jornada_tipo}`.toLowerCase();
-  if (j.includes('noche') || j.includes('nocturna')) return 'noche';
-  if (j.includes('tarde')) return 'tarde';
-  if (j.includes('mañana') || j.includes('manana') || j.includes('diurna')) return 'manana';
-  return 'otro';
+  return tipoJornadaClaseAsignada(clase);
 }
 
 function clasesTarjetaPorJornada(t: TipoJornadaVisual): string {
@@ -377,10 +375,9 @@ type ItemRenderDia =
 function planificarColumnaDia(diaClases: ClaseHorario[]): ItemRenderDia[] {
   const intervalos: IntervaloClase[] = diaClases
     .map((c) => {
-      const start = horaAMinutos(c.horaInicial, c.jornada_tipo || c.jornada_nombre);
-      const end = horaAMinutos(c.horaFinal, c.jornada_tipo || c.jornada_nombre);
-      if (start == null || end == null || end <= start) return null;
-      return { c, start, end };
+      const mins = minutosFranjaHorarioClase(c);
+      if (!mins) return null;
+      return { c, start: mins.start, end: mins.end };
     })
     .filter(Boolean) as IntervaloClase[];
 
@@ -541,7 +538,7 @@ const TarjetaClaseInstructorHorario: React.FC<TarjetaClaseInstructorHorarioProps
 const HorarioInstructorPage: React.FC = () => {
   const navigate = useNavigate();
   const [filtroJornada, setFiltroJornada] = useState<FiltroJornada>('todos');
-  const [loading, setLoading] = useState(true);
+  const { clases: clasesApi, loading } = useClasesInstructorAsignadas();
   const [clases, setClases] = useState<ClaseHorario[]>([]);
   const [modalClase, setModalClase] = useState<ClaseHorario | null>(null);
   const [modalResumen, setModalResumen] = useState<ClaseHorario[] | null>(null);
@@ -560,28 +557,13 @@ const HorarioInstructorPage: React.FC = () => {
   ]);
 
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data } = await axios.get<{ data?: unknown[] }>('fichas/instructor/clases-asignadas');
-        if (cancel) return;
-        const list = Array.isArray(data?.data) ? data.data : [];
-        setClases(dedupeClasesAsignadasInstructorPorClaveLogica<ClaseHorario>(list.map((r) => normalizarClase(r as Record<string, unknown>))));
-      } catch {
-        if (!cancel) setClases([]);
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    setClases(clasesApi.map((r) => normalizarClase(r as Record<string, unknown>)) as ClaseHorario[]);
+  }, [clasesApi]);
 
   const clasesFiltradas = useMemo(() => {
-    if (filtroJornada === 'todos') return clases;
-    return clases.filter((c) => tipoJornadaVisual(c) === filtroJornada);
+    let list = clases.filter((c) => claseVisibleEnGrillaHorario(c));
+    if (filtroJornada === 'todos') return list;
+    return list.filter((c) => tipoJornadaVisual(c) === filtroJornada);
   }, [clases, filtroJornada]);
 
   const nombreCabecera = useMemo(
@@ -815,7 +797,7 @@ const HorarioInstructorPage: React.FC = () => {
                         {itemsPorColumna[colIdx]?.map((item) => {
                           if (item.kind === 'resumen') {
                             const { start, end, clases: lista } = item;
-                            const listaVista = dedupeClasesAsignadasInstructorPorClaveLogica<ClaseHorario>(lista);
+                            const listaVista = lista;
                             const topPct = Math.max(0, ((start - HORA_INICIO_DIA_MIN) / RANGO_MINUTOS) * 100);
                             const hPct = Math.max(
                               ALTURA_MIN_BLOQUE_PCT,

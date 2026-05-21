@@ -227,57 +227,82 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-4 shadow-sm"
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {item.tipo === 'rango' ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
-                            <KeenIcon icon="calendar" className="text-[10px]" />
-                            Rango de fechas
-                          </span>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="min-w-0 flex-1 flex gap-4 items-start">
+                      {/* Avatar */}
+                      <div className="shrink-0 mt-1">
+                        {item.estudiante?.rutaFotoUrl ? (
+                          <img
+                            src={item.estudiante.rutaFotoUrl}
+                            alt="Avatar"
+                            className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                            onError={(e) => { e.currentTarget.src = '/media/avatars/blank.png'; }}
+                          />
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-gray-100 dark:bg-coal-300 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                            <KeenIcon icon="calendar-tick" className="text-[10px]" />
-                            Falta individual
-                          </span>
+                          <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg border border-blue-200">
+                            {nombreEstudiante(item).charAt(0).toUpperCase()}
+                          </div>
                         )}
                       </div>
-                      <p className="font-semibold text-gray-900 dark:text-white truncate mt-1">
-                        {nombreEstudiante(item)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        ID: {identificacionEstudiante(item)}
-                        {item.codigoFicha ? ` · Ficha ${item.codigoFicha}` : ''}
-                      </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                        {item.tipo === 'rango' ? (
-                          <>
-                            <span className="font-medium">Periodo de permiso:</span>{' '}
-                            {formatearFecha(item.fechaInicial)} al {formatearFecha(item.fechaFinal)}
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-medium">{item.nombreArea || item.nombreMateria || 'Clase'}</span>
-                            {' · '}
-                            {formatearFecha(fechaClase(item))}
-                          </>
-                        )}
-                      </p>
-                      {item.excusa?.tipoExcusa && (
-                        <span className="inline-flex mt-2 items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
-                          {item.excusa.tipoExcusa}
-                        </span>
-                      )}
-                      {item.excusa?.observacion && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-                          {item.excusa.observacion}
+                      
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {item.tipo === 'rango' ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                              <KeenIcon icon="calendar" className="text-[10px]" />
+                              Rango de fechas
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded bg-gray-100 dark:bg-coal-300 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                              <KeenIcon icon="calendar-tick" className="text-[10px]" />
+                              Falta individual
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-base font-bold text-gray-900 dark:text-white truncate">
+                          {nombreEstudiante(item)}
                         </p>
-                      )}
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="font-medium text-gray-600 dark:text-gray-300">ID:</span> {identificacionEstudiante(item)}
+                          {item.codigoFicha ? ` · Ficha ${item.codigoFicha}` : ''}
+                        </p>
+                      <div className="mt-3 p-3 bg-gray-50 dark:bg-coal-300 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <p className="text-sm text-gray-800 dark:text-gray-200">
+                          {item.tipo === 'rango' ? (
+                            <>
+                              <KeenIcon icon="calendar-tick" className="inline-block mr-1 text-gray-400" />
+                              <span className="font-medium">Periodo de permiso:</span>{' '}
+                              <span className="text-blue-600 dark:text-blue-400 font-medium">{formatearFecha(item.fechaInicial)}</span> al <span className="text-blue-600 dark:text-blue-400 font-medium">{formatearFecha(item.fechaFinal)}</span>
+                            </>
+                          ) : (
+                            <>
+                              <KeenIcon icon="book" className="inline-block mr-1 text-gray-400" />
+                              <span className="font-medium">{item.nombreArea || item.nombreMateria || 'Clase'}</span>
+                              {' · '}
+                              <span className="text-blue-600 dark:text-blue-400 font-medium">{formatearFecha(fechaClase(item))}</span>
+                            </>
+                          )}
+                        </p>
+                        
+                        <div className="mt-2 flex items-start gap-2">
+                          {item.excusa?.tipoExcusa && (
+                            <span className="shrink-0 inline-flex items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 text-[11px] font-bold text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                              {item.excusa.tipoExcusa}
+                            </span>
+                          )}
+                          {item.excusa?.observacion && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 italic line-clamp-2">
+                              "{item.excusa.observacion}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  </div>
 
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                       <button
                         type="button"
                         className="btn btn-sm btn-light"
@@ -314,7 +339,7 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
         <Modal open={true} onClose={() => setDetalle(null)}>
           <ModalContent className="max-w-[520px] top-[10%] p-4">
             <ModalHeader>
-              <ModalTitle>Detalle de justificación</ModalTitle>
+              <ModalTitle>Detalle de Justificación</ModalTitle>
               <button
                 type="button"
                 className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
@@ -323,68 +348,103 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
-            <ModalBody className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500">Estudiante</p>
-                <p className="text-sm font-medium">{nombreEstudiante(detalle)}</p>
-              </div>
-              
-              {detalle.tipo === 'rango' ? (
+            <ModalBody className="space-y-4">
+              <div className="flex items-center gap-4 bg-gray-50 dark:bg-coal-300 p-4 rounded-xl border border-gray-100 dark:border-gray-600">
+                {detalle.estudiante?.rutaFotoUrl ? (
+                  <img
+                    src={detalle.estudiante.rutaFotoUrl}
+                    alt="Avatar"
+                    className="w-14 h-14 rounded-full object-cover border border-gray-200 shadow-sm"
+                    onError={(e) => { e.currentTarget.src = '/media/avatars/blank.png'; }}
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl border border-blue-200 shadow-sm">
+                    {nombreEstudiante(detalle).charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
-                  <p className="text-xs text-gray-500">Periodo de permiso</p>
-                  <p className="text-sm">
-                    Del {formatearFecha(detalle.fechaInicial)} al {formatearFecha(detalle.fechaFinal)}
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider text-[10px]">Estudiante</p>
+                  <p className="text-base font-bold text-gray-900 dark:text-white">{nombreEstudiante(detalle)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    ID: {identificacionEstudiante(detalle)}
+                    {detalle.codigoFicha ? ` · Ficha ${detalle.codigoFicha}` : ''}
                   </p>
                 </div>
-              ) : (
-                <div>
-                  <p className="text-xs text-gray-500">Fecha de clase</p>
-                  <p className="text-sm">{formatearFecha(fechaClase(detalle))}</p>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-coal-400 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">
+                    {detalle.tipo === 'rango' ? 'Periodo' : 'Fecha de clase'}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    {detalle.tipo === 'rango' ? (
+                      <>Del <span className="text-blue-600">{formatearFecha(detalle.fechaInicial)}</span><br/>al <span className="text-blue-600">{formatearFecha(detalle.fechaFinal)}</span></>
+                    ) : (
+                      <span className="text-blue-600">{formatearFecha(fechaClase(detalle))}</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-coal-400 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">
+                    Tipo de excusa
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    {detalle.excusa?.tipoExcusa ? (
+                      <span className="inline-flex items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-bold text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                        {detalle.excusa.tipoExcusa}
+                      </span>
+                    ) : (
+                      'No especificado'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {detalle.excusa?.observacion && (
+                <div className="bg-gray-50 dark:bg-coal-300 p-4 rounded-xl border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2">Observación del aprendiz</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{detalle.excusa.observacion}"</p>
                 </div>
               )}
 
-              {detalle.excusa?.tipoExcusa && (
-                <div>
-                  <p className="text-xs text-gray-500">Tipo de excusa</p>
-                  <p className="text-sm">{detalle.excusa.tipoExcusa}</p>
-                </div>
-              )}
-              {detalle.excusa?.observacion && (
-                <div>
-                  <p className="text-xs text-gray-500">Observación del aprendiz</p>
-                  <p className="text-sm">{detalle.excusa.observacion}</p>
-                </div>
-              )}
               {detalle.excusa?.urlDocumento && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Documento</p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <KeenIcon icon="file" className="text-blue-600 dark:text-blue-400 text-lg" />
+                    <div>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Documento de Soporte</p>
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400">Ver archivo adjunto</p>
+                    </div>
+                  </div>
                   <a
                     href={getAsistenciaDocumentUrl(detalle.excusa.urlDocumento) || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    className="btn btn-sm btn-primary shrink-0"
                   >
-                    <KeenIcon icon="file" className="text-sm" />
-                    Ver documento de soporte
+                    Abrir Documento
                   </a>
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
                 <button
                   type="button"
-                  className="btn btn-sm btn-success"
-                  disabled={procesandoId === detalle.id}
-                  onClick={() => responder(detalle, 'aprobar')}
-                >
-                  Aprobar
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger"
+                  className="btn btn-danger"
                   disabled={procesandoId === detalle.id}
                   onClick={() => responder(detalle, 'denegar')}
                 >
-                  Denegar
+                  <KeenIcon icon="cross" className="mr-1" /> Denegar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  disabled={procesandoId === detalle.id}
+                  onClick={() => responder(detalle, 'aprobar')}
+                >
+                  <KeenIcon icon="check" className="mr-1" /> Aprobar
                 </button>
               </div>
             </ModalBody>
