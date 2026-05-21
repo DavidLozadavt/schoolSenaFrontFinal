@@ -74,7 +74,7 @@ const SolicitudInstructorForm = ({ open, onClose, onSave, ficha, programa }: Pro
 
     return (
         <Modal open={open} onClose={onClose}>
-            <ModalContent className="max-w-lg p-4 top-[20%]">
+            <ModalContent className="w-full max-w-xl p-4">
                 <ModalHeader>
                     <ModalTitle>Nueva Solicitud de Instructor</ModalTitle>
                     <button
