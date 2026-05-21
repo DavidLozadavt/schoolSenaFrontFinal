@@ -116,24 +116,17 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
 
   const formatearFecha = (fechaStr: string): string => {
     if (!fechaStr) return '';
-    
     try {
-      const fecha = new Date(fechaStr);
-      if (isNaN(fecha.getTime())) {
-        return fechaStr;
-      }
-      
-      const meses = [
-        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-        'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-      ];
-      
-      const diasSemana = [
-        'dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'
-      ];
-      
-      return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} ${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
-    } catch (error) {
+      const normalized = fechaStr.length === 10 ? `${fechaStr}T12:00:00` : fechaStr;
+      const fecha = new Date(normalized);
+      if (isNaN(fecha.getTime())) return fechaStr;
+      return fecha.toLocaleDateString('es-CO', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
       return fechaStr;
     }
   };
@@ -464,7 +457,7 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
       {/* Modal de detalles de justificación */}
       {justificacionSeleccionada && (
         <Modal open={true} onClose={() => setJustificacionSeleccionada(null)}>
-          <ModalContent className="max-w-[500px] top-[15%] p-4">
+          <ModalContent className="max-w-[500px] top-[15%] p-4 max-h-[90vh] overflow-y-auto">
             <ModalHeader>
               <ModalTitle>Detalle de Justificación</ModalTitle>
               <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={() => setJustificacionSeleccionada(null)}>

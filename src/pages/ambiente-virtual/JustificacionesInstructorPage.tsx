@@ -63,7 +63,8 @@ const fechaClase = (j: JustificacionPendiente): string => j.fechaClase || j.fech
 const formatearFecha = (fechaStr: string | null | undefined): string => {
   if (!fechaStr) return '—';
   try {
-    const fecha = new Date(fechaStr);
+    const normalized = fechaStr.length === 10 ? `${fechaStr}T12:00:00` : fechaStr;
+    const fecha = new Date(normalized);
     if (isNaN(fecha.getTime())) return fechaStr;
     return fecha.toLocaleDateString('es-CO', {
       weekday: 'short',
@@ -337,7 +338,7 @@ const JustificacionesInstructorPage: React.FC<JustificacionesInstructorPageProps
 
       {detalle && (
         <Modal open={true} onClose={() => setDetalle(null)}>
-          <ModalContent className="max-w-[520px] top-[10%] p-4">
+          <ModalContent className="max-w-[520px] top-[10%] p-4 max-h-[90vh] overflow-y-auto">
             <ModalHeader>
               <ModalTitle>Detalle de Justificación</ModalTitle>
               <button
