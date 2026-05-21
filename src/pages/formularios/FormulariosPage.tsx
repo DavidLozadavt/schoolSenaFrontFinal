@@ -1,8 +1,6 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import axios from 'axios';
 import Select from 'react-select';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
 import { 
   FileCode, 
   Settings, 
@@ -35,49 +33,7 @@ import { compactReactSelectClassNames, compactReactSelectNoOptions } from '@/com
 
 import { useNavigate } from 'react-router-dom';
 
-// Interfaces for Internal Form Demo
-interface InternalFormValues {
-  nombreFormulario: string;
-  categoria: string | null;
-  responsable: string;
-  correoSoporte: string;
-  adjunto: File | null;
-  descripcion: string;
-  requiereAprobacion: boolean;
-}
 
-const CATEGORY_OPTIONS = [
-  { value: 'inscripcion', label: 'Formulario de Inscripción' },
-  { value: 'evaluacion', label: 'Evaluación de Evento' },
-  { value: 'sondeo', label: 'Sondeo de Opinión' },
-  { value: 'satisfaccion', label: 'Encuesta de Satisfacción' }
-];
-
-const validationSchemaInternalForm = Yup.object({
-  nombreFormulario: Yup.string()
-    .min(3, 'Mínimo 3 caracteres')
-    .required('El nombre del formulario es obligatorio'),
-  categoria: Yup.string()
-    .nullable()
-    .required('La categoría es obligatoria'),
-  responsable: Yup.string()
-    .required('El responsable de la administración es obligatorio'),
-  correoSoporte: Yup.string()
-    .email('Formato de correo inválido')
-    .required('El correo de soporte es obligatorio'),
-  adjunto: Yup.mixed<File>()
-    .nullable()
-    .test('fileType', 'Solo se permiten imágenes PNG o JPG', (value?: File | null) => {
-      if (!value) return true;
-      return ['image/png', 'image/jpeg', 'image/jpg'].includes(value.type);
-    })
-    .test('fileSize', 'La imagen de cabecera debe pesar menos de 2MB', (value?: File | null) => {
-      if (!value) return true;
-      return value.size <= 2 * 1024 * 1024;
-    }),
-  descripcion: Yup.string()
-    .max(300, 'Máximo 300 caracteres')
-});
 
 const FormulariosPage: React.FC = () => {
   const { currentLayout } = useLayout();
@@ -154,44 +110,6 @@ const FormulariosPage: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Formik for Internal Form Demo
-  const formikInternal = useFormik<InternalFormValues>({
-    initialValues: {
-      nombreFormulario: '',
-      categoria: null,
-      responsable: '',
-      correoSoporte: '',
-      adjunto: null,
-      descripcion: '',
-      requiereAprobacion: false
-    },
-    validationSchema: validationSchemaInternalForm,
-    onSubmit: async (values, { resetForm, setSubmitting }) => {
-      try {
-        // Simulando delay de guardado
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        const newForm = {
-          id: Date.now(),
-          nombreFormulario: values.nombreFormulario.toUpperCase(),
-          categoria: values.categoria,
-          responsable: values.responsable.toUpperCase(),
-          correoSoporte: values.correoSoporte.toLowerCase(),
-          descripcion: values.descripcion,
-          requiereAprobacion: values.requiereAprobacion,
-          fechaCreacion: new Date().toISOString().split('T')[0]
-        };
-
-        setSubmittedForms((prev) => [newForm, ...prev]);
-        showToast('¡Formulario interno registrado exitosamente en el sandbox!', 'success');
-        resetForm();
-      } catch (error) {
-        showToast('Ocurrió un error al procesar el formulario', 'error');
-      } finally {
-        setSubmitting(false);
-      }
-    }
-  });
 
   const handleDeleteExternalLink = async (eventId: number) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar la vinculación de este formulario?')) return;
