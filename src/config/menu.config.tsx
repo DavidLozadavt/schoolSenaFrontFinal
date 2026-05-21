@@ -694,6 +694,18 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
+    title: 'Formularios',
+    icon: 'tablet-text-down',
+    children: [
+      {
+        title: 'Gestión de Formularios',
+        path: '/formularios',
+        requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
+      }
+    ]
+  },
+
+  {
     title: 'Aplicaciones',
     icon: 'category',
     children: [

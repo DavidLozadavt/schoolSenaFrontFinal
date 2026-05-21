@@ -743,7 +743,7 @@ const LyraAssistant = () => {
                     <div className="flex flex-col gap-0.5 text-left">
                         <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400">Asistente en Fase de Prueba</h4>
                         <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
-                            Lyra se encuentra en etapa de prueba y ajuste tras su reciente integración al proyecto de SchoolSena.
+                            Lyra/Nexo se encuentra en etapa de prueba y ajuste tras su reciente integración al proyecto de SchoolSena.
                         </p>
                     </div>
                 </div>
