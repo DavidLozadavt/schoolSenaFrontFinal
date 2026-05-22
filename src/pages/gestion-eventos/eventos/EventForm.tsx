@@ -19,7 +19,7 @@ import {
 
 export const EventForm = () => {
   const { id } = useParams();
-   const navigate = useNavigate();
+  const navigate = useNavigate();
   const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
@@ -113,7 +113,7 @@ export const EventForm = () => {
       } catch (err) {
         console.error('Error al cargar evento:', err);
         enqueueSnackbar('No se pudo cargar el evento', { variant: 'error' });
-        navigate('/multimedia/eventos');
+        navigate('/gestion-eventos');
       } finally {
         setFetching(false);
       }
@@ -177,7 +177,7 @@ export const EventForm = () => {
         await axios.post('eventos-multimedia', data);
         enqueueSnackbar('Evento creado correctamente', { variant: 'success' });
       }
-      navigate('/multimedia/eventos');
+      navigate('/gestion-eventos');
     } catch (err) {
       console.error(err);
       enqueueSnackbar('Error al procesar el evento', { variant: 'error' });
@@ -200,7 +200,7 @@ export const EventForm = () => {
       <div className="max-w-4xl mx-auto py-8">
         {/* Breadcrumb / Back button */}
         <Link 
-          to="/multimedia/eventos" 
+          to="/gestion-eventos" 
           className="flex items-center gap-2 text-sm text-neutral-500 hover:text-orange-500 transition-colors mb-6 group w-fit"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -517,7 +517,7 @@ export const EventForm = () => {
                          <KeenIcon icon="information-2" className="text-[10px] text-orange-500" />
                       </div>
                       <p className="text-[10px] text-neutral-400 font-medium leading-relaxed">
-                        RECOMENDADO: Usa esta opción para que el formulario se abra **dentro del modal** del evento. Mejora la conversión y mantiene a los usuarios en tu plataforma.
+                        RECOMENDADO: Usa esta option para que el formulario se abra **dentro del modal** del evento. Mejora la conversión y mantiene a los usuarios en tu plataforma.
                       </p>
                     </div>
                   </div>
@@ -607,7 +607,7 @@ export const EventForm = () => {
             <div className="flex items-center justify-between pt-10 border-t border-neutral-50 dark:border-white/5">
               <button 
                 type="button" 
-                onClick={() => navigate('/multimedia/eventos')} 
+                onClick={() => navigate('/gestion-eventos')} 
                 className="px-8 py-4 rounded-2xl text-neutral-500 font-bold hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors uppercase text-xs tracking-widest"
               >
                 Cancelar y Salir

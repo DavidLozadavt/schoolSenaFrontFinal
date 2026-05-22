@@ -272,7 +272,7 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                 <div className="mt-auto pt-6 border-t border-neutral-100 dark:border-white/5">
                   <div className="grid grid-cols-2 gap-4 mb-5">
                     <button
-                      onClick={() => navigate(`/multimedia/eventos/show/${evento.idEvento}`)}
+                      onClick={() => navigate(`/gestion-eventos/show/${evento.idEvento}`)}
                       className="group/btn relative h-14 bg-neutral-950 dark:bg-white text-white dark:text-black font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-xl shadow-neutral-900/10"
                     >
                       <div className="absolute inset-0 bg-orange-500 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
@@ -296,7 +296,7 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                   
                   <div className="flex items-center justify-around px-2 py-1 bg-neutral-50 dark:bg-white/[0.03] rounded-2xl border border-neutral-100 dark:border-white/5">
                     <button
-                      onClick={() => navigate(`/multimedia/eventos/editar/${evento.idEvento}`)}
+                      onClick={() => navigate(`/gestion-eventos/editar/${evento.idEvento}`)}
                       className="flex-1 py-3 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-neutral-400 hover:text-orange-500 transition-all group/sub"
                     >
                       <div className="p-1.5 rounded-lg bg-white dark:bg-neutral-800 shadow-sm group-hover/sub:bg-orange-500 group-hover/sub:text-white transition-all">
@@ -332,7 +332,7 @@ const EventsContent = ({ reload }: EventsContentProps) => {
             Comienza publicando un nuevo evento institucional para mantener a la comunidad informada.
           </p>
           <button 
-            onClick={() => navigate('/multimedia/eventos/nuevo')}
+            onClick={() => navigate('/gestion-eventos/nuevo')}
             className="btn btn-primary mt-8 rounded-2xl px-8"
           >
             Crear Primer Evento

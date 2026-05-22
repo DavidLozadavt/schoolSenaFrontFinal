@@ -173,7 +173,7 @@ export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) =>
 
   const handleCreateNewEvent = () => {
     onClose();
-    navigate('/multimedia/eventos/nuevo', {
+    navigate('/gestion-eventos/nuevo', {
       state: {
         prefilledForm: mode === 'internal'
           ? { idFormularioInterno: formData.internalFormId }
@@ -467,7 +467,7 @@ export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) =>
                 onClick={handleCreateNewEvent}
                 className="relative p-8 rounded-[2rem] border-2 border-dashed border-orange-200 dark:border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all flex flex-col items-center gap-4 group overflow-hidden"
               >
-                <div className="w-16 h-16 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-xl shadow-orange-500/30 group-hover:scale-110 transition-transform">
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 text-white flex items-center justify-center shadow-xl shadow-orange-500/30 group-hover:scale-110 transition-transform">
                   <PlusCircle className="w-8 h-8" />
                 </div>
                 <div className="text-center">
@@ -643,3 +643,5 @@ export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) =>
     </Modal>
   );
 };
+
+export default FormIntegrationWizard;

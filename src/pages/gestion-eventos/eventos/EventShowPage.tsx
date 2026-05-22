@@ -83,7 +83,7 @@ export const EventShowPage = () => {
         <div className="text-center py-20">
           <h2 className="text-2xl font-bold text-gray-800">Evento no encontrado</h2>
           <button 
-            onClick={() => navigate('/multimedia/eventos')}
+            onClick={() => navigate('/gestion-eventos')}
             className="btn btn-primary mt-4"
           >
             Volver a eventos
@@ -98,7 +98,7 @@ export const EventShowPage = () => {
       <div className="py-8 animate-fade-in">
         {/* Back Button */}
         <button 
-          onClick={() => navigate('/multimedia/eventos')}
+          onClick={() => navigate('/gestion-eventos')}
           className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors mb-8 group"
         >
           <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 group-hover:bg-orange-100 transition-colors">
@@ -251,7 +251,7 @@ export const EventShowPage = () => {
 
               <div className="mt-6">
                 <button
-                  onClick={() => navigate(`/multimedia/eventos/editar/${evento.idEvento}`)}
+                  onClick={() => navigate(`/gestion-eventos/editar/${evento.idEvento}`)}
                   className="btn btn-light w-full py-4 rounded-2xl flex items-center justify-center gap-3"
                 >
                   <KeenIcon icon="pencil" className="text-lg" />
@@ -265,3 +265,5 @@ export const EventShowPage = () => {
     </Container>
   );
 };
+
+export default EventShowPage;

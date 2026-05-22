@@ -290,3 +290,5 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
     </Modal>
   );
 };
+
+export default ModalEvento;

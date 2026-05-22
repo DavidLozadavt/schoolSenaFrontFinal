@@ -34,8 +34,8 @@ import {
   ToolbarHeading,
   ToolbarPageTitle
 } from '@/partials/toolbar';
-import { FormIntegrationWizard } from '@/pages/multimedia/gestion-multimedia/FormIntegrationWizard';
-import ExternalFormEmbed from '@/pages/multimedia/gestion-multimedia/ExternalFormEmbed';
+import { FormIntegrationWizard } from '@/pages/gestion-eventos/eventos/FormIntegrationWizard';
+import ExternalFormEmbed from '@/pages/gestion-eventos/eventos/ExternalFormEmbed';
 import { compactReactSelectClassNames, compactReactSelectNoOptions } from '@/components/forms/compactReactSelect';
 
 import { useNavigate } from 'react-router-dom';
