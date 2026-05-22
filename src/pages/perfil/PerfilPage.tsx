@@ -71,10 +71,13 @@ const PerfilPage = () => {
 
   const checkProfileAccess = async () => {
     try {
-      const response = await axios.get(`profile/access-check?_=${Date.now()}`, {
+      const response = await axios.get('profile/access-check', {
         headers: {
           Authorization: `Bearer ${auth}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
@@ -371,11 +374,14 @@ const PerfilPage = () => {
     try {
       console.log('Verificando estado después de cambiar contraseña...');
 
-      // Verificar el estado actual del perfil con un cache buster para evitar respuestas cacheadas en producción
-      const response = await axios.get(`profile/access-check?_=${Date.now()}`, {
+      // Verificar el estado actual del perfil asegurando que no haya caché
+      const response = await axios.get('profile/access-check', {
         headers: {
           Authorization: `Bearer ${auth}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
