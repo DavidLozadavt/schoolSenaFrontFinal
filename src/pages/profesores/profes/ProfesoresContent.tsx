@@ -1426,29 +1426,26 @@ const ProfesoresContent: React.FC = () => {
   }, [fichasLider, fichas, currentMonth]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-screen">
-      <header className="mb-2">
-        <h1 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight flex items-baseline gap-2">
+    <div className="p-4 md:p-5 space-y-4 min-h-screen">
+      <header className="mb-1">
+        <h1 className="text-xl md:text-2xl font-black text-gray-800 dark:text-white tracking-tight flex items-baseline gap-2">
           Dashboard de <span className="text-blue-600 dark:text-blue-400">Instructor</span>
         </h1>
         <p className="text-sm text-gray-500 font-medium">
           Bienvenido, <span className="text-gray-900 dark:text-gray-200 font-bold">{userName}</span>
         </p>
       </header>
-
-
-
-      {/* --- CÁPSULAS SENA SECTION (Reels & Stories) --- */}
-      <section className="w-full space-y-4 mb-4">
-        <div className="flex items-center gap-2 mb-4">
+        {/* --- CÁPSULAS SENA SECTION (Reels & Stories) --- */}
+      <section className="w-full space-y-3">
+        <div className="flex items-center gap-2 mb-3">
           <KeenIcon icon="youtube" className="text-primary text-xl" />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wider">Cápsulas SENA</h2>
+          <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">Cápsulas SENA</h2>
         </div>
         <MultimediaCapsulas />
       </section>
        {/* --- EVENTOS SECTION --- */}
-      <section className="w-full space-y-4">
-        <div className="flex items-center gap-2 mb-4">
+      <section className="w-full space-y-3">
+        <div className="flex items-center gap-2 mb-3">
           <div className="w-1 h-5 bg-emerald-500 rounded-full"></div>
           <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
             Eventos
@@ -1456,10 +1453,427 @@ const ProfesoresContent: React.FC = () => {
         </div>
         <EventsDashboard />
       </section>
+
+      {/* --- BLOQUE PRINCIPAL: MI CALENDARIO + ACTIVIDADES POR EVALUAR --- */}
+      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.75fr)] gap-4 items-start">
+        
+        {/* LEFT COLUMN: Calendar */}
+        <div className="space-y-4 min-w-0">
+          
+          {/* CALENDARIO */}
+          <div className="flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 bg-primary rounded-full"></div>
+                <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Mi Calendario
+                </h2>
+              </div>
+              <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
+                <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
+                <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
+                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Día</button>
+              </div>
+            </div>
+            
+            {/* SEMÁFORO RMI */}
+            <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-3 mb-3 flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="flex-1 flex items-center gap-4 w-full">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoMes.bg}`}>
+                  <KeenIcon icon="time" className="text-xl" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Mensual</p>
+                  <p className="text-base font-black text-gray-900 dark:text-white leading-none mt-0.5">
+                    {rmiCalculations.horasMes.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ 160h</span>
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoMes.text}`}>
+                    {rmiCalculations.semaforoMes.label}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="hidden sm:block w-px h-8 bg-gray-100 dark:bg-gray-700"></div>
+              
+              <div className="flex-1 flex items-center sm:justify-end gap-3 w-full">
+                <div className="sm:text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Acumulado</p>
+                  <p className="text-base font-black text-gray-900 dark:text-white leading-none mt-0.5">
+                    {rmiCalculations.acumuladoHoras.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ {rmiCalculations.metaAcumulada}h</span>
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoAcumulado.text}`}>
+                    {rmiCalculations.semaforoAcumulado.label}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                    {rmiCalculations.textoInicio} · {rmiCalculations.mesesTranscurridos} meses × 160 h
+                  </p>
+                </div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoAcumulado.bg}`}>
+                  <KeenIcon icon="chart-line-up" className="text-xl" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-coal-400 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col min-h-[260px]">
+              {calendarView === 'month' ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="left" /></button>
+                    <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
+                    <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="right" /></button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
+                  <div className="grid grid-cols-7 gap-1 flex-1">
+                    {blanks.map(b => <div key={`blank-${b}`} className="h-7 sm:h-8" />)}
+                    {daysArray.map(day => {
+                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const daySessions = sessionsByDate[dateStr] || [];
+                      const estadoDia = estadoDiaCalendario[dateStr];
+                      const { className: celdaCls, style: celdaStyle } =
+                        estiloCeldaMiCalendarioInstructor(estadoDia);
+                      const mostrarMarcador =
+                        daySessions.length > 0 || (estadoDia && estadoDia !== 'normal');
+                      return (
+                        <div
+                          key={day}
+                          onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
+                          className={`group relative h-7 sm:h-8 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls}`}
+                          style={celdaStyle}
+                        >
+                          <span className="z-10">{day}</span>
+                          {mostrarMarcador && daySessions.length > 0 && (
+                            <>
+                              <div className="absolute bottom-1.5 flex gap-1 z-10">
+                                {daySessions.slice(0, 3).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-64 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del día</p>
+                                  <p className="mt-0.5 text-sm font-extrabold">
+                                    {new Date(year, month, day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                  </p>
+                                </div>
+
+                                <div className="max-h-48 overflow-y-auto p-2.5">
+                                  {daySessions.map((s) => (
+                                    <div key={s.id} className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400">
+                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
+                                        <KeenIcon icon="time" className="text-xs" />
+                                        <span>{s.horaInicial} - {s.horaFinal}</span>
+                                      </div>
+                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">{s.materia}</p>
+                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{s.aula}</p>
+                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                                        {s.estado}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-gray-600 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#fed7aa' }} /> Hoy
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dcfce7' }} /> Completada
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dbeafe' }} /> Pendiente
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                    <span>{resumenMesCalendario.completadas} {resumenMesCalendario.completadas === 1 ? 'día' : 'días'} con sesión</span>
+                    <span> · </span>
+                    <span>{resumenMesCalendario.pendientes} {resumenMesCalendario.pendientes === 1 ? 'pendiente' : 'pendientes'} (misma regla que detalle de clase).</span>
+                  </p>
+                </>
+              ) : calendarView === 'week' ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <button
+                      onClick={prevWeek}
+                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                    >
+                      <KeenIcon icon="left" />
+                    </button>
+
+                    <div className="text-center">
+                      <h3 className="font-bold text-gray-900 dark:text-white capitalize">
+                        {monthNames[month]} {year}
+                      </h3>
+                      <p className="text-[10px] font-semibold text-black dark:text-white mt-0.5">
+                        Semana: {currentWeekRange.label}
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">
+                        {weeklySessions.length} clases
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={nextWeek}
+                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+                    >
+                      <KeenIcon icon="right" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
+                    <div>Lun</div>
+                    <div>Mar</div>
+                    <div>Mié</div>
+                    <div>Jue</div>
+                    <div>Vie</div>
+                    <div>Sáb</div>
+                    <div>Dom</div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 flex-1">
+                    {blanks.map(b => (
+                      <div key={`blank-week-${b}`} className="h-7 sm:h-8" />
+                    ))}
+
+                    {daysArray.map(day => {
+                      const dayDate = new Date(year, month, day);
+                      dayDate.setHours(0, 0, 0, 0);
+
+                      const dateStr = formatDateKey(dayDate);
+                      const isInSelectedWeek = isDateInRange(dayDate, currentWeekRange.start, currentWeekRange.end);
+                      const daySessions = isInSelectedWeek ? sessionsByDate[dateStr] || [] : [];
+                      const estadoDia = isInSelectedWeek ? estadoDiaCalendario[dateStr] : undefined;
+                      const { className: celdaCls, style: celdaStyle } = isInSelectedWeek
+                        ? estiloCeldaMiCalendarioInstructor(estadoDia)
+                        : { className: 'text-gray-700 dark:text-gray-300 font-medium' };
+
+                      return (
+                        <div
+                          key={`week-${day}`}
+                          onClick={() => {
+                            setSelectedDay(dayDate);
+                            setCalendarView('day');
+                          }}
+                          className={`group relative h-7 sm:h-8 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls} ${
+                            !isInSelectedWeek ? 'opacity-30 hover:opacity-60' : ''
+                          }`}
+                          style={isInSelectedWeek ? celdaStyle : undefined}
+                        >
+                          <span className="z-10">{day}</span>
+
+                          {isInSelectedWeek && daySessions.length > 0 && (
+                            <>
+                              <div className="absolute bottom-1.5 flex gap-1 z-10">
+                                {daySessions.slice(0, 3).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-64 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">
+                                    Clases de la semana
+                                  </p>
+                                  <p className="mt-0.5 text-sm font-extrabold">
+                                    {dayDate.toLocaleDateString('es-CO', {
+                                      weekday: 'long',
+                                      day: 'numeric',
+                                      month: 'long',
+                                    })}
+                                  </p>
+                                </div>
+
+                                <div className="max-h-48 overflow-y-auto p-2.5">
+                                  {daySessions.map((s) => (
+                                    <div
+                                      key={s.id}
+                                      className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
+                                        <KeenIcon icon="time" className="text-xs" />
+                                        <span>{s.horaInicial} - {s.horaFinal}</span>
+                                      </div>
+
+                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">
+                                        {s.materia}
+                                      </p>
+
+                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                                        {s.aula}
+                                      </p>
+                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                                        {s.estado}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día seleccionado</h3>
+                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5 capitalize">{selectedDay.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-coal-500 rounded p-1">
+                      <button onClick={() => changeSelectedDay(-1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
+                        <KeenIcon icon="left" className="text-xs" />
+                      </button>
+                      <button onClick={() => changeSelectedDay(1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
+                        <KeenIcon icon="right" className="text-xs" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {(() => {
+                    const dateStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
+                    const daySessions = sessionsByDate[dateStr] || [];
+                    if (daySessions.length === 0) {
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                          <KeenIcon icon="coffee" className="text-3xl text-gray-300 mb-2" />
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día libre</h3>
+                          <p className="text-xs text-gray-500 mt-1">No hay clases programadas para este día.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[220px] custom-scrollbar pr-2">
+                        {daySessions.map(session => (
+                          <div key={session.id} className="flex items-stretch gap-3 group">
+                            <div className={`flex flex-col items-center justify-center w-[72px] shrink-0 ${rmiCalculations.semaforoMes.bgLight} rounded-xl border ${rmiCalculations.semaforoMes.border}`}>
+                              <span className={`text-[10px] font-bold ${rmiCalculations.semaforoMes.text} uppercase leading-none mb-1`}>Inicio</span>
+                              <span className={`text-sm font-black ${rmiCalculations.semaforoMes.text} leading-none`}>{session.horaInicial}</span>
+                            </div>
+                            <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 hover:border-primary/30 transition-colors shadow-sm">
+                              <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight mb-1">{session.materia}</h3>
+                              <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium">
+                                <span className="flex items-center gap-1"><KeenIcon icon="time" /> Fin {session.horaFinal}</span>
+                                <span className="flex items-center gap-1 truncate"><KeenIcon icon="geolocation" /> {session.aula}</span>
+                                <span className={`flex items-center gap-1 truncate font-bold ${rmiCalculations.semaforoMes.text}`}><KeenIcon icon="flag" /> {rmiCalculations.semaforoMes.label}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN: Actividades */}
+        <div className="space-y-4 min-w-0">
+          <section className="flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
+                <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Actividades por evaluar
+                </h2>
+              </div>
+            </div>
+            
+            <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 flex flex-col">
+              {/* CONTEOS - Sleek and professional */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5 mb-3">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-warning/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                      <KeenIcon icon="document" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por evaluar</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Entregas listas para revisar</p>
+                    </div>
+                  </div>
+                  <span className="text-base font-black text-amber-600 dark:text-amber-400">{porCalificar}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-success/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
+                      <KeenIcon icon="check-circle" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Calificadas</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Entregas ya evaluadas</p>
+                    </div>
+                  </div>
+                  <span className="text-base font-black text-green-600 dark:text-green-400">{calificadas}</span>
+                </div>
+              </div>
+
+              {/* LISTA DE ACTIVIDADES RECIENTES (To match the visual grid from the image but sleek) */}
+              <div className="mt-1 pt-3 border-t border-gray-100 dark:border-gray-700 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Entregas Recientes</h3>
+                </div>
+                
+                {actividadesPorEvaluar.length > 0 ? (
+                  <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar max-h-[220px] pr-1">
+                    {actividadesPorEvaluar.slice(0, 3).map(act => (
+                      <Link 
+                        to={act.idHorarioMateria ? `/ambiente-virtual/clase/${act.idHorarioMateria}` : act.idHorario ? `/ambiente-virtual/clase/${act.idHorario}` : act.materia?.idHorario ? `/ambiente-virtual/clase/${act.materia.idHorario}` : act.materia?.idHorarioMateria ? `/ambiente-virtual/clase/${act.materia.idHorarioMateria}` : act.materia?.id ? `/ambiente-virtual/clase/${act.materia.id}` : "/ambiente-virtual/historial-raps"}
+                        state={{ activeMenu: 'actividades-asignadas' }}
+                        key={act.id} 
+                        className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group block"
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-1.5">
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{getTitulo(act)}</h4>
+                          <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-1.5 py-0.5 rounded">Por evaluar</span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 line-clamp-1 mb-2">{act.materia?.nombreMateria || 'Sin materia asignada'}</p>
+                        <div className="flex items-center justify-between text-[9px] font-semibold text-gray-400">
+                          <span className="flex items-center gap-1"><KeenIcon icon="calendar" className="text-[10px]" /> {act.fechaFin ? new Date(act.fechaFin).toLocaleDateString() : 'Sin fecha'}</span>
+                          
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-gray-50 dark:bg-coal-500/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                    <span className="text-2xl mb-2">    </span>
+                    <p className="text-xs font-semibold text-gray-500">¡Al día! No hay entregas pendientes por revisar.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+
+      </section>
+
       {/* --- HORARIO POR FICHA / RESUMEN DE RESPONSABILIDADES --- */}
-      <section className="grid grid-cols-1 2xl:grid-cols-[1.05fr_0.95fr] gap-6">
+      <section className="grid grid-cols-1 2xl:grid-cols-[1.05fr_0.95fr] gap-4">
         {/* IZQUIERDA: CALENDARIO + KPI */}
-        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+        <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
             <div>
@@ -1473,7 +1887,7 @@ const ProfesoresContent: React.FC = () => {
           </div>
 
           {fichasFormacion.length === 0 ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-coal-500/20 p-6 text-center">
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-coal-500/20 p-6 text-center">
               <KeenIcon icon="calendar" className="text-4xl text-gray-300 mb-3" />
               <h3 className="text-sm font-black text-gray-900 dark:text-white">
                 No tienes fichas de formación asignadas
@@ -1509,7 +1923,7 @@ const ProfesoresContent: React.FC = () => {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Sesiones del mes</p>
-                    <p className="text-2xl font-black text-blue-600 dark:text-blue-300 mt-1">{selectedFichaSessions.length}</p>
+                    <p className="text-2xl font-black text-blue-600 dark:text-blue-300 mt-1">{selectedFichaMonthSessions.length}</p>
                   </div>
                 </div>
 
@@ -1688,421 +2102,7 @@ const ProfesoresContent: React.FC = () => {
         </div>
       </section>
 
-            {/*        BOTTOM GRID: Calendario (Left) / Actividades (Right)        */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-        
-        {/* LEFT COLUMN: Calendar */}
-        <div className="space-y-8 border-r-0 lg:border-r border-gray-200 dark:border-gray-700 lg:pr-8">
-          
-          {/* CALENDARIO */}
-          <div className="flex flex-col">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-5 bg-primary rounded-full"></div>
-                <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
-                  Mi Calendario
-                </h2>
-              </div>
-              <div className="flex bg-gray-100 dark:bg-coal-500 rounded-lg p-1 self-start sm:self-auto">
-                <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'month' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Mes</button>
-                <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'week' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Semana</button>
-                <button onClick={() => setCalendarView('day')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${calendarView === 'day' ? 'bg-white dark:bg-coal-300 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Día</button>
-              </div>
-            </div>
             
-            {/* SEMÁFORO RMI */}
-            <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 mb-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-              <div className="flex-1 flex items-center gap-4 w-full">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoMes.bg}`}>
-                  <KeenIcon icon="time" className="text-xl" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Mensual</p>
-                  <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-0.5">
-                    {rmiCalculations.horasMes.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ 160h</span>
-                  </p>
-                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoMes.text}`}>
-                    {rmiCalculations.semaforoMes.label}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="hidden sm:block w-px h-10 bg-gray-100 dark:bg-gray-700"></div>
-              
-              <div className="flex-1 flex items-center justify-end gap-4 w-full">
-                <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Acumulado</p>
-                  <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-0.5">
-                    {rmiCalculations.acumuladoHoras.toFixed(1)} <span className="text-[10px] text-gray-400 font-semibold uppercase">/ {rmiCalculations.metaAcumulada}h</span>
-                  </p>
-                  <p className={`text-[10px] font-bold uppercase mt-1 ${rmiCalculations.semaforoAcumulado.text}`}>
-                    {rmiCalculations.semaforoAcumulado.label}
-                  </p>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
-                    {rmiCalculations.textoInicio} · {rmiCalculations.mesesTranscurridos} meses × 160 h
-                  </p>
-                </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${rmiCalculations.semaforoAcumulado.bg}`}>
-                  <KeenIcon icon="chart-line-up" className="text-xl" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-coal-400 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col min-h-[320px]">
-              {calendarView === 'month' ? (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <button onClick={prevMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="left" /></button>
-                    <h3 className="font-bold text-gray-900 dark:text-white capitalize">{monthNames[month]} {year}</h3>
-                    <button onClick={nextMonth} className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"><KeenIcon icon="right" /></button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
-                  <div className="grid grid-cols-7 gap-1 flex-1">
-                    {blanks.map(b => <div key={`blank-${b}`} className="h-8 md:h-10" />)}
-                    {daysArray.map(day => {
-                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const daySessions = sessionsByDate[dateStr] || [];
-                      const estadoDia = estadoDiaCalendario[dateStr];
-                      const { className: celdaCls, style: celdaStyle } =
-                        estiloCeldaMiCalendarioInstructor(estadoDia);
-                      const mostrarMarcador =
-                        daySessions.length > 0 || (estadoDia && estadoDia !== 'normal');
-                      return (
-                        <div
-                          key={day}
-                          onClick={() => { setSelectedDay(new Date(year, month, day)); setCalendarView('day'); }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls}`}
-                          style={celdaStyle}
-                        >
-                          <span className="z-10">{day}</span>
-                          {mostrarMarcador && daySessions.length > 0 && (
-                            <>
-                              <div className="absolute bottom-1.5 flex gap-1 z-10">
-                                {daySessions.slice(0, 3).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
-                                  />
-                                ))}
-                              </div>
-
-                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
-                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Clases del día</p>
-                                  <p className="mt-0.5 text-sm font-extrabold">
-                                    {new Date(year, month, day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                  </p>
-                                </div>
-
-                                <div className="max-h-60 overflow-y-auto p-3">
-                                  {daySessions.map((s) => (
-                                    <div key={s.id} className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400">
-                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
-                                        <KeenIcon icon="time" className="text-xs" />
-                                        <span>{s.horaInicial} - {s.horaFinal}</span>
-                                      </div>
-                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">{s.materia}</p>
-                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{s.aula}</p>
-                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                                        {s.estado}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-gray-600 dark:text-gray-400">
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#fed7aa' }} /> Hoy
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dcfce7' }} /> Completada
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-2.5 w-2.5 rounded" style={{ backgroundColor: '#dbeafe' }} /> Pendiente
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-                    <span>{resumenMesCalendario.completadas} {resumenMesCalendario.completadas === 1 ? 'día' : 'días'} con sesión</span>
-                    <span> · </span>
-                    <span>{resumenMesCalendario.pendientes} {resumenMesCalendario.pendientes === 1 ? 'pendiente' : 'pendientes'} (misma regla que detalle de clase).</span>
-                  </p>
-                </>
-              ) : calendarView === 'week' ? (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <button
-                      onClick={prevWeek}
-                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
-                    >
-                      <KeenIcon icon="left" />
-                    </button>
-
-                    <div className="text-center">
-                      <h3 className="font-bold text-gray-900 dark:text-white capitalize">
-                        {monthNames[month]} {year}
-                      </h3>
-                      <p className="text-[10px] font-semibold text-black dark:text-white mt-0.5">
-                        Semana: {currentWeekRange.label}
-                      </p>
-                      <span className="inline-block mt-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">
-                        {weeklySessions.length} clases
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={nextWeek}
-                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-coal-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
-                    >
-                      <KeenIcon icon="right" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 uppercase mb-2">
-                    <div>Lun</div>
-                    <div>Mar</div>
-                    <div>Mié</div>
-                    <div>Jue</div>
-                    <div>Vie</div>
-                    <div>Sáb</div>
-                    <div>Dom</div>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-1 flex-1">
-                    {blanks.map(b => (
-                      <div key={`blank-week-${b}`} className="h-8 md:h-10" />
-                    ))}
-
-                    {daysArray.map(day => {
-                      const dayDate = new Date(year, month, day);
-                      dayDate.setHours(0, 0, 0, 0);
-
-                      const dateStr = formatDateKey(dayDate);
-                      const isInSelectedWeek = isDateInRange(dayDate, currentWeekRange.start, currentWeekRange.end);
-                      const daySessions = isInSelectedWeek ? sessionsByDate[dateStr] || [] : [];
-                      const estadoDia = isInSelectedWeek ? estadoDiaCalendario[dateStr] : undefined;
-                      const { className: celdaCls, style: celdaStyle } = isInSelectedWeek
-                        ? estiloCeldaMiCalendarioInstructor(estadoDia)
-                        : { className: 'text-gray-700 dark:text-gray-300 font-medium' };
-
-                      return (
-                        <div
-                          key={`week-${day}`}
-                          onClick={() => {
-                            setSelectedDay(dayDate);
-                            setCalendarView('day');
-                          }}
-                          className={`group relative h-8 md:h-10 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${celdaCls} ${
-                            !isInSelectedWeek ? 'opacity-30 hover:opacity-60' : ''
-                          }`}
-                          style={isInSelectedWeek ? celdaStyle : undefined}
-                        >
-                          <span className="z-10">{day}</span>
-
-                          {isInSelectedWeek && daySessions.length > 0 && (
-                            <>
-                              <div className="absolute bottom-1.5 flex gap-1 z-10">
-                                {daySessions.slice(0, 3).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${colorPuntoMiCalendarioInstructor(estadoDia)}`}
-                                  />
-                                ))}
-                              </div>
-
-                              <div className="pointer-events-none absolute left-1/2 bottom-full z-[80] mb-3 hidden w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl shadow-blue-900/10 ring-1 ring-black/5 group-hover:block dark:border-blue-900/50 dark:bg-coal-500 dark:shadow-black/30">
-                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">
-                                    Clases de la semana
-                                  </p>
-                                  <p className="mt-0.5 text-sm font-extrabold">
-                                    {dayDate.toLocaleDateString('es-CO', {
-                                      weekday: 'long',
-                                      day: 'numeric',
-                                      month: 'long',
-                                    })}
-                                  </p>
-                                </div>
-
-                                <div className="max-h-60 overflow-y-auto p-3">
-                                  {daySessions.map((s) => (
-                                    <div
-                                      key={s.id}
-                                      className="mb-2 last:mb-0 rounded-xl border border-gray-100 bg-gray-50/80 p-3 text-left dark:border-gray-700 dark:bg-coal-400"
-                                    >
-                                      <div className="mb-1 flex items-center gap-2 text-[11px] font-black text-blue-600 dark:text-blue-300">
-                                        <KeenIcon icon="time" className="text-xs" />
-                                        <span>{s.horaInicial} - {s.horaFinal}</span>
-                                      </div>
-
-                                      <p className="line-clamp-2 text-xs font-bold leading-snug text-gray-900 dark:text-white">
-                                        {s.materia}
-                                      </p>
-
-                                      <p className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
-                                        {s.aula}
-                                      </p>
-                                      <p className="mt-1 inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                                        {s.estado}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-blue-100 bg-white dark:border-blue-900/50 dark:bg-coal-500" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día seleccionado</h3>
-                      <p className="text-[10px] font-semibold text-gray-400 mt-0.5 capitalize">{selectedDay.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    </div>
-                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-coal-500 rounded p-1">
-                      <button onClick={() => changeSelectedDay(-1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
-                        <KeenIcon icon="left" className="text-xs" />
-                      </button>
-                      <button onClick={() => changeSelectedDay(1)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white dark:hover:bg-coal-300 text-gray-600 dark:text-gray-300 shadow-sm transition-colors">
-                        <KeenIcon icon="right" className="text-xs" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {(() => {
-                    const dateStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
-                    const daySessions = sessionsByDate[dateStr] || [];
-                    if (daySessions.length === 0) {
-                      return (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                          <KeenIcon icon="coffee" className="text-4xl text-gray-300 mb-3" />
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Día libre</h3>
-                          <p className="text-xs text-gray-500 mt-1">No hay clases programadas para este día.</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] custom-scrollbar pr-2">
-                        {daySessions.map(session => (
-                          <div key={session.id} className="flex items-stretch gap-3 group">
-                            <div className={`flex flex-col items-center justify-center w-[72px] shrink-0 ${rmiCalculations.semaforoMes.bgLight} rounded-xl border ${rmiCalculations.semaforoMes.border}`}>
-                              <span className={`text-[10px] font-bold ${rmiCalculations.semaforoMes.text} uppercase leading-none mb-1`}>Inicio</span>
-                              <span className={`text-sm font-black ${rmiCalculations.semaforoMes.text} leading-none`}>{session.horaInicial}</span>
-                            </div>
-                            <div className="flex-1 bg-white dark:bg-coal-400 rounded-xl p-3 border border-gray-100 dark:border-gray-800 hover:border-primary/30 transition-colors shadow-sm">
-                              <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight mb-1">{session.materia}</h3>
-                              <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium">
-                                <span className="flex items-center gap-1"><KeenIcon icon="time" /> Fin {session.horaFinal}</span>
-                                <span className="flex items-center gap-1 truncate"><KeenIcon icon="geolocation" /> {session.aula}</span>
-                                <span className={`flex items-center gap-1 truncate font-bold ${rmiCalculations.semaforoMes.text}`}><KeenIcon icon="flag" /> {rmiCalculations.semaforoMes.label}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: Actividades */}
-        <div className="space-y-6">
-          <section className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
-                <h2 className="text-sm font-extrabold text-gray-800 dark:text-white uppercase tracking-wider">
-                  Actividades por evaluar
-                </h2>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-coal-400 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 flex flex-col h-full">
-              {/* CONTEOS - Sleek and professional */}
-              <div className="flex flex-col gap-3 mb-6">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-warning/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                      <KeenIcon icon="document" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Por evaluar</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Entregas listas para revisar</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-black text-amber-600 dark:text-amber-400">{porCalificar}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-coal-500/30 border border-gray-100 dark:border-gray-700/50 hover:border-success/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
-                      <KeenIcon icon="check-circle" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Calificadas</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Entregas ya evaluadas</p>
-                    </div>
-                  </div>
-                  <span className="text-lg font-black text-green-600 dark:text-green-400">{calificadas}</span>
-                </div>
-              </div>
-
-              {/* LISTA DE ACTIVIDADES RECIENTES (To match the visual grid from the image but sleek) */}
-              <div className="mt-2 pt-5 border-t border-gray-100 dark:border-gray-700 flex-1 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Entregas Recientes</h3>
-                </div>
-                
-                {actividadesPorEvaluar.length > 0 ? (
-                  <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar max-h-[300px] pr-1">
-                    {actividadesPorEvaluar.slice(0, 4).map(act => (
-                      <Link 
-                        to={act.idHorarioMateria ? `/ambiente-virtual/clase/${act.idHorarioMateria}` : act.idHorario ? `/ambiente-virtual/clase/${act.idHorario}` : act.materia?.idHorario ? `/ambiente-virtual/clase/${act.materia.idHorario}` : act.materia?.idHorarioMateria ? `/ambiente-virtual/clase/${act.materia.idHorarioMateria}` : act.materia?.id ? `/ambiente-virtual/clase/${act.materia.id}` : "/ambiente-virtual/historial-raps"}
-                        state={{ activeMenu: 'actividades-asignadas' }}
-                        key={act.id} 
-                        className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-700 transition-colors bg-white dark:bg-coal-400 group block"
-                      >
-                        <div className="flex justify-between items-start gap-2 mb-1.5">
-                          <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{getTitulo(act)}</h4>
-                          <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-1.5 py-0.5 rounded">Por evaluar</span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 line-clamp-1 mb-2">{act.materia?.nombreMateria || 'Sin materia asignada'}</p>
-                        <div className="flex items-center justify-between text-[9px] font-semibold text-gray-400">
-                          <span className="flex items-center gap-1"><KeenIcon icon="calendar" className="text-[10px]" /> {act.fechaFin ? new Date(act.fechaFin).toLocaleDateString() : 'Sin fecha'}</span>
-                          
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-gray-50 dark:bg-coal-500/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <span className="text-2xl mb-2">    </span>
-                    <p className="text-xs font-semibold text-gray-500">¡Al día! No hay entregas pendientes por revisar.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        </div>
-
-      </div>
 
     </div>
   );
