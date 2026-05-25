@@ -150,7 +150,47 @@ const coincideChip = (a: ActividadInstructorResumen, chip: ChipFiltro): boolean 
   }
 };
 
-const PAGE_SIZE = 20;
+/** Mismo tamaño de página que Mis Actividades del aprendiz (`ActividadesAprendiz`). */
+const PAGE_SIZE = 15;
+
+/** Textos informativos en modo oscuro: blanco (referencia nombre instructor / título actividad). */
+const clsLabelFiltro = 'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block';
+const clsTextoEstadoFiltros = 'text-xs font-semibold text-gray-600 dark:text-white';
+const clsChipInactivo =
+  'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-white dark:border-gray-600 dark:hover:bg-coal-500';
+const clsTextoInfoTarjeta = 'text-[11px] text-gray-600 dark:text-white';
+const clsLabelInfoTarjeta = 'font-semibold text-gray-800 dark:text-white';
+const clsIconoInfoTarjeta = 'text-xs shrink-0 text-gray-500 dark:text-white';
+const clsLabelContador = 'text-[9px] uppercase tracking-wide text-gray-500 dark:text-white';
+const clsTextoPaginacion = 'text-xs text-gray-500 dark:text-white';
+const clsTextoPaginaActual = 'text-xs text-gray-600 dark:text-white px-2';
+
+/** Selects de filtros: en dark, texto blanco (react-select aplica color inline; heredar + Tailwind). */
+const selectClassNamesMisActividades = {
+  ...compactReactSelectClassNames,
+  control: () =>
+    `${compactReactSelectClassNames.control()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
+  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () => `${compactReactSelectClassNames.menuList()} dark:text-white`,
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white'
+};
+
+const selectStylesMisActividades = {
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' })
+};
 
 const actividadParaModal = (a: ActividadInstructorResumen): Actividad => ({
   id: a.idActividad,
@@ -338,12 +378,10 @@ const MisActividadesInstructor: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 block">
-              Ficha
-            </label>
+            <label className={clsLabelFiltro}>Ficha</label>
             <Select
               isClearable
               placeholder="Todas las fichas"
@@ -354,17 +392,16 @@ const MisActividadesInstructor: React.FC = () => {
                 setMateriaSel(null);
                 setRapSel(null);
               }}
-              classNames={compactReactSelectClassNames}
+              classNames={selectClassNamesMisActividades}
+              styles={selectStylesMisActividades}
               noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 block">
-              Materia
-            </label>
+            <label className={clsLabelFiltro}>Asignatura</label>
             <Select
               isClearable
-              placeholder="Todas las materias"
+              placeholder="Todas las asignaturas"
               options={opcionesMateria}
               value={opcionesMateria.find((o) => o.value === materiaSel) ?? null}
               onChange={(opt) => {
@@ -372,14 +409,13 @@ const MisActividadesInstructor: React.FC = () => {
                 setRapSel(null);
               }}
               isDisabled={opcionesMateria.length === 0}
-              classNames={compactReactSelectClassNames}
+              classNames={selectClassNamesMisActividades}
+              styles={selectStylesMisActividades}
               noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 block">
-              RAP
-            </label>
+            <label className={clsLabelFiltro}>RAP</label>
             <Select
               isClearable
               placeholder="Todos los RAP"
@@ -387,14 +423,15 @@ const MisActividadesInstructor: React.FC = () => {
               value={opcionesRap.find((o) => o.value === rapSel) ?? null}
               onChange={(opt) => setRapSel(opt?.value ?? null)}
               isDisabled={opcionesRap.length === 0}
-              classNames={compactReactSelectClassNames}
+              classNames={selectClassNamesMisActividades}
+              styles={selectStylesMisActividades}
               noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">ESTADO:</span>
+          <span className={clsTextoEstadoFiltros}>ESTADO:</span>
           {chipsFiltro.map((item) => (
             <button
               key={item.id}
@@ -402,9 +439,7 @@ const MisActividadesInstructor: React.FC = () => {
               onClick={() => setChip(item.id)}
               className={clsx(
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                chip === item.id
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-gray-300 dark:border-gray-600'
+                chip === item.id ? 'bg-primary text-white' : clsChipInactivo
               )}
             >
               {item.label}
@@ -416,17 +451,18 @@ const MisActividadesInstructor: React.FC = () => {
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
             <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">No hay actividades para este filtro</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Prueba con otra ficha, materia o estado.
+            <p className="text-xs text-gray-500 dark:text-white mt-1">
+              Prueba con otra ficha, asignatura o estado.
             </p>
           </div>
         ) : (
+          <>
           <div className="space-y-3">
             {paginadas.map((a) => {
               const estadoLbl = estadoGeneralLabel[a.estadoGeneral] ?? a.estadoGeneral;
               const chipEstado =
                 estadoGeneralChip[a.estadoGeneral] ??
-                'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+                'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
               const nombreCreador = a.creador?.nombre ?? 'Instructor';
 
               return (
@@ -487,40 +523,43 @@ const MisActividadesInstructor: React.FC = () => {
                                 {a.modalidad ?? 'individual'}
                               </span>
                             </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                            <div className={clsx('flex flex-wrap gap-x-4 gap-y-1 mt-2', clsTextoInfoTarjeta)}>
                               <span>
-                                <span className="font-semibold text-gray-700 dark:text-gray-300">Ficha:</span>{' '}
+                                <span className={clsLabelInfoTarjeta}>Ficha:</span>{' '}
                                 {a.codigoFicha ?? a.idFicha}
                               </span>
                               <span>
-                                <span className="font-semibold text-gray-700 dark:text-gray-300">Materia:</span>{' '}
+                                <span className={clsLabelInfoTarjeta}>Asignatura:</span>{' '}
                                 {a.materiaNombre ?? '-'}
                               </span>
                               {a.rapNombre ? (
                                 <span>
-                                  <span className="font-semibold text-gray-700 dark:text-gray-300">RAP:</span>{' '}
+                                  <span className={clsLabelInfoTarjeta}>RAP:</span>{' '}
                                   {a.codigoRap ? `${a.codigoRap} - ` : ''}
                                   {a.rapNombre}
                                 </span>
                               ) : null}
                             </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                            <div className={clsx('flex flex-wrap gap-x-4 gap-y-1 mt-2', clsTextoInfoTarjeta)}>
                               <span className="inline-flex items-center gap-1">
-                                <KeenIcon icon="calendar" className="text-xs shrink-0" />
+                                <KeenIcon icon="calendar" className={clsIconoInfoTarjeta} />
                                 <span>
-                                  <span className="font-semibold text-gray-700 dark:text-gray-300">Inicio:</span>{' '}
+                                  <span className={clsLabelInfoTarjeta}>Inicio:</span>{' '}
                                   {formatearFecha(a.fechaInicio)}
                                 </span>
                               </span>
                               <span
                                 className={clsx(
                                   'inline-flex items-center gap-1',
-                                  a.vencida && 'text-red-500 dark:text-red-400 font-medium'
+                                  a.vencida && '!text-red-600 dark:!text-red-400 font-medium'
                                 )}
                               >
-                                <KeenIcon icon="calendar-tick" className="text-xs shrink-0" />
+                                <KeenIcon
+                                  icon="calendar-tick"
+                                  className={clsx(clsIconoInfoTarjeta, a.vencida && '!text-red-600 dark:!text-red-400')}
+                                />
                                 <span>
-                                  <span className="font-semibold text-gray-700 dark:text-gray-300">Límite:</span>{' '}
+                                  <span className={clsLabelInfoTarjeta}>Límite:</span>{' '}
                                   {formatearFecha(a.fechaLimite, true)}
                                 </span>
                               </span>
@@ -531,15 +570,15 @@ const MisActividadesInstructor: React.FC = () => {
 
                       <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-x-4 gap-y-2 shrink-0 min-w-[180px] lg:min-w-[200px]">
                         {[
-                          ['Asignados', a.totalAsignados, 'text-slate-700 dark:text-slate-200'],
-                          ['Entregaron', a.totalEntregaron, 'text-primary'],
-                          ['Pendientes', a.totalPendientes, 'text-amber-600 dark:text-amber-400'],
-                          ['Calificados', a.totalCalificados, 'text-emerald-600 dark:text-emerald-400'],
-                          ['Por evaluar', a.totalPorEvaluar, 'text-purple-600 dark:text-purple-400'],
-                          ['Sin entregar', a.totalSinEntregar, 'text-red-600 dark:text-red-400']
+                          ['Asignados', a.totalAsignados, 'text-slate-800 dark:text-slate-100'],
+                          ['Entregaron', a.totalEntregaron, 'text-primary dark:text-blue-400'],
+                          ['Pendientes', a.totalPendientes, 'text-amber-700 dark:text-amber-300'],
+                          ['Calificados', a.totalCalificados, 'text-emerald-700 dark:text-emerald-300'],
+                          ['Por evaluar', a.totalPorEvaluar, 'text-purple-700 dark:text-purple-300'],
+                          ['Sin entregar', a.totalSinEntregar, 'text-red-700 dark:text-red-300']
                         ].map(([label, val, color]) => (
                           <div key={String(label)} className="text-center lg:text-right">
-                            <dt className="text-[9px] uppercase tracking-wide text-gray-400">{label}</dt>
+                            <dt className={clsLabelContador}>{label}</dt>
                             <dd className={clsx('text-sm font-bold tabular-nums', color)}>{val}</dd>
                           </div>
                         ))}
@@ -550,36 +589,38 @@ const MisActividadesInstructor: React.FC = () => {
               );
             })}
 
-            {totalFiltradas > PAGE_SIZE && (
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Mostrando {(currentPage - 1) * PAGE_SIZE + 1} -{' '}
-                  {Math.min(currentPage * PAGE_SIZE, totalFiltradas)} de {totalFiltradas}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                    className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
-                  >
-                    Anterior
-                  </button>
-                  <span className="text-xs text-gray-600 dark:text-gray-300 px-2">
-                    Página {currentPage} de {lastPage}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
-                    disabled={currentPage >= lastPage}
-                    className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
+
+          {totalFiltradas > PAGE_SIZE && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className={clsTextoPaginacion}>
+                Mostrando {(currentPage - 1) * PAGE_SIZE + 1} -{' '}
+                {Math.min(currentPage * PAGE_SIZE, totalFiltradas)} de {totalFiltradas}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1 || loading}
+                  className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <span className={clsTextoPaginaActual}>
+                  Página {currentPage} de {lastPage}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+                  disabled={currentPage >= lastPage || loading}
+                  className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
 
