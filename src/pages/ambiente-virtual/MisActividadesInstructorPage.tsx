@@ -24,7 +24,9 @@ const MisActividadesInstructorPage: React.FC = () => {
             <ToolbarHeading>
               <ToolbarPageTitle text="Mis actividades" />
               <ToolbarDescription>
-                Resumen de actividades que has creado o asignado: entregas, pendientes y calificaciones por ficha y RAP.
+                <span className="dark:text-white">
+                  Resumen de actividades que has creado o asignado: entregas, pendientes y calificaciones por ficha y RAP.
+                </span>
               </ToolbarDescription>
             </ToolbarHeading>
           </Toolbar>
