@@ -1868,11 +1868,6 @@ const ClaseDetallePage: React.FC = () => {
           : undefined;
       const params: Record<string, string> = {};
       if (idMateriaFiltro) params.id_materia_clase = String(idMateriaFiltro);
-      // Filtro estricto para evitar mezclar actividades de otras materias/RAP.
-      if (idMateriaFiltro) {
-        params.idMateria = String(idMateriaFiltro);
-        params.idRap = String(idMateriaFiltro);
-      }
       if (idProgramaFiltro != null && !Number.isNaN(idProgramaFiltro)) {
         params.id_programa = String(idProgramaFiltro);
       }
@@ -1884,8 +1879,6 @@ const ClaseDetallePage: React.FC = () => {
       }
       if (idMateriaFiltro) {
         planeacionQs.set('id_materia_clase', String(idMateriaFiltro));
-        planeacionQs.set('idMateria', String(idMateriaFiltro));
-        planeacionQs.set('idRap', String(idMateriaFiltro));
       }
       const planeacionUrl = `planeacionactividades/ficha/${idFichaParaClase}${
         planeacionQs.toString() ? `?${planeacionQs.toString()}` : ''
