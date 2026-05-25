@@ -687,7 +687,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
       },
       {
         title: 'Eventos',
-        path: '/multimedia/eventos',
+        path: '/gestion-eventos',
         requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
       }
     ]

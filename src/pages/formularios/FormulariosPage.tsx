@@ -113,7 +113,7 @@ const FormulariosPage: React.FC = () => {
     const fetchInternalForms = async () => {
       setLoadingInternalForms(true);
       try {
-        const response = await axios.get('/formularios');
+        const response = await axios.get('formularios');
         setInternalForms(response.data);
       } catch (error) {
         console.error('Error fetching internal forms:', error);
@@ -148,7 +148,7 @@ const FormulariosPage: React.FC = () => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar permanentemente este formulario y todas sus preguntas/respuestas?')) return;
     
     try {
-      await axios.delete(`/formularios/${formId}`);
+      await axios.delete(`formularios/${formId}`);
       showToast('Formulario eliminado con éxito', 'success');
       setInternalForms(prev => prev.filter(f => f.id !== formId));
     } catch (error) {

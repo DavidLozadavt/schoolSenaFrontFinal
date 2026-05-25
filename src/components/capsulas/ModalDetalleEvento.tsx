@@ -151,7 +151,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   const currentStatus = statusConfig[eventStatus];
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/multimedia/eventos/show/${evento.idEvento}`;
+    const shareUrl = `${window.location.origin}/gestion-eventos/show/${evento.idEvento}`;
     navigator.clipboard.writeText(shareUrl);
     enqueueSnackbar('Enlace del evento copiado al portapapeles', { 
       variant: 'success',

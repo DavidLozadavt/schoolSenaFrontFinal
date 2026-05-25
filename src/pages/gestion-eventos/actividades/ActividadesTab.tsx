@@ -180,10 +180,14 @@ export const ActividadesTab: React.FC = () => {
   const [estadoOpen, setEstadoOpen] = useState(false);
   const [estadoItemId, setEstadoItemId] = useState<number | null>(null);
 
+  const [idEventoSeleccionado, setIdEventoSeleccionado] = useState<number | string>('');
+  const [eventos, setEventos] = useState<{ idEvento: number; nombre: string }[]>([]);
+
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get<Item[]>('/items');
+      const params = idEventoSeleccionado ? { idEvento: idEventoSeleccionado } : {};
+      const { data } = await axios.get<Item[]>('/items', { params });
       setItems(data);
     } catch {
       enqueueSnackbar('Error al cargar actividades', { variant: 'error' });
@@ -193,8 +197,19 @@ export const ActividadesTab: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchItems();
+    // Cargar la lista de eventos para filtrar
+    axios
+      .get('/eventos-multimedia?per_page=100')
+      .then((res) => {
+        const list = res.data?.data || res.data || [];
+        setEventos(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => console.error('Error al cargar eventos:', err));
   }, []);
+
+  useEffect(() => {
+    fetchItems();
+  }, [idEventoSeleccionado]);
 
   const itemsFiltrados = useMemo(() => {
     const texto = buscar.toLowerCase();
@@ -325,6 +340,20 @@ export const ActividadesTab: React.FC = () => {
                 className="input input-sm pl-9 rounded w-full"
               />
             </div>
+            <div className="relative flex-1 min-w-[200px]">
+              <select
+                value={idEventoSeleccionado}
+                onChange={(e) => setIdEventoSeleccionado(e.target.value)}
+                className="select select-sm rounded w-full bg-white dark:bg-zinc-800 text-gray-800 dark:text-white"
+              >
+                <option value="">-- Todos los eventos (Global) --</option>
+                {eventos.map((e) => (
+                  <option key={e.idEvento} value={e.idEvento}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               className="btn btn-sm btn-primary flex items-center gap-2 shrink-0"
               onClick={handleNuevo}
@@ -373,6 +402,7 @@ export const ActividadesTab: React.FC = () => {
         onClose={() => setModalOpen(false)}
         onSuccess={fetchItems}
         itemEditar={itemEditar}
+        defaultIdEvento={idEventoSeleccionado ? Number(idEventoSeleccionado) : null}
       />
 
       {/* Modal Estado por item */}

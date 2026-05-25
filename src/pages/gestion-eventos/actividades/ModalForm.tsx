@@ -11,6 +11,7 @@ interface Item {
   hora_inicio: string | null;
   hora_fin: string | null;
   seleccionar: boolean;
+  idEvento?: number | null;
   created_at?: string;
 }
 
@@ -19,9 +20,21 @@ interface ModalFormProps {
   onClose: () => void;
   onSuccess: () => void;
   itemEditar?: Item | null;
+  defaultIdEvento?: number | null;
 }
 
-export const ModalForm: React.FC<ModalFormProps> = ({ open, onClose, onSuccess, itemEditar }) => {
+interface EventSelectOption {
+  idEvento: number;
+  nombre: string;
+}
+
+export const ModalForm: React.FC<ModalFormProps> = ({ 
+  open, 
+  onClose, 
+  onSuccess, 
+  itemEditar, 
+  defaultIdEvento 
+}) => {
   const { enqueueSnackbar } = useSnackbar();
   const esEdicion = !!itemEditar;
 
@@ -29,23 +42,36 @@ export const ModalForm: React.FC<ModalFormProps> = ({ open, onClose, onSuccess, 
   const [descripcion, setDescripcion] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
+  const [idEvento, setIdEvento] = useState<number | string>('');
+  const [eventos, setEventos] = useState<EventSelectOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // Cargar lista de eventos para asociar
+      axios
+        .get('/eventos-multimedia?per_page=100')
+        .then((res) => {
+          const list = res.data?.data || res.data || [];
+          setEventos(Array.isArray(list) ? list : []);
+        })
+        .catch((err) => console.error('Error al cargar eventos:', err));
+
       if (itemEditar) {
         setNombre(itemEditar.nombreItem);
         setDescripcion(itemEditar.descripcion ?? '');
         setHoraInicio(itemEditar.hora_inicio ? itemEditar.hora_inicio.slice(0, 16) : '');
         setHoraFin(itemEditar.hora_fin ? itemEditar.hora_fin.slice(0, 16) : '');
+        setIdEvento(itemEditar.idEvento ?? '');
       } else {
         setNombre('');
         setDescripcion('');
         setHoraInicio('');
         setHoraFin('');
+        setIdEvento(defaultIdEvento ?? '');
       }
     }
-  }, [itemEditar, open]);
+  }, [itemEditar, open, defaultIdEvento]);
 
   const handleSubmit = async () => {
     if (!nombre.trim()) {
@@ -71,7 +97,8 @@ export const ModalForm: React.FC<ModalFormProps> = ({ open, onClose, onSuccess, 
       nombreItem: nombre.trim(),
       descripcion: descripcion || null,
       hora_inicio: horaInicio || null,
-      hora_fin: horaFin || null
+      hora_fin: horaFin || null,
+      idEvento: idEvento || null
     };
 
     try {
@@ -114,6 +141,22 @@ export const ModalForm: React.FC<ModalFormProps> = ({ open, onClose, onSuccess, 
               placeholder="Ej: Registro de asistentes"
               className="input p-2 border border-gray-300 rounded-md w-full"
             />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm font-medium">Asociar a Evento</label>
+            <select
+              value={idEvento}
+              onChange={(e) => setIdEvento(e.target.value)}
+              className="input p-2 border border-gray-300 rounded-md w-full bg-white dark:bg-zinc-800 text-gray-800 dark:text-white"
+            >
+              <option value="">-- Sin evento (Global) --</option>
+              {eventos.map((e) => (
+                <option key={e.idEvento} value={e.idEvento}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

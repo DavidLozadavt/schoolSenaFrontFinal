@@ -42,6 +42,7 @@ export const EventShowPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [evento, setEvento] = useState<Evento | null>(null);
+  const [actividades, setActividades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +50,10 @@ export const EventShowPage = () => {
       try {
         const response = await axios.get(`eventos-multimedia/${id}`);
         setEvento(response.data);
+
+        // Cargar las actividades del evento específico
+        const actResponse = await axios.get(`/items`, { params: { idEvento: id } });
+        setActividades(actResponse.data || []);
       } catch (error) {
         console.error('Error fetching event details:', error);
       } finally {
@@ -169,6 +174,63 @@ export const EventShowPage = () => {
                   {evento.descripcion || 'No se ha proporcionado una descripción detallada para este evento.'}
                 </p>
               </div>
+
+              {/* Timeline de Actividades del Evento */}
+              {actividades.length > 0 && (
+                <div className="mt-12 space-y-6 border-t border-neutral-100 dark:border-neutral-800 pt-8 animate-fade-in-up">
+                  <h3 className="text-xl font-bold flex items-center gap-3 text-neutral-900 dark:text-white mb-6">
+                    <CalendarCheck className="w-6 h-6 text-green-500" />
+                    Cronograma de Actividades
+                  </h3>
+                  
+                  <div className="relative pl-6 border-l-2 border-orange-500/30 space-y-8">
+                    {actividades.map((act, index) => {
+                      const dur = act.hora_inicio && act.hora_fin
+                        ? Math.max(0, Math.round((new Date(act.hora_fin).getTime() - new Date(act.hora_inicio).getTime()) / 60000))
+                        : 0;
+
+                      const startStr = act.hora_inicio
+                        ? new Date(act.hora_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+                        : '';
+                      const endStr = act.hora_fin
+                        ? new Date(act.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+                        : '';
+
+                      return (
+                        <div key={act.id} className="relative group">
+                          {/* Indicador de Punto del Timeline */}
+                          <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-white dark:bg-neutral-900 border-4 border-orange-500 group-hover:scale-125 transition-transform duration-300" />
+
+                          <div className="bg-neutral-50 dark:bg-neutral-800/40 rounded-2xl p-5 border border-neutral-100 dark:border-neutral-800/80 shadow-sm hover:shadow-md transition-all duration-300">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-orange-500 tracking-wider uppercase">
+                                Actividad #{index + 1}
+                              </span>
+                              {(startStr || endStr) && (
+                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500 flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {startStr} {endStr ? `- ${endStr}` : ''}
+                                  {dur > 0 && ` (${dur} min)`}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="text-base font-bold text-neutral-800 dark:text-white mt-2 leading-snug">
+                              {act.nombreItem}
+                            </h4>
+                            
+                            {act.descripcion && (
+                              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed font-medium">
+                                {act.descripcion}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               
               {/* External Form Section */}
               {evento.formUrl && (
