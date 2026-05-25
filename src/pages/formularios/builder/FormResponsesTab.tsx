@@ -23,8 +23,8 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     const fetchData = async () => {
       try {
         const [respData, formData] = await Promise.all([
-          axios.get(`/formularios/${formularioId}/respuestas`),
-          axios.get(`/formularios/${formularioId}`)
+          axios.get(`formularios/${formularioId}/respuestas`),
+          axios.get(`formularios/${formularioId}`)
         ]);
         setRespuestas(respData.data);
         setFormulario(formData.data);

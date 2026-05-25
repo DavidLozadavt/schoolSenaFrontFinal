@@ -1,5 +1,5 @@
 import { Scanner } from '@yudiel/react-qr-scanner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
@@ -37,6 +37,28 @@ export const ScannerTab: React.FC = () => {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [lastScan, setLastScan] = useState('');
   const [token, setToken] = useState('');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isScannerActive, setIsScannerActive] = useState(false);
+
+  const [idEventoSeleccionado, setIdEventoSeleccionado] = useState<number | string>('');
+  const [eventos, setEventos] = useState<{ idEvento: number; nombre: string }[]>([]);
+
+  useEffect(() => {
+    // Cargar la lista de eventos para el escáner
+    axios
+      .get('/eventos-multimedia?per_page=100')
+      .then((res) => {
+        const list = res.data?.data || res.data || [];
+        setEventos(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => console.error('Error al cargar eventos:', err));
+  }, []);
+
+  const handleCameraError = (error: any) => {
+    console.error('Camera error:', error);
+    setCameraError(error?.message || String(error));
+    enqueueSnackbar('Error de cámara: Asegúrate de estar en localhost o HTTPS y dar permisos.', { variant: 'error' });
+  };
 
   const handleScan = async (result: any) => {
     const value = result?.[0]?.rawValue;
@@ -49,7 +71,10 @@ export const ScannerTab: React.FC = () => {
     try {
       setLoading(true);
       await axios.get(`/invitado/token/${tok}/auto-claim`);
-      const res = await axios.get(`/invitado/token/${tok}/items`);
+      
+      const params = idEventoSeleccionado ? { idEvento: idEventoSeleccionado } : {};
+      const res = await axios.get(`/invitado/token/${tok}/items`, { params });
+      
       setInvitado(res.data.hermano);
       setItems(res.data.items);
     } catch {
@@ -259,19 +284,86 @@ export const ScannerTab: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-md mx-auto px-2 sm:px-0">
-      <div className="w-full rounded-xl overflow-hidden shadow border border-gray-200 dark:border-zinc-700">
-        <Scanner onScan={handleScan} constraints={{ facingMode: 'environment' }} />
-      </div>
+      {isScannerActive ? (
+        <>
+          <div className="w-full rounded-xl overflow-hidden shadow border border-gray-200 dark:border-zinc-700">
+            <Scanner onScan={handleScan} onError={handleCameraError} constraints={{ facingMode: 'environment' }} />
+          </div>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <KeenIcon icon="loading" className="animate-spin" />
-          Cargando información…
-        </div>
+          <button
+            onClick={() => {
+              setIsScannerActive(false);
+              setCameraError(null);
+            }}
+            className="btn btn-sm btn-light border border-gray-250 flex items-center gap-2 bg-white hover:bg-gray-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:border-zinc-700 rounded-xl"
+          >
+            <KeenIcon icon="cross" /> Detener escáner
+          </button>
+        </>
       ) : (
-        <p className="text-xs text-gray-400 text-center">
-          Apunta la cámara al código QR del invitado
-        </p>
+        <div className="card border border-gray-200 dark:border-zinc-700 w-full p-6 text-center flex flex-col items-center gap-5 shadow-lg bg-white dark:bg-zinc-800 rounded-2xl">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <KeenIcon icon="scan" className="text-2xl animate-pulse" />
+          </div>
+          <div>
+            <h4 className="font-semibold text-lg text-gray-800 dark:text-white">Escáner de Asistencia</h4>
+            <p className="text-xs text-gray-400 mt-2 max-w-xs mx-auto leading-relaxed">
+              El sistema requiere acceso a la cámara para poder escanear los códigos QR de los invitados de forma rápida.
+            </p>
+          </div>
+
+          <div className="w-full text-left">
+            <label className="block mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Filtrar Actividades por Evento
+            </label>
+            <select
+              value={idEventoSeleccionado}
+              onChange={(e) => setIdEventoSeleccionado(e.target.value)}
+              className="select select-sm rounded-xl w-full bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-white"
+            >
+              <option value="">-- Todos los eventos (Global) --</option>
+              {eventos.map((e) => (
+                <option key={e.idEvento} value={e.idEvento}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => {
+                setIsScannerActive(true);
+                setCameraError(null);
+              }}
+              className="btn btn-primary flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+            >
+              <KeenIcon icon="scan" /> Iniciar Escáner
+            </button>
+          </div>
+        </div>
+      )}
+
+      {cameraError && (
+        <div className="bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 p-4 rounded-xl text-xs text-center w-full">
+          <p className="font-bold mb-1">No se pudo acceder a la cámara</p>
+          <p className="opacity-90 leading-relaxed">
+            Para usar el escáner, necesitas estar en un contexto seguro (<strong>localhost</strong> o <strong>HTTPS</strong>) y otorgar permisos de cámara en el navegador.
+          </p>
+        </div>
+      )}
+
+      {isScannerActive && (
+        loading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+            <KeenIcon icon="loading" className="animate-spin" />
+            Cargando información…
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 text-center animate-fade-in">
+            Apunta la cámara al código QR del invitado
+          </p>
+        )
       )}
     </div>
   );

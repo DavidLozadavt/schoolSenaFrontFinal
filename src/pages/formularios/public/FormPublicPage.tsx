@@ -34,7 +34,7 @@ const FormPublicPage: React.FC = () => {
   useEffect(() => {
     const fetchForm = async () => {
       try {
-        const { data } = await axios.get(`/formulario-publico/${slug}`);
+        const { data } = await axios.get(`formulario-publico/${slug}`);
         setForm(data);
         
         // Initialize respuestas array
@@ -116,12 +116,12 @@ const FormPublicPage: React.FC = () => {
     }
 
     try {
-      await axios.post(`/formulario-publico/${slug}/responder`, { respuestas });
+      await axios.post(`formulario-publico/${slug}/responder`, { respuestas });
       
       // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
       if (fromEventId) {
         try {
-          await axios.post(`/eventos-multimedia/${fromEventId}/register`);
+          await axios.post(`eventos-multimedia/${fromEventId}/register`);
         } catch (regErr) {
           console.error('Error registering user to event after response submission:', regErr);
         }

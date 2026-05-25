@@ -242,7 +242,7 @@ const FormBuilderPage: React.FC = () => {
   const fetchForm = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`/formularios/${id}`);
+      const { data } = await axios.get(`formularios/${id}`);
       setFormData(data);
     } catch (error) {
       console.error('Error fetching form', error);
@@ -266,11 +266,11 @@ const FormBuilderPage: React.FC = () => {
 
     try {
       if (id) {
-        const { data } = await axios.put(`/formularios/${id}`, dataToSave);
+        const { data } = await axios.put(`formularios/${id}`, dataToSave);
         setFormData(data);
         showToast('Formulario guardado con éxito', 'success');
       } else {
-        const { data } = await axios.post('/formularios', dataToSave);
+        const { data } = await axios.post('formularios', dataToSave);
         showToast('Formulario creado con éxito', 'success');
         navigate(`/formularios/builder/${data.id}`, { replace: true });
       }
