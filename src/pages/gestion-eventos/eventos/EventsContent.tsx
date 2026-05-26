@@ -114,6 +114,42 @@ const EventsContent = ({ reload }: EventsContentProps) => {
     return `${backendUrl}${normalizedUrl}`;
   };
 
+  const formatDateSpanish = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const cleanDate = dateStr.split(' ')[0].split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const monthNames = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    return `${day} ${monthNames[monthIdx] || month}, ${year}`;
+  };
+
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    let [hoursStr, minutesStr] = parts;
+    let hours = parseInt(hoursStr, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const getCategoryBadgeClass = (tipo: string) => {
+    const normalized = tipo ? tipo.toUpperCase() : '';
+    if (normalized === 'PRESENCIAL') {
+      return 'from-emerald-500 to-teal-600 shadow-emerald-500/20';
+    } else if (normalized === 'VIRTUAL') {
+      return 'from-blue-500 to-indigo-600 shadow-blue-500/20';
+    }
+    return 'from-orange-500 to-rose-600 shadow-orange-500/20';
+  };
+
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
@@ -199,11 +235,11 @@ const EventsContent = ({ reload }: EventsContentProps) => {
       </div>
 
       {filteredData.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredData.map((evento) => (
             <div
               key={evento.idEvento}
-              className="group relative bg-white dark:bg-neutral-900 rounded-[3rem] overflow-hidden border border-neutral-100 dark:border-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 hover:-translate-y-2 flex flex-col h-full"
+              className="group relative bg-white dark:bg-zinc-900/90 rounded-[2.5rem] overflow-hidden border border-zinc-100 dark:border-white/5 shadow-md hover:shadow-[0_25px_60px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_25px_60px_rgba(249,115,22,0.08)] transition-all duration-500 hover:-translate-y-2.5 flex flex-col h-full"
             >
               {/* Media Preview Section */}
               <div className="relative h-60 overflow-hidden shrink-0">
@@ -211,22 +247,22 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                   <img
                     src={getImageUrl(evento.url)}
                     alt={evento.nombre}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-orange-400 via-rose-500 to-indigo-600 flex items-center justify-center">
-                    <Calendar className="w-16 h-16 text-white/20 animate-pulse" />
+                    <Calendar className="w-16 h-16 text-white/25 animate-pulse" />
                   </div>
                 )}
                 
                 {/* Floating Glass Badges */}
-                <div className="absolute top-6 left-6 flex flex-col gap-2">
-                  <div className="px-4 py-2 bg-white/20 dark:bg-black/30 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-2xl flex items-center gap-2 shadow-lg">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-ping" />
-                    <span className="text-[9px] font-black text-white uppercase tracking-widest">{evento.tipoEvento}</span>
+                <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
+                  <div className={`px-4 py-2 bg-gradient-to-r ${getCategoryBadgeClass(evento.tipoEvento)} rounded-2xl flex items-center gap-2 shadow-lg border border-white/20 text-white`}>
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">{evento.tipoEvento}</span>
                   </div>
                   {evento.area && (
-                    <div className="px-4 py-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 shadow-lg">
+                    <div className="px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 shadow-lg">
                       <MapPin className="w-3 h-3 text-blue-400" />
                       <span className="text-[8px] font-black text-white uppercase tracking-widest truncate max-w-[120px]">{evento.area.nombre}</span>
                     </div>
@@ -234,14 +270,14 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                 </div>
 
                 {/* Gradient Overlay for Date */}
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-8">
+                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex items-end p-8 z-10">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-500 rounded-xl text-white shadow-lg">
+                    <div className="p-2.5 bg-orange-500 rounded-xl text-white shadow-lg shadow-orange-500/30">
                       <Calendar className="w-4 h-4" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none mb-1">Fecha Evento</span>
-                      <span className="text-sm font-black text-white uppercase italic">{evento.fechaInicial}</span>
+                      <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none mb-1">Fecha Evento</span>
+                      <span className="text-sm font-black text-white uppercase italic tracking-wide">{formatDateSpanish(evento.fechaInicial)}</span>
                     </div>
                   </div>
                 </div>
@@ -249,22 +285,22 @@ const EventsContent = ({ reload }: EventsContentProps) => {
 
               {/* Content Section */}
               <div className="p-8 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-black text-neutral-900 dark:text-neutral-50 leading-[1.1] tracking-tighter group-hover:text-orange-500 transition-colors uppercase italic">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="text-xl md:text-2xl font-black text-neutral-900 dark:text-neutral-50 leading-[1.1] tracking-tighter group-hover:text-orange-500 transition-colors uppercase italic truncate w-full">
                     {evento.nombre}
                   </h3>
                 </div>
                 
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-neutral-50 dark:bg-white/[0.03] rounded-xl border border-neutral-100 dark:border-white/5">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="flex items-center gap-2 px-3.5 py-2 bg-neutral-50 dark:bg-white/[0.02] rounded-xl border border-neutral-100 dark:border-white/5 shadow-inner">
                     <Clock className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-[10px] font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-tighter tabular-nums">
-                      {evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}
+                    <span className="text-[10px] font-black text-neutral-600 dark:text-neutral-400 uppercase tracking-tighter tabular-nums">
+                      {formatTime(evento.hora)}{evento.hora_final ? ` - ${formatTime(evento.hora_final)}` : ''}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-3 mb-8 leading-relaxed font-medium italic border-l-2 border-neutral-100 dark:border-white/10 pl-4">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-3 mb-6 leading-relaxed font-medium italic border-l-2 border-orange-500/30 dark:border-orange-500/20 pl-4">
                   {evento.descripcion || 'Este evento institucional aún no cuenta con una descripción detallada.'}
                 </p>
 
@@ -273,18 +309,18 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                   <div className="grid grid-cols-2 gap-4 mb-5">
                     <button
                       onClick={() => navigate(`/gestion-eventos/show/${evento.idEvento}`)}
-                      className="group/btn relative h-14 bg-neutral-950 dark:bg-white text-white dark:text-black font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-xl shadow-neutral-900/10"
+                      className="group/btn relative h-14 bg-neutral-950 dark:bg-white text-white dark:text-black font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg shadow-neutral-900/10"
                     >
-                      <div className="absolute inset-0 bg-orange-500 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-600 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                       <div className="relative z-10 flex items-center justify-center gap-3">
                         <KeenIcon icon="eye" className="text-xl group-hover/btn:scale-110 transition-transform" />
-                        <span className="text-[10px] uppercase tracking-[0.2em]">Ver</span>
+                        <span className="text-[10px] uppercase tracking-[0.2em] group-hover:text-white transition-colors">Ver</span>
                       </div>
                     </button>
 
                     <button
                       onClick={() => handleViewAttendees(evento.idEvento)}
-                      className="group/btn relative h-14 bg-emerald-500 text-white font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-xl shadow-emerald-500/20"
+                      className="group/btn relative h-14 bg-emerald-500 text-white font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg shadow-emerald-500/20"
                     >
                       <div className="absolute inset-0 bg-emerald-600 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                       <div className="relative z-10 flex items-center justify-center gap-3">
@@ -294,12 +330,12 @@ const EventsContent = ({ reload }: EventsContentProps) => {
                     </button>
                   </div>
                   
-                  <div className="flex items-center justify-around px-2 py-1 bg-neutral-50 dark:bg-white/[0.03] rounded-2xl border border-neutral-100 dark:border-white/5">
+                  <div className="flex items-center justify-around px-2 py-1 bg-neutral-50 dark:bg-white/[0.02] rounded-2xl border border-neutral-100 dark:border-white/5 shadow-inner">
                     <button
                       onClick={() => navigate(`/gestion-eventos/editar/${evento.idEvento}`)}
-                      className="flex-1 py-3 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-neutral-400 hover:text-orange-500 transition-all group/sub"
+                      className="flex-1 py-3 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-neutral-500 hover:text-orange-500 transition-all group/sub"
                     >
-                      <div className="p-1.5 rounded-lg bg-white dark:bg-neutral-800 shadow-sm group-hover/sub:bg-orange-500 group-hover/sub:text-white transition-all">
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-neutral-800 shadow-sm group-hover/sub:bg-orange-500 group-hover/sub:text-white transition-all shadow-[0_2px_5px_rgba(0,0,0,0.05)]">
                         <Edit3 className="w-3.5 h-3.5" />
                       </div>
                       Gestionar
@@ -309,9 +345,9 @@ const EventsContent = ({ reload }: EventsContentProps) => {
 
                     <button
                       onClick={() => deleteEvento(evento.idEvento)}
-                      className="flex-1 py-3 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-neutral-400 hover:text-rose-500 transition-all group/sub"
+                      className="flex-1 py-3 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-neutral-500 hover:text-rose-500 transition-all group/sub"
                     >
-                      <div className="p-1.5 rounded-lg bg-white dark:bg-neutral-800 shadow-sm group-hover/sub:bg-rose-500 group-hover/sub:text-white transition-all">
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-neutral-800 shadow-sm group-hover/sub:bg-rose-500 group-hover/sub:text-white transition-all shadow-[0_2px_5px_rgba(0,0,0,0.05)]">
                         <Trash2 className="w-3.5 h-3.5" />
                       </div>
                       Eliminar

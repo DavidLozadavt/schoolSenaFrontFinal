@@ -44,6 +44,44 @@ export const EventForm = () => {
   });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [startDatetime, setStartDatetime] = useState('');
+  const [endDatetime, setEndDatetime] = useState('');
+
+  const combineDateAndTime = (date?: string, time?: string) => {
+    if (!date) return '';
+    const datePart = date.split(' ')[0].split('T')[0];
+    if (!time) return `${datePart}T00:00`;
+    const timePart = time.slice(0, 5);
+    return `${datePart}T${timePart}`;
+  };
+
+  const handleStartDatetimeChange = (value: string) => {
+    setStartDatetime(value);
+    const [d, t] = value.split('T');
+    setFormData(prev => ({
+      ...prev,
+      fechaInicial: d || '',
+      hora: t || '00:00'
+    }));
+  };
+
+  const handleEndDatetimeChange = (value: string) => {
+    setEndDatetime(value);
+    if (value) {
+      const [d, t] = value.split('T');
+      setFormData(prev => ({
+        ...prev,
+        fechaFinal: d || '',
+        hora_final: t || ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        fechaFinal: '',
+        hora_final: ''
+      }));
+    }
+  };
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -72,10 +110,15 @@ export const EventForm = () => {
   useEffect(() => {
     // Check for prefilled data from FormIntegrationWizard
     if (location.state?.prefilledForm && !id) {
-      setFormData(prev => ({
-        ...prev,
-        ...location.state.prefilledForm
-      }));
+      setFormData(prev => {
+        const next = {
+          ...prev,
+          ...location.state.prefilledForm
+        };
+        setStartDatetime(combineDateAndTime(next.fechaInicial, next.hora));
+        setEndDatetime(combineDateAndTime(next.fechaFinal, next.hora_final));
+        return next;
+      });
       enqueueSnackbar('Formulario integrado correctamente. Completa los detalles del evento.', { variant: 'info' });
     }
   }, [location.state, id]);
@@ -110,6 +153,8 @@ export const EventForm = () => {
           return `${backendUrl}${normalizedUrl}`;
         };
         setPreview(getImageUrl(evento.url));
+        setStartDatetime(combineDateAndTime(evento.fechaInicial, evento.hora));
+        setEndDatetime(combineDateAndTime(evento.fechaFinal, evento.hora_final));
       } catch (err) {
         console.error('Error al cargar evento:', err);
         enqueueSnackbar('No se pudo cargar el evento', { variant: 'error' });
@@ -287,112 +332,54 @@ export const EventForm = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                {/* Date Selection */}
-                <div className="md:col-span-5 space-y-4">
-                  <div className="p-8 rounded-[2.5rem] bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 shadow-xl">
-                    <div className="space-y-6">
-                      {/* Start Date */}
-                      <div className="group relative">
-                        <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-2 block ml-4">
-                          Fecha del Evento
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-6 text-orange-500 z-10">
-                            <Calendar className="w-5 h-5" />
-                          </div>
-                          <input
-                            type="date"
-                            required
-                            className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-16 pr-8 text-xl font-black text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 appearance-none cursor-pointer"
-                            style={{ colorScheme: 'light dark' }}
-                            value={formData.fechaInicial}
-                            onChange={(e) => setFormData({ ...formData, fechaInicial: e.target.value })}
-                          />
-                        </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Inicio del Evento */}
+                <div className="space-y-4">
+                  <div className="p-8 rounded-[2.5rem] bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 shadow-xl group relative">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-3 block ml-4 flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-orange-500" /> Inicio del Evento (Fecha y Hora)
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-6 text-orange-500 z-10">
+                        <Clock className="w-6 h-6" />
                       </div>
-
-                      {/* End Date */}
-                      <div className="group relative pt-4 border-t border-neutral-50 dark:border-white/5">
-                        <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-2 block ml-4">
-                          Fecha de Finalización (Opcional)
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-6 text-neutral-300 group-focus-within:text-orange-500 z-10 transition-colors">
-                            <Calendar className="w-5 h-5" />
-                          </div>
-                          <input
-                            type="date"
-                            className="w-full bg-neutral-50 dark:bg-white/5 border border-neutral-100 dark:border-white/5 rounded-2xl h-14 pl-16 pr-8 text-sm font-bold text-neutral-500 focus:text-neutral-800 dark:focus:text-white transition-all outline-none appearance-none cursor-pointer"
-                            style={{ colorScheme: 'light dark' }}
-                            value={formData.fechaFinal}
-                            onChange={(e) => setFormData({ ...formData, fechaFinal: e.target.value })}
-                          />
-                        </div>
-                      </div>
+                      <input
+                        type="datetime-local"
+                        required
+                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-2 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                        style={{ colorScheme: 'light dark' }}
+                        value={startDatetime}
+                        onChange={(e) => handleStartDatetimeChange(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Visual Connector (Only visible on MD+) */}
-                <div className="hidden md:flex md:col-span-2 items-center justify-center">
-                  <div className="w-px h-24 bg-gradient-to-b from-transparent via-neutral-200 dark:via-white/10 to-transparent relative">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 flex items-center justify-center shadow-lg">
-                      <Clock className="w-4 h-4 text-orange-500" />
+                {/* Finalización del Evento */}
+                <div className="space-y-4">
+                  <div className="p-8 rounded-[2.5rem] bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 shadow-xl group relative">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-3 block ml-4 flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-neutral-400 group-focus-within:text-orange-500" /> Finalización (Opcional - Fecha y Hora)
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-6 text-neutral-400 group-focus-within:text-orange-500 z-10 transition-colors">
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <input
+                        type="datetime-local"
+                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-2 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                        style={{ colorScheme: 'light dark' }}
+                        value={endDatetime}
+                        onChange={(e) => handleEndDatetimeChange(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Time Selection */}
-                <div className="md:col-span-5 space-y-4">
-                  <div className="p-8 rounded-[2.5rem] bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 shadow-xl">
-                    <div className="flex flex-col gap-6">
-                      {/* Start Time */}
-                      <div className="group relative">
-                        <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-2 block ml-4">
-                          Hora de Inicio
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-6 text-orange-500 z-10">
-                            <Clock className="w-5 h-5" />
-                          </div>
-                          <input
-                            type="time"
-                            required
-                            className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-16 pr-8 text-2xl font-black text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 appearance-none cursor-pointer"
-                            style={{ colorScheme: 'light dark' }}
-                            value={formData.hora}
-                            onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* End Time */}
-                      <div className="group relative">
-                        <label className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em] mb-2 block ml-4">
-                          Hora de Finalización
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-6 text-neutral-300 group-focus-within:text-orange-500 z-10 transition-colors">
-                            <Clock className="w-5 h-5" />
-                          </div>
-                          <input
-                            type="time"
-                            className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-16 pr-8 text-2xl font-black text-neutral-400 focus:text-neutral-800 dark:focus:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 appearance-none cursor-pointer"
-                            style={{ colorScheme: 'light dark' }}
-                            value={formData.hora_final}
-                            onChange={(e) => setFormData({ ...formData, hora_final: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 flex items-center justify-center gap-3 py-3 px-4 rounded-2xl bg-orange-500/5 border border-orange-500/10">
-                       <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />
-                       <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">Horario Sugerido para Máximo Alcance</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-4 flex items-center justify-center gap-3 py-3 px-4 rounded-2xl bg-orange-500/5 border border-orange-500/10">
+                 <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />
+                 <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">Fecha y hora integradas en un solo selector</span>
               </div>
             </div>
 

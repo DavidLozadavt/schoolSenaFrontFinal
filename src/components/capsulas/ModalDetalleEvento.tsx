@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { X, Calendar, Clock, MapPin, Share2, Info, Bell, Video, Link as LinkIcon, Timer, Sparkles, Map, AlertCircle, CheckCircle2, Copy, ExternalLink, ArrowRight } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Share2, Info, Bell, Video, Link as LinkIcon, Timer, Sparkles, Map, AlertCircle, CheckCircle2, Copy, ExternalLink, ArrowRight, Eye, CalendarPlus } from 'lucide-react';
 import { useSnackbar } from 'notistack';
 import { KeenIcon } from '@/components';
 
@@ -43,6 +43,66 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   const [loadingCheck, setLoadingCheck] = useState(true);
   const [showConfirmButton, setShowConfirmButton] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+  const [actividades, setActividades] = useState<any[]>([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
+
+  useEffect(() => {
+    const fetchActividades = async () => {
+      setLoadingActividades(true);
+      try {
+        const response = await axios.get('/items', { params: { idEvento: evento.idEvento } });
+        setActividades(response.data || []);
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      } finally {
+        setLoadingActividades(false);
+      }
+    };
+    if (evento.idEvento) {
+      fetchActividades();
+    }
+  }, [evento.idEvento]);
+
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    let [hoursStr, minutesStr] = parts;
+    let hours = parseInt(hoursStr, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const formatDateSpanish = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const cleanDate = dateStr.split(' ')[0].split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const monthNames = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    return `${day} ${monthNames[monthIdx] || month}, ${year}`;
+  };
+
+  const getGoogleCalendarUrl = () => {
+    if (!evento) return '';
+    try {
+      const cleanStartDate = evento.fechaInicial.replace(/[-:]/g, '').split('T')[0];
+      const cleanStartTime = (evento.hora || '00:00:00').replace(/[-:]/g, '') + '00';
+      const cleanEndDate = (evento.fechaFinal || evento.fechaInicial).replace(/[-:]/g, '').split('T')[0];
+      const cleanEndTime = (evento.hora_final || '23:59:59').replace(/[-:]/g, '') + '00';
+      
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(evento.nombre)}&dates=${cleanStartDate}T${cleanStartTime}/${cleanEndDate}T${cleanEndTime}&details=${encodeURIComponent(evento.descripcion || '')}&location=${encodeURIComponent(evento.area?.nombre || '')}`;
+    } catch (e) {
+      console.error(e);
+      return '#';
+    }
+  };
 
   const getImageUrl = (url?: string) => {
     if (!url) return '';
@@ -151,7 +211,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   const currentStatus = statusConfig[eventStatus];
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/gestion-eventos/show/${evento.idEvento}`;
+    const shareUrl = `${window.location.origin}/evento/${evento.idEvento}`;
     navigator.clipboard.writeText(shareUrl);
     enqueueSnackbar('Enlace del evento copiado al portapapeles', { 
       variant: 'success',
@@ -166,18 +226,27 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
       <div className="relative w-full max-w-5xl bg-white/90 dark:bg-neutral-900/90 backdrop-blur-3xl rounded-[3.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.6)] border border-white/20 animate-zoom-in flex flex-col md:flex-row max-h-[90vh]">
         
         {/* Left Section: Cinematic Visuals */}
-        <div className="relative w-full md:w-[45%] h-64 md:h-auto shrink-0 group">
+        <div className="relative w-full md:w-[45%] h-64 md:h-auto shrink-0 group overflow-hidden">
+          {eventImageUrl && (
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <img 
+                src={eventImageUrl} 
+                alt="Atmosphere" 
+                className="w-full h-full object-cover blur-2xl opacity-20 scale-125 translate-y-4" 
+              />
+            </div>
+          )}
           {eventImageUrl ? (
             <>
               <img 
                 src={eventImageUrl} 
                 alt={evento.nombre} 
-                className="w-full h-full object-cover transition-transform duration-[3000ms] group-hover:scale-110"
+                className="w-full h-full object-cover transition-transform duration-[3000ms] group-hover:scale-105 relative z-10"
               />
-              <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-neutral-950 via-neutral-950/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-neutral-950 via-neutral-950/40 to-transparent z-20" />
             </>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-indigo-600 via-rose-500 to-orange-500 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full bg-gradient-to-br from-indigo-600 via-rose-500 to-orange-500 flex items-center justify-center overflow-hidden relative z-10">
                <div className="absolute inset-0 opacity-20 animate-pulse bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
                <Sparkles className="w-24 h-24 text-white/20 animate-bounce" />
             </div>
@@ -250,30 +319,158 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                </div>
              )}
 
-             <div className="space-y-4 w-full min-w-0">
-                <h2 className="text-4xl md:text-5xl font-black text-neutral-900 dark:text-white uppercase tracking-tighter leading-[0.9] italic transform -skew-x-6 break-words [word-break:break-word] w-full">
-                  {evento.nombre}
-                </h2>
-                <div className="flex flex-wrap items-center gap-3 sm:gap-6">
-                   <div className="flex items-center gap-2 bg-neutral-50 dark:bg-white/5 px-4 py-2 rounded-xl">
-                      <Clock className="w-4 h-4 text-orange-500" />
-                      <span className="text-[11px] font-black text-neutral-600 dark:text-neutral-400 uppercase tracking-widest">{evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}</span>
-                   </div>
-                   {evento.area && (
-                     <div className="flex items-center gap-2 bg-neutral-50 dark:bg-white/5 px-4 py-2 rounded-xl">
-                        <MapPin className="w-4 h-4 text-blue-500" />
-                        <span className="text-[11px] font-black text-neutral-600 dark:text-neutral-400 uppercase tracking-widest truncate max-w-[200px]">{evento.area.nombre}</span>
-                     </div>
-                   )}
+             <div className="space-y-6 w-full min-w-0">
+                 <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-700 dark:from-white dark:via-neutral-200 dark:to-neutral-400 tracking-tight leading-[1] break-words [word-break:break-word] w-full">
+                   {evento.nombre}
+                 </h2>
+                 <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 bg-neutral-50 dark:bg-white/5 px-4.5 py-3 rounded-3xl border border-neutral-200/40 dark:border-white/5 shadow-sm">
+                       <div className="w-8 h-8 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0">
+                          <Calendar className="w-4 h-4 text-orange-500" />
+                       </div>
+                       <div className="flex flex-col text-left">
+                          <span className="text-[8px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest leading-none">Inicio del Evento</span>
+                          <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mt-1 uppercase tracking-tight">
+                             {formatDateSpanish(evento.fechaInicial)} a las {formatTime(evento.hora)}
+                          </span>
+                       </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 bg-neutral-50 dark:bg-white/5 px-4.5 py-3 rounded-3xl border border-neutral-200/40 dark:border-white/5 shadow-sm">
+                       <div className="w-8 h-8 bg-rose-500/10 rounded-xl flex items-center justify-center shrink-0">
+                          <Calendar className="w-4 h-4 text-rose-500" />
+                       </div>
+                       <div className="flex flex-col text-left">
+                          <span className="text-[8px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest leading-none">Finalización</span>
+                          <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mt-1 uppercase tracking-tight">
+                             {formatDateSpanish(evento.fechaFinal || evento.fechaInicial)} a las {evento.hora_final ? formatTime(evento.hora_final) : 'TBD'}
+                          </span>
+                       </div>
+                    </div>
+
+                     {evento.area && (
+                      <div className="flex items-center gap-3 bg-neutral-50 dark:bg-white/5 px-4.5 py-3 rounded-3xl border border-neutral-200/40 dark:border-white/5 shadow-sm">
+                         <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
+                            <MapPin className="w-4 h-4 text-blue-500" />
+                         </div>
+                         <div className="flex flex-col text-left">
+                            <span className="text-[8px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest leading-none">Lugar / Ubicación</span>
+                            <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mt-1 uppercase truncate max-w-[150px] tracking-tight">{evento.area.nombre}</span>
+                         </div>
+                      </div>
+                     )}
+
+                     <a
+                        href={getGoogleCalendarUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 px-4.5 py-3 rounded-3xl border border-orange-500/20 shadow-sm transition-all duration-300 hover:-translate-y-0.5 active:scale-95 text-[10px] font-black uppercase tracking-widest shrink-0"
+                     >
+                        <CalendarPlus className="w-4 h-4" />
+                        Agendar en Google
+                     </a>
+                 </div>
+              </div>
+
+             {/* Description */}
+             <div className="space-y-3 w-full min-w-0">
+                <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                   <Info className="w-3.5 h-3.5" />
+                   Sobre el Evento
+                </span>
+                <div className="relative w-full min-w-0">
+                   <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-300 leading-relaxed whitespace-pre-line">
+                      {evento.descripcion || 'No se ha proporcionado una descripción detallada para este evento.'}
+                   </p>
                 </div>
              </div>
 
-             {/* Description */}
-             <div className="relative w-full min-w-0">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full" />
-                <div className="pl-8 space-y-4 text-base leading-relaxed text-neutral-600 dark:text-neutral-400 font-medium italic break-words [word-break:break-word] w-full">
-                   {evento.descripcion || 'Descubre una experiencia única diseñada para nuestra comunidad académica. No te pierdas ningún detalle.'}
+             {/* Cronograma de Actividades */}
+             <div className="space-y-6 pt-4">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shadow-[0_4px_12px_rgba(249,115,22,0.1)]">
+                      <Clock className="w-4 h-4" />
+                   </div>
+                   <h3 className="text-lg font-black uppercase text-neutral-900 dark:text-white tracking-tighter">
+                      Cronograma de Actividades
+                   </h3>
                 </div>
+
+                {loadingActividades ? (
+                   <div className="space-y-4">
+                      {[1, 2].map((i) => (
+                         <div key={i} className="animate-pulse bg-neutral-100 dark:bg-neutral-800 rounded-3xl p-5 space-y-3">
+                            <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/4" />
+                            <div className="h-4 bg-neutral-300 dark:bg-neutral-600 rounded w-3/4" />
+                            <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
+                         </div>
+                      ))}
+                   </div>
+                ) : actividades.length > 0 ? (
+                   <div className="relative pl-6 border-l-2 border-orange-500/20 space-y-6">
+                      {actividades.map((act, index) => {
+                         const actDate = act.hora_inicio ? new Date(act.hora_inicio) : null;
+                         const actDateStr = actDate 
+                            ? actDate.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+                            : '';
+                         const startStr = act.hora_inicio
+                            ? new Date(act.hora_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+                            : '';
+                         const endStr = act.hora_fin
+                            ? new Date(act.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+                            : '';
+
+                         return (
+                            <div key={act.id || index} className="relative group">
+                               {/* Timeline Dot */}
+                               <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-white dark:bg-neutral-900 border-4 border-orange-500 group-hover:scale-125 transition-transform duration-300" />
+
+                               <div className="bg-neutral-50/50 dark:bg-white/[0.02] backdrop-blur-md rounded-3xl p-5 border border-neutral-200/40 dark:border-white/5 shadow-sm hover:border-orange-500/20 hover:shadow-md transition-all duration-300">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                     <span className="text-[9px] font-black text-orange-500 tracking-widest uppercase">
+                                        Actividad #{index + 1}
+                                     </span>
+                                     <div className="flex flex-wrap gap-2">
+                                        {actDateStr && (
+                                           <span className="text-[9px] font-black text-neutral-400 dark:text-neutral-500 uppercase flex items-center gap-1.5 bg-white dark:bg-neutral-850 px-2.5 py-1 rounded-lg border border-neutral-200/30 dark:border-white/5 shadow-sm">
+                                              <Calendar className="w-3 h-3 text-orange-500" />
+                                              {actDateStr}
+                                           </span>
+                                        )}
+                                        {(startStr || endStr) && (
+                                           <span className="text-[9px] font-black text-neutral-400 dark:text-neutral-500 uppercase flex items-center gap-1.5 bg-white dark:bg-neutral-850 px-2.5 py-1 rounded-lg border border-neutral-200/30 dark:border-white/5 shadow-sm">
+                                              <Clock className="w-3 h-3 text-rose-500" />
+                                              {startStr} {endStr ? `- ${endStr}` : ''}
+                                           </span>
+                                        )}
+                                     </div>
+                                  </div>
+
+                                  <h4 className="text-base font-bold text-neutral-800 dark:text-white mt-3 leading-snug tracking-tight">
+                                     {act.nombreItem}
+                                  </h4>
+                                  
+                                  {act.descripcion && (
+                                     <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed font-medium">
+                                        {act.descripcion}
+                                     </p>
+                                  )}
+                               </div>
+                            </div>
+                         );
+                      })}
+                   </div>
+                ) : (
+                   <div className="flex items-center gap-4.5 p-5 rounded-3xl bg-neutral-50/50 dark:bg-white/[0.02] border border-dashed border-neutral-300/60 dark:border-white/5 shadow-inner">
+                      <div className="w-10 h-10 rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 flex items-center justify-center text-neutral-400 shrink-0 shadow-sm">
+                         <AlertCircle className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col text-left">
+                         <span className="text-xs font-bold text-neutral-600 dark:text-neutral-300">Sin actividades programadas</span>
+                         <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-semibold mt-0.5 leading-snug uppercase tracking-tight">Este evento se desarrollará en una única sesión general.</span>
+                      </div>
+                   </div>
+                )}
              </div>
 
              {/* Countdown / Status */}
@@ -308,7 +505,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                   <button 
                     onClick={handleRegister}
                     disabled={loadingRegistration}
-                    className="w-full h-16 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_15px_30px_rgba(16,185,129,0.3)] animate-pulse"
+                    className="w-full h-16 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/20 animate-pulse mb-2"
                   >
                     {loadingRegistration ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
@@ -321,56 +518,60 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                   </button>
                 )}
 
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate(`/evento/${evento.idEvento}`);
+                    }}
+                    className="flex-1 sm:flex-[2] h-16 bg-neutral-100/60 hover:bg-neutral-200/60 dark:bg-white/[0.03] dark:hover:bg-white/[0.08] backdrop-blur-md text-neutral-800 dark:text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-neutral-200/40 dark:border-white/5 shadow-sm"
+                  >
+                    <Eye className="w-4 h-4 text-orange-500 shrink-0" />
+                    Detalles Completos
+                  </button>
+
                   {loadingCheck ? (
-                    <div className="flex-[3] h-16 bg-neutral-100 dark:bg-white/5 rounded-2xl flex items-center justify-center border border-neutral-200 dark:border-white/10">
+                    <div className="flex-1 sm:flex-[3] h-16 bg-neutral-100 dark:bg-white/5 rounded-3xl flex items-center justify-center border border-neutral-200 dark:border-white/10">
                       <div className="animate-spin rounded-full h-5 w-5 border-3 border-orange-500 border-t-transparent mr-3" />
-                      <span className="text-xs font-black uppercase text-neutral-400 tracking-widest">Sincronizando...</span>
+                      <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest">Sincronizando...</span>
                     </div>
                   ) : isRegistered ? (
-                    <div className="flex-[3] h-16 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 border border-emerald-500/20 shadow-inner">
-                      <CheckCircle2 className="w-5 h-5" />
+                    <div className="flex-1 sm:flex-[3] h-16 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-500/20 border border-emerald-400/20">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
                       Usuario Inscrito
                     </div>
                   ) : (evento.linkRegistro || evento.formUrl || (evento.formProvider === 'interno' && evento.idFormularioInterno)) && eventStatus !== 'finished' && eventStatus !== 'cancelled' ? (
                     <button 
                       onClick={handleExternalFormClick}
-                      className="flex-[3] h-16 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_15px_30px_rgba(249,115,22,0.3)] hover:scale-[1.02] active:scale-95"
+                      className="flex-1 sm:flex-[3] h-16 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-lg shadow-orange-500/20"
                     >
-                      <Sparkles className="w-5 h-5" />
+                      <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />
                       Inscribirme Ahora
-                      <ArrowRight className="w-5 h-5 ml-1" />
+                      <ArrowRight className="w-4 h-4 ml-0.5 shrink-0" />
                     </button>
                   ) : eventStatus === 'finished' ? (
-                    <div className="flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 border border-dashed border-neutral-300 dark:border-white/10">
-                      <AlertCircle className="w-5 h-5" />
+                    <div className="flex-1 sm:flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 dark:text-neutral-500 font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 border border-dashed border-neutral-300 dark:border-white/10">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
                       Evento Finalizado
                     </div>
                   ) : eventStatus === 'cancelled' ? (
-                    <div className="flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 border border-dashed border-neutral-300 dark:border-white/10">
-                      <AlertCircle className="w-5 h-5" />
+                    <div className="flex-1 sm:flex-[3] h-16 bg-neutral-200 dark:bg-white/10 text-neutral-400 dark:text-neutral-500 font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 border border-dashed border-neutral-300 dark:border-white/10">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
                       Evento Cancelado
                     </div>
                   ) : (
-                    <div className="flex-[3] h-16 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black text-[10px] uppercase tracking-[0.05em] rounded-2xl flex items-center justify-center gap-3 border border-blue-500/20 shadow-inner px-4 text-center">
-                      <Calendar className="w-5 h-5 text-blue-500 shrink-0" />
-                      <span>
-                        No requiere inscripción previa. ¡Te esperamos el{' '}
-                        {new Date(evento.fechaInicial).toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                        })}!
-                      </span>
+                    <div className="flex-1 sm:flex-[3] h-16 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 shadow-lg shadow-blue-500/20">
+                      <Calendar className="w-4 h-4 shrink-0" />
+                      <span>Sin Registro Previo</span>
                     </div>
                   )}
                   
                   <button 
                     onClick={handleShare} 
-                    className="w-16 h-16 rounded-2xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10 text-neutral-600 dark:text-white shadow-sm hover:bg-neutral-50 transition-all hover:scale-110 active:scale-90 flex items-center justify-center"
+                    className="w-full sm:w-16 h-16 rounded-3xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-850 dark:hover:bg-neutral-800 border border-neutral-200/40 dark:border-white/5 text-neutral-600 dark:text-white shadow-sm flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-110 active:scale-95 hover:rotate-12"
                     title="Compartir"
                   >
-                    <Share2 className="w-6 h-6" />
+                    <Share2 className="w-5 h-5" />
                   </button>
                 </div>
              </div>

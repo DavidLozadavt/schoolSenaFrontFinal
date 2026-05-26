@@ -95,6 +95,7 @@ import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage
 import GestionEventos from '@/pages/gestion-eventos/GestionEventos';
 import { EventForm } from '@/pages/gestion-eventos/eventos/EventForm';
 import { EventShowPage } from '@/pages/gestion-eventos/eventos/EventShowPage';
+import { EventPublicShowPage } from '@/pages/gestion-eventos/eventos/EventPublicShowPage';
 import { InvitadoPublic } from '@/pages/gestion-eventos/invitados/InvitadoPublic';
 import FormulariosPage from '@/pages/formularios/FormulariosPage';
 import FormBuilderPage from '@/pages/formularios/builder/FormBuilderPage';
@@ -187,6 +188,7 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/formulario/:slug" element={<FormPublicPage />} />
       <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
+      <Route path="/evento/:id" element={<EventPublicShowPage />} />
       
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
