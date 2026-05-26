@@ -28,6 +28,15 @@ interface EventSelectOption {
   nombre: string;
 }
 
+const inputClasses =
+  'w-full px-4 py-3 text-sm rounded-2xl border border-gray-200 dark:border-zinc-700/80 bg-gray-50/50 dark:bg-zinc-800/50 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 placeholder:text-gray-300 dark:placeholder:text-zinc-600';
+
+const inputWithIconClasses =
+  'w-full pl-11 pr-4 py-3 text-sm rounded-2xl border border-gray-200 dark:border-zinc-700/80 bg-gray-50/50 dark:bg-zinc-800/50 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 placeholder:text-gray-300 dark:placeholder:text-zinc-600';
+
+const labelClasses =
+  'flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 mb-1.5';
+
 export const ModalForm: React.FC<ModalFormProps> = ({ 
   open, 
   onClose, 
@@ -48,7 +57,6 @@ export const ModalForm: React.FC<ModalFormProps> = ({
 
   useEffect(() => {
     if (open) {
-      // Cargar lista de eventos para asociar
       axios
         .get('/eventos-multimedia?per_page=100')
         .then((res) => {
@@ -121,83 +129,183 @@ export const ModalForm: React.FC<ModalFormProps> = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[560px] top-[8%] p-4">
-        <ModalHeader>
-          <ModalTitle>{esEdicion ? 'Editar actividad' : 'Nueva actividad'}</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
-            <KeenIcon icon="cross" />
+      <ModalContent className="max-w-[580px] top-[6%] p-0 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-2xl">
+        {/* Header */}
+        <ModalHeader className="px-7 py-5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/30 dark:bg-zinc-950/20">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/25 transform -rotate-3">
+              <KeenIcon icon={esEdicion ? 'notepad-edit' : 'calendar-add'} className="text-lg" />
+            </div>
+            <div>
+              <ModalTitle className="!text-sm !font-black !uppercase !tracking-wide">
+                {esEdicion ? 'Editar actividad' : 'Nueva actividad'}
+              </ModalTitle>
+              <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase tracking-wider">
+                {esEdicion ? 'Modifica los datos de la actividad' : 'Completa la información de la actividad'}
+              </p>
+            </div>
+          </div>
+          <button
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100/80 dark:bg-zinc-800/80 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-gray-400 hover:text-rose-500 transition-all duration-200 hover:rotate-90 shrink-0"
+            onClick={onClose}
+          >
+            <KeenIcon icon="cross" className="text-sm" />
           </button>
         </ModalHeader>
 
-        <ModalBody className="grid gap-4 px-0 py-5">
-          <div>
-            <label className="block mb-1 text-sm font-medium">
-              Nombre de la actividad <span className="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Registro de asistentes"
-              className="input p-2 border border-gray-300 rounded-md w-full"
-            />
-          </div>
-
-          <div>
-            <label className="block mb-1 text-sm font-medium">Asociar a Evento</label>
-            <select
-              value={idEvento}
-              onChange={(e) => setIdEvento(e.target.value)}
-              className="input p-2 border border-gray-300 rounded-md w-full bg-white dark:bg-zinc-800 text-gray-800 dark:text-white"
-            >
-              <option value="">-- Sin evento (Global) --</option>
-              {eventos.map((e) => (
-                <option key={e.idEvento} value={e.idEvento}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block mb-1 text-sm font-medium">Descripción</label>
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Describe brevemente la actividad…"
-              rows={3}
-              className="input p-2 border border-gray-300 rounded-md w-full resize-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <ModalBody className="px-6 py-5">
+          <div className="flex flex-col gap-6">
+            {/* Activity name */}
             <div>
-              <label className="block mb-1 text-sm font-medium">Fecha y hora de inicio</label>
-              <input
-                type="datetime-local"
-                value={horaInicio}
-                onChange={(e) => setHoraInicio(e.target.value)}
-                className="input p-2 border border-gray-300 rounded-md w-full"
+              <label className={labelClasses}>
+                Nombre de la actividad
+                <span className="text-red-400 text-xs">*</span>
+              </label>
+              <div className="relative">
+                <KeenIcon
+                  icon="text-align-left"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Registro de asistentes, Almuerzo, Premiación..."
+                  className={inputWithIconClasses}
+                />
+              </div>
+            </div>
+
+            {/* Event association */}
+            <div>
+              <label className={labelClasses}>
+                <KeenIcon icon="calendar" className="text-xs" />
+                Asociar a evento
+              </label>
+              <div className="relative">
+                <KeenIcon
+                  icon="calendar-tick"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                />
+                <select
+                  value={idEvento}
+                  onChange={(e) => setIdEvento(e.target.value)}
+                  className={`${inputWithIconClasses} appearance-none cursor-pointer pr-8`}
+                >
+                  <option value="">-- Sin evento (Global) --</option>
+                  {eventos.map((e) => (
+                    <option key={e.idEvento} value={e.idEvento}>
+                      {e.nombre}
+                    </option>
+                  ))}
+                </select>
+                <KeenIcon
+                  icon="down"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className={labelClasses}>
+                <KeenIcon icon="message-text-2" className="text-xs" />
+                Descripción
+              </label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Describe brevemente la actividad…"
+                rows={3}
+                className={`${inputClasses} resize-none`}
               />
             </div>
-            <div>
-              <label className="block mb-1 text-sm font-medium">Fecha y hora de fin</label>
-              <input
-                type="datetime-local"
-                value={horaFin}
-                onChange={(e) => setHoraFin(e.target.value)}
-                className="input p-2 border border-gray-300 rounded-md w-full"
-              />
-            </div>
-          </div>
 
-          <div className="flex justify-end gap-3 mt-2">
-            <button className="btn btn-secondary btn-sm" onClick={onClose}>
-              Cancelar
-            </button>
-            <button className="btn btn-primary btn-sm" disabled={loading} onClick={handleSubmit}>
-              {loading ? 'Guardando…' : esEdicion ? 'Guardar cambios' : 'Crear actividad'}
-            </button>
+            {/* Time section */}
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm transform -rotate-2">
+                  <KeenIcon icon="time" className="text-sm" />
+                </div>
+                <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 dark:text-gray-400">
+                  Programación
+                </h4>
+                <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-0 sm:pl-9">
+                <div>
+                  <label className={labelClasses}>
+                    Fecha y hora de inicio
+                  </label>
+                  <div className="relative">
+                    <KeenIcon
+                      icon="time"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={horaInicio}
+                      onChange={(e) => setHoraInicio(e.target.value)}
+                      className={inputWithIconClasses}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClasses}>
+                    Fecha y hora de fin
+                  </label>
+                  <div className="relative">
+                    <KeenIcon
+                      icon="flag"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={horaFin}
+                      onChange={(e) => setHoraFin(e.target.value)}
+                      className={inputWithIconClasses}
+                    />
+                  </div>
+                </div>
+              </div>
+              {horaInicio && horaFin && (
+                <div className="mt-3 pl-0 sm:pl-9">
+                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-info/5 border border-info/10 text-info text-xs font-medium">
+                    <KeenIcon icon="timer" className="text-sm" />
+                    Duración: {(() => {
+                      const mins = Math.round((new Date(horaFin).getTime() - new Date(horaInicio).getTime()) / 60000);
+                      if (mins < 0) return 'Inválida';
+                      return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins} min`;
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-zinc-800/60">
+              <button
+                className="px-5 h-11 text-[10px] font-black uppercase tracking-[0.15em] rounded-2xl border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all duration-200"
+                onClick={onClose}
+              >
+                Cancelar
+              </button>
+              <button
+                className="flex items-center gap-2 px-6 h-11 text-[10px] font-black uppercase tracking-[0.15em] rounded-2xl bg-orange-500 hover:bg-orange-600 text-white transition-all duration-300 disabled:opacity-60 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95"
+                disabled={loading}
+                onClick={handleSubmit}
+              >
+                <span className="flex items-center gap-2">
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <KeenIcon icon={esEdicion ? 'check' : 'plus'} className="text-sm" />
+                  )}
+                  <span>
+                    {loading ? 'Guardando…' : esEdicion ? 'Guardar cambios' : 'Crear actividad'}
+                  </span>
+                </span>
+              </button>
+            </div>
           </div>
         </ModalBody>
       </ModalContent>

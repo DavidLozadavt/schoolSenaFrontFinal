@@ -79,90 +79,98 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
   const badgeColor = BADGE_COLORS[index % BADGE_COLORS.length];
 
   return (
-    <div className="flex gap-3 sm:gap-5 group">
-      <div className="flex flex-col items-center pt-1" style={{ minWidth: 16 }}>
+    <div className="flex gap-4 sm:gap-6 group">
+      {/* Sleek Connector Pin */}
+      <div className="flex flex-col items-center pt-2 shrink-0 w-8">
         <div
           className={clsx(
-            'w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-white dark:border-zinc-900 shadow-md shrink-0 transition-transform duration-200 group-hover:scale-125',
-            dotColor
+            'w-4 h-4 rounded-full border-[3px] border-white dark:border-zinc-950 shadow-[0_0_10px_rgba(0,0,0,0.1)] shrink-0 transition-all duration-300 group-hover:scale-125 group-hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]',
+            dotColor === 'bg-primary' ? 'bg-orange-500' : dotColor
           )}
         />
         {!isLast && (
-          <div className="w-px flex-1 mt-1.5 bg-gradient-to-b from-gray-300 to-transparent dark:from-zinc-600" />
+          <div className="w-[2px] flex-1 mt-2.5 bg-gradient-to-b from-gray-200 dark:from-zinc-800 to-transparent" />
         )}
       </div>
 
-      <div className="card flex-1 mb-5 border border-gray-200 dark:border-zinc-700 transition-all duration-200 hover:shadow-md">
-        <div className="card-body py-3 px-4 sm:py-4 sm:px-5">
-          <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={clsx('badge badge-outline text-xs font-semibold', badgeColor)}>
-                #{String(index + 1).padStart(2, '0')}
-              </span>
-              {item.hora_inicio && (
-                <span className="text-xs text-gray-400 font-medium hidden sm:inline">
-                  {fmtFechaHora(item.hora_inicio)}
+      {/* Premium Content Box */}
+      <div className="flex-1 mb-6 bg-white dark:bg-zinc-900/90 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col sm:flex-row items-stretch">
+        <div className="p-6 flex-1 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+              <div className="flex items-center gap-2.5">
+                <span className={clsx('px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400')}>
+                  Actividad #{String(index + 1).padStart(2, '0')}
                 </span>
-              )}
+                {item.hora_inicio && (
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-800/40 px-2 py-0.5 rounded-lg">
+                    <KeenIcon icon="calendar" className="text-sm" />
+                    {fmtFechaHora(item.hora_inicio)}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                className="btn btn-xs btn-icon btn-light-primary"
-                title="Ver estado de invitados"
-                onClick={() => onVerEstado(item.id)}
-              >
-                <KeenIcon icon="people" />
-              </button>
-              <button
-                className="btn btn-xs btn-icon btn-light"
-                title="Editar"
-                onClick={() => onEditar(item)}
-              >
-                <KeenIcon icon="pencil" />
-              </button>
-              <button
-                className="btn btn-xs btn-icon btn-light-danger"
-                title="Eliminar"
-                onClick={() => onEliminar(item.id)}
-              >
-                <KeenIcon icon="trash" />
-              </button>
-            </div>
+            <h4 className="text-base sm:text-lg font-black text-neutral-800 dark:text-white leading-tight uppercase italic tracking-wide group-hover:text-orange-500 transition-colors">
+              {item.nombreItem}
+            </h4>
+
+            {item.descripcion && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2.5 leading-relaxed font-medium italic pl-3 border-l-2 border-orange-500/20 max-w-xl">
+                {item.descripcion}
+              </p>
+            )}
           </div>
 
-          <h5 className="text-sm sm:text-base font-semibold mt-2.5 text-gray-800 dark:text-white leading-tight">
-            {item.nombreItem}
-          </h5>
-
-          {item.descripcion && (
-            <p className="text-xs sm:text-sm text-gray-500 mt-1.5 leading-relaxed line-clamp-2">
-              {item.descripcion}
-            </p>
-          )}
-
           {(item.hora_inicio || item.hora_fin || dur > 0) && (
-            <div className="flex flex-wrap gap-3 sm:gap-4 mt-3 pt-3 border-t border-gray-100 dark:border-zinc-700 text-xs text-gray-500">
+            <div className="flex flex-wrap gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800/60">
               {item.hora_inicio && (
-                <span className="flex items-center gap-1.5">
-                  <KeenIcon icon="time" className="text-primary text-sm" />
-                  Inicio: {fmtHora(item.hora_inicio)}
+                <span className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+                  <KeenIcon icon="time" className="text-sm shrink-0" />
+                  <span className="font-black text-[9px] uppercase tracking-[0.1em]">Inicio: {fmtHora(item.hora_inicio)}</span>
                 </span>
               )}
               {item.hora_fin && (
-                <span className="flex items-center gap-1.5">
-                  <KeenIcon icon="flag" className="text-danger text-sm" />
-                  Fin: {fmtHora(item.hora_fin)}
+                <span className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                  <KeenIcon icon="flag" className="text-sm shrink-0" />
+                  <span className="font-black text-[9px] uppercase tracking-[0.1em]">Fin: {fmtHora(item.hora_fin)}</span>
                 </span>
               )}
               {dur > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <KeenIcon icon="timer" className="text-warning text-sm" />
-                  {dur >= 60 ? `${Math.floor(dur / 60)}h ${dur % 60}min` : `${dur} min`}
+                <span className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                  <KeenIcon icon="timer" className="text-sm shrink-0" />
+                  <span className="font-black text-[9px] uppercase tracking-[0.1em]">{dur >= 60 ? `${Math.floor(dur / 60)}h ${dur % 60}m` : `${dur} min`}</span>
                 </span>
               )}
             </div>
           )}
+        </div>
+
+        {/* Dynamic Action Buttons Sidebar */}
+        <div className="bg-gray-50/50 dark:bg-black/10 px-5 py-4 sm:py-0 border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-zinc-800 flex sm:flex-col justify-center gap-3 shrink-0">
+          <button
+            className="flex-1 sm:flex-initial group/btn relative h-10 w-full sm:w-11 bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center rounded-xl shadow-md transition-all hover:scale-[1.05] active:scale-95"
+            title="Ver estado de invitados"
+            onClick={() => onVerEstado(item.id)}
+          >
+            <KeenIcon icon="people" className="text-lg" />
+          </button>
+          
+          <button
+            className="flex-1 sm:flex-initial group/btn relative h-10 w-full sm:w-11 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-orange-500 hover:text-white flex items-center justify-center rounded-xl border border-gray-200 dark:border-zinc-700 transition-all hover:scale-[1.05] active:scale-95"
+            title="Editar"
+            onClick={() => onEditar(item)}
+          >
+            <KeenIcon icon="pencil" className="text-lg" />
+          </button>
+
+          <button
+            className="flex-1 sm:flex-initial group/btn relative h-10 w-full sm:w-11 bg-rose-50/50 dark:bg-rose-950/20 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-100 dark:border-rose-950/30 flex items-center justify-center rounded-xl transition-all hover:scale-[1.05] active:scale-95"
+            title="Eliminar"
+            onClick={() => onEliminar(item.id)}
+          >
+            <KeenIcon icon="trash" className="text-lg" />
+          </button>
         </div>
       </div>
     </div>
@@ -273,50 +281,59 @@ export const ActividadesTab: React.FC = () => {
   };
 
   return (
-    <div>
-      {/* stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
-        <div className="card border border-gray-200 dark:border-zinc-700">
-          <div className="card-body py-3 sm:py-4 px-4 sm:px-5 flex items-center gap-3 sm:gap-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <KeenIcon icon="calendar-tick" className="text-primary text-lg sm:text-xl" />
+    <div className="py-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-[0_10px_20px_rgba(249,115,22,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
+              <KeenIcon icon="calendar-tick" className="text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
-                {items.length}
-              </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Total Actividades">Total Actividades</p>
+              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">{items.length}</p>
             </div>
           </div>
         </div>
 
-        <div className="card border border-gray-200 dark:border-zinc-700">
-          <div className="card-body py-3 sm:py-4 px-4 sm:px-5 flex items-center gap-3 sm:gap-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
-              <KeenIcon icon="timer" className="text-warning text-lg sm:text-xl" />
+        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-warning text-white flex items-center justify-center shadow-[0_10px_20px_rgba(245,158,11,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
+              <KeenIcon icon="timer" className="text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                Duración total
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Duración Total">Duración Total</p>
+              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
                 {Math.floor(totalMinutos / 60)}h {totalMinutos % 60}m
               </p>
             </div>
           </div>
         </div>
 
-        <div className="card border border-gray-200 dark:border-zinc-700 sm:col-span-2 lg:col-span-1">
-          <div className="card-body py-3 sm:py-4 px-4 sm:px-5 flex items-center gap-3 sm:gap-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
-              <KeenIcon icon="people" className="text-info text-lg sm:text-xl" />
+        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-info text-white flex items-center justify-center shadow-[0_10px_20px_rgba(6,182,212,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
+              <KeenIcon icon="time" className="text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                Con horario
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Con Horario">Con Horario</p>
+              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
                 {items.filter((i) => i.hora_inicio).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-success text-white flex items-center justify-center shadow-[0_10px_20px_rgba(16,185,129,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
+              <KeenIcon icon="verify" className="text-xl" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Programadas">Programadas</p>
+              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
+                {items.filter((i) => i.hora_inicio).length > 0
+                  ? Math.round((items.filter((i) => i.hora_inicio).length / items.length) * 100)
+                  : 0}%
               </p>
             </div>
           </div>
@@ -324,45 +341,49 @@ export const ActividadesTab: React.FC = () => {
       </div>
 
       {/* barra de acciones */}
-      <div className="card mb-6 border border-gray-200 dark:border-zinc-700">
-        <div className="card-body py-3 px-4 sm:px-5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[160px]">
-              <KeenIcon
-                icon="magnifier"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
-              />
-              <input
-                type="text"
-                placeholder="Buscar actividad…"
-                value={buscar}
-                onChange={(e) => setBuscar(e.target.value)}
-                className="input input-sm pl-9 rounded w-full"
-              />
-            </div>
-            <div className="relative flex-1 min-w-[200px]">
-              <select
-                value={idEventoSeleccionado}
-                onChange={(e) => setIdEventoSeleccionado(e.target.value)}
-                className="select select-sm rounded w-full bg-white dark:bg-zinc-800 text-gray-800 dark:text-white"
-              >
-                <option value="">-- Todos los eventos (Global) --</option>
-                {eventos.map((e) => (
-                  <option key={e.idEvento} value={e.idEvento}>
-                    {e.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              className="btn btn-sm btn-primary flex items-center gap-2 shrink-0"
-              onClick={handleNuevo}
-            >
-              <KeenIcon icon="plus" />
-              <span className="hidden xs:inline">Nueva actividad</span>
-              <span className="xs:hidden">Nueva</span>
-            </button>
+      <div className="bg-white dark:bg-zinc-900/90 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-sm p-6 mb-8">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="relative flex-1 min-w-[240px]">
+            <KeenIcon
+              icon="magnifier"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+            />
+            <input
+              type="text"
+              placeholder="Buscar actividad por nombre o descripción…"
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
+            />
           </div>
+          <div className="relative flex-1 min-w-[260px]">
+            <select
+              value={idEventoSeleccionado}
+              onChange={(e) => setIdEventoSeleccionado(e.target.value)}
+              className="w-full pl-4 pr-10 py-3 text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 appearance-none cursor-pointer"
+            >
+              <option value="">-- Todos los eventos (Global) --</option>
+              {eventos.map((e) => (
+                <option key={e.idEvento} value={e.idEvento}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+            <KeenIcon
+              icon="down"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-450 pointer-events-none text-xs"
+            />
+          </div>
+          <button
+            className="group/btn relative h-12 px-6 bg-orange-500 text-white font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto"
+            onClick={handleNuevo}
+          >
+            <div className="absolute inset-0 bg-orange-600 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+            <div className="relative z-10 flex items-center gap-2">
+              <KeenIcon icon="plus" className="text-base group-hover/btn:scale-110 transition-transform" />
+              <span className="text-[10px] uppercase tracking-[0.2em] font-black">Nueva actividad</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -370,7 +391,7 @@ export const ActividadesTab: React.FC = () => {
       {loading ? (
         <div className="flex items-center justify-center py-16 text-gray-400">
           <KeenIcon icon="loading" className="animate-spin text-2xl mr-2" />
-          Cargando actividades…
+          <span>Cargando actividades…</span>
         </div>
       ) : itemsFiltrados.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">

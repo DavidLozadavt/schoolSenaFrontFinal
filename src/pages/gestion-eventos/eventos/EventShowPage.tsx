@@ -74,6 +74,32 @@ export const EventShowPage = () => {
     return `${backendUrl}${normalizedUrl}`;
   };
 
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    let [hoursStr, minutesStr] = parts;
+    let hours = parseInt(hoursStr, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const formatDateSpanish = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const cleanDate = dateStr.split(' ')[0].split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const monthNames = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    return `${day} ${monthNames[monthIdx] || month}, ${year}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -185,6 +211,10 @@ export const EventShowPage = () => {
                   
                   <div className="relative pl-6 border-l-2 border-orange-500/30 space-y-8">
                     {actividades.map((act, index) => {
+                      const actDate = act.hora_inicio ? new Date(act.hora_inicio) : null;
+                      const actDateStr = actDate 
+                        ? actDate.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+                        : '';
                       const dur = act.hora_inicio && act.hora_fin
                         ? Math.max(0, Math.round((new Date(act.hora_fin).getTime() - new Date(act.hora_inicio).getTime()) / 60000))
                         : 0;
@@ -206,13 +236,21 @@ export const EventShowPage = () => {
                               <span className="text-xs font-bold text-orange-500 tracking-wider uppercase">
                                 Actividad #{index + 1}
                               </span>
-                              {(startStr || endStr) && (
-                                <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500 flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  {startStr} {endStr ? `- ${endStr}` : ''}
-                                  {dur > 0 && ` (${dur} min)`}
-                                </span>
-                              )}
+                              <div className="flex flex-wrap gap-2">
+                                 {actDateStr && (
+                                   <span className="text-[9px] font-black text-neutral-400 dark:text-neutral-500 uppercase flex items-center gap-1.5 bg-white dark:bg-neutral-850 px-2.5 py-1 rounded-lg border border-neutral-200/30 dark:border-white/5 shadow-sm">
+                                      <Calendar className="w-3 h-3 text-orange-500" />
+                                      {actDateStr}
+                                   </span>
+                                 )}
+                                 {(startStr || endStr) && (
+                                   <span className="text-[9px] font-black text-neutral-400 dark:text-neutral-500 uppercase flex items-center gap-1.5 bg-white dark:bg-neutral-850 px-2.5 py-1 rounded-lg border border-neutral-200/30 dark:border-white/5 shadow-sm">
+                                      <Clock className="w-3 h-3 text-rose-500" />
+                                      {startStr} {endStr ? `- ${endStr}` : ''}
+                                      {dur > 0 && ` (${dur} min)`}
+                                   </span>
+                                 )}
+                              </div>
                             </div>
 
                             <h4 className="text-base font-bold text-neutral-800 dark:text-white mt-2 leading-snug">
@@ -259,26 +297,21 @@ export const EventShowPage = () => {
                     <Calendar className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Fecha</p>
+                    <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Inicio del Evento</p>
                     <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-                      {new Date(evento.fechaInicial).toLocaleDateString('es-ES', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+                      {formatDateSpanish(evento.fechaInicial)} a las {formatTime(evento.hora)}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-500/10 shrink-0">
-                    <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-500/10 shrink-0">
+                    <Calendar className="w-6 h-6 text-rose-600 dark:text-rose-400" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Horario</p>
+                    <p className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Finalización</p>
                     <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-                      {evento.hora} {evento.hora_final ? `- ${evento.hora_final}` : ''}
+                      {formatDateSpanish(evento.fechaFinal || evento.fechaInicial)} a las {evento.hora_final ? formatTime(evento.hora_final) : 'TBD'}
                     </p>
                   </div>
                 </div>

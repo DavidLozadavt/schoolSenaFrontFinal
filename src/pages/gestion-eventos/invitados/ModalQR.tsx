@@ -110,16 +110,16 @@ export const ModalQR: React.FC<ModalQRProps> = ({
         <>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+            className="px-5 h-11 text-[10px] font-black uppercase tracking-[0.15em] rounded-2xl border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all duration-200"
           >
             Cerrar
           </button>
           <button
             onClick={imprimirQr}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg bg-primary hover:bg-primary/90 text-white transition-colors"
+            className="flex items-center gap-2 px-5 h-11 text-[10px] font-black uppercase tracking-[0.15em] rounded-2xl bg-orange-500 hover:bg-orange-600 text-white transition-all duration-300 shadow-lg shadow-orange-500/25 hover:scale-[1.02] active:scale-95"
           >
             <KeenIcon icon="printer" className="text-base" />
-            Imprimir
+            <span>Imprimir</span>
           </button>
         </>
       }

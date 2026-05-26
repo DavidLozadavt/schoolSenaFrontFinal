@@ -1,6 +1,9 @@
 import { useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
+import { QRCodeCanvas } from 'qrcode.react';
+import html2canvas from 'html2canvas';
+import { Download, QrCode, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface Hermano {
   nombre: string;
@@ -41,6 +44,30 @@ export const InvitadoPublic: React.FC = () => {
   const [items, setItems] = useState<ItemActividad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showTicket, setShowTicket] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const ticketRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadTicket = async () => {
+    if (!ticketRef.current) return;
+    try {
+      setDownloading(true);
+      const canvas = await html2canvas(ticketRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#18181b' // dark zinc-900 background
+      });
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      const link = document.createElement('a');
+      link.download = `Pase_${hermano?.nombre?.replace(/\s+/g, '_') || 'Invitado'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Error rendering ticket card:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const cargar = async () => {
@@ -107,6 +134,81 @@ export const InvitadoPublic: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-gray-100 dark:bg-zinc-900 flex justify-center px-3 sm:px-6 py-6">
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-xl flex flex-col gap-4">
+        {/* Ticket Digital QR del Invitado */}
+        <div className="bg-gradient-to-r from-orange-500 to-rose-600 rounded-3xl p-6 text-white shadow-xl flex flex-col gap-4 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+          <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-orange-200 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-orange-100">Credencial Oficial</span>
+            </div>
+            <button
+              onClick={() => setShowTicket(!showTicket)}
+              className="text-[10px] font-black uppercase tracking-widest bg-white/20 hover:bg-white/30 px-3.5 py-1.5 rounded-xl transition-all"
+            >
+              {showTicket ? 'Ocultar Pase' : 'Ver Pase QR'}
+            </button>
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center">
+            <h2 className="text-xl font-black italic tracking-tighter text-center uppercase">
+              {hermano.nombre}
+            </h2>
+            <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mt-1">
+              {hermano.email || 'Invitado Registrado'}
+            </p>
+          </div>
+
+          {showTicket && (
+            <div className="flex flex-col items-center gap-5 mt-4 p-5 rounded-2xl bg-white/95 text-neutral-900 border border-white/20 animate-zoom-in relative z-10 shadow-2xl">
+              {/* Captured card container for html2canvas */}
+              <div 
+                ref={ticketRef} 
+                className="w-full max-w-[280px] bg-zinc-900 text-white rounded-3xl p-6 flex flex-col items-center gap-4 text-center border border-white/10 shadow-2xl"
+              >
+                <div className="flex items-center gap-2 mb-1 justify-center">
+                  <ShieldCheck className="w-4 h-4 text-orange-500" />
+                  <span className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em]">Pase de Entrada</span>
+                </div>
+                
+                <h3 className="text-lg font-black tracking-tight text-white uppercase italic leading-none">{hermano.nombre}</h3>
+                
+                <div className="p-3 bg-white rounded-2xl shadow-xl flex items-center justify-center">
+                  <QRCodeCanvas 
+                    value={`${window.location.origin}/invitado/${token}`} 
+                    size={160} 
+                    level="H" 
+                  />
+                </div>
+                
+                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
+                  Presenta este QR en la entrada del evento para confirmar asistencia
+                </p>
+              </div>
+
+              <button
+                onClick={handleDownloadTicket}
+                disabled={downloading}
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20 active:scale-95"
+              >
+                {downloading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                    Generando imagen...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Guardar en Galería (PNG)
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm p-4 sm:p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-semibold text-sm sm:text-base shrink-0">
