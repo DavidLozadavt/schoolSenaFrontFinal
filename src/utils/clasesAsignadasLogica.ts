@@ -122,6 +122,9 @@ export type ClaseAsignadaClaveLogica = {
   jornada_nombre: string;
   jornada_tipo: string;
   idHorarioMateria: number;
+  fechaInicial?: string | null;
+  fechaFinal?: string | null;
+  sesiones_restantes?: number;
 };
 
 /** Igual que `FichaController::horaClaveClaseAsignada` (primer HH:mm en la cadena; si no, 5 primeros caracteres). */
@@ -168,13 +171,48 @@ export function dedupeClasesPorIdHorarioMateria<T extends { idHorarioMateria: nu
   return Array.from(m.values());
 }
 
-export function dedupeClasesAsignadasInstructorPorClaveLogica<T extends ClaseAsignadaClaveLogica>(lista: T[]): T[] {
+/**
+ * Al deduplicar por slot (ficha + día + franja), prioriza la franja vigente hoy
+ * y la de fechaFinal más reciente — no el menor idHorarioMateria (suele ser el RAP vencido).
+ */
+export function puntajeClaseParaDedupeInstructor(
+  c: Pick<ClaseAsignadaClaveLogica, 'fechaInicial' | 'fechaFinal' | 'sesiones_restantes' | 'idHorarioMateria'>,
+  ref: Date = new Date()
+): number {
+  const hoy = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  hoy.setHours(0, 0, 0, 0);
+
+  let score = 0;
+  const ini = c.fechaInicial?.trim() ? parseFechaYmdLocal(c.fechaInicial) : null;
+  const fin = c.fechaFinal?.trim() ? parseFechaYmdLocal(c.fechaFinal) : null;
+  if (ini) ini.setHours(0, 0, 0, 0);
+  if (fin) fin.setHours(0, 0, 0, 0);
+
+  if (ini && fin && ini.getTime() <= hoy.getTime() && fin.getTime() >= hoy.getTime()) {
+    score += 1_000_000_000;
+  }
+
+  const rest = Number(c.sesiones_restantes);
+  if (Number.isFinite(rest) && rest > 0) {
+    score += 100_000_000;
+  }
+
+  if (fin) score += fin.getTime();
+  score += Number(c.idHorarioMateria) || 0;
+
+  return score;
+}
+
+export function dedupeClasesAsignadasInstructorPorClaveLogica<T extends ClaseAsignadaClaveLogica>(
+  lista: T[],
+  ref: Date = new Date()
+): T[] {
   const porPk = dedupeClasesPorIdHorarioMateria(lista);
   const map = new Map<string, T>();
   for (const c of porPk) {
     const key = claveLogicaClaseAsignadaInstructor(c);
     const prev = map.get(key);
-    if (!prev || c.idHorarioMateria < prev.idHorarioMateria) {
+    if (!prev || puntajeClaseParaDedupeInstructor(c, ref) > puntajeClaseParaDedupeInstructor(prev, ref)) {
       map.set(key, c);
     }
   }
@@ -1532,6 +1570,33 @@ function claveOcurrenciaSesionHistorial(
   return `${idHorarioMateria}|${ymd ?? ''}|${n}`;
 }
 
+/** Misma franja (ficha+día+horas): titular y clon compartido cuentan como una sesión. */
+function claveLogicaSesionHistorial(
+  clase: { ficha_id?: number; idDia?: number; horaInicial?: string; horaFinal?: string; idHorarioMateria?: number },
+  sesion: { fechaSesion?: unknown; numeroSesion?: number }
+): string {
+  const ymd = ymdFromFechaSesion(sesion.fechaSesion);
+  const n = sesion.numeroSesion ?? '';
+  const ficha = Number(clase.ficha_id ?? 0);
+  const idDia = Number(clase.idDia ?? 0);
+  const hi = horaClaveClaseAsignada(String(clase.horaInicial ?? ''));
+  const hf = horaClaveClaseAsignada(String(clase.horaFinal ?? ''));
+  if (ficha > 0 && idDia > 0 && hi && hf && ymd) {
+    return `slot:${ficha}|${idDia}|${hi}|${hf}|${ymd}|${n}`;
+  }
+  const idHm = Number(clase.idHorarioMateria);
+  return claveOcurrenciaSesionHistorial(Number.isFinite(idHm) ? idHm : 0, sesion);
+}
+
+function puntajeClaseHistorialCompletado(
+  clase: { modalidad_rap?: string | null; instructores_rap?: unknown[] }
+): number {
+  let score = 0;
+  if (clase.modalidad_rap === 'COMPARTIDO') score += 1000;
+  if (Array.isArray(clase.instructores_rap) && clase.instructores_rap.length > 1) score += 100;
+  return score;
+}
+
 /**
  * Misma unión que Mis formaciones → Completado: historial API + `sesiones_completadas` de clases-asignadas.
  */
@@ -1559,8 +1624,15 @@ export function fusionarSesionesCompletadasHistorial<
       fechaSesion: ymd,
       numeroSesion: sesion.numeroSesion
     };
-    const key = claveOcurrenciaSesionHistorial(idHm, norm);
-    if (!porClave.has(key)) {
+    const key = claveLogicaSesionHistorial(clase as { ficha_id?: number; idDia?: number; horaInicial?: string; horaFinal?: string; idHorarioMateria?: number }, norm);
+    const prev = porClave.get(key);
+    if (!prev) {
+      porClave.set(key, { clase: clase as TClase, sesion: norm });
+      return;
+    }
+    const scorePrev = puntajeClaseHistorialCompletado(prev.clase as { modalidad_rap?: string | null; instructores_rap?: unknown[] });
+    const scoreNew = puntajeClaseHistorialCompletado(clase as { modalidad_rap?: string | null; instructores_rap?: unknown[] });
+    if (scoreNew > scorePrev) {
       porClave.set(key, { clase: clase as TClase, sesion: norm });
     }
   };
@@ -1618,4 +1690,99 @@ export async function fetchClasesAsignadasInstructor(
   return dedupeClasesAsignadasInstructorPorClaveLogica(
     list.map((row) => normalizarClaseAsignadaInstructorDesdeApi(row as Record<string, unknown>))
   );
+}
+
+// ─── Modalidad RAP: compartido / reemplazo ────────────────────
+
+export type InstructorRapAsociado = {
+  idContrato: number;
+  nombre: string;
+  rutaFotoUrl: string | null;
+  rol: 'titular' | 'reemplazante' | 'compartido';
+};
+
+export type ModalidadRapInfo = {
+  tipo_asignacion?: string | null;
+  modalidad_rap?: string | null;
+  asignacion_vigente?: boolean;
+  reemplazo_vigente_por_otro?: boolean;
+  es_reemplazante?: boolean;
+  instructores_rap?: InstructorRapAsociado[];
+  contrato_id?: number;
+};
+
+/** Hay reemplazo vigente visible en listados (titular o reemplazante). */
+export function reemplazoActivoEnClase(m: ModalidadRapInfo | null | undefined): boolean {
+  if (!m) return false;
+  return (
+    m.modalidad_rap === 'REEMPLAZO' ||
+    !!m.es_reemplazante ||
+    !!m.reemplazo_vigente_por_otro ||
+    (m.tipo_asignacion === 'REEMPLAZO' && !!m.asignacion_vigente)
+  );
+}
+
+/** Nombre del otro instructor en reemplazo (titular ↔ reemplazante). */
+export function nombreOtroInstructorReemplazo(
+  clase: ModalidadRapInfo & { contrato_id?: number; instructor_nombre?: string | null }
+): string {
+  const instructores = clase.instructores_rap ?? [];
+  const otroPorContrato = instructores.find((i) => i.idContrato !== clase.contrato_id)?.nombre?.trim() ?? '';
+
+  if (clase.es_reemplazante || clase.modalidad_rap === 'REEMPLAZO') {
+    return (
+      instructores.find((i) => i.rol === 'titular')?.nombre?.trim() ||
+      otroPorContrato
+    );
+  }
+  if (clase.reemplazo_vigente_por_otro || (clase.tipo_asignacion === 'REEMPLAZO' && clase.asignacion_vigente)) {
+    return (
+      instructores.find((i) => i.rol === 'reemplazante')?.nombre?.trim() ||
+      otroPorContrato
+    );
+  }
+  return otroPorContrato;
+}
+
+export function normalizarInstructoresRapApi(raw: unknown): InstructorRapAsociado[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): InstructorRapAsociado | null => {
+      if (!item || typeof item !== 'object') return null;
+      const o = item as Record<string, unknown>;
+      const id = Number(o.idContrato);
+      if (!Number.isFinite(id) || id <= 0) return null;
+      const rolRaw = String(o.rol ?? 'titular');
+      const rol: InstructorRapAsociado['rol'] =
+        rolRaw === 'reemplazante' || rolRaw === 'compartido' || rolRaw === 'titular'
+          ? rolRaw : 'titular';
+      return {
+        idContrato: id,
+        nombre: String(o.nombre ?? 'Instructor'),
+        rutaFotoUrl: o.rutaFotoUrl != null && String(o.rutaFotoUrl).trim() !== '' ? String(o.rutaFotoUrl) : null,
+        rol
+      };
+    })
+    .filter((x): x is InstructorRapAsociado => x !== null);
+}
+
+export function instructoresVisiblesEnCurso(m: ModalidadRapInfo | null | undefined): InstructorRapAsociado[] {
+  const list = m?.instructores_rap ?? [];
+  if (list.length === 0) return [];
+  if (m?.modalidad_rap === 'COMPARTIDO' || reemplazoActivoEnClase(m)) return list.slice(0, 2);
+  return list.slice(0, 1);
+}
+
+/** Texto «Calificado por» en sesiones completadas (compartido → ambos instructores). */
+export function nombresInstructoresCalificacion(
+  clase: ModalidadRapInfo & { instructor_nombre?: string | null }
+): string {
+  if (clase.modalidad_rap === 'COMPARTIDO' || reemplazoActivoEnClase(clase)) {
+    const nombres = (clase.instructores_rap ?? [])
+      .map((i) => String(i.nombre ?? '').trim())
+      .filter((n) => n.length > 0);
+    if (nombres.length >= 2) return nombres.slice(0, 2).join(' y ');
+    if (nombres.length === 1) return nombres[0];
+  }
+  return String(clase.instructor_nombre ?? '').trim();
 }
