@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { KeenIcon } from '@/components';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import axios from 'axios';
@@ -54,6 +54,19 @@ export const ModalForm: React.FC<ModalFormProps> = ({
   const [idEvento, setIdEvento] = useState<number | string>('');
   const [eventos, setEventos] = useState<EventSelectOption[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const [isOpenEventSelect, setIsOpenEventSelect] = useState(false);
+  const eventSelectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (eventSelectRef.current && !eventSelectRef.current.contains(event.target as Node)) {
+        setIsOpenEventSelect(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -129,9 +142,9 @@ export const ModalForm: React.FC<ModalFormProps> = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[580px] top-[6%] p-0 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-2xl">
+      <ModalContent className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[580px] p-0 rounded-2xl overflow-visible border border-gray-100 dark:border-zinc-800 shadow-2xl">
         {/* Header */}
-        <ModalHeader className="px-7 py-5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/30 dark:bg-zinc-950/20">
+        <ModalHeader className="px-7 py-5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/30 dark:bg-zinc-950/20 rounded-t-2xl">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/25 transform -rotate-3">
               <KeenIcon icon={esEdicion ? 'notepad-edit' : 'calendar-add'} className="text-lg" />
@@ -153,7 +166,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
           </button>
         </ModalHeader>
 
-        <ModalBody className="px-6 py-5">
+        <ModalBody className="px-6 py-5 overflow-y-auto max-h-[68vh] pr-2 no-scrollbar">
           <div className="flex flex-col gap-6">
             {/* Activity name */}
             <div>
@@ -177,7 +190,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
             </div>
 
             {/* Event association */}
-            <div>
+            <div ref={eventSelectRef} className="relative">
               <label className={labelClasses}>
                 <KeenIcon icon="calendar" className="text-xs" />
                 Asociar a evento
@@ -187,23 +200,60 @@ export const ModalForm: React.FC<ModalFormProps> = ({
                   icon="calendar-tick"
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
                 />
-                <select
-                  value={idEvento}
-                  onChange={(e) => setIdEvento(e.target.value)}
-                  className={`${inputWithIconClasses} appearance-none cursor-pointer pr-8`}
+                <button
+                  type="button"
+                  onClick={() => setIsOpenEventSelect(!isOpenEventSelect)}
+                  className={`${inputWithIconClasses} text-left appearance-none cursor-pointer pr-10 flex items-center justify-between`}
                 >
-                  <option value="">-- Sin evento (Global) --</option>
-                  {eventos.map((e) => (
-                    <option key={e.idEvento} value={e.idEvento}>
-                      {e.nombre}
-                    </option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {idEvento 
+                      ? eventos.find(e => String(e.idEvento) === String(idEvento))?.nombre || '-- Sin evento (Global) --'
+                      : '-- Sin evento (Global) --'}
+                  </span>
+                </button>
                 <KeenIcon
                   icon="down"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"
+                  className={`absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none transition-transform duration-200 ${isOpenEventSelect ? 'rotate-180' : ''}`}
                 />
               </div>
+
+              {isOpenEventSelect && (
+                <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800/80 shadow-2xl max-h-48 overflow-y-auto no-scrollbar animate-fade-in">
+                  <div className="p-1.5 flex flex-col gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdEvento('');
+                        setIsOpenEventSelect(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 text-sm rounded-xl transition-all duration-150 ${
+                        idEvento === ''
+                          ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 font-bold'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60'
+                      }`}
+                    >
+                      -- Sin evento (Global) --
+                    </button>
+                    {eventos.map((e) => (
+                      <button
+                        key={e.idEvento}
+                        type="button"
+                        onClick={() => {
+                          setIdEvento(e.idEvento);
+                          setIsOpenEventSelect(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 text-sm rounded-xl transition-all duration-150 truncate ${
+                          String(idEvento) === String(e.idEvento)
+                            ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 font-bold'
+                            : 'text-gray-750 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        {e.nombre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Description */}
@@ -232,44 +282,105 @@ export const ModalForm: React.FC<ModalFormProps> = ({
                 </h4>
                 <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-0 sm:pl-9">
-                <div>
-                  <label className={labelClasses}>
-                    Fecha y hora de inicio
-                  </label>
-                  <div className="relative">
-                    <KeenIcon
-                      icon="time"
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={horaInicio}
-                      onChange={(e) => setHoraInicio(e.target.value)}
-                      className={inputWithIconClasses}
-                    />
+              
+              <div className="flex flex-col gap-5 pl-0 sm:pl-9">
+                {/* Inicio */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block mb-0.5">
+                      Inicio de la Actividad
+                    </span>
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Fecha</label>
+                    <div className="relative">
+                      <KeenIcon
+                        icon="calendar"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                      />
+                      <input
+                        type="date"
+                        value={horaInicio ? horaInicio.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const timePart = horaInicio && horaInicio.includes('T') ? horaInicio.split('T')[1] : '00:00';
+                          setHoraInicio(val ? `${val}T${timePart}` : '');
+                        }}
+                        className={inputWithIconClasses}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Hora</label>
+                    <div className="relative">
+                      <KeenIcon
+                        icon="time"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                      />
+                      <input
+                        type="time"
+                        value={horaInicio && horaInicio.includes('T') ? horaInicio.split('T')[1] : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const datePart = horaInicio ? horaInicio.split('T')[0] : new Date().toISOString().split('T')[0];
+                          setHoraInicio(val ? `${datePart}T${val}` : '');
+                        }}
+                        className={inputWithIconClasses}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className={labelClasses}>
-                    Fecha y hora de fin
-                  </label>
-                  <div className="relative">
-                    <KeenIcon
-                      icon="flag"
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={horaFin}
-                      onChange={(e) => setHoraFin(e.target.value)}
-                      className={inputWithIconClasses}
-                    />
+
+                {/* Fin */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-dashed border-gray-150 dark:border-zinc-800/80">
+                  <div className="sm:col-span-2">
+                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest block mb-0.5">
+                      Fin de la Actividad
+                    </span>
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Fecha</label>
+                    <div className="relative">
+                      <KeenIcon
+                        icon="calendar"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                      />
+                      <input
+                        type="date"
+                        value={horaFin ? horaFin.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const timePart = horaFin && horaFin.includes('T') ? horaFin.split('T')[1] : '00:00';
+                          setHoraFin(val ? `${val}T${timePart}` : '');
+                        }}
+                        className={inputWithIconClasses}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Hora</label>
+                    <div className="relative">
+                      <KeenIcon
+                        icon="time"
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                      />
+                      <input
+                        type="time"
+                        value={horaFin && horaFin.includes('T') ? horaFin.split('T')[1] : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const datePart = horaFin ? horaFin.split('T')[0] : new Date().toISOString().split('T')[0];
+                          setHoraFin(val ? `${datePart}T${val}` : '');
+                        }}
+                        className={inputWithIconClasses}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
+              
               {horaInicio && horaFin && (
-                <div className="mt-3 pl-0 sm:pl-9">
+                <div className="mt-4 pl-0 sm:pl-9">
                   <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-info/5 border border-info/10 text-info text-xs font-medium">
                     <KeenIcon icon="timer" className="text-sm" />
                     Duración: {(() => {

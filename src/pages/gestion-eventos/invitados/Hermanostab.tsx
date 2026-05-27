@@ -121,8 +121,9 @@ export const HermanosTab: React.FC = () => {
 
   const guardarQrImagen = useCallback(async (h: Hermano) => {
     try {
+      setHermanoSel(h);
       setGuardandoQrId(h.id);
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 450));
       if (!captureRef.current) throw new Error('ref vacío');
       const canvas = await html2canvas(captureRef.current, { scale: 2, useCORS: true });
       const image = canvas.toDataURL('image/png');
@@ -133,6 +134,7 @@ export const HermanosTab: React.FC = () => {
       notif('Error al guardar el QR', 'err');
     } finally {
       setGuardandoQrId(null);
+      setHermanoSel(null);
     }
   }, [cargar, notif]);
 

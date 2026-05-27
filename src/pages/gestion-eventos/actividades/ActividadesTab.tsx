@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
@@ -190,6 +190,18 @@ export const ActividadesTab: React.FC = () => {
 
   const [idEventoSeleccionado, setIdEventoSeleccionado] = useState<number | string>('');
   const [eventos, setEventos] = useState<{ idEvento: number; nombre: string }[]>([]);
+  const [isOpenEventSelect, setIsOpenEventSelect] = useState(false);
+  const eventSelectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (eventSelectRef.current && !eventSelectRef.current.contains(event.target as Node)) {
+        setIsOpenEventSelect(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchItems = async () => {
     try {
@@ -356,23 +368,60 @@ export const ActividadesTab: React.FC = () => {
               className="w-full pl-11 pr-4 py-3 text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
             />
           </div>
-          <div className="relative flex-1 min-w-[260px]">
-            <select
-              value={idEventoSeleccionado}
-              onChange={(e) => setIdEventoSeleccionado(e.target.value)}
-              className="w-full pl-4 pr-10 py-3 text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 appearance-none cursor-pointer"
+          <div className="relative flex-1 min-w-[260px]" ref={eventSelectRef}>
+            <button
+              type="button"
+              onClick={() => setIsOpenEventSelect(!isOpenEventSelect)}
+              className="w-full pl-4 pr-10 py-3 text-left text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 cursor-pointer flex items-center justify-between"
             >
-              <option value="">-- Todos los eventos (Global) --</option>
-              {eventos.map((e) => (
-                <option key={e.idEvento} value={e.idEvento}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-            <KeenIcon
-              icon="down"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-450 pointer-events-none text-xs"
-            />
+              <span className="truncate">
+                {idEventoSeleccionado 
+                  ? eventos.find(e => String(e.idEvento) === String(idEventoSeleccionado))?.nombre || '-- Todos los eventos (Global) --'
+                  : '-- Todos los eventos (Global) --'}
+              </span>
+              <KeenIcon
+                icon="down"
+                className={`text-gray-450 transition-transform duration-200 text-xs ${isOpenEventSelect ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {isOpenEventSelect && (
+              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-xl max-h-60 overflow-y-auto no-scrollbar animate-fade-in">
+                <div className="p-1.5 flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdEventoSeleccionado('');
+                      setIsOpenEventSelect(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2.5 text-sm rounded-xl transition-all duration-150 ${
+                      idEventoSeleccionado === ''
+                        ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 font-bold'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60'
+                    }`}
+                  >
+                    -- Todos los eventos (Global) --
+                  </button>
+                  {eventos.map((e) => (
+                    <button
+                      key={e.idEvento}
+                      type="button"
+                      onClick={() => {
+                        setIdEventoSeleccionado(e.idEvento);
+                        setIsOpenEventSelect(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 text-sm rounded-xl transition-all duration-150 truncate ${
+                        String(idEventoSeleccionado) === String(e.idEvento)
+                          ? 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 font-bold'
+                          : 'text-gray-750 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60'
+                      }`}
+                    >
+                      {e.nombre}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <button
             className="group/btn relative h-12 px-6 bg-orange-500 text-white font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto"

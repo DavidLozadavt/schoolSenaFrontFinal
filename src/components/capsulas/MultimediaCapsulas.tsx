@@ -375,10 +375,24 @@ const MultimediaCapsulas = () => {
 
   if (items.length === 0) {
     return (
-      <div className="bg-gray-50 dark:bg-coal-600/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-white/5 text-center">
-        <Sparkles className="w-10 h-10 text-orange-400 dark:text-orange-500 mx-auto mb-2 animate-pulse" />
-        <p className="text-gray-700 dark:text-gray-200 text-sm font-semibold uppercase tracking-widest">No hay cápsulas multimedia disponibles</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sube nuevas historias o reels para compartir con la comunidad.</p>
+      <div className="relative overflow-hidden bg-gradient-to-br from-gray-50/50 to-gray-100/30 dark:from-coal-800/30 dark:to-coal-900/10 backdrop-blur-md rounded-3xl p-10 border border-gray-100 dark:border-white/5 text-center shadow-sm">
+        {/* Soft background glows */}
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-orange-400/10 dark:bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col items-center max-w-md mx-auto">
+          {/* Animated Glow Icon container */}
+          <div className="relative mb-5 flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-400/10 to-pink-500/10 dark:from-orange-400/5 dark:to-pink-500/5 border border-orange-200/30 dark:border-pink-500/10 shadow-sm">
+            <Film className="w-7 h-7 text-orange-500 dark:text-pink-400 animate-pulse" />
+          </div>
+          
+          <h4 className="text-gray-800 dark:text-gray-100 text-xs font-bold uppercase tracking-[0.2em] mb-2">
+            No hay cápsulas multimedia disponibles
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs font-medium">
+            Sube nuevas historias o reels para comenzar a compartir contenido con la comunidad.
+          </p>
+        </div>
       </div>
     );
   }

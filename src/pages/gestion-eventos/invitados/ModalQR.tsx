@@ -124,6 +124,28 @@ export const ModalQR: React.FC<ModalQRProps> = ({
         </>
       }
     >
+      <div className="flex flex-col items-center gap-2">
+        {/* URL del token */}
+        {hermano.qr_token && (
+          <div className="w-full flex items-center">
+            <input
+              type="text"
+              readOnly
+              className="flex-1 mr-2 px-3 py-2 text-sm border rounded bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-gray-200"
+              value={`${window.location.origin}/invitado/${hermano.qr_token}`}
+            />
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/invitado/${hermano.qr_token}`);
+                notif('URL copiada al portapapeles');
+              }}
+              className="px-2 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded"
+            >
+              Copiar
+            </button>
+          </div>
+        )}
+      </div>      
       <div className="flex flex-col items-center gap-5 py-2">
         {hermano.qr_token ? (
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
