@@ -7,6 +7,7 @@ import { ToolbarDescription } from '@/partials/toolbar';
 import { Container } from '@/components/container';
 import { useSnackbar } from 'notistack';
 import { RoleModel } from '../../roles/models/_Role';
+import Swal from 'sweetalert2';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Helper: build a tree from flat permission list
@@ -156,25 +157,57 @@ const PermissionsToggle = React.memo(() => {
 
   /* ── Toggle permission ───────────────────────────────────────────────── */
   const handlePermissionChange = useCallback((permissionName: string) => {
+    const permission = permissions.find((p) => p.name === permissionName);
+    if (!permission) return;
+
+    // Collect descendant information
+    const descendantIds = collectDescendantIds(permission.id, permissions);
+    const hasChildren = descendantIds.size > 0;
+    const descendantNames = permissions
+      .filter((p) => descendantIds.has(p.id))
+      .map((p) => p.name);
+
+    const allNames = [permissionName, ...descendantNames];
+
     setActivePermissions((prevState) => {
-      const permission = permissions.find((p) => p.name === permissionName);
-      if (!permission) return prevState;
-
-      // collect descendant ids and map to names
-      const descendantIds = collectDescendantIds(permission.id, permissions);
-      const descendantNames = permissions
-        .filter((p) => descendantIds.has(p.id))
-        .map((p) => p.name);
-
-      const allNames = [permissionName, ...descendantNames];
-
+      // If already checked, just uncheck everything
       if (prevState.includes(permissionName)) {
-        // uncheck: remove the permission and all its descendants
         return prevState.filter((n) => !allNames.includes(n));
+      }
+
+      // If it's a parent permission and not yet checked, ask user
+      if (hasChildren) {
+        Swal.fire({
+          title: '¿Incluir permisos secundarios?',
+          html: `<p>Este permiso tiene ${descendantNames.length} permiso(s) secundario(s).</p><p>¿Deseas asignar también todos los permisos secundarios?</p>`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, incluir todos',
+          cancelButtonText: 'No, solo este',
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#6c757d',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Add parent + all children
+            setActivePermissions((current) => {
+              const next = new Set(current);
+              allNames.forEach((n) => next.add(n));
+              return Array.from(next);
+            });
+          } else if (result.dismiss === Swal.DismissReason.cancel) {
+            // Add only parent
+            setActivePermissions((current) => {
+              const next = new Set(current);
+              next.add(permissionName);
+              return Array.from(next);
+            });
+          }
+        });
+        return prevState;
       } else {
-        // check: add the permission and all its descendants (avoid duplicates)
+        // No children, just add the permission
         const next = new Set(prevState);
-        allNames.forEach((n) => next.add(n));
+        next.add(permissionName);
         return Array.from(next);
       }
     });
@@ -278,6 +311,45 @@ const PermissionsToggle = React.memo(() => {
       }
     },
     [enqueueSnackbar]
+  );
+
+  /* ── Confirm parent change ───────────────────────────────────────────── */
+  const handleParentChange = useCallback(
+    (childId: number, newParentId: number | null) => {
+      const child = permissions.find((p) => p.id === childId);
+      if (!child) return;
+
+      const currentParent = child.idPermissionPadre
+        ? permissions.find((p) => p.id === child.idPermissionPadre)
+        : null;
+      const newParent = newParentId ? permissions.find((p) => p.id === newParentId) : null;
+
+      const currentParentText = currentParent ? currentParent.name : 'Raíz (sin padre)';
+      const newParentText = newParent ? newParent.name : 'Raíz (sin padre)';
+
+      Swal.fire({
+        title: '¿Cambiar padre del permiso?',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Permiso:</strong> ${child.name}</p>
+            <p><strong>Padre actual:</strong> ${currentParentText}</p>
+            <p><strong>Nuevo padre:</strong> ${newParentText}</p>
+            <p style="margin-top: 12px; color: #666;">Esta acción reorganizará la jerarquía de permisos.</p>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, cambiar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#6c757d',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          handleSetParent(childId, newParentId);
+        }
+      });
+    },
+    [permissions, handleSetParent]
   );
 
   /* ── Expand / Collapse ───────────────────────────────────────────────── */
@@ -405,7 +477,7 @@ const PermissionsToggle = React.memo(() => {
                 value={node.idPermissionPadre ?? ''}
                 disabled={isUpdating}
                 onChange={(e) =>
-                  handleSetParent(
+                  handleParentChange(
                     node.id,
                     e.target.value ? Number(e.target.value) : null
                   )
@@ -443,7 +515,7 @@ const PermissionsToggle = React.memo(() => {
       activePermissions,
       expandedNodes,
       handlePermissionChange,
-      handleSetParent,
+      handleParentChange,
       permissions,
       toggleExpand,
       updatingParent,
