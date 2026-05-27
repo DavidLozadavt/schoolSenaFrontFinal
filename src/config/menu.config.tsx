@@ -15,16 +15,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
   {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_ACADEMICA', 'AULA_VIRTUAL_INSTRUCTOR'],
+    requiredPermissions: ['GESTION_ACADEMICA'],
     children: [
-      {
-        title: 'Configuración académica',
-        requiredPermissions: ['GESTION_REGIONAL'], //Cambiar por CONFIGURACION_ACADEMICA
-        children: [
           {
             title: 'Planeación',
             path: '/gestion-academica/configuracion/redes',
-            requiredPermissions: ['GESTION_ACADEMICA']
+            requiredPermissions: ['GESTION_PLANEACION']
           },
           {
             title: 'Periodos',
@@ -61,8 +57,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
             path: '/redes',
             requiredPermissions: ['GESTION_REDES']
           }
-        ]
-      }
     ]
   },
   {
@@ -116,11 +110,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
-      {
-        title: 'CF',
-        path: '/cf',
-        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
-      }
     ]
   },
   {
