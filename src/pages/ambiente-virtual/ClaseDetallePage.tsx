@@ -1375,6 +1375,7 @@ interface Clase {
   reemplazo_vigente_por_otro?: boolean;
   es_reemplazante?: boolean;
   instructores_rap?: InstructorRapAsociado[];
+  contrato_id?: number;
   [key: string]: any;
 }
 
@@ -2546,7 +2547,8 @@ const ClaseDetallePage: React.FC = () => {
                     <i className="ki-outline ki-people text-xs"></i>Compartido
                   </span>
                 )}
-                {reemplazoActivoEnClase(clase) && (() => {
+                {(() => {
+                  if (!clase || !reemplazoActivoEnClase(clase)) return null;
                   const nombreReemplazo = nombreOtroInstructorReemplazo(clase);
                   return (
                     <span
