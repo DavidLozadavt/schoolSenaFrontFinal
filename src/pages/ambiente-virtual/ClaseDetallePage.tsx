@@ -22,8 +22,17 @@ import {
   textoJornadaParaAjuste12h,
   titulosCompetenciaYRapUi,
   jsGetDayDesdeApiClase,
+  calendarioInstructorEnRango,
+  etiquetaEstadoBloqueCalendarioInstructor,
+  clasesInstructorConHistorial,
+  type BloqueCalendarioInstructorDia,
   type ClaseAsignadaInstructorBase,
   type HistorialSesionInstructorItem,
+  normalizarInstructoresRapApi,
+  instructoresVisiblesEnCurso,
+  reemplazoActivoEnClase,
+  nombreOtroInstructorReemplazo,
+  type InstructorRapAsociado,
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { useResponsive } from '@/hooks';
@@ -224,7 +233,13 @@ const normalizarClaseDetalleApi = (raw: unknown): Clase | null => {
     horaInicial: normalizarHoraCampoClaseApi(hiRaw),
     horaFinal: normalizarHoraCampoClaseApi(hfRaw),
     jornada_nombre: jn,
-    jornada_tipo: jt
+    jornada_tipo: jt,
+    tipo_asignacion: (o.tipo_asignacion as string | null) ?? null,
+    modalidad_rap: (o.modalidad_rap as string | null) ?? null,
+    asignacion_vigente: !!(o.asignacion_vigente),
+    reemplazo_vigente_por_otro: !!(o.reemplazo_vigente_por_otro),
+    es_reemplazante: !!(o.es_reemplazante),
+    instructores_rap: normalizarInstructoresRapApi(o.instructores_rap),
   };
 };
 
@@ -482,6 +497,56 @@ const CalendarComponent: React.FC<{
 
     const inicio = fechaInicio ? parseDate(fechaInicio) : null;
     const fin = fechaFinParaUsar ? parseDate(fechaFinParaUsar) : null;
+
+    /** Instructor: misma lógica que el dashboard (`ProfesoresContent`). */
+    const calendarioInstructorMes = useMemo(() => {
+      if (modoCalendario !== 'instructor' || clasesFranjaCalendario.length === 0) return null;
+      const y = currentMonth.getFullYear();
+      const m = currentMonth.getMonth();
+      const startDate = new Date(y, m, 1);
+      const endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
+      return calendarioInstructorEnRango(clasesFranjaCalendario, startDate, endDate, ahoraRef);
+    }, [modoCalendario, clasesFranjaCalendario, currentMonth, ahoraRef]);
+
+    const resumenMesCalendarioInstructor = useMemo(() => {
+      if (!calendarioInstructorMes) return { completadas: 0, pendientes: 0 };
+      const y = currentMonth.getFullYear();
+      const m = currentMonth.getMonth();
+      let completadas = 0;
+      let pendientes = 0;
+      for (const [ymd, est] of Object.entries(calendarioInstructorMes.estadoPorYmd)) {
+        const parts = ymd.split('-').map(Number);
+        if (parts.length !== 3 || parts[0] !== y || parts[1] - 1 !== m) continue;
+        if (est === 'completada') completadas += 1;
+        if (est === 'pendiente') pendientes += 1;
+      }
+      return { completadas, pendientes };
+    }, [calendarioInstructorMes, currentMonth]);
+
+    const clasesPorDiaCalendarioInstructor = useMemo((): Map<string, ClaseTooltipDia[]> | null => {
+      if (!calendarioInstructorMes) return null;
+      const map = new Map<string, ClaseTooltipDia[]>();
+      for (const [ymd, bloques] of Object.entries(calendarioInstructorMes.porDia)) {
+        map.set(
+          ymd,
+          bloques.map((b) => ({
+            idHorarioMateria: b.idHorarioMateria,
+            ficha_codigo: b.ficha_codigo,
+            materia_nombre: b.materia_nombre,
+            programa_nombre: b.programa_nombre,
+            competencia_nombre: b.competencia_nombre,
+            rap_nombre: b.rap_nombre ?? null,
+            horaInicial: b.horaInicial,
+            horaFinal: b.horaFinal,
+            jornada_nombre: b.jornada_nombre,
+            jornada_tipo: b.jornada_tipo,
+            bloqueSesionRegistrada: b.bloqueSesionRegistrada,
+            numeroSesion: b.numeroSesion
+          }))
+        );
+      }
+      return map;
+    }, [calendarioInstructorMes]);
 
     /** Todas las fechas de sesiones completadas (misma lista que Mis formaciones → Completado). */
     const sesionesCompletadasUnificadas = useMemo(() => {
@@ -840,6 +905,13 @@ const CalendarComponent: React.FC<{
     ]);
 
     const etiquetaEstadoTooltip = (diaCalendario: Date, row: ClaseTooltipDia): string => {
+      if (calendarioInstructorMes) {
+        return etiquetaEstadoBloqueCalendarioInstructor(
+          diaCalendario,
+          row as BloqueCalendarioInstructorDia,
+          ahoraRef
+        );
+      }
       const ahora = ahoraRef;
       const hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
       hoy0.setHours(0, 0, 0, 0);
@@ -974,10 +1046,18 @@ const CalendarComponent: React.FC<{
     const getDateStatus = (day: number): 'hoy' | 'proxima' | 'pasada' | 'normal' => {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       date.setHours(0, 0, 0, 0);
+      const dateStr = formatYmdLocal(date);
+
+      if (calendarioInstructorMes) {
+        const est = calendarioInstructorMes.estadoPorYmd[dateStr];
+        if (est === 'hoy') return 'hoy';
+        if (est === 'completada') return 'pasada';
+        if (est === 'pendiente') return 'proxima';
+        return 'normal';
+      }
 
       const hoyLocal = new Date(ahoraRef.getFullYear(), ahoraRef.getMonth(), ahoraRef.getDate());
       hoyLocal.setHours(0, 0, 0, 0);
-      const dateStr = formatYmdLocal(date);
 
       if (date.getTime() === hoyLocal.getTime()) {
         return 'hoy';
@@ -1044,7 +1124,8 @@ const CalendarComponent: React.FC<{
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
             const esFechaClase = status !== 'normal';
             const ymdKey = formatYmdLocal(date);
-            const bloquesDia = clasesPorDiaCalendario.get(ymdKey) || [];
+            const bloquesDia =
+              (clasesPorDiaCalendarioInstructor ?? clasesPorDiaCalendario).get(ymdKey) || [];
             const bloquesTooltip = bloquesDia;
 
             /** Colores fijos (inline) para que no dependan de Tailwind/CSS del tema. */
@@ -1216,7 +1297,19 @@ const CalendarComponent: React.FC<{
                 <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
                 <span className="text-gray-700 dark:text-gray-300">Completadas (sesión registrada)</span>
               </div>
-              {sesionesCompletadasUnificadas.length > 0 ? (
+              {calendarioInstructorMes ? (
+                resumenMesCalendarioInstructor.completadas > 0 ||
+                resumenMesCalendarioInstructor.pendientes > 0 ? (
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                    {resumenMesCalendarioInstructor.completadas}{' '}
+                    {resumenMesCalendarioInstructor.completadas === 1 ? 'día' : 'días'} con sesión
+                    {resumenMesCalendarioInstructor.pendientes > 0
+                      ? ` · ${resumenMesCalendarioInstructor.pendientes} pendiente${resumenMesCalendarioInstructor.pendientes === 1 ? '' : 's'}`
+                      : ''}
+                    . Usa ← → si faltan días en este mes.
+                  </p>
+                ) : null
+              ) : sesionesCompletadasUnificadas.length > 0 ? (
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
                   {sesionesCompletadasUnificadas.length} sesión
                   {sesionesCompletadasUnificadas.length === 1 ? '' : 'es'} completada
@@ -1276,6 +1369,12 @@ interface Clase {
       rutaFotoUrl?: string;
     };
   };
+  tipo_asignacion?: string | null;
+  modalidad_rap?: string | null;
+  asignacion_vigente?: boolean;
+  reemplazo_vigente_por_otro?: boolean;
+  es_reemplazante?: boolean;
+  instructores_rap?: InstructorRapAsociado[];
   [key: string]: any;
 }
 
@@ -1400,56 +1499,11 @@ const ClaseDetallePage: React.FC = () => {
   }, [modoCalendario, id]);
 
   /** Misma fuente que Mis formaciones → Completado (historial + clases-asignadas). */
-  const clasesInstructorParaCalendario = useMemo((): ClaseAsignadaInstructorBase[] => {
-    const porHm = new Map<number, ClaseAsignadaInstructorBase>();
-    for (const c of clasesInstructorCalendario) {
-      porHm.set(c.idHorarioMateria, { ...c, sesiones_completadas: [...(c.sesiones_completadas ?? [])] });
-    }
-    for (const item of historialSesionesInstructor) {
-      const raw = item.clase as Record<string, unknown>;
-      const idHm = Number(raw.idHorarioMateria);
-      if (!Number.isFinite(idHm) || idHm <= 0) continue;
-      const ymd = ymdFromFechaSesion(item.sesion.fechaSesion);
-      if (!ymd) continue;
-      const ses = {
-        fechaSesion: ymd,
-        numeroSesion: Number(item.sesion.numeroSesion)
-      };
-      const prev = porHm.get(idHm);
-      if (prev) {
-        const list = [...(prev.sesiones_completadas ?? [])];
-        if (
-          !list.some(
-            (s) => ymdFromFechaSesion(s.fechaSesion) === ymd && s.numeroSesion === ses.numeroSesion
-          )
-        ) {
-          list.push(ses);
-        }
-        porHm.set(idHm, { ...prev, sesiones_completadas: list });
-      } else {
-        porHm.set(idHm, {
-          ficha_id: Number(raw.ficha_id) || 0,
-          ficha_codigo: String(raw.ficha_codigo ?? ''),
-          programa_nombre: String(raw.programa_nombre ?? ''),
-          materia_nombre: String(raw.materia_nombre ?? ''),
-          competencia_nombre: String(raw.competencia_nombre ?? ''),
-          rap_nombre: (raw.rap_nombre as string | null) ?? null,
-          idMateriaPadre: null,
-          jornada_nombre: String(raw.jornada_nombre ?? ''),
-          jornada_tipo: String(raw.jornada_tipo ?? ''),
-          dia_semana: String(raw.dia_semana ?? ''),
-          idDia: Number(raw.idDia) || 0,
-          horaInicial: String(raw.horaInicial ?? ''),
-          horaFinal: String(raw.horaFinal ?? ''),
-          fechaInicial: String(raw.fechaInicial ?? ''),
-          fechaFinal: raw.fechaFinal != null ? String(raw.fechaFinal) : null,
-          idHorarioMateria: idHm,
-          sesiones_completadas: [ses]
-        });
-      }
-    }
-    return Array.from(porHm.values());
-  }, [clasesInstructorCalendario, historialSesionesInstructor]);
+  const clasesInstructorParaCalendario = useMemo(
+    (): ClaseAsignadaInstructorBase[] =>
+      clasesInstructorConHistorial(clasesInstructorCalendario, historialSesionesInstructor),
+    [clasesInstructorCalendario, historialSesionesInstructor]
+  );
 
   const codigoFichaCalendario = String(ficha?.codigo ?? clase?.ficha_codigo ?? '').trim();
 
@@ -2358,6 +2412,28 @@ const ClaseDetallePage: React.FC = () => {
 
   const emailInstructor = instructorClase?.persona?.email || 'N/A';
 
+  const instructoresCabecera: InstructorRapAsociado[] = (() => {
+    if (!clase) return [];
+    const mostrarVariosInstructores =
+      estadoClaseLocal === 'en_curso' ||
+      estadoClaseLocal === 'pendiente' ||
+      clase.modalidad_rap === 'COMPARTIDO' ||
+      reemplazoActivoEnClase(clase);
+    if (mostrarVariosInstructores) {
+      const vis = instructoresVisiblesEnCurso(clase);
+      if (vis.length > 0) return vis;
+    }
+    if (instructorClase?.persona) {
+      return [{
+        idContrato: instructorClase.id,
+        nombre: nombreCompletoInstructor,
+        rutaFotoUrl: instructorClase.persona.rutaFotoUrl ?? null,
+        rol: 'titular' as const,
+      }];
+    }
+    return [];
+  })();
+
   /**
    * Volver al listado de clases (Mis clases) por defecto.
    * Solo Historial RAPs envía `returnTo` si el usuario abrió el detalle desde ahí.
@@ -2463,61 +2539,77 @@ const ClaseDetallePage: React.FC = () => {
           {/* Instructor Card */}
           <div className="card flex-1">
             <div className="card-body p-6">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-6">Instructor</h2>
-              {instructorClase?.persona ? (() => {
-                // Usar estado local en tiempo real
-                const estadoActual = estadoClaseLocal;
+              <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Instructor</h2>
+                {clase?.modalidad_rap === 'COMPARTIDO' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <i className="ki-outline ki-people text-xs"></i>Compartido
+                  </span>
+                )}
+                {reemplazoActivoEnClase(clase) && (() => {
+                  const nombreReemplazo = nombreOtroInstructorReemplazo(clase);
+                  return (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                      title={
+                        nombreReemplazo
+                          ? clase.reemplazo_vigente_por_otro
+                            ? `Te reemplaza ${nombreReemplazo}`
+                            : `Reemplazando a ${nombreReemplazo}`
+                          : 'Reemplazo'
+                      }
+                    >
+                      <i className="ki-outline ki-arrow-right-left text-xs"></i>
+                      Reemplazo{nombreReemplazo ? ` — ${nombreReemplazo}` : ''}
+                    </span>
+                  );
+                })()}
+              </div>
+              {instructoresCabecera.length > 0 ? (() => {
                 const colorInfo = getColorProgreso();
                 const porcentaje = calcularPorcentajeProgreso();
                 const cronometroText = formatCronometro();
 
                 return (
                   <div className="flex items-start gap-4">
-                    <div className="relative flex-shrink-0">
-                      {/* Círculo de progreso con anillo dinámico */}
-                      <div className="w-20 h-20 rounded-full border-2 border-gray-200 dark:border-gray-700 relative">
-                        {/* Anillo de progreso dinámico */}
-                        <svg className="absolute inset-0 w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                          <circle
-                            cx="18"
-                            cy="18"
-                            r="16"
-                            fill="none"
-                            stroke={colorInfo.color}
-                            strokeWidth="3"
-                            strokeDasharray={`${porcentaje} 100`}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        {/* Foto del instructor - hover: tooltip con nombre, click: zoom */}
-                        <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                          <DefaultTooltip title={nombreCompletoInstructor} placement="top">
-                            <button
-                              type="button"
-                              onClick={() => setZoomFoto({
-                                src: instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png',
-                                alt: nombreCompletoInstructor
-                              })}
-                              className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
-                            >
-                              <img
-                                src={instructorClase?.persona?.rutaFotoUrl || '/media/avatars/blank.png'}
-                                alt={nombreCompletoInstructor}
-                                className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                              />
-                            </button>
-                          </DefaultTooltip>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {instructoresCabecera.map((inst) => (
+                        <div key={inst.idContrato} className="relative">
+                          <div className="w-20 h-20 rounded-full border-2 border-gray-200 dark:border-gray-700 relative">
+                            <svg className="absolute inset-0 w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                              <circle cx="18" cy="18" r="16" fill="none" stroke={colorInfo.color} strokeWidth="3" strokeDasharray={`${porcentaje} 100`} strokeLinecap="round" />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center p-1.5">
+                              <DefaultTooltip title={inst.nombre} placement="top">
+                                <button
+                                  type="button"
+                                  onClick={() => setZoomFoto({
+                                    src: inst.rutaFotoUrl || '/media/avatars/blank.png',
+                                    alt: inst.nombre
+                                  })}
+                                  className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
+                                >
+                                  <img
+                                    src={inst.rutaFotoUrl || '/media/avatars/blank.png'}
+                                    alt={inst.nombre}
+                                    className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                                  />
+                                </button>
+                              </DefaultTooltip>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5">
-                        {nombreCompletoInstructor}
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+                      {instructoresCabecera.map((inst, idx) => (
+                        <p key={inst.idContrato} className={clsx('text-sm font-semibold text-gray-900 dark:text-white', idx > 0 && 'mt-0.5')}>
+                          {inst.nombre}
+                        </p>
+                      ))}
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 mt-1">
                         {emailInstructor}
                       </p>
-                      {/* Cronómetro y badge en la misma línea debajo del correo */}
                       <div className="flex items-center gap-2.5">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${colorInfo.bgColor} ${colorInfo.textColor}`}>
                           <KeenIcon icon="time" className={`${colorInfo.textColor} text-sm`} />

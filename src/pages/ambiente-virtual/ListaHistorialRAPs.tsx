@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth/useAuthContext';
@@ -14,7 +14,13 @@ import {
   sesionCompletadaEnFecha,
   textoJornadaParaAjuste12h,
   textoRangoHorarioClase,
-  titulosCompetenciaYRapUi
+  titulosCompetenciaYRapUi,
+  normalizarInstructoresRapApi,
+  nombresInstructoresCalificacion,
+  nombreOtroInstructorReemplazo,
+  reemplazoActivoEnClase,
+  horaClaveClaseAsignada,
+  type InstructorRapAsociado
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { fetchHistorialSesionesInstructor, ymdFromFechaSesion } from '@/utils/clasesAsignadasLogica';
@@ -67,6 +73,12 @@ interface Clase {
   idMateria: number;
   /** Salón/aula física si `horarioMateria.idInfraestructura` está enlazado; si no, no mostrar número inventado. */
   aula_nombre?: string | null;
+  tipo_asignacion?: string | null;
+  modalidad_rap?: string | null;
+  asignacion_vigente?: boolean;
+  reemplazo_vigente_por_otro?: boolean;
+  es_reemplazante?: boolean;
+  instructores_rap?: InstructorRapAsociado[];
 }
 
 /** Quita caracteres invisibles que a veces vienen del backend y rompen .includes() en prefijos cortos. */
@@ -151,14 +163,30 @@ function claseCoincideBusquedaHistorial(
   return h != null && h.includes(termFolded);
 }
 
-/** Ocurrencia única de sesión dictada (misma materia + día + # sesión), aunque la BD tenga 2 PK por error. */
+/** Ocurrencia única de sesión dictada (misma franja ficha+día+horas; titular/clon compartido = una tarjeta). */
 function claveOcurrenciaSesionListado(clase: Clase, s: SesionCompletada): string {
-  const hm = Number(clase.idHorarioMateria);
   const ymd = ymdFromFechaSesion(s.fechaSesion) ?? '';
   const n = Number(s.numeroSesion);
+
+  const ficha = Number(clase.ficha_id ?? 0);
+  const idDia = Number(clase.idDia ?? 0);
+  const hi = horaClaveClaseAsignada(clase.horaInicial ?? '');
+  const hf = horaClaveClaseAsignada(clase.horaFinal ?? '');
+  if (ficha > 0 && idDia > 0 && hi && hf && ymd) {
+    return `slot:${ficha}|${idDia}|${hi}|${hf}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
+  }
+
+  const hm = Number(clase.idHorarioMateria);
   const id = Number(s.id);
   if (Number.isFinite(id) && id > 0) return `id:${id}`;
   return `${Number.isFinite(hm) ? hm : 0}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
+}
+
+function puntajeClaseHistorialCompletado(clase: Clase): number {
+  let score = 0;
+  if (clase.modalidad_rap === 'COMPARTIDO') score += 1000;
+  if ((clase.instructores_rap ?? []).length > 1) score += 100;
+  return score;
 }
 
 /** Historial API + sesiones de clases-asignadas (misma fuente que el badge X/Y). */
@@ -175,7 +203,12 @@ function fusionarSesionesCompletadasHistorial(
       fechaSesion: ymd
     };
     const key = claveOcurrenciaSesionListado(clase, sesionNorm);
-    if (!porClave.has(key)) {
+    const prev = porClave.get(key);
+    if (!prev) {
+      porClave.set(key, { clase, sesion: sesionNorm });
+      return;
+    }
+    if (puntajeClaseHistorialCompletado(clase) > puntajeClaseHistorialCompletado(prev.clase)) {
       porClave.set(key, { clase, sesion: sesionNorm });
     }
   };
@@ -309,6 +342,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const [busquedaLista, setBusquedaLista] = useState('');
   // Estado para actualizar el tiempo en tiempo real y recalcular estados de clases
   const [currentTime, setCurrentTime] = useState(new Date());
+  const franjasRefrescadasRef = useRef<Set<string>>(new Set());
 
   const queryBusquedaDisplay = useMemo(() => busquedaLista.trim(), [busquedaLista]);
   const termBusquedaFolded = useMemo(
@@ -408,7 +442,13 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       idHorarioMateria,
       idGradoMateria: toNum(raw.idGradoMateria),
       idMateria: toNum(raw.idMateria),
-      aula_nombre
+      aula_nombre,
+      tipo_asignacion: raw.tipo_asignacion ?? null,
+      modalidad_rap: raw.modalidad_rap ?? null,
+      asignacion_vigente: !!raw.asignacion_vigente,
+      reemplazo_vigente_por_otro: !!raw.reemplazo_vigente_por_otro,
+      es_reemplazante: !!raw.es_reemplazante,
+      instructores_rap: normalizarInstructoresRapApi(raw.instructores_rap),
     };
   };
 
@@ -456,10 +496,34 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000); // Actualizar cada segundo
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
+
+  /** Al cerrar la franja, el backend crea la sesión: refrescar sin recargar la página. */
+  useEffect(() => {
+    const ahora = currentTime;
+    const ymdHoy = formatYmdLocal(
+      new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+    );
+
+    for (const clase of clases) {
+      const ventana = obtenerVentanaHorariaHoy(clase, ahora);
+      if (!ventana || ahora.getTime() <= ventana.fin.getTime()) continue;
+
+      const clave = `${clase.idHorarioMateria}|${ymdHoy}|fin`;
+      if (franjasRefrescadasRef.current.has(clave)) continue;
+      franjasRefrescadasRef.current.add(clave);
+
+      const sincronizar = () => {
+        void refetch();
+        void cargarHistorialSesiones();
+      };
+      sincronizar();
+      window.setTimeout(sincronizar, 2500);
+    }
+  }, [currentTime, clases, refetch, cargarHistorialSesiones]);
 
   /**
    * Obtiene el estado de la clase en tiempo real
@@ -477,14 +541,35 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       return new Date(year, month - 1, day);
     };
 
-    // Hoy con clase programada: hasta que pase la hora final no puede ser COMPLETADO (solo EN CURSO o PENDIENTE).
+    // Hoy con clase programada: pendiente → en curso → completada (igual que compartida).
     const ventanaHoy = obtenerVentanaHorariaHoy(clase, ahora);
-    if (ventanaHoy && ahora.getTime() <= ventanaHoy.fin.getTime()) {
+    if (ventanaHoy) {
+      const ymdHoy = formatYmdLocal(
+        new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+      );
+
       if (
         ahora.getTime() >= ventanaHoy.inicio.getTime() &&
         ahora.getTime() <= ventanaHoy.fin.getTime()
       ) {
         return 'EN CURSO';
+      }
+
+      if (ahora.getTime() < ventanaHoy.inicio.getTime()) {
+        return 'PENDIENTE';
+      }
+
+      // Ya pasó la hora final de hoy
+      if (sesionCompletadaEnFecha(clase, ymdHoy)) {
+        return 'COMPLETADO';
+      }
+      const ymdIni = clase.fechaInicial?.split('T')[0] ?? '';
+      const ymdFin = (clase.fechaFinal ?? clase.fechaInicial)?.split('T')[0] ?? '';
+      if (ymdIni && ymdIni === ymdFin && ymdIni === ymdHoy) {
+        return 'COMPLETADO';
+      }
+      if (sesionesRestantes === 0) {
+        return 'COMPLETADO';
       }
       return 'PENDIENTE';
     }
@@ -1069,10 +1154,18 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
     Object.values(grupos).forEach((items) => {
       items.sort((a, b) => {
+        const horaFinA = a.clase.horaFinal || a.clase.horaInicial || '00:00:00';
+        const horaFinB = b.clase.horaFinal || b.clase.horaInicial || '00:00:00';
+        const porHora = horaFinB.localeCompare(horaFinA);
+        if (porHora !== 0) return porHora;
+        const porIni = (b.clase.horaInicial || '00:00:00').localeCompare(
+          a.clase.horaInicial || '00:00:00'
+        );
+        if (porIni !== 0) return porIni;
         const na = Number(a.sesion.numeroSesion);
         const nb = Number(b.sesion.numeroSesion);
-        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
-        return (a.clase.horaInicial || '').localeCompare(b.clase.horaInicial || '');
+        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return nb - na;
+        return 0;
       });
     });
 
@@ -1137,6 +1230,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       currentTime,
       [0, 1],
       (c, fecha) => {
+        if (getStatus(c) === 'EN CURSO') return false;
         const ymd = formatYmdLocal(fecha);
         if (sesionCompletadaEnFecha(c, ymd)) return false;
         return ocurrenciaPendienteEnDiaCalendario(c, fecha, currentTime);
@@ -1214,27 +1308,46 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    */
   const getStatusBadge = (status: string, clase?: Clase): React.ReactElement | null => {
     const esProxima = clase && esProximaClase(clase);
+    const instructoresAsociados = clase?.instructores_rap ?? [];
+    const otroInstructor = instructoresAsociados.find((i) => i.idContrato !== clase?.contrato_id);
+    const nombreOtroCompartido = otroInstructor?.nombre ?? '';
+    const nombreOtroReemplazo = clase ? nombreOtroInstructorReemplazo(clase) : '';
+
+    const modalidadBadge = clase?.modalidad_rap === 'COMPARTIDO'
+      ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" title={nombreOtroCompartido ? `Compartido con ${nombreOtroCompartido}` : ''}><i className="ki-outline ki-people text-xs"></i>Compartido{nombreOtroCompartido ? ` — ${nombreOtroCompartido}` : ''}</span>
+      : reemplazoActivoEnClase(clase)
+        ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title={nombreOtroReemplazo ? (clase?.reemplazo_vigente_por_otro ? `Te reemplaza ${nombreOtroReemplazo}` : `Reemplazando a ${nombreOtroReemplazo}`) : 'Reemplazo'}><i className="ki-outline ki-arrow-right-left text-xs"></i>Reemplazo{nombreOtroReemplazo ? ` — ${nombreOtroReemplazo}` : ''}</span>
+        : null;
 
     switch (status) {
       case 'EN CURSO':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
-            <span>En Curso</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
+              <span>En Curso</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       case 'PENDIENTE':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-orange-600"></span>
-            <span>{esProxima ? 'Próxima' : 'Pendiente'}</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-orange-600"></span>
+              <span>{esProxima ? 'Próxima' : 'Pendiente'}</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       case 'COMPLETADO':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shadow-sm">
-            <i className="ki-outline ki-check text-xs dark:text-gray-300"></i>
-            <span>Completado</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shadow-sm">
+              <i className="ki-outline ki-check text-xs dark:text-gray-300"></i>
+              <span>Completado</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       default:
@@ -1331,6 +1444,36 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
     const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
+    const instructoresAsociados = clase.instructores_rap ?? [];
+    const otroInstructor = instructoresAsociados.find((i) => i.idContrato !== clase.contrato_id);
+    const nombreOtroCompartido = otroInstructor?.nombre ?? '';
+    const nombreOtroReemplazo = nombreOtroInstructorReemplazo(clase);
+    const modalidadBadge =
+      clase.modalidad_rap === 'COMPARTIDO' ? (
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+          title={nombreOtroCompartido ? `Compartido con ${nombreOtroCompartido}` : 'Clase compartida'}
+        >
+          <i className="ki-outline ki-people text-xs"></i>
+          Compartido{nombreOtroCompartido ? ` — ${nombreOtroCompartido}` : ''}
+        </span>
+      ) : reemplazoActivoEnClase(clase) ? (
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+          title={
+            nombreOtroReemplazo
+              ? clase.reemplazo_vigente_por_otro
+                ? `Te reemplaza ${nombreOtroReemplazo}`
+                : `Reemplazando a ${nombreOtroReemplazo}`
+              : 'Reemplazo'
+          }
+        >
+          <i className="ki-outline ki-arrow-right-left text-xs"></i>
+          Reemplazo{nombreOtroReemplazo ? ` — ${nombreOtroReemplazo}` : ''}
+        </span>
+      ) : null;
+
+    const calificadoPor = nombresInstructoresCalificacion(clase);
 
     // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
     const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
@@ -1354,11 +1497,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                   {tituloRap}
                 </p>
               ) : null}
-              <div className="flex items-center gap-2 pt-0.5">
+              <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
                   <i className="ki-outline ki-check text-xs"></i>
                   <span>Completado</span>
                 </span>
+                {modalidadBadge}
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                   Sesión {sesion.numeroSesion || 'N/A'}
                 </span>
@@ -1388,10 +1532,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                   <i className="ki-outline ki-user text-sm"></i>
                   <span>Evaluado por: {sesion.evaluador_nombre}</span>
                 </div>
-              ) : clase.instructor_nombre ? (
+              ) : calificadoPor ? (
                 <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
                   <i className="ki-outline ki-user text-sm"></i>
-                  <span>Calificado por: {clase.instructor_nombre}</span>
+                  <span>
+                    {clase.modalidad_rap === 'COMPARTIDO' || reemplazoActivoEnClase(clase)
+                      ? 'Calificados por: '
+                      : 'Calificado por: '}
+                    {calificadoPor}
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -1422,6 +1571,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         : getProximaClasePendiente(clase)
       : null;
     const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
+    const iconoTarjeta = status === 'EN CURSO' ? (
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-300 dark:border-green-600 flex items-center justify-center">
+        <i className="ki-outline ki-time text-lg text-green-600 dark:text-green-400"></i>
+      </div>
+    ) : (
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
+        <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
+      </div>
+    );
 
     return (
       <div
@@ -1429,9 +1587,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         onClick={() => handleNavigateToClase(clase)}
       >
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
-            <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
-          </div>
+          {iconoTarjeta}
           <div className="flex-1 min-w-0">
             {/* Título y Badge en líneas separadas para mejor espaciado */}
             <div className="mb-2 space-y-1">
