@@ -23,6 +23,7 @@ interface WizardProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
+  selectedEventId?: number | string;
 }
 
 const PROVIDERS = [
@@ -47,7 +48,7 @@ const ProviderIcon = ({ provider }: { provider: typeof PROVIDERS[0] }) => {
  *  internal: 0 (type) → 4 (form picker) → 3 (event)
  */
 
-export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) => {
+export const FormIntegrationWizard = ({ open, onClose, onSave, selectedEventId }: WizardProps) => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -72,11 +73,16 @@ export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) =>
     if (open) {
       setStep(0);
       setMode(null);
-      setFormData({ provider: 'google', url: '', eventId: '', internalFormId: '' });
+      setFormData({ 
+        provider: 'google', 
+        url: '', 
+        eventId: selectedEventId || '', 
+        internalFormId: '' 
+      });
       setSearchEvent('');
       setSearchForm('');
     }
-  }, [open]);
+  }, [open, selectedEventId]);
 
   useEffect(() => {
     if (open && step === 3) fetchEvents();
@@ -153,12 +159,17 @@ export const FormIntegrationWizard = ({ open, onClose, onSave }: WizardProps) =>
         // Use the existing POST route directly (no _method spoofing needed for JSON)
         await axios.post(`eventos-multimedia/${formData.eventId}`, {
           idFormularioInterno: formData.internalFormId,
+          formUrl: '',
+          linkRegistro: '',
+          formProvider: 'interno',
         });
         enqueueSnackbar('Formulario interno vinculado correctamente al evento', { variant: 'success' });
       } else {
         await axios.post(`eventos-multimedia/${formData.eventId}`, {
           formUrl: formData.url,
+          linkRegistro: '',
           formProvider: formData.provider,
+          idFormularioInterno: null,
         });
         enqueueSnackbar('Formulario externo vinculado correctamente', { variant: 'success' });
       }

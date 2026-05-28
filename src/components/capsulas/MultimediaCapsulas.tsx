@@ -61,19 +61,55 @@ const MultimediaViewer = ({
   const currentGroup = items[groupIndex];
   const currentFile = currentGroup?.grupos_multimedia?.[fileIndex];
 
-  let cancionUrl = '';
-  let cancionTitle = '';
-  if (currentFile?.cancion) {
+  const [activeTrack, setActiveTrack] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (!currentFile?.cancion) {
+      setActiveTrack(null);
+      return;
+    }
+    
+    let active = true;
+    
     try {
       let parsed = typeof currentFile.cancion === 'string' ? JSON.parse(currentFile.cancion) : currentFile.cancion;
-      // Desempaquetar si está anidado
       if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-      cancionUrl = parsed?.preview_url || parsed?.preview || parsed?.url || '';
-      cancionTitle = parsed?.title || parsed?.name || '';
+      
+      if (parsed) {
+        setActiveTrack(parsed);
+        if (parsed.id) {
+          axios.get(`/deezer/search/${parsed.id}`)
+            .then(resp => {
+              if (active && resp.data && resp.data.preview_url) {
+                setActiveTrack(resp.data);
+              }
+            })
+            .catch(err => {
+              console.error('Error refreshing track preview:', err);
+            });
+        }
+      } else {
+        setActiveTrack(null);
+      }
     } catch (e) {
       console.error('Error parsing cancion:', e);
+      setActiveTrack(null);
     }
-  }
+
+    return () => {
+      active = false;
+    };
+  }, [currentFile]);
+
+  const cancionUrl = activeTrack?.preview_url || activeTrack?.preview || activeTrack?.url || '';
+  const cancionTitle = activeTrack?.title || activeTrack?.name || '';
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (audio && cancionUrl) {
+      audio.load();
+    }
+  }, [cancionUrl]);
 
   React.useEffect(() => {
     const audio = audioRef.current;
@@ -195,9 +231,7 @@ const MultimediaViewer = ({
           <div className="absolute inset-y-0 left-0 w-1/4 z-30 cursor-pointer" onClick={(e) => { e.stopPropagation(); handlePrev(); }} />
           <div className="absolute inset-y-0 right-0 w-1/4 z-30 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleNext(); }} />
 
-          {cancionUrl && (
-            <audio key={cancionUrl} ref={audioRef} src={cancionUrl} loop className="hidden" />
-          )}
+          <audio ref={audioRef} src={cancionUrl || undefined} loop className="hidden" />
 
           <div key={`${currentGroup.id}-${fileIndex}`} className="w-full h-full animate-fade-in flex items-center justify-center bg-black">
              {isYoutube ? (
@@ -287,50 +321,72 @@ const MultimediaViewer = ({
 };
 
 // === MAIN COMPONENT ===
+const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
+
 const MultimediaCapsulas = () => {
   const [items, setItems] = React.useState<MultimediaItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
-  const [canScrollRight, setCanScrollRight] = React.useState(false);
+  const clipRef = React.useRef<HTMLDivElement>(null);
+  
+  const [showLeftBtn, setShowLeftBtn] = React.useState(false);
+  const [showRightBtn, setShowRightBtn] = React.useState(false);
 
   const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
-    }
+    const el = clipRef.current;
+    if (!el) return;
+    // Tolerancia de 5px para variaciones de redondeo del navegador
+    setShowLeftBtn(el.scrollLeft > 5);
+    setShowRightBtn(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+  };
+
+  React.useEffect(() => {
+    const el = clipRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll);
+    
+    // Ejecutar verificaciones con pequeños retardos para dar tiempo al navegador de renderizar los elementos
+    checkScroll();
+    const t1 = setTimeout(checkScroll, 100);
+    const t2 = setTimeout(checkScroll, 500);
+
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      ro.disconnect();
+    };
+  }, [items]);
+
+  const slidePrev = () => {
+    const el = clipRef.current;
+    if (!el) return;
+    el.scrollBy({ left: -320, behavior: 'smooth' });
+  };
+
+  const slideNext = () => {
+    const el = clipRef.current;
+    if (!el) return;
+    el.scrollBy({ left: 320, behavior: 'smooth' });
   };
 
   React.useEffect(() => {
     const fetchMedia = async () => {
       try {
         const res = await axios.get('dashboard_multimedia');
-        
         const historias = (res.data.historias || [])
-          .map((h: any) => ({
-            ...h,
-            grupos_multimedia: h.grupos_multimedia || h.grupos_multimedia || [],
-            tipo_item: 'historia'
-          }))
+          .map((h: any) => ({ ...h, grupos_multimedia: h.grupos_multimedia || [], tipo_item: 'historia' }))
           .filter((h: any) => (h.grupos_multimedia || []).length > 0);
-
         const reels = (res.data.reels || [])
-          .map((r: any) => ({
-            ...r,
-            grupos_multimedia: r.grupos_multimedia || r.grupos_multimedia || [],
-            tipo_item: 'reel'
-          }))
+          .map((r: any) => ({ ...r, grupos_multimedia: r.grupos_multimedia || [], tipo_item: 'reel' }))
           .filter((r: any) => (r.grupos_multimedia || []).length > 0);
-        
-        // ORDENAR POR FECHA DE CREACIÓN (Más reciente primero)
-        const combined = [...historias, ...reels].sort((a, b) => {
-          const dateA = new Date(a.fecha_creacion || a.created_at || 0).getTime();
-          const dateB = new Date(b.fecha_creacion || b.created_at || 0).getTime();
-          return dateB - dateA;
-        });
-
+        const combined = [...historias, ...reels].sort((a, b) =>
+          new Date(b.fecha_creacion || b.created_at || 0).getTime() -
+          new Date(a.fecha_creacion || a.created_at || 0).getTime()
+        );
         setItems(combined);
       } catch (err) {
         console.error('Error fetching multimedia:', err);
@@ -341,33 +397,19 @@ const MultimediaCapsulas = () => {
     fetchMedia();
   }, []);
 
-  React.useEffect(() => {
-    checkScroll();
-    window.addEventListener('resize', checkScroll);
-    return () => window.removeEventListener('resize', checkScroll);
-  }, [items]);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const scrollAmount = 400;
-      scrollRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
-
   const getThumbnail = (item: MultimediaItem) => {
     const first = item.grupos_multimedia?.[0];
-    if (!first) return '';
-    return first.urlMultimediaFull || first.urlMultimedia || '';
+    return first?.urlMultimediaFull || first?.urlMultimedia || '';
   };
 
   if (loading) {
     return (
-      <div className="flex gap-5 overflow-x-auto pb-4 no-scrollbar">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-200 dark:bg-coal-300 animate-pulse border-2 border-white/10" />
+      <div className="flex gap-3 overflow-hidden">
+        {[1,2,3,4,5,6,7].map(i => (
+          <div key={i} className="flex flex-col items-center gap-2 shrink-0">
+            <div className="w-[66px] h-[66px] rounded-full bg-gray-200 dark:bg-coal-400 animate-pulse" />
+            <div className="w-12 h-2 rounded-full bg-gray-200 dark:bg-coal-400 animate-pulse" />
+          </div>
         ))}
       </div>
     );
@@ -375,116 +417,157 @@ const MultimediaCapsulas = () => {
 
   if (items.length === 0) {
     return (
-      <div className="relative overflow-hidden bg-gradient-to-br from-gray-50/50 to-gray-100/30 dark:from-coal-800/30 dark:to-coal-900/10 backdrop-blur-md rounded-3xl p-10 border border-gray-100 dark:border-white/5 text-center shadow-sm">
-        {/* Soft background glows */}
-        <div className="absolute -top-10 -left-10 w-40 h-40 bg-orange-400/10 dark:bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col items-center max-w-md mx-auto">
-          {/* Animated Glow Icon container */}
-          <div className="relative mb-5 flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-400/10 to-pink-500/10 dark:from-orange-400/5 dark:to-pink-500/5 border border-orange-200/30 dark:border-pink-500/10 shadow-sm">
-            <Film className="w-7 h-7 text-orange-500 dark:text-pink-400 animate-pulse" />
-          </div>
-          
-          <h4 className="text-gray-800 dark:text-gray-100 text-xs font-bold uppercase tracking-[0.2em] mb-2">
-            No hay cápsulas multimedia disponibles
-          </h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs font-medium">
-            Sube nuevas historias o reels para comenzar a compartir contenido con la comunidad.
-          </p>
-        </div>
+      <div className="flex flex-col items-center gap-2 py-6 text-gray-400 dark:text-gray-600">
+        <Film className="w-7 h-7" />
+        <p className="text-xs font-semibold">Sin cápsulas aún</p>
       </div>
     );
   }
 
+  // Ancho exacto e idéntico a Instagram para cada burbuja (80px totales)
+  const ITEM_W = 80;
+
   return (
-    <div className="w-full relative group/carousel">
-      {canScrollLeft && (
-        <button 
-          onClick={() => scroll('left')}
-          className="absolute top-1/2 -translate-y-1/2 -left-4 z-20 w-10 h-10 rounded-full bg-white/90 dark:bg-coal-400/90 shadow-xl border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-600 hover:text-primary transition-all scale-0 group-hover/carousel:scale-100"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-      )}
+    <div className="w-full max-w-full min-w-0 relative select-none group/carousel flex items-center">
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+      `}</style>
+      
+      {/* Botón ANTERIOR (Overlay a la izquierda) */}
+      <button
+        onClick={slidePrev}
+        aria-label="Anterior"
+        className={`absolute left-2 z-30 w-8 h-8 rounded-full flex items-center justify-center
+          bg-white/95 dark:bg-coal-300/95
+          shadow-[0_4px_12px_rgba(0,0,0,0.18)] border border-gray-100 dark:border-gray-800
+          text-gray-800 dark:text-gray-100 hover:text-primary dark:hover:text-primary
+          active:scale-90 transition-all duration-300
+          ${showLeftBtn ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}
+      >
+        <ChevronLeft className="w-4 h-4 stroke-[3]" />
+      </button>
 
-      {canScrollRight && (
-        <button 
-          onClick={() => scroll('right')}
-          className="absolute top-1/2 -translate-y-1/2 -right-4 z-20 w-10 h-10 rounded-full bg-white/90 dark:bg-coal-400/90 shadow-xl border border-gray-100 dark:border-gray-800 flex items-center justify-center text-gray-600 hover:text-primary transition-all scale-0 group-hover/carousel:scale-100"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
-      )}
-
-      <div 
-        ref={scrollRef}
-        onScroll={checkScroll}
-        className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth px-2"
+      {/* 
+        Scroll Container: 100% responsivo. 
+        flex-1 y min-w-0 son CRÍTICOS aquí: evitan que el flex-item se estire
+        según el ancho de su contenido y forzar el recorte (overflow-x-auto).
+      */}
+      <div
+        ref={clipRef}
+        className="flex-1 min-w-0 w-full overflow-x-auto no-scrollbar flex items-end gap-4 scroll-smooth"
+        style={{ 
+          paddingBottom: '4px'
+        }}
       >
         {items.map((item, idx) => {
           const thumb = getThumbnail(item);
           const isReel = item.tipo_item === 'reel';
-          const Icon = isReel ? Film : BookImage;
-          
+
           return (
             <div
               key={`${item.tipo_item}-${item.id}`}
               onClick={() => setViewerIndex(idx)}
-              className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer"
+              className="flex flex-col items-center gap-[5px] cursor-pointer group shrink-0"
+              style={{ width: `${ITEM_W}px` }}
             >
-              <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-amber-400 via-fuchsia-500 to-indigo-600 group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-fuchsia-500/20">
-                <div className="p-[2.5px] bg-white dark:bg-coal-600 rounded-full">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden relative">
+              {/* Ring — gradiente Instagram */}
+              <div
+                className="p-[2.5px] rounded-full group-hover:scale-105 transition-transform duration-200"
+                style={{
+                  background: isReel
+                    ? 'linear-gradient(45deg,#833ab4,#fd1d1d,#fcb045)'
+                    : 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)',
+                }}
+              >
+                {/* Separador */}
+                <div className="p-[2px] rounded-full bg-white dark:bg-[#1c1c1e]">
+                  {/* Avatar */}
+                  <div className="w-[58px] h-[58px] rounded-full overflow-hidden bg-gray-100 dark:bg-coal-500 relative">
                     {thumb ? (
                       isYoutubeUrl(thumb) ? (
-                        <div className="w-full h-full bg-black flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white fill-current" />
-                          <img src={`https://img.youtube.com/vi/${getYoutubeId(thumb)}/0.jpg`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                        /* YouTube: solo imagen estática — sin iframe pesado */
+                        <div className="w-full h-full relative">
+                          <img
+                            src={`https://img.youtube.com/vi/${getYoutubeId(thumb)}/mqdefault.jpg`}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            draggable={false}
+                            alt=""
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play className="w-5 h-5 text-white fill-white" />
+                          </div>
                         </div>
                       ) : isVideo(thumb) ? (
-                        <video 
-                          src={getImageUrl(thumb)} 
-                          className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all" 
-                          autoPlay 
-                          muted 
-                          loop 
+                        /* Video: SIN autoPlay — poster estático para optimizar rendimiento */
+                        <video
+                          src={getImageUrl(thumb)}
+                          className="w-full h-full object-cover"
+                          muted
                           playsInline
+                          preload="none"
                         />
                       ) : (
-                        <img src={getImageUrl(thumb)} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all" alt="" />
+                        <img
+                          src={getImageUrl(thumb)}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          draggable={false}
+                          alt={item.nombreGrupo}
+                        />
                       )
                     ) : (
-                      <div className="w-full h-full bg-gray-100 dark:bg-coal-500 flex items-center justify-center">
-                        <Icon className="w-6 h-6 text-gray-400" />
+                      <div className="w-full h-full flex items-center justify-center">
+                        {isReel
+                          ? <Film className="w-6 h-6 text-gray-400" />
+                          : <BookImage className="w-6 h-6 text-gray-400" />}
                       </div>
                     )}
-                    {/* Badge Tipo */}
-                    <div className="absolute bottom-1 right-1 w-5 h-5 rounded-md bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
-                      {isReel ? <Play className="w-2.5 h-2.5 text-white fill-current" /> : <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                    </div>
                   </div>
                 </div>
               </div>
-              <span className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-200 group-hover:text-primary transition-colors max-w-[80px] truncate text-center uppercase tracking-tighter">
+
+              {/* Username truncado centrado al estilo Instagram */}
+              <span className="text-[11px] font-normal leading-tight truncate text-center w-full
+                text-gray-700 dark:text-gray-300
+                group-hover:text-gray-900 dark:group-hover:text-white
+                transition-colors">
                 {item.nombreGrupo}
               </span>
             </div>
           );
         })}
       </div>
-      
+
+      {/* Botón SIGUIENTE (Overlay a la derecha) */}
+      <button
+        onClick={slideNext}
+        aria-label="Siguiente"
+        className={`absolute right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center
+          bg-white/95 dark:bg-coal-300/95
+          shadow-[0_4px_12px_rgba(0,0,0,0.18)] border border-gray-100 dark:border-gray-800
+          text-gray-800 dark:text-gray-100 hover:text-primary dark:hover:text-primary
+          active:scale-90 transition-all duration-300
+          ${showRightBtn ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'}`}
+      >
+        <ChevronRight className="w-4 h-4 stroke-[3]" />
+      </button>
+
       {viewerIndex !== null && (
-        <MultimediaViewer 
-          items={items} 
-          initialGroupIndex={viewerIndex} 
-          onClose={() => setViewerIndex(null)} 
+        <MultimediaViewer
+          items={items}
+          initialGroupIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
         />
       )}
     </div>
   );
 };
-
-const isVideo = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url);
 
 export default MultimediaCapsulas;

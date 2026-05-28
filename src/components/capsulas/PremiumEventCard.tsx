@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, MapPin, Calendar, ArrowRight, Video, Zap, CheckCircle2, AlertCircle, Timer, Sparkles } from 'lucide-react';
+import axios from 'axios';
 
 interface Evento {
   idEvento: number;
@@ -30,6 +31,34 @@ interface PremiumEventCardProps {
 export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onClick }) => {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [status, setStatus] = useState<'pending' | 'live' | 'finished'>('pending');
+  const [isRegistered, setIsRegistered] = useState(false);
+
+  useEffect(() => {
+    const checkRegistration = async () => {
+      try {
+        const response = await axios.get(`eventos-multimedia/${evento.idEvento}/check-registration`);
+        setIsRegistered(response.data.inscrito);
+      } catch (error) {
+        console.error('Error checking registration:', error);
+      }
+    };
+    if (evento.idEvento) {
+      checkRegistration();
+    }
+  }, [evento.idEvento]);
+
+  useEffect(() => {
+    const handleRegistrationUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.idEvento === evento.idEvento) {
+        setIsRegistered(customEvent.detail.inscrito);
+      }
+    };
+    window.addEventListener('event-registration-updated', handleRegistrationUpdate);
+    return () => {
+      window.removeEventListener('event-registration-updated', handleRegistrationUpdate);
+    };
+  }, [evento.idEvento]);
 
   const getImageUrl = (url?: string) => {
     if (!url) return '';
@@ -46,7 +75,8 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
        const endH = (h + 2) % 24;
        return `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     })();
-    const endDate = new Date(`${evento.fechaInicial.split('T')[0]}T${endDateStr}`);
+    const finalDateStr = (evento.fechaFinal || evento.fechaInicial).split('T')[0];
+    const endDate = new Date(`${finalDateStr}T${endDateStr}`);
 
     const calculateTime = () => {
       const now = new Date();
@@ -155,11 +185,17 @@ export const PremiumEventCard: React.FC<PremiumEventCardProps> = ({ evento, onCl
       </div>
 
       {/* Floating Date Badge (Top Left) */}
-      <div className="absolute top-3 left-3 z-20">
+      <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5">
          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 min-w-[35px] flex flex-col items-center shadow-2xl">
             <span className="text-[7px] font-black text-white/60 leading-none mb-0.5 tracking-tighter">{dateData.month}</span>
             <span className="text-sm font-black text-white leading-none tracking-tighter">{dateData.day}</span>
          </div>
+         {isRegistered && (
+            <div className="bg-emerald-500 text-white rounded-lg px-1.5 py-0.5 flex items-center justify-center gap-1 shadow-2xl border border-emerald-400/30 w-fit">
+               <CheckCircle2 className="w-2 h-2 shrink-0" />
+               <span className="text-[6px] font-black uppercase tracking-wider leading-none">Inscrito</span>
+            </div>
+         )}
       </div>
 
       {/* Floating Type Badge (Top Right) */}

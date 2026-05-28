@@ -131,6 +131,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
       setIsRegistered(true);
       setShowConfirmButton(false);
       enqueueSnackbar('¡Inscripción confirmada! Te avisaremos cuando empiece.', { variant: 'success' });
+      window.dispatchEvent(new CustomEvent('event-registration-updated', { detail: { idEvento: evento.idEvento, inscrito: true } }));
     } catch (error) {
       console.error('Error registering:', error);
       enqueueSnackbar('Error al confirmar la inscripción', { variant: 'error' });
@@ -140,9 +141,10 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
   };
 
   const handleExternalFormClick = () => {
-    if (evento.formProvider === 'interno' && evento.idFormularioInterno) {
+    const internalFormId = evento.idFormularioInterno || evento.id_formulario_interno;
+    if (internalFormId) {
       onClose();
-      navigate(`/formulario-publico/${evento.idFormularioInterno}`, {
+      navigate(`/formulario-publico/${internalFormId}`, {
         state: { fromEventId: evento.idEvento }
       });
     } else {
@@ -540,7 +542,7 @@ const ModalDetalleEvento: React.FC<ModalDetalleEventoProps> = ({ evento, onClose
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
                       Usuario Inscrito
                     </div>
-                  ) : (evento.linkRegistro || evento.formUrl || (evento.formProvider === 'interno' && evento.idFormularioInterno)) && eventStatus !== 'finished' && eventStatus !== 'cancelled' ? (
+                  ) : (evento.linkRegistro || evento.formUrl || evento.idFormularioInterno || evento.id_formulario_interno) && eventStatus !== 'finished' && eventStatus !== 'cancelled' ? (
                     <button 
                       onClick={handleExternalFormClick}
                       className="flex-1 sm:flex-[3] h-16 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-[10px] uppercase tracking-widest rounded-3xl flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-lg shadow-orange-500/20"

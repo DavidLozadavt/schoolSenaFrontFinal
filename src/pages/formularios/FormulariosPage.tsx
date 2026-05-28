@@ -133,7 +133,9 @@ const FormulariosPage: React.FC = () => {
     try {
       await axios.post(`eventos-multimedia/${eventId}`, {
         formUrl: '',
+        linkRegistro: '',
         formProvider: 'other',
+        idFormularioInterno: null,
         _method: 'POST'
       });
       showToast('Formulario desvinculado con éxito', 'success');
@@ -286,8 +288,12 @@ const FormulariosPage: React.FC = () => {
                             </h4>
                           </div>
                           
-                          {e.formUrl ? (
-                            getProviderBadge(e.formProvider)
+                          {(e.formUrl || e.linkRegistro) ? (
+                            getProviderBadge(e.formProvider || 'other')
+                          ) : (e.idFormularioInterno || e.id_formulario_interno) ? (
+                            <span className="badge badge-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold uppercase tracking-wider">
+                              Interno
+                            </span>
                           ) : (
                             <span className="badge badge-sm bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 font-bold uppercase tracking-wider">
                               Sin Vincular
@@ -301,7 +307,7 @@ const FormulariosPage: React.FC = () => {
                             <span>{e.fechaInicial}</span>
                           </span>
                           
-                          {e.formUrl && (
+                          {(e.formUrl || e.linkRegistro || e.idFormularioInterno || e.id_formulario_interno) && (
                             <button
                               onClick={(evt) => {
                                 evt.stopPropagation();
@@ -332,7 +338,7 @@ const FormulariosPage: React.FC = () => {
             <div className="lg:col-span-7">
               <div className="bg-white dark:bg-neutral-900 p-8 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl min-h-[600px] flex flex-col justify-center">
                 {selectedEvent ? (
-                  selectedEvent.formUrl ? (
+                  (selectedEvent.formUrl || selectedEvent.linkRegistro) ? (
                     <div className="animate-fade-in flex flex-col gap-6">
                       <div className="flex items-center justify-between bg-orange-500/5 p-5 rounded-3xl border border-orange-500/10 mb-2">
                         <div className="flex items-center gap-3">
@@ -344,21 +350,102 @@ const FormulariosPage: React.FC = () => {
                             <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Vinculado al evento: <span>{selectedEvent.nombre}</span></p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteExternalLink(selectedEvent.idEvento)}
-                          className="btn btn-sm bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                          <span>Eliminar Enlace</span>
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setWizardOpen(true)}
+                            className="btn btn-sm bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <span>Cambiar</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteExternalLink(selectedEvent.idEvento)}
+                            className="btn btn-sm bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <span>Eliminar Enlace</span>
+                          </button>
+                        </div>
                       </div>
 
                       <ExternalFormEmbed 
-                        url={selectedEvent.formUrl} 
-                        provider={selectedEvent.formProvider} 
+                        url={selectedEvent.formUrl || selectedEvent.linkRegistro} 
+                        provider={selectedEvent.formProvider || 'other'} 
                         title={selectedEvent.nombre} 
                       />
                     </div>
-                  ) : (
+                  ) : (selectedEvent.idFormularioInterno || selectedEvent.id_formulario_interno) ? (() => {
+                    const linkedForm = selectedEvent.formulario_interno || selectedEvent.formularioInterno;
+                    const formId = selectedEvent.idFormularioInterno || selectedEvent.id_formulario_interno;
+                    return (
+                      <div className="animate-fade-in flex flex-col gap-6">
+                        <div className="flex items-center justify-between bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10 mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20">
+                              <Layers className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white">Formulario Interno Activo</h4>
+                              <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-0.5">
+                                Vinculado al evento: <span className="text-orange-500">{selectedEvent.nombre}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setWizardOpen(true)}
+                              className="btn btn-sm bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                            >
+                              <span>Cambiar</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExternalLink(selectedEvent.idEvento)}
+                              className="btn btn-sm bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                            >
+                              <span>Eliminar Vinculación</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-8 rounded-[2rem] border border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-neutral-800/10 flex flex-col gap-6 text-center items-center">
+                          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-md">
+                            <FileText className="w-8 h-8" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-1">
+                              {linkedForm?.titulo || `Formulario ID: ${formId}`}
+                            </h3>
+                            <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all inline-block mt-2 ${
+                              linkedForm?.estado === 'publicado' 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                            }`}>
+                              {linkedForm?.estado || 'Borrador'}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed font-semibold max-w-md">
+                            Este evento está integrado con un formulario interno de VirtualT. Las respuestas se recopilarán directamente y de forma segura dentro de la plataforma.
+                          </p>
+
+                          <div className="flex flex-wrap gap-4 justify-center w-full mt-4">
+                            <button
+                              onClick={() => window.open(`/formulario-publico/${formId}`, '_blank')}
+                              className="btn btn-sm bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white transition-all px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border border-emerald-500/20 shadow-sm"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>Ver Formulario</span>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/formularios/builder/${formId}`)}
+                              className="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white transition-all px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span>Editar Estructura</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })() : (
                     <div className="text-center py-20 animate-fade-in flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-20 h-20 bg-neutral-50 dark:bg-neutral-800/40 rounded-[2rem] flex items-center justify-center mb-6 border border-neutral-100 dark:border-white/5">
                         <LinkIcon className="w-8 h-8 text-neutral-300" />
@@ -636,6 +723,7 @@ const FormulariosPage: React.FC = () => {
       <FormIntegrationWizard 
         open={wizardOpen} 
         onClose={() => setWizardOpen(false)} 
+        selectedEventId={selectedEvent?.idEvento}
         onSave={() => {
           setWizardOpen(false);
           setReloadSignal((prev) => !prev);
