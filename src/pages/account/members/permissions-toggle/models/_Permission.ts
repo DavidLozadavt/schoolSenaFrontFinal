@@ -6,7 +6,8 @@ export interface PermissionModel {
     idPermissionPadre: number | null;
 
     checked: boolean;
-    icon: string;
+    icon: string | null;
+    path?: string | null;
 
     children?: PermissionModel[];
 

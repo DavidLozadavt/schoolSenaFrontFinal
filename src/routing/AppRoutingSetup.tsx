@@ -265,7 +265,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/informeInstructor"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_PAGO']}>
                 <InformePagoGeneral />
               </ProtectedRoute>
             }
@@ -273,7 +273,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/actas"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_ACTAS']}>
                 <ActasInstructorGeneral />
               </ProtectedRoute>
             }
@@ -281,7 +281,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/instructor-lider"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_NOVEDADES']}>
                 <InstructorLider />
               </ProtectedRoute>
             }
@@ -923,7 +923,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/rmi"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR_RMI']}>
                 <RmiGeneral/>
               </ProtectedRoute>
             }
@@ -931,7 +931,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gc"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR_GC']}>
                 <GCGeneral/>
               </ProtectedRoute>
             }
@@ -1000,7 +1000,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/solicitudes-instructor"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_SOLICITUDES']}>
                 <SolicitudInstructorPage/>
               </ProtectedRoute>
             }
@@ -1009,7 +1009,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/mis-solicitudes-instructor"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_MIS_SOLICITUDES']}>
                 <MisSolicitudesInstructorPage/>
               </ProtectedRoute>
             }
@@ -1190,7 +1190,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/ambiente-virtual/horario"
             element={
               <ProtectedRoute
-                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_HORARIO']}
               >
                 <HorarioInstructorPage />
               </ProtectedRoute>
@@ -1200,7 +1200,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/ambiente-virtual/historial-raps"
             element={
               <ProtectedRoute
-                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_FORMACIONES']}
               >
                 <HistorialRAPsPage />
               </ProtectedRoute>
@@ -1210,7 +1210,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/ambiente-virtual/instructor/mis-actividades"
             element={
               <ProtectedRoute
-                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}
+                requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES']}
               >
                 <MisActividadesInstructorPage />
               </ProtectedRoute>
@@ -1219,7 +1219,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/mis-clases"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ']}>
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_CLASES']}>
                 <MisClasesPage />
               </ProtectedRoute>
             }
@@ -1227,7 +1227,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/actividades"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ']}>
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_ACTIVIDADES']}>
                 <ActividadesPage />
               </ProtectedRoute>
             }
@@ -1235,7 +1235,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/grupos"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ']}>
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_GRUPOS']}>
                 <GruposPage />
               </ProtectedRoute>
             }
@@ -1243,7 +1243,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/biblioteca-conocimiento"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ']}>
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_BIBLIOTECA']}>
                 <BibliotecaConocimientoPage />
               </ProtectedRoute>
             }

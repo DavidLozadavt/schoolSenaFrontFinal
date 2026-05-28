@@ -336,14 +336,17 @@ const SidebarMenu = () => {
           return null;
         }
         if (item.children && item.children.length > 0) {
-          const filteredChildren = filterMenuByPermissions(item.children, safe);
-          if (item.requiredPermissions?.length) {
-            const ok = item.requiredPermissions.some((p) => safe.includes(p));
-            if (!ok) return null;
-          }
-          if (filteredChildren.length === 0) return null;
-          return { ...item, children: filteredChildren };
-        }
+              const filteredChildren = filterMenuByPermissions(item.children, safe);
+
+              // Mostrar el padre si: a) el usuario tiene el permiso del padre, o b) alguno de los hijos quedó permitido.
+              const parentHasPermission = item.requiredPermissions?.length
+                ? item.requiredPermissions.some((p) => safe.includes(p))
+                : false;
+
+              if (filteredChildren.length === 0 && !parentHasPermission) return null;
+
+              return { ...item, children: filteredChildren };
+            }
         if (item.requiredPermissions?.length) {
           const ok = item.requiredPermissions.some((p) => safe.includes(p));
           if (!ok) return null;
