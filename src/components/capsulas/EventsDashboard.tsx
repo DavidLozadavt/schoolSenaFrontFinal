@@ -65,7 +65,7 @@ const EventsDashboard = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await axios.get('eventos-multimedia');
+        const res = await axios.get('eventos-multimedia?per_page=100');
         // Handle both simple array and Laravel paginated response
         let data = Array.isArray(res.data) ? res.data : (res.data.data || []);
         const now = new Date();
@@ -84,29 +84,8 @@ const EventsDashboard = () => {
           return true;
         });
 
-        // Smart sorting: Live/Upcoming first (ASC), then Finished (DESC)
-        data = data.sort((a: Evento, b: Evento) => {
-          const startA = new Date(`${a.fechaInicial.split('T')[0]}T${a.hora}`);
-          const startB = new Date(`${b.fechaInicial.split('T')[0]}T${b.hora}`);
-          
-          const endA = a.hora_final ? new Date(`${(a.fechaFinal || a.fechaInicial).split('T')[0]}T${a.hora_final}`) : new Date(startA.getTime() + 2 * 60 * 60 * 1000);
-          const endB = b.hora_final ? new Date(`${(b.fechaFinal || b.fechaInicial).split('T')[0]}T${b.hora_final}`) : new Date(startB.getTime() + 2 * 60 * 60 * 1000);
-
-          const isFinishedA = now > endA;
-          const isFinishedB = now > endB;
-
-          // Priority 1: Not finished
-          if (isFinishedA && !isFinishedB) return 1;
-          if (!isFinishedA && isFinishedB) return -1;
-
-          if (!isFinishedA && !isFinishedB) {
-            // Both upcoming: closest start first
-            return startA.getTime() - startB.getTime();
-          }
-
-          // Both finished: most recent first
-          return startB.getTime() - startA.getTime();
-        });
+        // Sort by idEvento DESC (most recently created/saved first)
+        data = data.sort((a: Evento, b: Evento) => b.idEvento - a.idEvento);
 
         setEventos(data);
       } catch (err) {
