@@ -23,7 +23,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         children: [
           {
             title: 'Planeación',
-            path: '/gestion-academica/configuracion/redes',
+            path: '/gestion-academica/configuracion/programas',
             requiredPermissions: ['GESTION_USUARIO']
           },
           {

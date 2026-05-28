@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useContext, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FormularioPrograma from './components/FormularioPrograma';
 import ConfirmarEliminar from './components/ConfirmarEliminar';
@@ -114,7 +114,7 @@ export const GestionProgramas = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
 
-  const { idRed } = useParams();
+
 
   const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
 
@@ -161,7 +161,7 @@ export const GestionProgramas = ({
 
         url = `programas_docente/${Number(idContrato)}`;
       } else {
-        url = `programasporRed/${idRed}`;
+        url = `programas`;
 
         if (idCentroFormacion !== 0) {
           url += `?centro=${idCentroFormacion}`;
@@ -179,17 +179,15 @@ export const GestionProgramas = ({
     } finally {
       setLoading(false);
     }
-  }, [idCentroFormacion, idRed, mapBackendToUi, authContext]);
+  }, [idCentroFormacion, mapBackendToUi, authContext]);
 
   useEffect(() => {
-    if (!idRed) return;
-
     if (authContext?.roles?.includes('ADMIN CENTRO') && idCentroFormacion === 0) {
       return;
     }
 
     fetchProgramas();
-  }, [idRed, idCentroFormacion]);
+  }, [idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
     await fetchProgramas();
@@ -323,14 +321,6 @@ export const GestionProgramas = ({
       <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
 
       <div className="relative z-10 flex flex-col w-full h-full">
-        <div className="w-full max-w-6xl mx-auto mb-6 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-800 uppercase dark:text-white">
-            Gestión de Planeación
-          </h1>
-          <p className="mt-1 text-xs font-medium tracking-widest text-gray-500 uppercase">
-            Configuración Académica
-          </p>
-        </div>
 
         <div className="flex items-center justify-between w-full max-w-5xl gap-4 px-2 mx-auto mb-8">
           <div className="group flex items-center bg-white/80 backdrop-blur-md dark:bg-coal-300/80 border border-gray-400 dark:border-gray-800 rounded-full p-1.5 transition-all duration-500 ease-in-out w-[46px] hover:w-[280px] md:hover:w-[350px] focus-within:w-[280px] md:focus-within:w-[350px] shadow-sm overflow-hidden">
@@ -562,7 +552,7 @@ export const GestionProgramas = ({
                                 title="Proyectos Formativos"
                                 onClick={() => {
                                   navigate(
-                                    `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${program.id}`
+                                    `/gestion-academica/configuracion/programas/proyecto/${program.id}`
                                   );
                                 }}
                                 className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"

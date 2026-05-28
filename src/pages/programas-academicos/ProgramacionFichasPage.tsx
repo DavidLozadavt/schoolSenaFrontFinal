@@ -312,7 +312,7 @@ export const ProgramacionFichasPage = () => {
 
   return (
     <>
-      <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-coal-500">
+      <div className="flex flex-col w-full h-screen">
         <ModalJuiciosEvaluativos
           open={juiciosEvaluativos}
           onClose={() => {
@@ -326,73 +326,42 @@ export const ProgramacionFichasPage = () => {
           idGrado={idGrado}
         />
 
-        <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
-          <nav className="text-sm text-gray-600 dark:text-gray-400">
-            <span
-              className="hover:text-primary cursor-pointer"
-              onClick={() => navigate('/gestion-academica/configuracion/programas')}
-            >
-              Planeación
-            </span>
-            <span className="mx-2">/</span>
-            <span
-              className="hover:text-primary cursor-pointer"
-              onClick={() => navigate('/gestion-academica/configuracion/programas')}
-            >
-              Gestión de planeación
-            </span>
-            <span className="mx-2">/</span>
-            <span className="text-gray-800 dark:text-white font-medium">
-              {program?.name ?? 'Programa'}
-            </span>
-          </nav>
-        </div>
-
-        <div className="px-6 py-4 bg-blue-600 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold">
-                {program?.codigo} {program?.name}
-              </h1>
-              <div className="flex items-center gap-4 mt-2 text-sm">
-                <span>{program?.formacion}</span>
-                <span>•</span>
-                <span>{program?.nivel}</span>
-                <span>•</span>
-                <span>Presencial</span>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
-            >
-              Volver
-            </button>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start md:justify-between px-6 py-2 shadow-sm">
+        <div>
+          <div>  
+          <h1 className="text-3xl font-bold tracking-tight text-gray-700 dark:text-white">
+            {program?.name}
+          </h1>
+          
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
+            {esInstructorSena
+              ? 'Fichas asignadas a ti y disponibles para autogestión.'
+              : 'Administra las fichas del programa y asigna líderes responsables.'}
+          </p>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-                Programación de Fichas
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {esInstructorSena
-                  ? 'Fichas asignadas a ti y fichas disponibles para asignarte'
-                  : 'Gestiona las fichas del programa y asigna líderes'}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <i className="ki-outline ki-plus text-lg"></i>
-              Crear Ficha
-            </button>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="h-11 px-4 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+          >
+            Volver
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="h-11 px-5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition flex items-center gap-2 shadow-sm"
+          >
+            <i className="ki-outline ki-plus text-base"></i>
+            Crear Ficha
+          </button>
+        </div>
+      </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          
           {isModalOpen && (
             <CrearEditarFicha
               idCentro={idCentroFormacion}
@@ -504,7 +473,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                                  Ficha {ficha.codigo}
+                                  {ficha.codigo}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${

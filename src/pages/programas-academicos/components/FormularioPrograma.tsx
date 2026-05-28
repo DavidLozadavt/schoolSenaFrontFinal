@@ -51,7 +51,7 @@ export const FormularioPrograma = ({
           formacion: '',
           nivel: '',
           status: '',
-          red:params.idRed?.toString() || '',
+          red: '',
           description: ''
         });
       }
@@ -107,10 +107,6 @@ export const FormularioPrograma = ({
       return;
     }
     if (!validateDocumento(documento)) return;
-    if (!params.idRed) {
-      alert('No se encontró la red asociada');
-      return;
-    }
 
     const basePayload = {
       nombrePrograma: formData.name.toUpperCase(),

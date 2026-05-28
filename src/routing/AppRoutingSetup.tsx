@@ -834,24 +834,24 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           {/* --- SECCIÓN GESTIÓN ACADÉMICA --- */}
-          <Route
+          {/* <Route
             path="/gestion-academica/configuracion/programas"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <ProgramasEntryPage />
               </ProtectedRoute>
             }
-          />
-          <Route
+          /> */}
+          {/* <Route
             path="/gestion-academica/configuracion/redes"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <RedesProgramas />
               </ProtectedRoute>
             }
-          />
+          /> */}
           <Route
-            path="/gestion-academica/configuracion/redes/programas/:idRed"
+            path="/gestion-academica/configuracion/programas"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <GestionProgramas />
@@ -859,7 +859,7 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
-            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma"
+            path="/gestion-academica/configuracion/programas/proyecto/:idPrograma"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <ProyectoFormativoEntry />
@@ -867,7 +867,7 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
-            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase"
+            path="/gestion-academica/configuracion/programas/proyecto/:idPrograma/fase/:idFase"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <ActividadProyectoEntry />
