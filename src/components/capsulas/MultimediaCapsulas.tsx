@@ -55,7 +55,7 @@ const MultimediaViewer = ({
   const [progress, setProgress] = React.useState(0);
   const [isPlaying, setIsPlaying] = React.useState(true);
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
-  const duration = 5000;
+  const duration = 6000;
   const audioRef = React.useRef<HTMLAudioElement>(null);
 
   const currentGroup = items[groupIndex];
