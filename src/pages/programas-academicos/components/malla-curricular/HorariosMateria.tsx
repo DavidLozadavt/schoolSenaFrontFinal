@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
 import { useSnackbar } from 'notistack';
 import { ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { Clock, Save } from 'lucide-react';
+import { getColombianHolidayDateSet, isColombianHoliday } from '@/utils/colombianHolidays';
 
 interface HorarioDia {
   idDia: number;
@@ -97,6 +98,9 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   const [horaGlobalInicio, setHoraGlobalInicio] = useState('');
   const [horaGlobalFin, setHoraGlobalFin] = useState('');
 
+  // Si es false, la proyección excluye festivos de Colombia
+  const [incluirFestivos, setIncluirFestivos] = useState(false);
+
   // Inicializar Formik
   const formik = useFormik({
     initialValues: {
@@ -114,6 +118,13 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
 
   const { values, setFieldValue, handleChange, handleSubmit, errors, touched } = formik;
 
+  const festivosSet = useMemo(() => {
+    const baseYear = values.fechaInicio
+      ? new Date(values.fechaInicio + 'T00:00:00').getFullYear()
+      : new Date().getFullYear();
+    return getColombianHolidayDateSet(baseYear, baseYear + 2);
+  }, [values.fechaInicio]);
+
   // Cargar días disponibles al abrir el modal
   useEffect(() => {
     if (open) {
@@ -124,6 +135,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       formik.resetForm();
       setHoraGlobalInicio('');
       setHoraGlobalFin('');
+      setIncluirFestivos(false);
     }
   }, [open]);
 
@@ -282,7 +294,8 @@ const toggleDia = (index: number) => {
         horaInicio: h.horaInicio,
         horaFin: h.horaFin
       })),
-      esCompartido: values.esCompartido
+      esCompartido: values.esCompartido,
+      festivos: incluirFestivos || false,
     };
 
     setGuardando(true);
@@ -318,7 +331,9 @@ const toggleDia = (index: number) => {
     totalHoras, 
     horasActuales, 
     horasFaltantes,
-    porcentajeEjecucion
+    porcentajeEjecucion,
+    incluirFestivos,
+    festivosSet
   ]);
 
   const calcularProyeccion = () => {
@@ -372,8 +387,12 @@ const toggleDia = (index: number) => {
         const diaSemana = fechaFinCalculada.getDay();
 
         if (mapaHorarios[diaSemana] !== undefined) {
-          horasAcumuladas += mapaHorarios[diaSemana];
-          fechasSesiones.push(new Date(fechaFinCalculada));
+          const cuentaComoSesion =
+            incluirFestivos || !isColombianHoliday(fechaFinCalculada, festivosSet);
+          if (cuentaComoSesion) {
+            horasAcumuladas += mapaHorarios[diaSemana];
+            fechasSesiones.push(new Date(fechaFinCalculada));
+          }
         }
 
         if (horasAcumuladas < horasPendientes) {
@@ -412,7 +431,7 @@ const toggleDia = (index: number) => {
 
   return (
     <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 animate-fade-in'>
-      <ModalContent className="w-full max-w-6xl p-4 max-h-[95vh]">
+      <ModalContent className="w-full max-w-7xl p-4 max-h-[95vh]">
         <ModalHeader>
           <ModalTitle>Configurar Horarios de la Materia - Jornada: {jornada}</ModalTitle>
           <button
@@ -461,6 +480,8 @@ const toggleDia = (index: number) => {
                 </div>
               </div>
 
+              <div className='flex flex-col md:flex-row gap-2'>
+
               {/* Horario compartido */}
               <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <label className="switch">
@@ -476,6 +497,29 @@ const toggleDia = (index: number) => {
                   <p className="text-[10px] text-blue-600 dark:text-blue-500">Al marcar esta opción, se habilitará la asignación de múltiples instructores para este horario.</p>
                 </div>
               </div>
+
+              {/* Incluir festivos en el cálculo */}
+              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={incluirFestivos}
+                    onChange={(e) => setIncluirFestivos(e.target.checked)}
+                  />
+                </label>
+                <div>
+                  <span className="text-sm font-semibold text-amber-800 dark:text-amber-400">
+                    Incluir días festivos
+                  </span>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-500">
+                    {incluirFestivos
+                      ? 'La fecha fin estimada y las sesiones cuentan los festivos de Colombia como días de formación.'
+                      : 'La proyección omite los festivos oficiales de Colombia al estimar fecha fin y sesiones.'}
+                  </p>
+                </div>
+              </div>
+
+            </div> 
 
               {/* Observación */}
               <div>

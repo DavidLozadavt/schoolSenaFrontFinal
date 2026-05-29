@@ -1,19 +1,26 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
   Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
   Clock,
   User,
   X,
-  Trash2
+  Trash2,
+  Plus
 } from "lucide-react";
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
 import AsignacionSesionModal from './AsignacionSesionModal';
+
+// FullCalendar imports
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import esLocale from '@fullcalendar/core/locales/es';
+import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey } from '@/utils/colombianHolidays';
+import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
 
 interface CalendarioProps {
   isOpen: boolean;
@@ -22,7 +29,6 @@ interface CalendarioProps {
   idFicha: number;
   onAddSchedule: () => void;
   cargarRaps?: () => void;
-  // Cuando viene desde el módulo de RMI el calendario es solo de lectura
   modoRmi?: boolean;
 }
 
@@ -38,12 +44,6 @@ const mapeoDias: { [key: string]: number } = {
   'SÁBADO': 6
 };
 
-const daysOfWeek = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
-const months = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-];
-
 const parseDate = (dateString: string): Date | null => {
   if (!dateString) return null;
   const parts = dateString.split('T')[0].split('-');
@@ -52,6 +52,158 @@ const parseDate = (dateString: string): Date | null => {
   }
   return new Date(dateString);
 };
+
+const format12h = (timeStr?: any) => {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const parts = timeStr.split(':');
+  let h = parseInt(parts[0], 10);
+  if (isNaN(h)) return '';
+  const m = parts[1] || '00';
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+};
+
+// ─── Tooltip flotante ────────────────────────────────────────────────────────
+
+interface TooltipData {
+  ev: any;
+  x: number;
+  y: number;
+}
+
+const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ data, carouselIndex }) => {
+  const { ev, x, y } = data;
+  const hIni = ev.horaInicial || ev.horaInicio;
+  const hFin = ev.horaFinal || ev.horaFin;
+  const instructor = ev.instructor || ev.contrato?.persona;
+
+  const TOOLTIP_W = 260;
+  const TOOLTIP_H = 340; // estimado
+  const OFFSET = 16;
+
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+  // Preferir derecha, si no cabe ir a la izquierda
+  const goLeft = x + OFFSET + TOOLTIP_W > vw - 8;
+  const left = goLeft ? x - OFFSET - TOOLTIP_W : x + OFFSET;
+
+  // Preferir abajo del cursor, si no cabe ir arriba
+  const goUp = y + OFFSET + TOOLTIP_H > vh - 8;
+  const top = goUp ? y - OFFSET - TOOLTIP_H : y + OFFSET;
+
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    top: Math.max(8, top),
+    left: Math.max(8, left),
+    zIndex: 9999,
+    pointerEvents: 'none',
+    width: TOOLTIP_W,
+  };
+
+  const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || ev._materiaFallback || '';
+
+  return (
+    <div
+      style={style}
+      className="bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 overflow-hidden"
+      // Pequeña animación de entrada con keyframes inline
+    >
+      {/* Carrusel foto */}
+      <div className="h-28 w-full relative overflow-hidden bg-gray-100 dark:bg-coal-500 border-b dark:border-gray-600">
+        <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: (!ev.isSharedSlot || carouselIndex === 0) ? 1 : 0 }}>
+          {(instructor?.rutaFotoUrl || instructor?.rutaFoto) ? (
+            <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
+          )}
+          <div className="absolute top-0 left-0 bg-gray-800/60 text-white text-[7px] px-2 py-0.5 font-black rounded-br-lg">TITULAR</div>
+        </div>
+        {ev.isSharedSlot && ev.allAssignments?.length > 0 && (
+          <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: carouselIndex === 1 ? 1 : 0 }}>
+            {(ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto) ? (
+              <img src={ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
+            )}
+            <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.allAssignments?.[0]?.tipoAsignacion || ''}</div>
+          </div>
+        )}
+        {ev.isSharedSlot && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+            <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 0 ? 'bg-white scale-125' : 'bg-white/40'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 1 ? 'bg-white scale-125' : 'bg-white/40'}`} />
+          </div>
+        )}
+      </div>
+
+      {/* Cuerpo del tooltip */}
+      <div className="p-4 text-left">
+        {/* Estado + Hora */}
+        <div className="flex justify-between items-center mb-3 gap-2">
+          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : ev.estado === 'PENDIENTE' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+            {ev.estado || 'SIN ESTADO'}
+          </span>
+          <div className="flex items-center gap-1.5 text-primary shrink-0">
+            <Clock size={12} className="shrink-0" />
+            <span className="text-[11px] font-black tracking-wide whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {/* Materia */}
+          <div className="flex flex-col gap-1">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Materia / RAP</p>
+            <p className="text-[11px] font-black leading-snug dark:text-white uppercase line-clamp-3">{materiaNombre}</p>
+          </div>
+
+          {/* Separador */}
+          <div className="border-t border-gray-100 dark:border-gray-700" />
+
+          {/* Instructores */}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Instructor</p>
+            <div className="flex items-center gap-2 dark:text-white">
+              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-coal-500 flex items-center justify-center shrink-0">
+                <User size={13} className="text-gray-400" />
+              </div>
+              <span className="text-[11px] font-semibold leading-tight">
+                {instructor
+                  ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}`
+                  : <span className="text-orange-500 font-black uppercase text-[10px]">Sin asignar</span>}
+              </span>
+            </div>
+          </div>
+
+          {/* Instructores compartidos */}
+          {ev.isSharedSlot && ev.allAssignments?.map((asig: any, aIdx: number) => (
+            <div key={aIdx} className="flex flex-col gap-1 border-t border-gray-100 dark:border-gray-700 pt-2">
+              <div className="flex items-center gap-2 dark:text-white">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <User size={13} className="text-primary" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-semibold leading-tight truncate">
+                    {asig.contrato?.persona?.nombre1 || ''} {asig.contrato?.persona?.apellido1 || ''}
+                  </span>
+                  <span className="text-[9px] text-primary font-black uppercase">{asig.tipoAsignacion}</span>
+                </div>
+              </div>
+              {asig.observacion && (
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 italic pl-8">
+                  "{asig.observacion}"
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Componente principal ────────────────────────────────────────────────────
 
 export const Calendario: React.FC<CalendarioProps> = ({
   isOpen,
@@ -62,9 +214,6 @@ export const Calendario: React.FC<CalendarioProps> = ({
   cargarRaps,
   modoRmi = false
 }) => {
-  // Mover el return null después de todos los hooks
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -74,8 +223,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [idMateriaAsignacion, setIdMateriaAsignacion] = useState<number | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
-  // Efecto para el carrusel de fotos en los tooltips
+  // Carrusel
   useEffect(() => {
     if (!isOpen) return;
     const interval = setInterval(() => {
@@ -84,24 +234,11 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  const format12h = (timeStr?: any) => {
-    if (!timeStr || typeof timeStr !== 'string') return '';
-    const parts = timeStr.split(':');
-    let h = parseInt(parts[0], 10);
-    if (isNaN(h)) return '';
-    const m = parts[1] || '00';
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${m} ${ampm}`;
-  };
-
-  // Efecto para cargar horarios - SOLO cuando se abre el modal
+  // Carga de horarios
   useEffect(() => {
     let isMounted = true;
-
     const cargarHorarios = async () => {
       if (!isOpen) return;
-
       setLoading(true);
       try {
         if (materia?.horarios && !Array.isArray(materia.horarios)) {
@@ -109,19 +246,13 @@ export const Calendario: React.FC<CalendarioProps> = ({
             ...(materia.horarios.asignados || []),
             ...(materia.horarios.sinAsignar || [])
           ];
-          if (isMounted) {
-            setHorariosFicha(horariosCombinados);
-          }
+          if (isMounted) setHorariosFicha(horariosCombinados);
         } else {
           const response = await axios.get(`horario/ficha/${idFicha}`);
-          if (isMounted) {
-            setHorariosFicha(response.data.data || []);
-          }
+          if (isMounted) setHorariosFicha(response.data.data || []);
         }
-      } catch (error) {
-        if (isMounted) {
-          setHorariosFicha([]);
-        }
+      } catch {
+        if (isMounted) setHorariosFicha([]);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -129,183 +260,233 @@ export const Calendario: React.FC<CalendarioProps> = ({
         }
       }
     };
-
-    if (isOpen) {
-      cargarHorarios();
-    }
-
-    return () => {
-      isMounted = false;
-    };
+    if (isOpen) cargarHorarios();
+    return () => { isMounted = false; };
   }, [isOpen, idFicha, refreshTrigger, materia]);
 
-  // Resetear estado cuando se cierra el modal
+  // Reset al cerrar
   useEffect(() => {
     if (!isOpen) {
       setHorariosFicha([]);
       setLoading(true);
       setInitialLoadComplete(false);
-      setCurrentDate(new Date());
-      setViewMode('month');
+      setTooltip(null);
     }
   }, [isOpen]);
 
-  // Procesar horarios - usando useMemo
+  // Procesar horarios
   const { asignados, sinAsignar } = useMemo(() => {
-    if (!horariosFicha.length) {
-      return { asignados: [], sinAsignar: [] };
-    }
-
-    const a = horariosFicha.filter((h: any) => h.estado === 'ASIGNADO');
-    const s = horariosFicha.filter((h: any) => h.estado === 'PENDIENTE');
-
-    return { asignados: a, sinAsignar: s };
+    if (!horariosFicha.length) return { asignados: [], sinAsignar: [] };
+    return {
+      asignados: horariosFicha.filter((h: any) => h.estado === 'ASIGNADO'),
+      sinAsignar: horariosFicha.filter((h: any) => h.estado === 'PENDIENTE'),
+    };
   }, [horariosFicha]);
 
-  // Función para obtener eventos de una fecha
-  const getEventsForDate = useMemo(() => {
-    return (date: Date) => {
-      const dayName = Object.keys(mapeoDias).find(key => mapeoDias[key] === date.getDay());
-      if (!dayName) return [];
+  const holidayDates = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    let minYear = currentYear;
+    let maxYear = currentYear + 1;
 
-      const compareDate = new Date(date);
-      compareDate.setHours(0, 0, 0, 0);
+    [...asignados, ...sinAsignar].forEach((h: any) => {
+      const start = parseDate(h.fechaInicial || h.fechaInicio);
+      const end = parseDate(h.fechaFinal || h.fechaFin);
+      if (start) minYear = Math.min(minYear, start.getFullYear());
+      if (end) maxYear = Math.max(maxYear, end.getFullYear());
+    });
 
-      const filterFn = (h: any) => {
-        const fInicio = h.fechaInicial || h.fechaInicio;
-        const fFin = h.fechaFinal || h.fechaFin;
-
-        const start = parseDate(fInicio);
-        const end = parseDate(fFin);
-        if (!start || !end) return false;
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
-
-        const dayNum = date.getDay();
-        const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
-        const jsDayFromId = idDiaRaw !== undefined ? (Number(idDiaRaw) === 7 ? 0 : Number(idDiaRaw)) : -1;
-
-        const matchDay = (h.dia?.dia?.toUpperCase() === dayName) ||
-          (h.dia_semana?.toUpperCase() === dayName) ||
-          (h.nombreDia?.toUpperCase() === dayName) ||
-          (mapeoDias[h.dia_semana?.toUpperCase()] === dayNum) ||
-          (jsDayFromId === dayNum);
-
-        return matchDay && compareDate >= start && compareDate <= end;
-      };
-
-      const rawEvents = [
-        ...asignados.filter(filterFn).map(h => {
-          const assignments = h.asignacion_sesion || h.asignacionSesion || [];
-          const activeAsignacion = assignments.find((asig: any) => {
-            const start = parseDate(asig.fechaInicio);
-            const end = parseDate(asig.fechaFin);
-            if (!start || !end) return false;
-            start.setHours(0, 0, 0, 0);
-            end.setHours(0, 0, 0, 0);
-            return compareDate >= start && compareDate <= end;
-          });
-          return { ...h, type: 'asignados', activeAsignacion };
-        }),
-        ...sinAsignar.filter(filterFn).map(h => ({ ...h, type: 'sinAsignar' }))
-      ];
-
-      // Agrupar eventos por slot (hora inicio, hora fin e idGradoMateria)
-      const grouped: any[] = [];
-      rawEvents.forEach(ev => {
-        const hIni = ev.horaInicial || ev.horaInicio;
-        const hFin = ev.horaFinal || ev.horaFin;
-        const key = `${hIni}-${hFin}-${ev.idGradoMateria}`;
-        
-        const existing = grouped.find(g => {
-          const gIni = g.horaInicial || g.horaInicio;
-          const gFin = g.horaFinal || g.horaFin;
-          return `${gIni}-${gFin}-${g.idGradoMateria}` === key;
-        });
-
-        if (existing) {
-          // Si ya existe este slot, agregamos instructor(es) y asignación(es) extra
-          if (!existing.allInstructors) {
-            existing.allInstructors = [existing.instructor || existing.contrato?.persona];
-          }
-          const currentInstructor = ev.instructor || ev.contrato?.persona;
-          if (currentInstructor) existing.allInstructors.push(currentInstructor);
-
-          if (!existing.allAssignments) {
-            existing.allAssignments = existing.activeAsignacion ? [existing.activeAsignacion] : [];
-          }
-          if (ev.activeAsignacion) existing.allAssignments.push(ev.activeAsignacion);
-
-          // Determinar si realmente es un slot compartido: al menos 2 instructores o 1+ asignaciones
-          existing.isSharedSlot = (existing.allAssignments?.length || 0) > 0 || (existing.allInstructors?.length || 0) > 1;
-        } else {
-          ev.allInstructors = [ev.instructor || ev.contrato?.persona];
-          ev.allAssignments = ev.activeAsignacion ? [ev.activeAsignacion] : [];
-          ev.isSharedSlot = (ev.allAssignments?.length || 0) > 0 || (ev.allInstructors?.length || 0) > 1;
-          grouped.push(ev);
-        }
-      });
-
-      return grouped;
-    };
+    return getColombianHolidayDateSet(minYear, maxYear);
   }, [asignados, sinAsignar]);
 
-  // Generar días del mes
-  const daysInMonth = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const days = new Date(year, month + 1, 0).getDate();
-    const offset = firstDay === 0 ? 6 : firstDay - 1;
+  const festivos = useMemo(
+    () =>
+      Array.from(holidayDates).map((dateOnly) => ({
+        id: `holiday-${dateOnly}`,
+        start: dateOnly,
+        allDay: true,
+        display: 'background',
+        backgroundColor: 'rgba(233, 19, 19, 0.5)',
+        extendedProps: { isHoliday: true },
+      })),
+    [holidayDates]
+  );
 
-    const arr = Array(offset).fill(null);
-    for (let i = 1; i <= days; i++) arr.push(new Date(year, month, i));
-    return arr;
-  }, [currentDate]);
+  const horarioIncluyeFestivos = (h: any): boolean =>
+    h.festivos === true || h.festivos === 1 || h.festivos === '1';
 
-  const daysInWeek = useMemo(() => {
-    const start = new Date(currentDate);
-    const day = start.getDay();
-    const diff = start.getDate() - (day === 0 ? 6 : day - 1);
-    start.setDate(diff);
-    return Array(7).fill(null).map((_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
+  // ── Convertir horarios recurrentes en eventos de FullCalendar ──────────────
+  const fcEvents = useMemo(() => {
+    const events: any[] = [];
+    const materiaFallback = materia.nombre || materia.nombreMateria;
+
+    const processHorario = (h: any, type: 'asignados' | 'sinAsignar') => {
+      const fInicio = h.fechaInicial || h.fechaInicio;
+      const fFin = h.fechaFinal || h.fechaFin;
+      const start = parseDate(fInicio);
+      const end = parseDate(fFin);
+      if (!start || !end) return;
+
+      const hIni = h.horaInicial || h.horaInicio || '00:00';
+      const hFin = h.horaFinal || h.horaFin || '01:00';
+
+      const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
+      const jsDayFromId = idDiaRaw !== undefined ? (Number(idDiaRaw) === 7 ? 0 : Number(idDiaRaw)) : -1;
+      const diaNombreRaw = h.dia?.dia?.toUpperCase() || h.dia_semana?.toUpperCase() || h.nombreDia?.toUpperCase();
+      const jsDay = diaNombreRaw ? mapeoDias[diaNombreRaw] : jsDayFromId;
+      if (jsDay === undefined || jsDay < 0) return;
+
+      // Recorrer cada día del rango que coincida con el día de semana del horario
+      const cursor = new Date(start);
+      cursor.setHours(0, 0, 0, 0);
+      const endNorm = new Date(end);
+      endNorm.setHours(0, 0, 0, 0);
+
+      while (cursor <= endNorm) {
+        if (cursor.getDay() === jsDay) {
+          const omitirPorFestivo =
+            !horarioIncluyeFestivos(h) && isColombianHoliday(cursor, holidayDates);
+
+          if (!omitirPorFestivo) {
+            const dateStr = toLocalDateKey(cursor);
+
+            const assignments = h.asignacion_sesion || h.asignacionSesion || [];
+            const activeAsignacion = assignments.find((asig: any) => {
+              const s = parseDate(asig.fechaInicio);
+              const e = parseDate(asig.fechaFin);
+              if (!s || !e) return false;
+              s.setHours(0, 0, 0, 0);
+              e.setHours(0, 0, 0, 0);
+              const c = new Date(cursor);
+              c.setHours(0, 0, 0, 0);
+              return c >= s && c <= e;
+            });
+
+            events.push({
+              id: `${h.id}-${dateStr}`,
+              start: `${dateStr}T${hIni}`,
+              end: `${dateStr}T${hFin}`,
+              extendedProps: {
+                ...h,
+                type,
+                activeAsignacion,
+                allInstructors: [h.instructor || h.contrato?.persona],
+                allAssignments: activeAsignacion ? [activeAsignacion] : [],
+                isSharedSlot: !!activeAsignacion,
+                _materiaFallback: materiaFallback,
+                _dateStr: dateStr,
+              },
+            });
+          }
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    };
+
+    asignados.forEach(h => processHorario(h, 'asignados'));
+    sinAsignar.forEach(h => processHorario(h, 'sinAsignar'));
+
+    // Agrupar por slot (misma fecha + misma hora + mismo idGradoMateria)
+    const grouped: any[] = [];
+    events.forEach(ev => {
+      const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}`;
+      const existing = grouped.find(g => `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}` === key);
+      if (existing) {
+        const currentInstructor = ev.extendedProps.instructor || ev.extendedProps.contrato?.persona;
+        if (currentInstructor) existing.extendedProps.allInstructors.push(currentInstructor);
+        if (ev.extendedProps.activeAsignacion) existing.extendedProps.allAssignments.push(ev.extendedProps.activeAsignacion);
+        existing.extendedProps.isSharedSlot =
+          (existing.extendedProps.allAssignments?.length || 0) > 0 ||
+          (existing.extendedProps.allInstructors?.length || 0) > 1;
+      } else {
+        grouped.push(ev);
+      }
     });
-  }, [currentDate]);
 
-  const navigate = (amount: number) => {
-    const newDate = new Date(currentDate);
-    if (viewMode === 'month') {
-      newDate.setMonth(currentDate.getMonth() + amount, 1);
-    } else if (viewMode === 'week') {
-      newDate.setDate(currentDate.getDate() + amount * 7);
-    } else {
-      newDate.setDate(currentDate.getDate() + amount);
-    }
-    setCurrentDate(newDate);
-  };
+    return grouped;
+  }, [asignados, sinAsignar, materia, holidayDates]);
 
-  const handleColors = (estado: string) => {
-    switch (estado) {
-      case 'asignados':
-        return 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/60';
-      case 'sinAsignar':
-        return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-950/40 dark:text-gray-400 dark:border-gray-800/60';
-      case 'finalizados':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60';
-      case 'interrumpidos':
-        return 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60';
-      case 'evaluados':
-        return 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800/60';
-      default:
-        return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-950/40 dark:text-gray-400 dark:border-gray-800/60';
+  // Colores por tipo
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'asignados': return { backgroundColor: '#eff6ff', borderColor: '#bfdbfe', textColor: '#1e40af' };
+      case 'sinAsignar': return { backgroundColor: '#f9fafb', borderColor: '#e5e7eb', textColor: '#374151' };
+      default: return { backgroundColor: '#f9fafb', borderColor: '#e5e7eb', textColor: '#374151' };
     }
   };
+
+  // Renderizado personalizado del evento en la celda
+const renderEventContent = (arg: EventContentArg) => {
+  const ev = arg.event.extendedProps;
+  
+  if (ev.isHoliday) {
+    return null;
+  }
+
+  const hIni = ev.horaInicial || ev.horaInicio;
+  const hFin = ev.horaFinal || ev.horaFin;
+  const colors = getEventColor(ev.type);
+
+  return (
+    <div
+      className="w-full h-full px-1 py-0.5 rounded-[4px] text-[10px] font-bold border overflow-hidden cursor-default select-none"
+      style={{ 
+        backgroundColor: colors.backgroundColor, 
+        borderColor: colors.borderColor, 
+        color: colors.textColor 
+      }}
+      onMouseEnter={(e) => setTooltip({ ev, x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
+      onMouseLeave={() => setTooltip(null)}
+    >
+      <div className="flex items-center gap-1 justify-center leading-tight">
+        <span>{format12h(hIni)}-{format12h(hFin)}</span>
+        {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+      </div>
+      
+      {ev.isSharedSlot && (
+        <div className="text-[7px] text-blue-500 mt-0.5 uppercase font-black text-center truncate">
+          {ev.allAssignments?.[0]?.tipoAsignacion || ''}
+        </div>
+      )}
+
+      {/* Botones de acción - SOLO para eventos normales */}
+      {!modoRmi && (
+        <div className="flex justify-center items-center gap-1 mt-0.5">
+          {!ev.isSharedSlot && ev.estado === 'ASIGNADO' && (
+            <button
+              onMouseEnter={() => setTooltip(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFechaSeleccionada(ev._dateStr);
+                setHorarioAsignacionSesion(ev);
+                setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
+                setAsignacionSesionModal(true);
+              }}
+              className="rounded-full bg-blue-500/10 w-5 h-5 flex items-center justify-center text-blue-700 hover:text-blue-800 transition"
+              title="Agregar asignación"
+            >
+              <Plus size={11} />
+            </button>
+          )}
+          
+          <button
+            onMouseEnter={() => setTooltip(null)}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              handleEliminarHorario(ev.id); 
+            }}
+            className="rounded-full bg-red-500/10 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-600 transition"
+            title="Eliminar"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
   const handleEliminarHorario = async (idHorario: number) => {
-    // En modo RMI no se permite eliminar horarios
     if (modoRmi) return;
     try {
       const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
@@ -319,10 +500,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
         showCancelButton: true,
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar',
-        customClass: {
-          confirmButton: 'btn btn-sm btn-danger',
-          cancelButton: 'btn btn-sm btn-light'
-        },
+        customClass: { confirmButton: 'btn btn-sm btn-danger', cancelButton: 'btn btn-sm btn-light' },
         background,
         color
       });
@@ -334,9 +512,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.message || "Error al eliminar horario", { variant: "error" });
     }
-  }
+  };
 
-  // Mostrar skeleton mientras carga
   if (!isOpen) return null;
 
   if (loading || !initialLoadComplete) {
@@ -345,31 +522,20 @@ export const Calendario: React.FC<CalendarioProps> = ({
         <ModalContent className="w-full max-w-4xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
           <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                <CalendarIcon size={20} />
-              </div>
+              <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
               <div className="min-w-0 text-left">
-                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">
-                  Calendario de Horarios
-                </ModalTitle>
-                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
-                  {materia.nombre || materia.nombreMateria}
-                </p>
+                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm"
-            >
+            <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
               <X size={16} />
             </button>
           </ModalHeader>
           <div className="flex-grow flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                Cargando horarios...
-              </p>
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Cargando horarios...</p>
             </div>
           </div>
         </ModalContent>
@@ -378,264 +544,160 @@ export const Calendario: React.FC<CalendarioProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
-      <ModalContent className="w-full max-w-6xl h-[85vh] flex flex-col p-0 shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
+    <>
+      {/* Tooltip flotante */}
+      {tooltip && <EventTooltip data={tooltip} carouselIndex={carouselIndex} />}
 
-        <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <CalendarIcon size={20} />
-            </div>
-            <div className="min-w-0 text-left">
-              <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">
-                Calendario de Horarios
-              </ModalTitle>
-              <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
-                {materia.nombre || materia.nombreMateria}
-              </p>
-            </div>
-          </div>
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
+        <ModalContent className="w-full max-w-7xl h-[95vh] flex flex-col p-0 shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
 
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-coal-400 p-1 rounded-lg">
-            {(['month', 'week', 'day'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${viewMode === mode
-                  ? 'bg-white dark:bg-coal-600 shadow-sm text-primary'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
-              >
-                {mode === 'month' ? 'Mes' : mode === 'week' ? 'Sem' : 'Día'}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onClose}
-            className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm"
-          >
-            <X size={16} />
-          </button>
-        </ModalHeader>
-
-        <ModalBody className="flex-grow bg-gray-50 dark:bg-coal-600 scroll-hide overflow-y-auto overflow-x-hidden p-6 pb-16">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold capitalize dark:text-white flex items-center">
-              <ChevronLeft size={18} className="cursor-pointer text-gray-400 hover:text-primary transition-colors" onClick={() => navigate(-1)} />
-              <span className="min-w-[140px] text-center">
-                {viewMode === 'month' ? `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
-                  : viewMode === 'week' ? `${daysInWeek[0].getDate()} ${months[daysInWeek[0].getMonth()]} - ${daysInWeek[6].getDate()} ${months[daysInWeek[6].getMonth()]}`
-                    : `${daysOfWeek[currentDate.getDay()]} ${currentDate.getDate()} ${months[currentDate.getMonth()]}`}
-              </span>
-              <ChevronRight size={18} className="cursor-pointer text-gray-400 hover:text-primary transition-colors" onClick={() => navigate(1)} />
-            </h3>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 bg-white dark:bg-coal-400 border border-gray-200 dark:border-gray-700 rounded-md text-[10px] font-bold uppercase transition-all dark:text-white hover:bg-gray-100">Hoy</button>
-          </div>
-
-          <div className="bg-white dark:bg-coal-400 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            {viewMode != 'day' && (
-              <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-coal-500/50">
-                {daysOfWeek.map(d => <div key={d} className="py-2 text-center text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase">{d}</div>)}
+          <ModalHeader className="px-6 pr-16 py-3 flex flex-col md:flex-row md:items-center justify-between bg-white dark:bg-coal-500 shrink-0 border-b border-gray-100 dark:border-coal-600 relative z-[20]">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
+              <div className="min-w-0 text-left">
+                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
               </div>
-            )}
-
-            <div className={viewMode === 'day' ? "divide-y divide-gray-100 dark:divide-gray-700" : "grid grid-cols-7"}>
-              {(viewMode === 'month' ? daysInMonth : viewMode === 'week' ? daysInWeek : [currentDate]).map((date, i) => {
-                if (!date) return <div key={i} className="h-20 border-r border-b border-gray-50 dark:border-coal-300" />;
-                const events = getEventsForDate(date);
-                const isToday = date.toDateString() === new Date().toDateString();
-
-                // Lógica de posición del tooltip para evitar recortes
-                const colIndex = i % 7;
-                const isRightCol = colIndex >= 4;
-                const isBottomRow = i >= 21;
-
-                return (
-                  <div key={i} className={`min-h-[80px] m-1 border-r border-b border-gray-100 dark:border-gray-100 transition-all hover:bg-gray-50 dark:hover:bg-coal-500/50 relative group hover:z-[50] ${viewMode !== 'month' ? 'flex items-start gap-3 p-3 min-h-0' : ''}`}>
-                    <span className={`text-xs font-semibold mb-1 inline-block h-5 w-5 rounded-full flex items-center justify-center transition-colors ${isToday ? 'bg-primary text-white' : 'text-gray-500 dark:text-gray-400'}`}>{date.getDate()}</span>
-                    <div className="space-y-0.5 w-full">
-                      {events.map((ev, idx) => {
-                        const hIni = ev.horaInicial || ev.horaInicio;
-                        const hFin = ev.horaFinal || ev.horaFin;
-                        const instructor = ev.instructor || ev.contrato?.persona;
-                        const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
-
-                        return (
-                          <div key={`${ev.id}-${idx}`} className={`relative px-2 py-0.5 rounded-[4px] ${viewMode === 'day' ? 'text-sm' : 'text-[10px]'} font-bold border transition-all hover:scale-[1.02] hover:shadow-sm group/event cursor-default hover:z-[60] ${handleColors(ev.type)}`}>
-                            <div className="flex flex-col items-center justify-center">
-                              <div className="flex items-center gap-1">
-                                {format12h(hIni)} - {format12h(hFin)}
-                                {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" title="Horario compartido" />}
-                              </div>
-                              {ev.isSharedSlot && (
-                                <div className="text-[7px] text-primary-active mt-0.5 uppercase font-black">
-                                  {ev.allAssignments?.[0]?.tipoAsignacion || ''}
-                                </div>
-                              )}
-                            </div>
-                            {!modoRmi && (
-                              <div className='w-full flex justify-around items-center mb-1'>
-                                {!ev.isSharedSlot && ev.estado == 'ASIGNADO' && (
-                                  <div className='rounded-full bg-blue-500/5 w-6 h-6 flex items-center justify-center'>
-                                    <button
-                                      onClick={() => {
-                                        setFechaSeleccionada(date.toISOString().split('T')[0]);
-                                        setHorarioAsignacionSesion(ev);
-                                        setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
-                                        setAsignacionSesionModal(true);
-                                      }}
-                                      className="text-blue-700 hover:text-blue-800 transition"
-                                      title="Agregar asignación"
-                                    >
-                                      <Plus size={14} />
-                                    </button>
-                                  </div>)}
-
-                                <div className='rounded-full bg-red-500/5 w-6 h-6 flex items-center justify-center'>
-                                  <button
-                                    onClick={() => handleEliminarHorario(ev.id)}
-                                    className="text-red-500 hover:text-red-600 transition"
-                                    title="Eliminar"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                            <div className={`absolute ${isBottomRow ? 'bottom-full mb-2' : 'top-full mt-2'} ${isRightCol ? 'right-0' : 'left-0'} ${viewMode === 'day' ? 'w-80' : 'w-60'} p-0 bg-white dark:bg-coal-300 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-600 opacity-0 invisible group-hover/event:opacity-100 group-hover/event:visible transition-all duration-200 z-[1000] pointer-events-none`}>
-                              <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-gray-100 dark:bg-coal-500 border-b dark:border-gray-600">
-                                {/* Carrusel de Fotos */}
-                                {/* Instructor Principal / Titular */}
-                                <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: (!ev.isSharedSlot || carouselIndex === 0) ? 1 : 0 }}>
-                                  {(instructor?.rutaFotoUrl || instructor?.rutaFoto) ? (
-                                    <img src={instructor.rutaFotoUrl || instructor.rutaFoto} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
-                                  )}
-                                  <div className="absolute top-0 left-0 bg-gray-800/60 text-white text-[7px] px-2 py-0.5 font-black rounded-br-lg">TITULAR</div>
-                                </div>
-
-                                {/* Instructor Secundario / Compartido */}
-                                {ev.isSharedSlot && ev.allAssignments && ev.allAssignments.length > 0 && (
-                                  <div className="absolute inset-0 transition-opacity duration-1000" style={{ opacity: carouselIndex === 1 ? 1 : 0 }}>
-                                    {(ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto) ? (
-                                      <img src={ev.allAssignments?.[0]?.contrato?.persona?.rutaFotoUrl || ev.allAssignments?.[0]?.contrato?.persona?.rutaFoto} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={40} /></div>
-                                    )}
-                                    <div className="absolute top-0 right-0 bg-primary/80 text-white text-[7px] px-2 py-0.5 font-black uppercase rounded-bl-lg">{ev.allAssignments?.[0]?.tipoAsignacion || ''}</div>
-                                  </div>
-                                )}
-
-                                {/* Indicador de carrusel */}
-                                {ev.isSharedSlot && (
-                                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
-                                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 0 ? 'bg-white scale-125' : 'bg-white/40'}`} />
-                                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${carouselIndex === 1 ? 'bg-white scale-125' : 'bg-white/40'}`} />
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="p-3 text-left">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {ev.estado || 'SIN ESTADO'}
-                                  </span>
-                                  <div className="flex items-center gap-1 text-primary">
-                                    <Clock size={10} className="shrink-0" />
-                                    <span className="text-[9px] uppercase font-black tracking-wider">{format12h(hIni)} - {format12h(hFin)}</span>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-3 px-1">
-                                  <div className="flex flex-col gap-0.5">
-                                    <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Materia / RAP</p>
-                                    <p className="text-[10px] font-black leading-tight dark:text-white uppercase line-clamp-2">{materiaNombre}</p>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    {/* INSTRUCTOR PRINCIPAL */}
-                                    <div className="flex flex-col gap-0.5">
-                                      <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Instructores</p>
-                                      <div className="flex items-center gap-2 dark:text-white">
-                                        <User size={12} className="text-gray-400 shrink-0" />
-                                        <span className="text-[10px] font-bold leading-tight truncate">
-                                          {instructor ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}` : <span className="text-orange-500 uppercase">Sin asignar</span>}
-                                        </span>
-                                      </div>
-                                    </div>
-
-
-                                    {/* INSTRUCTORES SECUNDARIOS / COMPARTIDOS */}
-                                    {ev.isSharedSlot && ev.allAssignments?.map((asig: any, aIdx: number) => (
-                                      <div key={aIdx} className="flex flex-col gap-0.5 border-t border-gray-100 dark:border-gray-700 pt-2 mt-1">
-                                        <div className="flex items-center gap-2 dark:text-white">
-                                          <User size={12} className="text-gray-400 shrink-0" />
-                                          <span className="text-[10px] font-bold leading-tight truncate">
-                                            {asig.contrato?.persona?.nombre1 || ''} {asig.contrato?.persona?.apellido1 || ''} 
-                                            <span className="text-primary uppercase ml-2 text-[8px]">({asig.tipoAsignacion})</span>
-                                          </span>
-                                        </div>
-                                        {asig.observacion && (
-                                          <p className="text-[9px] text-gray-500 dark:text-gray-400 uppercase italic">
-                                            "{asig.observacion}"
-                                          </p>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
-          </div>
-        </ModalBody>
+            <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
+              <X size={16} />
+            </button>
+          </ModalHeader>
 
-        {!modoRmi && (
-          <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
-            {materia.idMateriaPadre != null && (
-              <button
-                onClick={() => {
-                  if (materia?.horasTotales > 0) {
-                    if (materia?.estado === 'FINALIZADO') {
-                      enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+          <ModalBody className="flex-grow bg-gray-50 dark:bg-coal-600 scroll-hide overflow-y-auto overflow-x-hidden p-4 pb-16">
+            <style>{`
+              /* Toolbar */
+              .fc .fc-toolbar { margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
+              .fc .fc-toolbar-title { font-size: 0.875rem; font-weight: 900; text-transform: capitalize; }
+              .fc .fc-button {
+                padding: 0.25rem 0.75rem !important;
+                font-size: 0.625rem !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.05em !important;
+                border-radius: 0.375rem !important;
+                background-color: white !important;
+                color: #6b7280 !important;
+                border: 1px solid #e5e7eb !important;
+                box-shadow: none !important;
+              }
+              .fc .fc-button:hover { background-color: #f3f4f6 !important; color: #374151 !important; }
+              .fc .fc-button-active, .fc .fc-button:focus { background-color: white !important; color: var(--color-primary, #3b82f6) !important; border-color: var(--color-primary, #3b82f6) !important; outline: none !important; box-shadow: none !important; }
+              .fc .fc-button-primary:not(:disabled).fc-button-active { background-color: white !important; color: var(--color-primary, #3b82f6) !important; }
+              /* Cabecera días */
+              .fc .fc-col-header-cell { background: rgba(249,250,251,0.5); }
+              .fc .fc-col-header-cell-cushion { font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; text-decoration: none !important; }
+              /* Número de día */
+              .fc .fc-daygrid-day-number { font-size: 0.75rem; font-weight: 600; color: #6b7280; text-decoration: none !important; }
+              .fc .fc-day-today .fc-daygrid-day-number {
+                background: var(--color-primary, #3b82f6);
+                color: white;
+                border-radius: 9999px;
+                width: 1.25rem; height: 1.25rem;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 0.65rem;
+              }
+              /* Celdas */
+              .fc .fc-daygrid-day { min-height: 80px; }
+              .fc td, .fc th { border-color: #f3f4f6 !important; }
+              /* Evento */
+              .fc .fc-daygrid-event { border-radius: 4px !important; margin: 1px 2px !important; background: transparent !important; border: none !important; }
+              .fc .fc-event-main { padding: 0 !important; }
+              .fc .fc-timegrid-event { border-radius: 4px !important; background: transparent !important; border: none !important; }
+              /* Scrollbar oculto */
+              .fc-scroller { scrollbar-width: none; }
+              .fc-scroller::-webkit-scrollbar { display: none; }
+              /* Dark mode básico */
+              .dark .fc .fc-button { background-color: #2d2d3a !important; color: #9ca3af !important; border-color: #3f3f55 !important; }
+              .dark .fc .fc-toolbar-title { color: white; }
+              .dark .fc .fc-col-header-cell-cushion { color: #9ca3af; }
+              .dark .fc .fc-daygrid-day-number { color: #9ca3af; }
+              .dark .fc td, .dark .fc th { border-color: #3f3f55 !important; }
+              .dark .fc .fc-col-header-cell { background: rgba(45,45,58,0.5); }
+
+              .fc .fc-bg-event {
+                opacity: 1 !important;
+              }
+              .fc .fc-bg-event .fc-event-title {
+                display: none !important;
+              }
+            `}</style>
+
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale={esLocale}
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              }}
+              buttonText={{
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Sem',
+                day: 'Día',
+              }}
+              slotLabelFormat={{
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                meridiem: 'short' // AM/PM corto
+              }}
+              events={[...fcEvents, ...festivos]}
+              dayMaxEvents={false}
+              eventDisplay="block"
+              eventContent={renderEventContent}
+              editable={false}
+              selectable={false}
+              eventClick={(_arg: EventClickArg) => {/* manejado en renderEventContent */}}
+              height="auto"
+              moreLinkText={(n) => `+${n} más`}
+              nowIndicator
+              eventClassNames={(arg) =>
+                arg.event.extendedProps?.isHoliday ? 'holiday-bg' : ''
+              }
+            />
+          </ModalBody>
+
+          {!modoRmi && (
+            <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
+              {materia.idMateriaPadre != null && (
+                <button
+                  onClick={() => {
+                    if (materia?.horasTotales > 0) {
+                      if (materia?.estado === 'FINALIZADO') {
+                        enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+                      } else {
+                        onAddSchedule();
+                      }
                     } else {
-                      onAddSchedule();
+                      enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
                     }
-                  } else {
-                    enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
-                  }
-                }}
-                className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md"
-              >
-                <Plus size={14} />Programar Horario
-              </button>
-            )}
-          </div>
-        )}
-      </ModalContent>
+                  }}
+                  className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md"
+                >
+                  <Plus size={14} />Programar Horario
+                </button>
+              )}
+            </div>
+          )}
+        </ModalContent>
 
-      {asignacionSesionModal && (
-        <AsignacionSesionModal
-          isOpen={asignacionSesionModal}
-          onClose={() => setAsignacionSesionModal(false)}
-          onSuccess={() => {
-            setRefreshTrigger(prev => prev + 1);
-            cargarRaps?.();
-          }}
-          idMateria={materia.idMateria || materia.id}
-          horario={horarioAsignacionSesion}
-          fechaSeleccionada={fechaSeleccionada}
-        />
-      )}
-    </div>
+        {asignacionSesionModal && (
+          <AsignacionSesionModal
+            isOpen={asignacionSesionModal}
+            onClose={() => setAsignacionSesionModal(false)}
+            onSuccess={() => {
+              setRefreshTrigger(prev => prev + 1);
+              cargarRaps?.();
+            }}
+            idMateria={materia.idMateria || materia.id}
+            horario={horarioAsignacionSesion}
+            fechaSeleccionada={fechaSeleccionada}
+          />
+        )}
+      </div>
+    </>
   );
 };
