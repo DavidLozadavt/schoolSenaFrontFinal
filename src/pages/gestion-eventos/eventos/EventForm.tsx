@@ -19,6 +19,7 @@ import {
   Search,
   Trash2
 } from 'lucide-react';
+import { ModalForm } from '../actividades/ModalForm';
 
 export const EventForm = () => {
   const { id } = useParams();
@@ -29,6 +30,9 @@ export const EventForm = () => {
   const [fetching, setFetching] = useState(!!id);
   const [areas, setAreas] = useState<any[]>([]);
   const [formulariosInternos, setFormulariosInternos] = useState<any[]>([]);
+  const [actividades, setActividades] = useState<any[]>([]);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityToEdit, setActivityToEdit] = useState<any | null>(null);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -150,6 +154,29 @@ export const EventForm = () => {
     }
   }, [location.state, id]);
 
+  const fetchActividades = async () => {
+    if (!id) return;
+    try {
+      const response = await axios.get('/items', { params: { idEvento: id } });
+      setActividades(response.data || []);
+    } catch (err) {
+      console.error('Error al cargar actividades:', err);
+    }
+  };
+
+  const handleDeleteActivity = async (activityId: number) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta actividad?')) {
+      try {
+        await axios.delete(`/items/${activityId}`);
+        enqueueSnackbar('Actividad eliminada correctamente', { variant: 'success' });
+        fetchActividades();
+      } catch (err) {
+        console.error(err);
+        enqueueSnackbar('Error al eliminar la actividad', { variant: 'error' });
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchEvento = async () => {
       if (!id) return;
@@ -182,6 +209,8 @@ export const EventForm = () => {
         setPreview(getImageUrl(evento.url));
         setStartDatetime(combineDateAndTime(evento.fechaInicial, evento.hora));
         setEndDatetime(combineDateAndTime(evento.fechaFinal, evento.hora_final));
+        
+        await fetchActividades();
       } catch (err) {
         console.error('Error al cargar evento:', err);
         enqueueSnackbar('No se pudo cargar el evento', { variant: 'error' });
@@ -703,6 +732,116 @@ export const EventForm = () => {
                 )}
               </div>
             )}
+
+            {/* Actividades del Evento - Premium UI */}
+            {id ? (
+              <div className="p-8 rounded-[2.5rem] bg-neutral-50 dark:bg-white/[0.02] border border-neutral-200 dark:border-white/5 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-tighter text-neutral-800 dark:text-white italic">Cronograma de Actividades</h3>
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Gestiona las actividades asociadas a este evento</p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivityToEdit(null);
+                      setActivityModalOpen(true);
+                    }}
+                    className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
+                  >
+                    + Agregar Actividad
+                  </button>
+                </div>
+
+                {actividades.length === 0 ? (
+                  <div className="py-8 text-center bg-white dark:bg-neutral-900 rounded-[2rem] border border-dashed border-neutral-200 dark:border-neutral-800">
+                    <Calendar className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
+                    <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest">Sin actividades registradas</p>
+                    <p className="text-[10px] text-neutral-400 mt-1">Añade actividades para que los usuarios vean el cronograma del evento.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {actividades.map((act, index) => {
+                      const dur = act.hora_inicio && act.hora_fin
+                        ? Math.max(0, Math.round((new Date(act.hora_fin).getTime() - new Date(act.hora_inicio).getTime()) / 60000))
+                        : 0;
+                      return (
+                        <div key={act.id} className="p-5 bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-lg transition-all duration-350">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-600 text-[8px] font-black uppercase tracking-wider">
+                                Actividad #{index + 1}
+                              </span>
+                              {act.hora_inicio && (
+                                <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
+                                  {new Date(act.hora_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                  {act.hora_fin && ` - ${new Date(act.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`}
+                                  {dur > 0 && ` (${dur} min)`}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-black text-neutral-800 dark:text-white uppercase tracking-tight truncate">
+                              {act.nombreItem}
+                            </h4>
+                            {act.descripcion && (
+                              <p className="text-xs text-neutral-400 mt-1 italic line-clamp-2 leading-relaxed">
+                                {act.descripcion}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 self-end sm:self-auto">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivityToEdit(act);
+                                setActivityModalOpen(true);
+                              }}
+                              className="w-10 h-10 bg-neutral-100 dark:bg-neutral-850 hover:bg-orange-500 hover:text-white text-neutral-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                              title="Editar actividad"
+                            >
+                              <KeenIcon icon="pencil" className="text-base" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteActivity(act.id)}
+                              className="w-10 h-10 bg-rose-55 dark:bg-rose-950/20 hover:bg-rose-500 hover:text-white text-rose-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                              title="Eliminar actividad"
+                            >
+                              <KeenIcon icon="trash" className="text-base" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 rounded-[2.5rem] bg-orange-500/5 border border-orange-500/10 flex items-center gap-4">
+                <Sparkles className="w-8 h-8 text-orange-500 shrink-0 animate-pulse" />
+                <div>
+                  <h4 className="text-sm font-black uppercase text-orange-700 dark:text-orange-400 tracking-wider">Cronograma del Evento</h4>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 font-medium">
+                    Una vez creado el evento, podrás añadir, editar y eliminar actividades detalladas en esta misma sección para estructurar su cronograma.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Formulario Actividad */}
+            <ModalForm
+              open={activityModalOpen}
+              onClose={() => setActivityModalOpen(false)}
+              onSuccess={fetchActividades}
+              itemEditar={activityToEdit}
+              defaultIdEvento={id ? Number(id) : null}
+            />
 
             {/* Footer actions */}
             <div className="flex items-center justify-between pt-10 border-t border-neutral-50 dark:border-white/5">

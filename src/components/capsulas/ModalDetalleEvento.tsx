@@ -26,6 +26,7 @@ interface Evento {
   formUrl?: string;
   formProvider?: string;
   idFormularioInterno?: number | string;
+  id_formulario_interno?: number | string;
 }
 
 
