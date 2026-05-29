@@ -27,7 +27,8 @@ const buildTree = (flat: PermissionModel[]): PermissionModel[] => {
   });
 
   map.forEach((node) => {
-    if (node.idPermissionPadre && map.has(node.idPermissionPadre)) {
+    // Use != null to allow parent id = 0 (if any) and avoid falsy checks
+    if (node.idPermissionPadre != null && map.has(node.idPermissionPadre)) {
       map.get(node.idPermissionPadre)!.children!.push(node);
     } else {
       roots.push(node);
@@ -102,9 +103,27 @@ const PermissionsToggle = React.memo(() => {
     const fetchRolesAndPermissions = async () => {
       try {
         const rolesResponse = await axios.get('roles');
-        setRoles(rolesResponse.data);
+        // Normalize role IDs to numbers
+        const rolesData = rolesResponse.data || [];
+        setRoles(
+          rolesData.map((r: any) => ({
+            ...r,
+            id: Number(r.id)
+          })) as RoleModel[]
+        );
+
         const permissionsResponse = await axios.get('permisos');
-        setPermissions(permissionsResponse.data);
+        const permissionsData = permissionsResponse.data || [];
+        // Normalize permission IDs and parent IDs to numbers (or null)
+        const normalized = permissionsData.map((p: any) => ({
+          ...p,
+          id: Number(p.id),
+          idPermissionPadre:
+            p.idPermissionPadre === null || p.idPermissionPadre === undefined || p.idPermissionPadre === ''
+              ? null
+              : Number(p.idPermissionPadre)
+        } as PermissionModel));
+        setPermissions(normalized);
       } catch (err) {
         setError('Hubo un error al obtener los datos');
       } finally {
@@ -193,7 +212,7 @@ const PermissionsToggle = React.memo(() => {
       const collectAncestorIds = (node: PermissionModel, flat: PermissionModel[]) => {
         const ids: number[] = [];
         let parentId = node.idPermissionPadre ?? null;
-        while (parentId) {
+        while (parentId != null) {
           const parent = flat.find((p) => p.id === parentId);
           if (!parent) break;
           ids.push(parent.id);
@@ -485,7 +504,7 @@ const PermissionsToggle = React.memo(() => {
       const child = permissions.find((p) => p.id === childId);
       if (!child) return;
 
-      const currentParent = child.idPermissionPadre
+      const currentParent = child.idPermissionPadre != null
         ? permissions.find((p) => p.id === child.idPermissionPadre)
         : null;
       const newParent = newParentId ? permissions.find((p) => p.id === newParentId) : null;
