@@ -95,6 +95,18 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return `${h}:${m} ${ampm}`;
   };
 
+  const getDisplayTime = (dateTimeOrTime: string, fallback: string) => {
+    if (!dateTimeOrTime || typeof dateTimeOrTime !== 'string') return fallback;
+    const parts = dateTimeOrTime.split(/[T ]/);
+    if (parts.length >= 2) {
+      const timeParts = parts[1].split(':');
+      if (timeParts.length >= 2) {
+        return `${timeParts[0]}:${timeParts[1]}`;
+      }
+    }
+    return dateTimeOrTime.includes(':') ? dateTimeOrTime : fallback;
+  };
+
   // Efecto para cargar horarios - SOLO cuando se abre el modal
   useEffect(() => {
     let isMounted = true;
@@ -456,8 +468,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
                     <span className={`text-xs font-semibold mb-1 inline-block h-5 w-5 rounded-full flex items-center justify-center transition-colors ${isToday ? 'bg-primary text-white' : 'text-gray-500 dark:text-gray-400'}`}>{date.getDate()}</span>
                     <div className="space-y-0.5 w-full">
                       {events.map((ev, idx) => {
-                        const hIni = ev.horaInicial || ev.horaInicio;
-                        const hFin = ev.horaFinal || ev.horaFin;
+                        const hIni = getDisplayTime(ev.horaSesionInicial, ev.horaInicial || ev.horaInicio);
+                        const hFin = getDisplayTime(ev.horaSesionFinal, ev.horaFinal || ev.horaFin);
                         const instructor = ev.instructor || ev.contrato?.persona;
                         const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || materia.nombre || materia.nombreMateria;
 

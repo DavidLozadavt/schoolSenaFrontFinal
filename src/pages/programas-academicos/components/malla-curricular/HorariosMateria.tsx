@@ -63,6 +63,21 @@ const HorarioSchema = Yup.object().shape({
     .min(1, 'Debes seleccionar al menos un día')
 });
 
+// Helper para formatear datetime de 24h a 12h (AM/PM)
+const format12h = (dateTimeStr: string) => {
+  if (!dateTimeStr) return '-';
+  const [datePart, timePart] = dateTimeStr.split('T');
+  if (!timePart) return dateTimeStr;
+  const [hoursStr, minutesStr] = timePart.split(':');
+  let hours = parseInt(hoursStr, 10);
+  const minutes = minutesStr || '00';
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const formattedTime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+  return `${datePart} ${formattedTime}`;
+};
+
 export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   open,
   onClose,
@@ -85,7 +100,9 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     fechaFinEstimada: '',
     sesionesPasadas: 0,
     totalSesiones: 0,
-    sesionesRestantes: 0
+    sesionesRestantes: 0,
+    horaInicioPrimeraSesion: '',
+    horaFinUltimaSesion: ''
   });
 
   // Estados adicionales
@@ -271,17 +288,60 @@ const toggleDia = (index: number) => {
       return;
     }
 
+    const getFirstAndLastOccurrence = (idDia: number, horaInicio: string, horaFin: string) => {
+      const jsDayTarget = idDia === 7 ? 0 : idDia;
+      
+      // 1. Encontrar primera ocurrencia desde fechaInicio
+      let fechaPrimera = new Date(values.fechaInicio + 'T00:00:00');
+      let iter = 0;
+      while (fechaPrimera.getDay() !== jsDayTarget && iter < 7) {
+        fechaPrimera.setDate(fechaPrimera.getDate() + 1);
+        iter++;
+      }
+      const yyyy1 = fechaPrimera.getFullYear();
+      const mm1 = String(fechaPrimera.getMonth() + 1).padStart(2, '0');
+      const dd1 = String(fechaPrimera.getDate()).padStart(2, '0');
+      const fechaPrimeraStr = `${yyyy1}-${mm1}-${dd1}`;
+      
+      // 2. Encontrar última ocurrencia hasta fechaFin
+      let fechaUltima = new Date(values.fechaFin + 'T00:00:00');
+      iter = 0;
+      while (fechaUltima.getDay() !== jsDayTarget && iter < 7) {
+        fechaUltima.setDate(fechaUltima.getDate() - 1);
+        iter++;
+      }
+      const yyyy2 = fechaUltima.getFullYear();
+      const mm2 = String(fechaUltima.getMonth() + 1).padStart(2, '0');
+      const dd2 = String(fechaUltima.getDate()).padStart(2, '0');
+      const fechaUltimaStr = `${yyyy2}-${mm2}-${dd2}`;
+      
+      // 3. Determinar si esta última ocurrencia coincide con la fecha de fin de la materia
+      const esUltimaSesionGlobal = fechaUltimaStr === estadisticas.fechaFinEstimada;
+      
+      const horaSesionInicial = `${fechaPrimeraStr}T${horaInicio}`;
+      const horaSesionFinal = esUltimaSesionGlobal && estadisticas.horaFinUltimaSesion
+        ? estadisticas.horaFinUltimaSesion
+        : `${fechaUltimaStr}T${horaFin}`;
+        
+      return { horaSesionInicial, horaSesionFinal };
+    };
+
     const payload = {
       idGradoMateria,
       idFicha,
       fechaInicio: values.fechaInicio,
       fechaFin: values.fechaFin,
       observacion: values.observacion.toUpperCase(),
-      horarios: horariosActivos.map((h: HorarioDia) => ({
-        idDia: h.idDia,
-        horaInicio: h.horaInicio,
-        horaFin: h.horaFin
-      })),
+      horarios: horariosActivos.map((h: HorarioDia) => {
+        const { horaSesionInicial, horaSesionFinal } = getFirstAndLastOccurrence(h.idDia, h.horaInicio, h.horaFin);
+        return {
+          idDia: h.idDia,
+          horaInicio: h.horaInicio,
+          horaFin: h.horaFin,
+          horaSesionInicial,
+          horaSesionFinal
+        };
+      }),
       esCompartido: values.esCompartido
     };
 
@@ -339,6 +399,8 @@ const toggleDia = (index: number) => {
     let sesionesPasadas = 0;
     let totalSesiones = 0;
     let sesionesRestantes = 0;
+    let horaInicioPrimeraSesion = '';
+    let horaFinUltimaSesion = '';
 
     const horasObjetivo = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
     const horasPendientes = Math.max(0, horasObjetivo - (horasActuales || 0));
@@ -356,7 +418,7 @@ const toggleDia = (index: number) => {
           const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
           const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
           const duracion = ((hFin * 60 + mFin) - (hIni * 60 + mIni)) / 60;
-          acc[jsDay] = duracion;
+          acc[jsDay] = { duracion, horaInicio: h.horaInicio, horaFin: h.horaFin, idDia: h.idDia };
         }
         return acc;
       }, {});
@@ -370,10 +432,39 @@ const toggleDia = (index: number) => {
 
       while (horasAcumuladas < horasPendientes && iteraciones < MAX_ITERACIONES) {
         const diaSemana = fechaFinCalculada.getDay();
+        const horarioDia = mapaHorarios[diaSemana];
 
-        if (mapaHorarios[diaSemana] !== undefined) {
-          horasAcumuladas += mapaHorarios[diaSemana];
+        if (horarioDia !== undefined) {
+          const { duracion, horaInicio } = horarioDia;
+
+          const yyyy = fechaFinCalculada.getFullYear();
+          const mm = String(fechaFinCalculada.getMonth() + 1).padStart(2, '0');
+          const dd = String(fechaFinCalculada.getDate()).padStart(2, '0');
+          const fechaStr = `${yyyy}-${mm}-${dd}`;
+
+          if (!horaInicioPrimeraSesion) {
+            horaInicioPrimeraSesion = `${fechaStr}T${horaInicio}`;
+          }
+
+          const horasAntesDeEstaSesion = horasAcumuladas;
+          horasAcumuladas += duracion;
           fechasSesiones.push(new Date(fechaFinCalculada));
+
+          if (horasAcumuladas >= horasPendientes) {
+            const horasFaltantesEnSesion = horasPendientes - horasAntesDeEstaSesion;
+            const [hIni, mIni] = horaInicio.split(':').map(Number);
+            const totalMinutosInicio = hIni * 60 + mIni;
+            const minutosFaltantes = Math.round(horasFaltantesEnSesion * 60);
+            const totalMinutosFin = totalMinutosInicio + minutosFaltantes;
+
+            const hFinCalculado = Math.floor(totalMinutosFin / 60);
+            const mFinCalculado = totalMinutosFin % 60;
+
+            const hFinStr = String(hFinCalculado).padStart(2, '0');
+            const mFinStr = String(mFinCalculado).padStart(2, '0');
+
+            horaFinUltimaSesion = `${fechaStr}T${hFinStr}:${mFinStr}`;
+          }
         }
 
         if (horasAcumuladas < horasPendientes) {
@@ -406,7 +497,9 @@ const toggleDia = (index: number) => {
       fechaFinEstimada,
       sesionesPasadas,
       totalSesiones,
-      sesionesRestantes
+      sesionesRestantes,
+      horaInicioPrimeraSesion,
+      horaFinUltimaSesion
     });
   };
 
@@ -684,6 +777,18 @@ const toggleDia = (index: number) => {
                             (La programación no cubre las horas del objetivo)
                           </span>
                         )}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white dark:bg-violet-500 rounded border">
+                    <span className="text-gray-500 block">Hora inicio 1° sesión</span>
+                    <span className="font-bold text-lg text-blue-600">
+                      {format12h(estadisticas.horaInicioPrimeraSesion)}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white dark:bg-purple-500 rounded border">
+                    <span className="text-gray-500 block">Hora final última sesión</span>
+                    <span className="font-bold text-lg text-blue-600">
+                      {format12h(estadisticas.horaFinUltimaSesion)}
                     </span>
                   </div>
                 </div>
