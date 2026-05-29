@@ -72,24 +72,12 @@ const PermissionsToggle = React.memo(() => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState({
+    name: '',
     description: '',
     icon: '',
     path: ''
   });
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createFormData, setCreateFormData] = useState<{
-    name: string;
-    description: string;
-    icon: string;
-    path: string;
-    idPermissionPadre?: number | null;
-  }>({
-    name: '',
-    description: '',
-    icon: '',
-    path: '',
-    idPermissionPadre: null
-  });
+  const [modalMode, setModalMode] = useState<'edit' | 'create'>('edit');
 
   const { enqueueSnackbar } = useSnackbar();
   const [createSaving, setCreateSaving] = useState(false);
@@ -196,11 +184,44 @@ const PermissionsToggle = React.memo(() => {
     (permissionName: string) => {
       const permission = permissions.find((p) => p.name === permissionName);
       if (!permission) return;
-
       // Collect descendant information
       const descendantIds = collectDescendantIds(permission.id, permissions);
       const hasChildren = descendantIds.size > 0;
       const descendantNames = permissions.filter((p) => descendantIds.has(p.id)).map((p) => p.name);
+
+      // Collect ancestors (parents chain) to auto-select them when selecting a child
+      const collectAncestorIds = (node: PermissionModel, flat: PermissionModel[]) => {
+        const ids: number[] = [];
+        let parentId = node.idPermissionPadre ?? null;
+        while (parentId) {
+          const parent = flat.find((p) => p.id === parentId);
+          if (!parent) break;
+          ids.push(parent.id);
+          parentId = parent.idPermissionPadre ?? null;
+        }
+        return ids;
+      };
+
+      const ancestorIds = collectAncestorIds(permission, permissions);
+      const ancestorNames = permissions.filter((p) => ancestorIds.includes(p.id)).map((p) => p.name);
+
+      // If selecting (not unchecking) and ancestors are not selected, auto-select them and notify
+      if (!activePermissions.includes(permissionName) && ancestorNames.length > 0) {
+        const ancestorsToAdd = ancestorNames.filter((n) => !activePermissions.includes(n));
+        if (ancestorsToAdd.length > 0) {
+          setActivePermissions((current) => {
+            const next = new Set(current);
+            ancestorsToAdd.forEach((n) => next.add(n));
+            next.add(permissionName);
+            return Array.from(next);
+          });
+          enqueueSnackbar(
+            `Se seleccionará también el/los padre(s) ${ancestorsToAdd.join(', ')} para que se pueda ver el sidebar`,
+            { variant: 'info' }
+          );
+          return;
+        }
+      }
 
       const allNames = [permissionName, ...descendantNames];
 
@@ -247,7 +268,7 @@ const PermissionsToggle = React.memo(() => {
         }
       });
     },
-    [permissions]
+    [permissions, activePermissions, enqueueSnackbar]
   );
 
   /* ── Description editing ────────────────────────────────────────────── */
@@ -259,6 +280,7 @@ const PermissionsToggle = React.memo(() => {
     async (
       nodeId: number,
       fieldsToSave: {
+        name?: string | null;
         description: string;
         icon?: string | null;
         path?: string | null;
@@ -269,6 +291,7 @@ const PermissionsToggle = React.memo(() => {
     ) => {
       setSavingDescriptionId(nodeId);
       const payload = {
+        name: fieldsToSave.name ?? undefined,
         description: fieldsToSave.description,
         descripcion: fieldsToSave.description,
         icon: fieldsToSave.icon ?? null,
@@ -295,6 +318,7 @@ const PermissionsToggle = React.memo(() => {
               p.id === nodeId
                 ? {
                     ...p,
+                    name: fieldsToSave.name ?? p.name,
                     description: fieldsToSave.description,
                     icon: fieldsToSave.icon ?? undefined,
                     path: fieldsToSave.path ?? undefined,
@@ -322,17 +346,53 @@ const PermissionsToggle = React.memo(() => {
   );
 
   const handleSaveEditModal = useCallback(async () => {
-    if (editingNodeId === null) return;
+    if (modalMode === 'edit') {
+      if (editingNodeId === null) return;
 
-    const fieldsToSave = {
-      description: editFormData.description,
-      icon: editFormData.icon || null,
-      path: editFormData.path || null
-    };
+      const fieldsToSave = {
+        name: editFormData.name,
+        description: editFormData.description,
+        icon: editFormData.icon || null,
+        path: editFormData.path || null
+      };
 
-    await saveDescription(editingNodeId, fieldsToSave);
-    setIsEditModalOpen(false);
-    setEditingNodeId(null);
+      await saveDescription(editingNodeId, fieldsToSave);
+      setIsEditModalOpen(false);
+      setEditingNodeId(null);
+    } else {
+      // create mode
+      if (!editFormData.name.trim()) {
+        enqueueSnackbar('El nombre es requerido', { variant: 'warning' });
+        return;
+      }
+      setCreateSaving(true);
+      try {
+        const payload = {
+          name: editFormData.name,
+          description: editFormData.description || null,
+          idPermissionPadre: null,
+          icon: editFormData.icon || null,
+          path: editFormData.path || null
+        };
+
+        const response = await axios.post('permisos/crear', payload);
+        const created = response.data.permission || response.data;
+
+        setPermissions((prev) => [...prev, created] as PermissionModel[]);
+        enqueueSnackbar('Permiso creado correctamente', { variant: 'success' });
+        setIsEditModalOpen(false);
+        setEditFormData({ name: '', description: '', icon: '', path: '' });
+        try {
+          await refreshMenus();
+        } catch (_) {
+          // ignore
+        }
+      } catch (err) {
+        enqueueSnackbar('Error al crear el permiso', { variant: 'error' });
+      } finally {
+        setCreateSaving(false);
+      }
+    }
   }, [editingNodeId, editFormData, saveDescription]);
 
   const handleCloseEditModal = useCallback(() => {
@@ -340,47 +400,14 @@ const PermissionsToggle = React.memo(() => {
     setEditingNodeId(null);
   }, []);
 
-  /* ── Create permission ───────────────────────────────────────────── */
-  const createPermission = useCallback(async () => {
-    if (!createFormData.name.trim()) {
-      enqueueSnackbar('El nombre es requerido', { variant: 'warning' });
-      return;
-    }
-
-    setCreateSaving(true);
-    try {
-      const payload = {
-        name: createFormData.name,
-        description: createFormData.description || null,
-        idPermissionPadre: createFormData.idPermissionPadre ?? null,
-        icon: createFormData.icon || null,
-        path: createFormData.path || null
-      };
-
-      const response = await axios.post('permisos/crear', payload);
-      const created = response.data.permission || response.data;
-
-      setPermissions((prev) => [...prev, created] as PermissionModel[]);
-      enqueueSnackbar('Permiso creado correctamente', { variant: 'success' });
-      setIsCreateModalOpen(false);
-      setCreateFormData({ name: '', description: '', icon: '', path: '', idPermissionPadre: null });
-      try {
-        await refreshMenus();
-      } catch (_) {
-        // ignore
-      }
-    } catch (err) {
-      enqueueSnackbar('Error al crear el permiso', { variant: 'error' });
-    } finally {
-      setCreateSaving(false);
-    }
-  }, [createFormData, enqueueSnackbar, refreshMenus]);
 
 
   const startEditDescription = useCallback(
     (nodeId: number, current: string, node?: PermissionModel) => {
+      setModalMode('edit');
       setEditingNodeId(nodeId);
       setEditFormData({
+        name: node?.name || '',
         description: node?.description || '',
         icon: node?.icon || '',
         path: node?.path || ''
@@ -669,8 +696,9 @@ const PermissionsToggle = React.memo(() => {
               type="button"
               className="btn btn-outline btn-sm"
               onClick={() => {
-                setCreateFormData({ name: '', description: '', icon: '', path: '', idPermissionPadre: null });
-                setIsCreateModalOpen(true);
+                setModalMode('create');
+                setEditFormData({ name: '', description: '', icon: '', path: '' });
+                setIsEditModalOpen(true);
               }}
             >
               Crear permiso
@@ -750,12 +778,25 @@ const PermissionsToggle = React.memo(() => {
           <ModalHeader>
             <ModalTitle>
               <div className='p-2'>
-                Editar Permiso: {permissions.find((p) => p.id === editingNodeId)?.name || ''}
+                {modalMode === 'create' ? 'Crear Permiso' : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
               </div>
             </ModalTitle>
           </ModalHeader>
           <ModalBody>
             <div className="space-y-5">
+              {/* Nombre */}
+              <div>
+                <label className="block font-semibold text-sm text-gray-900 mb-2">
+                  Nombre {modalMode === 'create' && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  className="input input-sm w-full"
+                  placeholder="Ej: GESTION_USUARIOS"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                />
+              </div>
               {/* Descripción */}
               <div>
                 <label className="block font-semibold text-sm text-gray-900 mb-2">
@@ -823,105 +864,9 @@ const PermissionsToggle = React.memo(() => {
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={handleSaveEditModal}
-                  disabled={savingDescriptionId === editingNodeId}
+                  disabled={modalMode === 'edit' ? savingDescriptionId === editingNodeId : createSaving}
                 >
-                  {savingDescriptionId === editingNodeId ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </div>
-            </div>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-      {/* Create Permission Modal */}
-      <Modal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle>
-              <div className='p-2'>Crear Permiso</div>
-            </ModalTitle>
-          </ModalHeader>
-          <ModalBody>
-            <div className="space-y-5">
-              <div>
-                <label className="block font-semibold text-sm text-gray-900 mb-2">
-                  Nombre <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="input input-sm w-full"
-                  placeholder="Ej: GESTION_USUARIOS"
-                  value={createFormData.name}
-                  onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-sm text-gray-900 mb-2">
-                  Descripción
-                </label>
-                <input
-                  type="text"
-                  className="input input-sm w-full"
-                  placeholder="Descripción para mostrar en UI"
-                  data-preserve-case
-                  value={createFormData.description}
-                  onChange={(e) => setCreateFormData({ ...createFormData, description: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-sm text-gray-900 mb-2">Ícono</label>
-                <input
-                  type="text"
-                  className="input input-sm w-full"
-                  placeholder="Ej: shield, users"
-                  data-preserve-case
-                  value={createFormData.icon}
-                  onChange={(e) => setCreateFormData({ ...createFormData, icon: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-sm text-gray-900 mb-2">Ruta (Path)</label>
-                <input
-                  type="text"
-                  className="input input-sm w-full"
-                  placeholder="Ej: /admin/usuarios"
-                  data-preserve-case
-                  value={createFormData.path}
-                  onChange={(e) => setCreateFormData({ ...createFormData, path: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-sm text-gray-900 mb-2">Padre</label>
-                <select
-                  className="select select-sm w-full"
-                  value={createFormData.idPermissionPadre ?? ''}
-                  onChange={(e) =>
-                    setCreateFormData({ ...createFormData, idPermissionPadre: e.target.value ? Number(e.target.value) : null })
-                  }
-                >
-                  <option value="">Raíz (sin padre)</option>
-                  {permissions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIsCreateModalOpen(false)}>
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={createPermission}
-                  disabled={createSaving}
-                >
-                  {createSaving ? 'Creando...' : 'Crear permiso'}
+                  {modalMode === 'edit' ? (savingDescriptionId === editingNodeId ? 'Guardando...' : 'Guardar cambios') : (createSaving ? 'Creando...' : 'Crear permiso')}
                 </button>
               </div>
             </div>
