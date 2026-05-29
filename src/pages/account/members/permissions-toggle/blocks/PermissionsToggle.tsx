@@ -3,7 +3,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalBody } from '@/compo
 import { CommonHexagonBadge } from '@/partials/common';
 import { PermissionModel } from '../models/_Permission';
 import axios from 'axios';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { useMenuChildren } from '@/components/menu';
 import { MENU_SIDEBAR } from '@/config/menu.config';
@@ -27,7 +27,8 @@ const buildTree = (flat: PermissionModel[]): PermissionModel[] => {
   });
 
   map.forEach((node) => {
-    if (node.idPermissionPadre && map.has(node.idPermissionPadre)) {
+    // Use != null to allow parent id = 0 (if any) and avoid falsy checks
+    if (node.idPermissionPadre != null && map.has(node.idPermissionPadre)) {
       map.get(node.idPermissionPadre)!.children!.push(node);
     } else {
       roots.push(node);
@@ -102,9 +103,32 @@ const PermissionsToggle = React.memo(() => {
     const fetchRolesAndPermissions = async () => {
       try {
         const rolesResponse = await axios.get('roles');
-        setRoles(rolesResponse.data);
+        // Normalize role IDs to numbers
+        const rolesData = rolesResponse.data || [];
+        setRoles(
+          rolesData.map((r: any) => ({
+            ...r,
+            id: Number(r.id)
+          })) as RoleModel[]
+        );
+
         const permissionsResponse = await axios.get('permisos');
-        setPermissions(permissionsResponse.data);
+        const permissionsData = permissionsResponse.data || [];
+        // Normalize permission IDs and parent IDs to numbers (or null)
+        const normalized = permissionsData.map(
+          (p: any) =>
+            ({
+              ...p,
+              id: Number(p.id),
+              idPermissionPadre:
+                p.idPermissionPadre === null ||
+                p.idPermissionPadre === undefined ||
+                p.idPermissionPadre === ''
+                  ? null
+                  : Number(p.idPermissionPadre)
+            }) as PermissionModel
+        );
+        setPermissions(normalized);
       } catch (err) {
         setError('Hubo un error al obtener los datos');
       } finally {
@@ -193,7 +217,7 @@ const PermissionsToggle = React.memo(() => {
       const collectAncestorIds = (node: PermissionModel, flat: PermissionModel[]) => {
         const ids: number[] = [];
         let parentId = node.idPermissionPadre ?? null;
-        while (parentId) {
+        while (parentId != null) {
           const parent = flat.find((p) => p.id === parentId);
           if (!parent) break;
           ids.push(parent.id);
@@ -203,7 +227,9 @@ const PermissionsToggle = React.memo(() => {
       };
 
       const ancestorIds = collectAncestorIds(permission, permissions);
-      const ancestorNames = permissions.filter((p) => ancestorIds.includes(p.id)).map((p) => p.name);
+      const ancestorNames = permissions
+        .filter((p) => ancestorIds.includes(p.id))
+        .map((p) => p.name);
 
       // If selecting (not unchecking) and ancestors are not selected, auto-select them and notify
       if (!activePermissions.includes(permissionName) && ancestorNames.length > 0) {
@@ -400,8 +426,6 @@ const PermissionsToggle = React.memo(() => {
     setEditingNodeId(null);
   }, []);
 
-
-
   const startEditDescription = useCallback(
     (nodeId: number, current: string, node?: PermissionModel) => {
       setModalMode('edit');
@@ -485,9 +509,10 @@ const PermissionsToggle = React.memo(() => {
       const child = permissions.find((p) => p.id === childId);
       if (!child) return;
 
-      const currentParent = child.idPermissionPadre
-        ? permissions.find((p) => p.id === child.idPermissionPadre)
-        : null;
+      const currentParent =
+        child.idPermissionPadre != null
+          ? permissions.find((p) => p.id === child.idPermissionPadre)
+          : null;
       const newParent = newParentId ? permissions.find((p) => p.id === newParentId) : null;
 
       const currentParentText = currentParent ? currentParent.name : 'Raíz (sin padre)';
@@ -607,21 +632,12 @@ const PermissionsToggle = React.memo(() => {
 
             <div className="flex items-center gap-3 shrink-0">
               {/* Parent selector */}
-              <select
-                className="select select-sm w-44"
-                value={node.idPermissionPadre ?? ''}
+              <ParentSearchSelect
+                value={node.idPermissionPadre ?? null}
+                options={selectableParents}
                 disabled={isUpdating}
-                onChange={(e) =>
-                  handleParentChange(node.id, e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">Raíz (sin padre)</option>
-                {selectableParents.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(newParentId) => handleParentChange(node.id, newParentId)}
+              />
 
               {/* Permission toggle */}
               <div className="switch switch-sm">
@@ -777,8 +793,10 @@ const PermissionsToggle = React.memo(() => {
         <ModalContent>
           <ModalHeader>
             <ModalTitle>
-              <div className='p-2'>
-                {modalMode === 'create' ? 'Crear Permiso' : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
+              <div className="p-2">
+                {modalMode === 'create'
+                  ? 'Crear Permiso'
+                  : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
               </div>
             </ModalTitle>
           </ModalHeader>
@@ -864,9 +882,17 @@ const PermissionsToggle = React.memo(() => {
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={handleSaveEditModal}
-                  disabled={modalMode === 'edit' ? savingDescriptionId === editingNodeId : createSaving}
+                  disabled={
+                    modalMode === 'edit' ? savingDescriptionId === editingNodeId : createSaving
+                  }
                 >
-                  {modalMode === 'edit' ? (savingDescriptionId === editingNodeId ? 'Guardando...' : 'Guardar cambios') : (createSaving ? 'Creando...' : 'Crear permiso')}
+                  {modalMode === 'edit'
+                    ? savingDescriptionId === editingNodeId
+                      ? 'Guardando...'
+                      : 'Guardar cambios'
+                    : createSaving
+                      ? 'Creando...'
+                      : 'Crear permiso'}
                 </button>
               </div>
             </div>
@@ -878,3 +904,123 @@ const PermissionsToggle = React.memo(() => {
 });
 
 export default PermissionsToggle;
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Component: Searchable parent selector
+ * ──────────────────────────────────────────────────────────────────────────── */
+interface ParentSearchSelectProps {
+  value: number | null;
+  options: PermissionModel[];
+  disabled?: boolean;
+  onChange: (value: number | null) => void;
+}
+
+const ParentSearchSelect = React.memo(({ value, options, disabled, onChange }: ParentSearchSelectProps) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedLabel = value
+    ? options.find((p) => p.id === value)?.name ?? 'Raíz (sin padre)'
+    : 'Raíz (sin padre)';
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return q ? options.filter((p) => p.name.toLowerCase().includes(q)) : options;
+  }, [options, query]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (id: number | null) => {
+    onChange(id);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-44">
+      <button
+        type="button"
+        disabled={disabled}
+        className="select select-sm w-full text-left flex items-center justify-between gap-1 truncate"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="truncate text-sm">{selectedLabel}</span>
+        <KeenIcon icon="down" className="text-xs text-gray-500 shrink-0" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-50 mt-1 w-64 rounded-xl border shadow-dropdown overflow-hidden"
+          style={{
+            backgroundColor: 'var(--tw-light)',
+            borderColor: 'var(--tw-gray-200)',
+          }}
+        >
+          {/* Search input */}
+          <div
+            className="p-2"
+            style={{ borderBottom: '1px solid var(--tw-gray-200)' }}
+          >
+            <input
+              autoFocus
+              type="text"
+              className="input input-sm w-full"
+              placeholder="Buscar permiso..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Options list */}
+          <ul className="max-h-52 overflow-y-auto py-1">
+            <li>
+              <button
+                type="button"
+                className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  value === null
+                    ? 'text-primary font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+                onClick={() => handleSelect(null)}
+              >
+                Raíz (sin padre)
+              </button>
+            </li>
+
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-500 text-center">
+                Sin resultados
+              </li>
+            ) : (
+              filtered.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                      value === p.id
+                        ? 'text-primary font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                    onClick={() => handleSelect(p.id)}
+                  >
+                    {p.name}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+});
