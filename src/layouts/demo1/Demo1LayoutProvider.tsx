@@ -1,5 +1,4 @@
 import { createContext, type PropsWithChildren, useContext, useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
 import { useMenuChildren } from '@/components/menu';
 import { MENU_SIDEBAR } from '@/config/menu.config';
 import { fetchPermissionsMenu } from '@/services/menuService';
@@ -75,7 +74,6 @@ const useDemo1Layout = () => useContext(Demo1LayoutContext);
 
 // Layout provider component that wraps the application
 const Demo1LayoutProvider = ({ children }: PropsWithChildren) => {
-  const { pathname } = useLocation(); // Gets the current path
   const { setMenuConfig } = useMenus(); // Accesses menu configuration methods
 
   // Load menu from backend (permissions) and register it. Falls back to MENU_SIDEBAR on error.
@@ -95,7 +93,7 @@ const Demo1LayoutProvider = ({ children }: PropsWithChildren) => {
     }
   })();
   return () => { mounted = false; };
-}, [pathname]);
+}, []);
   const { getLayout, updateLayout, setCurrentLayout } = useLayout(); // Layout management methods
 
   // Merges the default layout with the current one
