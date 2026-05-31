@@ -113,8 +113,11 @@ const SidebarMenu = () => {
           const filteredChildren = filterMenuByPermissions(item.children, userPermissions, userRoles);
           const parentAllowed = hasPermission(item.requiredPermissions, userPermissions, userRoles);
 
-          if (filteredChildren.length === 0 && !parentAllowed) {
-            return null;
+          if (filteredChildren.length === 0) {
+            if (!parentAllowed || !item.path) {
+              return null;
+            }
+            return { ...item, children: [] };
           }
 
           return { ...item, children: filteredChildren };

@@ -4,11 +4,6 @@ import { CommonHexagonBadge } from '@/partials/common';
 import { PermissionModel } from '../models/_Permission';
 import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
-import { useMenuChildren } from '@/components/menu';
-import { MENU_SIDEBAR } from '@/config/menu.config';
-import { fetchPermissionsMenu } from '@/services/menuService';
-import { useMenus } from '@/providers';
 import { ToolbarDescription } from '@/partials/toolbar';
 import { Container } from '@/components/container';
 import { useSnackbar } from 'notistack';
@@ -83,20 +78,6 @@ const PermissionsToggle = React.memo(() => {
   const { enqueueSnackbar } = useSnackbar();
   const [createSaving, setCreateSaving] = useState(false);
 
-  const { setMenuConfig } = useMenus();
-  const { pathname } = useLocation();
-  const refreshMenus = useCallback(async () => {
-    try {
-      const menu = (await fetchPermissionsMenu()) || MENU_SIDEBAR;
-      setMenuConfig('primary', menu);
-      const secondaryMenu = useMenuChildren(pathname, menu, 1);
-      setMenuConfig('secondary', secondaryMenu);
-    } catch (err) {
-      setMenuConfig('primary', MENU_SIDEBAR);
-      const secondaryMenu = useMenuChildren(pathname, MENU_SIDEBAR, 1);
-      setMenuConfig('secondary', secondaryMenu);
-    }
-  }, [setMenuConfig, pathname]);
 
   /* ── Fetch data ──────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -357,18 +338,13 @@ const PermissionsToggle = React.memo(() => {
         );
         enqueueSnackbar('Descripción actualizada', { variant: 'success' });
         cancelEditDescription();
-        try {
-          await refreshMenus();
-        } catch (_) {
-          // ignore
-        }
       } catch (err) {
         enqueueSnackbar('Error al actualizar la descripción', { variant: 'error' });
       } finally {
         setSavingDescriptionId(null);
       }
     },
-    [enqueueSnackbar, cancelEditDescription, refreshMenus]
+    [enqueueSnackbar, cancelEditDescription]
   );
 
   const handleSaveEditModal = useCallback(async () => {
@@ -408,11 +384,6 @@ const PermissionsToggle = React.memo(() => {
         enqueueSnackbar('Permiso creado correctamente', { variant: 'success' });
         setIsEditModalOpen(false);
         setEditFormData({ name: '', description: '', icon: '', path: '' });
-        try {
-          await refreshMenus();
-        } catch (_) {
-          // ignore
-        }
       } catch (err) {
         enqueueSnackbar('Error al crear el permiso', { variant: 'error' });
       } finally {
@@ -485,11 +456,6 @@ const PermissionsToggle = React.memo(() => {
         enqueueSnackbar('Padre actualizado correctamente', {
           variant: 'success'
         });
-        try {
-          await refreshMenus();
-        } catch (_) {
-          // ignore
-        }
       } catch (err: unknown) {
         const message =
           axios.isAxiosError(err) && err.response?.data?.message
@@ -500,7 +466,7 @@ const PermissionsToggle = React.memo(() => {
         setUpdatingParent(null);
       }
     },
-    [enqueueSnackbar, refreshMenus]
+    [enqueueSnackbar]
   );
 
   /* ── Confirm parent change ───────────────────────────────────────────── */
