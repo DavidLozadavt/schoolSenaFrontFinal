@@ -43,6 +43,7 @@ export interface ToastProps {
   message: string;
   isOpen: boolean;
   onClose: () => void;
+  type?: 'success' | 'error' | 'warning';
 }
 
 // Tipos auxiliares para los catálogos del Formulario

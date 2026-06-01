@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { KeenIcon } from '@/components';
+import { KeenIcon, Toast } from '@/components';
 import { createPortal } from 'react-dom';
 import { useAuthContext } from '@/auth';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
@@ -14,6 +14,9 @@ import {
   materialDocumentoKeenIcon,
   materialDocumentoTypeLabel,
   validateMaterialDocumentoFile,
+  validateVideoFile,
+  VIDEO_ACCEPT,
+  VIDEO_FORMATOS_LABEL,
 } from './materialDocumentoSupport';
 
 export interface MaterialApoyoFichaItem {
@@ -95,6 +98,12 @@ const getDocumentUrl = (url?: string | null): string | null => {
   return base + '/storage/' + url.replace(/^storage\//, '');
 };
 
+const normalizeExternalUrl = (raw?: string | null): string | null => {
+  const u = String(raw ?? '').trim();
+  if (!u) return null;
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+};
+
 const tieneDocumento = (mat: MaterialApoyoFichaItem) =>
   Boolean(mat.urlDocumento || mat.urlDocumentoUrl);
 const tieneEnlace = (mat: MaterialApoyoFichaItem) => Boolean(mat.urlAdicional?.trim());
@@ -135,6 +144,10 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   rapContextLabel,
   idRapContext
 }) => {
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+
   const [items, setItems] = useState<MaterialApoyoFichaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -160,6 +173,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const auth = useAuthContext();
   const miPersonaId = auth?.persona?.id;
   const esGestionUsuario = auth?.permissions?.includes('GESTION_USUARIO') ?? false;
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastOpen(true);
+  };
 
   const puedeMutarMaterial = (mat: MaterialApoyoFichaItem) => {
     if (mat.idPersona != null && Number(mat.idPersona) > 0) {
@@ -353,7 +372,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   const abrirEditar = (row: MaterialApoyoFichaItem) => {
     if (!puedeMutarMaterial(row)) {
-      alert('No tienes permiso para editar este recurso.');
+      showToast('No tienes permiso para editar este recurso.', 'error');
       return;
     }
     setEditandoId(row.id);
@@ -386,16 +405,16 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idMateriaNum) {
-      alert('No se identifico la materia de la clase. No se puede guardar el material.');
+      showToast('No se identificó la materia de la clase. No se puede guardar el material.', 'error');
       return;
     }
     if (!titulo.trim()) {
-      alert('El titulo es obligatorio');
+      showToast('El título es obligatorio.', 'error');
       return;
     }
     const idRapEnvio = idRapContext ?? idRap;
     if (!idRapEnvio) {
-      alert('Debe seleccionar el RAP del material de apoyo.');
+      showToast('Debe seleccionar el RAP del material de apoyo.', 'error');
       return;
     }
     if (
@@ -404,13 +423,20 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       !link.trim() &&
       !videoFile
     ) {
-      alert('Ingrese al menos un recurso: documento, enlace o video (archivo)');
+      showToast('Ingrese al menos un recurso: documento, enlace o video (archivo).', 'error');
       return;
     }
     if (documentoFile) {
       const docErr = validateMaterialDocumentoFile(documentoFile);
       if (docErr) {
-        alert(docErr);
+        showToast(docErr, 'error');
+        return;
+      }
+    }
+    if (videoFile) {
+      const videoErr = validateVideoFile(videoFile);
+      if (videoErr) {
+        showToast(videoErr, 'error');
         return;
       }
     }
@@ -442,6 +468,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       }
       await cargar();
       cancelarForm();
+      showToast(editandoId ? 'Material actualizado correctamente.' : 'Material creado correctamente.', 'success');
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { errors?: Record<string, string[]>; error?: string } } };
       const errs = ax.response?.data?.errors;
@@ -450,7 +477,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             .flat()
             .join('\n')
         : ax.response?.data?.error || 'Error al guardar';
-      alert(msg);
+      showToast(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -458,15 +485,16 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   const eliminar = async (row: MaterialApoyoFichaItem) => {
     if (!puedeMutarMaterial(row)) {
-      alert('No tienes permiso para eliminar este recurso.');
+      showToast('No tienes permiso para eliminar este recurso.', 'error');
       return;
     }
     if (!window.confirm('¿Eliminar este recurso de la biblioteca de conocimiento?')) return;
     try {
       await axios.delete(`fichas/${idFicha}/materiales-apoyo/${row.id}`);
       await cargar();
+      showToast('Material eliminado correctamente.', 'success');
     } catch {
-      alert('No se pudo eliminar el material');
+      showToast('No se pudo eliminar el material.', 'error');
     }
   };
 
@@ -483,6 +511,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   return (
     <div className="space-y-5">
+      <Toast
+        isOpen={toastOpen}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastOpen(false)}
+      />
       <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-coal-400">
         <div className="min-w-0 flex-1 space-y-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Biblioteca de conocimiento</h2>
@@ -539,6 +573,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 placeholder="Titulo del material"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
@@ -575,6 +610,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
               placeholder="Descripcion del material"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value.slice(0, 3000))}
+              data-preserve-case
               maxLength={3000}
             />
           </div>
@@ -627,7 +663,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
               <input
                 ref={videoInputRef}
                 type="file"
-                accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,.mp4,.webm,.mov,.avi"
+                accept={VIDEO_ACCEPT}
                 onChange={(e) => {
                   setVideoFile(e.target.files?.[0] || null);
                   setQuitarVideo(false);
@@ -648,7 +684,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 {videoFile ? videoFile.name : 'Ningún archivo seleccionado'}
               </span>
             </div>
-            <p className="text-[10px] text-gray-500 mt-1">Formatos permitidos: MP4, WebM, MOV o AVI.</p>
+            <p className="text-[10px] text-gray-500 mt-1">{VIDEO_FORMATOS_LABEL}</p>
           </div>
 
           {filaEdicion && tieneVideo(filaEdicion) && (
@@ -812,12 +848,24 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             if (!active) return null;
             const docUrl = getDocumentUrl(active.urlDocumentoUrl || active.urlDocumento);
             const docExt = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
-            const linkUrl = active.urlAdicional?.startsWith('http')
-              ? active.urlAdicional
-              : active.urlAdicional
-                ? `https://${active.urlAdicional}`
-                : null;
+            const linkUrl = normalizeExternalUrl(active.urlAdicional);
             const videoUrl = getDocumentUrl(active.urlVideoUrl || active.urlVideo);
+            const acciones: Array<{ key: string; label: string; href?: string }> = [];
+
+            if (docUrl) {
+              acciones.push({
+                key: 'doc',
+                label: docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento',
+                href: docUrl,
+              });
+            }
+            if (linkUrl) {
+              acciones.push({ key: 'link', label: 'Abrir enlace adicional', href: linkUrl });
+            }
+            if (videoUrl) {
+              acciones.push({ key: 'video', label: 'Ver video', href: videoUrl });
+            }
+
             return (
               <div
                 data-id="material-apoyo-recursos-menu"
@@ -827,38 +875,23 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
-                {docUrl && (
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    {docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento'}
-                  </a>
-                )}
-                {linkUrl && (
-                  <a
-                    href={linkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Abrir enlace adicional
-                  </a>
-                )}
-                {videoUrl && (
-                  <a
-                    href={videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Ver video
-                  </a>
+                {acciones.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    Sin recursos disponibles
+                  </div>
+                ) : (
+                  acciones.map((a) => (
+                    <a
+                      key={a.key}
+                      href={a.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setRecursosMenu(null)}
+                      className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                    >
+                      {a.label}
+                    </a>
+                  ))
                 )}
               </div>
             );

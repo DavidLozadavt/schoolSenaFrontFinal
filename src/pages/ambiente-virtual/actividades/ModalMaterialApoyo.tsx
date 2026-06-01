@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
-import { KeenIcon } from '@/components';
+import { KeenIcon, Toast } from '@/components';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 import {
@@ -63,6 +63,10 @@ const getDocumentUrl = (url?: string | null): string | null => {
 const ITEMS_PER_PAGE = 10;
 
 const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad }) => {
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+
   const [materiales, setMateriales] = useState<MaterialApoyo[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -115,17 +119,23 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     currentPage * ITEMS_PER_PAGE
   );
 
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastOpen(true);
+  };
+
   const handleAgregar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividad?.id || !titulo.trim()) return;
     if (!documentoFile && !link.trim()) {
-      alert('Ingrese un documento o un enlace (página web o YouTube)');
+      showToast('Ingrese un documento o un enlace (página web o YouTube).', 'error');
       return;
     }
     if (documentoFile) {
       const docErr = validateMaterialDocumentoFile(documentoFile);
       if (docErr) {
-        alert(docErr);
+        showToast(docErr, 'error');
         return;
       }
     }
@@ -149,7 +159,12 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
       console.error('Error agregando material:', err);
-      alert(err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join('\n') : 'Error al agregar material');
+      showToast(
+        err.response?.data?.errors
+          ? Object.values(err.response.data.errors).flat().join('\n')
+          : 'Error al agregar material',
+        'error'
+      );
     } finally {
       setSaving(false);
     }
@@ -179,6 +194,12 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-3xl top-[5%] max-h-[90vh] overflow-y-auto flex flex-col p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
+        <Toast
+          isOpen={toastOpen}
+          message={toastMessage}
+          type={toastType}
+          onClose={() => setToastOpen(false)}
+        />
         <ModalHeader>
           <ModalTitle>Material de la actividad</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>

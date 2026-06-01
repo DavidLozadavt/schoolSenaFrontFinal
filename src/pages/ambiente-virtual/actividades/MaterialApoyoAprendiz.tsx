@@ -62,6 +62,12 @@ const getDocumentUrl = (url?: string | null): string | null => {
   return base + '/storage/' + url.replace(/^storage\//, '');
 };
 
+const normalizeExternalUrl = (raw?: string | null): string | null => {
+  const u = String(raw ?? '').trim();
+  if (!u) return null;
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+};
+
 /** Si la URL es de YouTube, devuelve URL embed; si no, null. */
 const youtubeEmbedUrl = (raw: string): string | null => {
   const u = raw.trim();
@@ -514,12 +520,30 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
             if (!active) return null;
             const docUrl = getDocumentUrl(active.urlDocumentoUrl || active.urlDocumento);
             const docExt = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
-            const linkUrl = active.urlAdicional?.startsWith('http')
-              ? active.urlAdicional
-              : active.urlAdicional
-                ? `https://${active.urlAdicional}`
-                : null;
+            const linkUrl = normalizeExternalUrl(active.urlAdicional);
             const hasVid = Boolean(active.urlVideoUrl || active.urlVideo);
+            const acciones: Array<{ key: string; label: string; href?: string; onClick?: () => void }> = [];
+
+            if (docUrl) {
+              acciones.push({
+                key: 'doc',
+                label: docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento',
+                href: docUrl,
+              });
+            }
+            if (linkUrl) {
+              acciones.push({ key: 'link', label: 'Abrir enlace adicional', href: linkUrl });
+            }
+            if (hasVid) {
+              acciones.push({
+                key: 'video',
+                label: 'Ver video',
+                onClick: () => {
+                  setRecursosMenu(null);
+                  setVideoModalItem(active);
+                },
+              });
+            }
             return (
               <div
                 data-id="ma-aprendiz-recursos-menu"
@@ -529,39 +553,34 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                 <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
-                {docUrl && (
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    {docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento'}
-                  </a>
-                )}
-                {linkUrl && (
-                  <a
-                    href={linkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Abrir enlace adicional
-                  </a>
-                )}
-                {hasVid && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRecursosMenu(null);
-                      setVideoModalItem(active);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Ver video
-                  </button>
+                {acciones.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    Sin recursos disponibles
+                  </div>
+                ) : (
+                  acciones.map((a) =>
+                    a.href ? (
+                      <a
+                        key={a.key}
+                        href={a.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setRecursosMenu(null)}
+                        className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                      >
+                        {a.label}
+                      </a>
+                    ) : (
+                      <button
+                        key={a.key}
+                        type="button"
+                        onClick={a.onClick}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                      >
+                        {a.label}
+                      </button>
+                    )
+                  )
                 )}
               </div>
             );
