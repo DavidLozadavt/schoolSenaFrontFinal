@@ -1093,7 +1093,7 @@ const CalendarComponent: React.FC<{
           <div className="flex items-center gap-2">
             <button
               onClick={goToPreviousMonth}
-              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white transition-colors"
             >
               <KeenIcon icon="left" className="text-sm" />
             </button>
@@ -1102,7 +1102,7 @@ const CalendarComponent: React.FC<{
             </span>
             <button
               onClick={goToNextMonth}
-              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white transition-colors"
             >
               <KeenIcon icon="right" className="text-sm" />
             </button>
@@ -1300,7 +1300,7 @@ const CalendarComponent: React.FC<{
               {calendarioInstructorMes ? (
                 resumenMesCalendarioInstructor.completadas > 0 ||
                 resumenMesCalendarioInstructor.pendientes > 0 ? (
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                  <p className="text-[10px] text-gray-600 dark:text-gray-200 leading-snug">
                     {resumenMesCalendarioInstructor.completadas}{' '}
                     {resumenMesCalendarioInstructor.completadas === 1 ? 'día' : 'días'} con sesión
                     {resumenMesCalendarioInstructor.pendientes > 0
@@ -1310,7 +1310,7 @@ const CalendarComponent: React.FC<{
                   </p>
                 ) : null
               ) : sesionesCompletadasUnificadas.length > 0 ? (
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                <p className="text-[10px] text-gray-600 dark:text-gray-200 leading-snug">
                   {sesionesCompletadasUnificadas.length} sesión
                   {sesionesCompletadasUnificadas.length === 1 ? '' : 'es'} completada
                   {ymdPendienteClase.size > 0
@@ -1658,7 +1658,7 @@ const ClaseDetallePage: React.FC = () => {
         : 'flex items-center justify-center px-1.5 py-2',
       activo
         ? 'bg-light dark:bg-coal-300 text-primary border-gray-200 dark:border-gray-100'
-        : 'text-gray-700 dark:text-gray-300 hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
+        : 'text-gray-700 dark:text-white hover:bg-light dark:hover:bg-coal-300 hover:border-gray-200 dark:hover:border-gray-100'
     );
   const claseIconoItemMenu = 'mt-0.5 shrink-0 text-base leading-none';
   const itemsPerPage = 11;
@@ -2379,7 +2379,7 @@ const ClaseDetallePage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Cargando...</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-200">Cargando...</p>
         </div>
       </div>
     );
@@ -2390,7 +2390,7 @@ const ClaseDetallePage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <KeenIcon icon="document" className="text-6xl text-gray-400 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
+          <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
             No se encontró la clase
           </p>
         </div>
@@ -2471,7 +2471,7 @@ const ClaseDetallePage: React.FC = () => {
                       {tit.rap}
                     </p>
                   ) : null}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  <p className="text-xs text-gray-600 dark:text-gray-200 uppercase tracking-wide">
                     {programaTxt}
                   </p>
                 </>
@@ -2487,7 +2487,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="document" className="text-blue-600 dark:text-blue-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Ficha</p>
+                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">Ficha</p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                     {ficha.codigo}
                   </p>
@@ -2500,7 +2500,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="sun" className="text-yellow-600 dark:text-yellow-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Jornada</p>
+                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">Jornada</p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                     {getJornadaType(ficha.jornada?.nombreJornada || '')}
                   </p>
@@ -2513,7 +2513,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
+                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">
                     Número de Sesiones
                   </p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
@@ -2602,7 +2602,7 @@ const ClaseDetallePage: React.FC = () => {
                           {inst.nombre}
                         </p>
                       ))}
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-4 mt-1">
                         {emailInstructor}
                       </p>
                       <div className="flex items-center gap-2.5">
@@ -2618,7 +2618,7 @@ const ClaseDetallePage: React.FC = () => {
                   </div>
                 );
               })() : (
-                <p className="text-xs text-gray-500 dark:text-gray-400">No hay instructor asignado</p>
+                <p className="text-xs text-gray-600 dark:text-gray-200">No hay instructor asignado</p>
               )}
             </div>
           </div>
@@ -2635,12 +2635,12 @@ const ClaseDetallePage: React.FC = () => {
                       <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-xl" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2.5">Fecha de Inicio</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-2.5">Fecha de Inicio</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
                         {formatDate(clase.fechaInicial)}
                       </p>
                       {clase.horaInicial && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className="text-xs text-gray-600 dark:text-gray-200">
                           Hora inicio: {formatTime12h(clase.horaInicial)}
                         </p>
                       )}
@@ -2652,12 +2652,12 @@ const ClaseDetallePage: React.FC = () => {
                       <KeenIcon icon="calendar" className="text-red-600 dark:text-red-400 text-xl" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2.5">Fecha de Fin</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-2.5">Fecha de Fin</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
                         {formatDate(clase.fechaFinal)}
                       </p>
                       {clase.horaFinal && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className="text-xs text-gray-600 dark:text-gray-200">
                           Hora fin: {formatTime12h(clase.horaFinal)}
                         </p>
                       )}
@@ -2714,7 +2714,7 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                 />
               ) : (
-                <div className="text-center py-8 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-center py-8 text-sm text-gray-600 dark:text-gray-200">
                   No hay fechas disponibles
                 </div>
               )}
@@ -2750,7 +2750,7 @@ const ClaseDetallePage: React.FC = () => {
                   ) : null}
                   <KeenIcon
                     icon="down"
-                    className={`shrink-0 text-sm text-gray-500 dark:text-gray-400 transition-transform duration-200 ${menuClaseExpandido ? 'rotate-0' : '-rotate-90'}`}
+                    className={`shrink-0 text-sm text-gray-600 dark:text-gray-200 transition-transform duration-200 ${menuClaseExpandido ? 'rotate-0' : '-rotate-90'}`}
                   />
                 </button>
               ) : (
@@ -2769,7 +2769,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="users"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Estudiantes" /> : null}
@@ -2784,7 +2784,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="plus-circle"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Crear actividad" /> : null}
@@ -2799,7 +2799,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="check-squared"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificar actividad" /> : null}
@@ -2814,7 +2814,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="users"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Ver grupos" /> : null}
@@ -2829,7 +2829,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="chart-line"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificaciones" /> : null}
@@ -2844,7 +2844,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="chart-simple"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Juicios evaluativos" /> : null}
@@ -2859,7 +2859,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="document"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                      activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                     )}
                   />
                   {mostrarEtiquetasMenu ? (
@@ -2880,7 +2880,7 @@ const ClaseDetallePage: React.FC = () => {
                           claseIconoItemMenu,
                           activeMenu === 'justificaciones-pendientes'
                             ? 'text-primary'
-                            : 'text-gray-500 dark:text-gray-400'
+                            : 'text-gray-600 dark:text-gray-100'
                         )}
                       />
                       {mostrarEtiquetasMenu ? (
@@ -2897,7 +2897,7 @@ const ClaseDetallePage: React.FC = () => {
                         icon="chart-line-up"
                         className={clsx(
                           claseIconoItemMenu,
-                          activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-500 dark:text-gray-400'
+                          activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
                         )}
                       />
                       {mostrarEtiquetasMenu ? (
@@ -3039,7 +3039,7 @@ const ClaseDetallePage: React.FC = () => {
                 <div className="text-center py-12">
                   <KeenIcon icon="chart-simple" className="text-4xl text-gray-400 mx-auto mb-3" />
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay juicios evaluativos</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-600 dark:text-gray-200">
                     Los juicios evaluativos aparecerán aquí cuando estén disponibles
                   </p>
                 </div>
@@ -3050,7 +3050,7 @@ const ClaseDetallePage: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-600 dark:text-gray-200">
                       Recursos de consulta de todo tu programa de formación (sin entrega ni calificación). El RAP actual es solo referencia.
                     </p>
                   </div>
@@ -3075,7 +3075,7 @@ const ClaseDetallePage: React.FC = () => {
                 <div className="text-center py-12 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
                   <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 px-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-200 px-4">
                     No hay ficha cargada para esta clase. Vuelve a entrar desde el detalle de la ficha o recarga la página.
                   </p>
                 </div>
