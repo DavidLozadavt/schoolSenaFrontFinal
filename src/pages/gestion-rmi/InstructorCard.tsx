@@ -117,6 +117,96 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
     setRmiModalOpen(true);
   };
 
+  const handleVerHorarioMensual = async () => {
+    if (fichas.length === 0) {
+      await fetchFichas();
+    }
+    setHorarioMensualOpen(true);
+  };
+
+  const handleRevertir = async () => {
+    setDisableActionRmi(true);
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const result = await Swal.fire({
+      title: '¿Revertir a pendiente?',
+      text: 'El RMI volverá al estado PENDIENTE.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, revertir',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-warning',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background: isDarkMode ? '#1B1C22' : '#F9F9F9',
+      color: isDarkMode ? 'white' : '#4B5675'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.put(`instructores/${instructor.idActivation}/revertir-rmi`, {
+          periodo
+        });
+        enqueueSnackbar('RMI revertido a pendiente.', { variant: 'info' });
+        const actualizado: Instructor = {
+          ...instructorState,
+          estado: 'PENDIENTE',
+          motivoRechazo: undefined
+        };
+        setInstructorState(actualizado);
+        onEstadoChange?.(instructor.idActivation, 'PENDIENTE');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Error al revertir el RMI.';
+        enqueueSnackbar(errorMessage, { variant: 'error' });
+      }
+    }
+    setDisableActionRmi(false);
+  };
+
+  const handleAceptar = async () => {
+    setDisableActionRmi(true);
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+    const result = await Swal.fire({
+      title: '¿Quieres aceptar este RMI?',
+      text: '¿Estás seguro de que deseas aceptar este RMI?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Aceptar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-success',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.put(`instructores/${instructor.idActivation}/aceptar-rmi`, {
+          periodo: periodo,
+          email: persona.email
+        });
+        enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
+        const actualizado: Instructor = {
+          ...instructorState,
+          estado: 'ACEPTADO',
+          motivoRechazo: undefined
+        };
+        setInstructorState(actualizado);
+        onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Error al aceptar el RMI.';
+        enqueueSnackbar(errorMessage, { variant: 'error' });
+      }
+    }
+    setDisableActionRmi(false);
+  };
+
   return (
     <>
       <div className="bg-white dark:bg-coal-500 rounded-xl border border-gray-200 dark:border-coal-300 shadow-sm overflow-hidden">
@@ -180,11 +270,16 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
             {/* Acciones */}
             <div className="mt-3 w-2/3 flex gap-2 m-1">
               <button
-                onClick={() => setHorarioMensualOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
+                onClick={handleVerHorarioMensual}
+                disabled={loadingRmi}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all disabled:opacity-50"
                 title="Ver Horario"
               >
-                <i className="ki-outline ki-calendar text-base" />
+                {loadingRmi ? (
+                  <div className="w-3.5 h-3.5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <i className="ki-outline ki-calendar text-base" />
+                )}
               </button>
               <button
                 onClick={handleVerRmi}
@@ -203,48 +298,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
               {(instructorState.estado === 'ACEPTADO' ||
                 instructorState.estado === 'RECHAZADO') && (
                 <button
-                  onClick={async () => {
-                    setDisableActionRmi(true);
-                    const theme = JSON.parse(
-                      localStorage.getItem('settings-configs') || '{}'
-                    )?.themeMode;
-                    const isDarkMode = theme === 'dark';
-                    const result = await Swal.fire({
-                      title: '¿Revertir a pendiente?',
-                      text: 'El RMI volverá al estado PENDIENTE.',
-                      icon: 'warning',
-                      showCancelButton: true,
-                      confirmButtonText: 'Sí, revertir',
-                      cancelButtonText: 'Cancelar',
-                      customClass: {
-                        confirmButton: 'btn btn-sm btn-warning',
-                        cancelButton: 'btn btn-sm btn-light'
-                      },
-                      background: isDarkMode ? '#1B1C22' : '#F9F9F9',
-                      color: isDarkMode ? 'white' : '#4B5675'
-                    });
-
-                    if (result.isConfirmed) {
-                      try {
-                        await axios.put(`instructores/${instructor.idActivation}/revertir-rmi`, {
-                          periodo
-                        });
-                        enqueueSnackbar('RMI revertido a pendiente.', { variant: 'info' });
-                        const actualizado: Instructor = {
-                          ...instructorState,
-                          estado: 'PENDIENTE',
-                          motivoRechazo: undefined
-                        };
-                        setInstructorState(actualizado);
-                        onEstadoChange?.(instructor.idActivation, 'PENDIENTE');
-                      } catch (error: any) {
-                        const errorMessage =
-                          error.response?.data?.message || 'Error al revertir el RMI.';
-                        enqueueSnackbar(errorMessage, { variant: 'error' });
-                      }
-                    }
-                    setDisableActionRmi(false);
-                  }}
+                  onClick={handleRevertir}
                   disabled={disableActionRmi}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
                   title="Revertir a pendiente"
@@ -259,55 +313,7 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
               {instructorState.estado === 'PENDIENTE' && (
                 <>
                   <button
-                    onClick={async () => {
-                      setDisableActionRmi(true);
-                      const theme = JSON.parse(
-                        localStorage.getItem('settings-configs') || '{}'
-                      )?.themeMode;
-                      const isDarkMode = theme === 'dark';
-                      const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
-                      const color = isDarkMode ? 'white' : '#4B5675';
-                      const result = await Swal.fire({
-                        title: '¿Quieres aceptar este RMI?',
-                        text: '¿Estás seguro de que deseas aceptar este RMI?',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, Aceptar',
-                        cancelButtonText: 'Cancelar',
-                        customClass: {
-                          confirmButton: 'btn btn-sm btn-success',
-                          cancelButton: 'btn btn-sm btn-light'
-                        },
-                        background,
-                        color
-                      });
-
-                      if (result.isConfirmed) {
-                        try {
-                          await axios.put(`instructores/${instructor.idActivation}/aceptar-rmi`, {
-                            periodo: periodo,
-                            email: persona.email
-                          });
-                          enqueueSnackbar('RMI aceptado con éxito.', { variant: 'success' });
-                          const actualizado: Instructor = {
-                            ...instructorState,
-                            estado: 'ACEPTADO',
-                            motivoRechazo: undefined
-                          };
-                          setInstructorState(actualizado);
-                          onEstadoChange?.(instructor.idActivation, 'ACEPTADO');
-                          setDisableActionRmi(false);
-                        } catch (error: any) {
-                          setDisableActionRmi(false);
-                          const errorMessage =
-                            error.response?.data?.message || 'Error al aceptar el RMI.';
-                          enqueueSnackbar(errorMessage, { variant: 'error' });
-                        }
-                      } else {
-                        setDisableActionRmi(false);
-                        return;
-                      }
-                    }}
+                    onClick={handleAceptar}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
                     title="Aceptar RMI"
                     disabled={disableActionRmi}
@@ -340,8 +346,9 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
       <HorarioMensual
         isOpen={horarioMensualOpen}
         onClose={() => setHorarioMensualOpen(false)}
-        instructor={instructor}
+        instructor={instructorState}
         periodo={periodo}
+        fichas={fichas}
       />
       {/* Modal RMI */}
       <RmiModal
@@ -352,6 +359,10 @@ const InstructorCard: React.FC<InstructorCardProps> = ({ instructor, periodo, on
         fichas={fichas}
         actividades={actividades}
         onRefresh={fetchFichas}
+        onAceptar={handleAceptar}
+        onRechazar={() => setRechazarModalOpen(true)}
+        onRevertir={handleRevertir}
+        disableActionRmi={disableActionRmi}
       />
       {/* Modal Rechazar RMI */}
       <ModalRechazarRmi

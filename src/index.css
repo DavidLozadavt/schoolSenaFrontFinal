@@ -87,9 +87,11 @@
   background-size: 1000px 100%;
 }
 
-/* Smooth scroll */
-html {
+/* Smooth scroll & block horizontal overflow */
+html, body {
   scroll-behavior: smooth;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */
@@ -130,4 +132,35 @@ textarea[data-preserve-case] {
 input[data-no-uppercase],
 textarea[data-no-uppercase] {
   text-transform: none !important;
+}
+
+/* --- Mejoras Globales para Date y Time Pickers --- */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.5);
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.8);
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="time"]:hover::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+  background: rgba(249, 115, 22, 0.1); /* Orange tint on hover */
+  transform: scale(1.1);
+}
+
+/* Forzar esquema de color en navegadores modernos */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: light dark;
 }

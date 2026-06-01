@@ -184,26 +184,15 @@ const obtenerColorEstado = (estado: Sesion['estado']): string => {
 const formatearFecha = (fechaStr: string): string => {
   if (!fechaStr) return '';
   try {
-    // Tomamos solo la parte de fecha para evitar desfases de zona horaria
-    const [year, month, day] = fechaStr.split('T')[0].split('-').map(Number);
-    const fecha = new Date(year, month - 1, day);
+    const normalized = fechaStr.length === 10 ? `${fechaStr}T12:00:00` : fechaStr;
+    const fecha = new Date(normalized);
     if (isNaN(fecha.getTime())) return fechaStr;
-    const meses = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic'
-    ];
-    const diasSemana = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-    return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+    return fecha.toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   } catch {
     return fechaStr;
   }
@@ -551,3 +540,4 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
 };
 
 export default MisClases;
+

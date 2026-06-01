@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { KeenIcon, ImageZoomModal, Toast } from '@/components';
@@ -6,11 +6,14 @@ import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAv
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 import {
+  actOnMaterialDocumento,
   extensionFromPath,
+  materialDocumentoActionIcon,
   materialDocumentoActionLabel,
   materialDocumentoBadgeClass,
   materialDocumentoKeenIcon,
   materialDocumentoTypeLabel,
+  resolveMaterialDocumentoAbsoluteUrl,
 } from './materialDocumentoSupport';
 
 type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR' | 'CORRECCION_SOLICITADA';
@@ -48,7 +51,7 @@ interface ActividadAprendiz {
   autor?: {
     nombreCompleto?: string | null;
     rutaFotoUrl?: string | null;
-    /** Ruta sin dominio si el backend la envía en crudo */
+    /** Ruta sin dominio si el backend la envÃ­a en crudo */
     rutaFoto?: string | null;
   };
   materialesApoyo?: Array<{
@@ -75,7 +78,7 @@ interface ActividadAprendiz {
   }>;
 }
 
-/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar área de conocimiento aquí. */
+/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar Ã¡rea de conocimiento aquÃ­. */
 const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
   if (typeof raw === 'string' && raw.trim().length > 0) {
@@ -84,7 +87,7 @@ const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   return 'Sin materia asignada';
 };
 
-const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÓN]';
+const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÃ“N]';
 
 const textoComentarioDocenteVisible = (c: string | null | undefined): string => {
   const s = (c ?? '').trim();
@@ -96,7 +99,7 @@ const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'TODOS', label: 'Todos' },
   { id: 'CALIFICADO', label: 'Calificado' },
   { id: 'POR_EVALUAR', label: 'Por Evaluar' },
-  { id: 'CORRECCION_SOLICITADA', label: 'Corrección solicitada' },
+  { id: 'CORRECCION_SOLICITADA', label: 'CorrecciÃ³n solicitada' },
   { id: 'PENDIENTE', label: 'Pendiente' },
   { id: 'SIN_ENTREGAR', label: 'Sin Entregar' }
 ];
@@ -127,7 +130,7 @@ const getFileName = (path?: string | null): string => {
   // Extraer el nombre del archivo de la ruta
   const parts = path.split('/');
   const fileName = parts[parts.length - 1];
-  // Si tiene extensión, devolverlo tal cual, sino agregar extensión genérica
+  // Si tiene extensiÃ³n, devolverlo tal cual, sino agregar extensiÃ³n genÃ©rica
   return fileName || 'Archivo entregado';
 };
 
@@ -174,7 +177,7 @@ const getPerfilPublicUrl = (path?: string | null): string | null => {
   return `${base.replace(/\/$/, '')}/${storagePath}`;
 };
 
-/** Primera foto no vacía enviada en `autor` (camel/snake/API). Solo creador/instructor — no usar campos del aprendiz. */
+/** Primera foto no vacÃ­a enviada en `autor` (camel/snake/API). Solo creador/instructor â€” no usar campos del aprendiz. */
 const pickAutorFotoParaMostrar = (autor?: ActividadAprendiz['autor']): string | null => {
   if (!autor) return null;
   const raw = autor as Record<string, unknown>;
@@ -209,6 +212,144 @@ const esPdfPorRuta = (path?: string | null, url?: string | null): boolean => {
   return s.includes('.pdf');
 };
 
+type MaterialApoyoActividadItem = NonNullable<ActividadAprendiz['materialesApoyo']>[number];
+
+const materialApoyoTieneRecurso = (m: MaterialApoyoActividadItem): boolean =>
+  Boolean(m.urlDocumento || m.urlDocumentoUrl || m.urlAdicional);
+
+/** Lista de material de apoyo de la actividad (documento + enlace por ítem). */
+const MaterialApoyoActividadLista: React.FC<{
+  materiales: MaterialApoyoActividadItem[];
+  compact?: boolean;
+}> = ({ materiales, compact = false }) => {
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const list = materiales.filter(materialApoyoTieneRecurso);
+  if (list.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        No hay material de apoyo
+      </div>
+    );
+  }
+
+  return (
+    <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
+      {list.map((material) => {
+        const docSource = material.urlDocumentoUrl || material.urlDocumento;
+        const docUrl = resolveMaterialDocumentoAbsoluteUrl(docSource) ?? getDocumentUrl(docSource);
+        const docExt = extensionFromPath(docSource || material.titulo);
+        const linkUrl = material.urlAdicional?.startsWith('http')
+          ? material.urlAdicional
+          : material.urlAdicional
+            ? `https://${material.urlAdicional}`
+            : null;
+
+        return (
+          <div
+            key={material.id}
+            className={
+              compact
+                ? 'flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2'
+                : 'flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300'
+            }
+          >
+            <div className={compact ? 'flex items-center gap-2 min-w-0 flex-1' : 'space-y-1.5 min-w-0'}>
+              <div className={compact ? 'flex items-center gap-2 min-w-0 flex-1' : 'flex items-start gap-2 min-w-0'}>
+                {docUrl ? (
+                  <KeenIcon
+                    icon={materialDocumentoKeenIcon(docExt)}
+                    className="text-gray-600 dark:text-gray-300 shrink-0 w-4 h-4"
+                  />
+                ) : (
+                  <KeenIcon icon="exit-up-right" className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4" />
+                )}
+                <div className="min-w-0">
+                  <p
+                    className={
+                      compact
+                        ? 'text-xs text-gray-900 dark:text-white truncate'
+                        : 'text-sm font-medium text-gray-800 dark:text-gray-200 truncate'
+                    }
+                  >
+                    {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Material de apoyo'}
+                  </p>
+                  {!compact && material.descripcion ? (
+                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-0.5">{material.descripcion}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {docExt ? (
+                      <span
+                        className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${materialDocumentoBadgeClass(docExt)}`}
+                      >
+                        {materialDocumentoTypeLabel(docExt)}
+                      </span>
+                    ) : null}
+                    {linkUrl ? (
+                      <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        Enlace
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                </div>
+              </div>
+            <div className={`flex shrink-0 gap-1 ${compact ? 'items-center' : 'flex-wrap justify-end pt-1'}`}>
+              {docUrl ? (
+                <button
+                  type="button"
+                  disabled={downloadingId === material.id}
+                  onClick={async () => {
+                    try {
+                      setDownloadingId(material.id);
+                      await actOnMaterialDocumento(docUrl, docExt, {
+                        titulo: material.titulo,
+                        urlPath: docSource,
+                      });
+                    } catch {
+                      alert('No fue posible descargar el archivo');
+                    } finally {
+                      setDownloadingId(null);
+                    }
+                  }}
+                  className={
+                    compact
+                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary disabled:opacity-50'
+                      : 'btn btn-sm btn-primary text-xs disabled:opacity-60'
+                  }
+                  title={docExt ? materialDocumentoActionLabel(docExt) : 'Descargar archivo'}
+                >
+                  {compact ? (
+                    <KeenIcon icon={materialDocumentoActionIcon(docExt)} className="w-4 h-4" />
+                  ) : downloadingId === material.id ? (
+                    'Descargando…'
+                  ) : (
+                    materialDocumentoActionLabel(docExt)
+                  )}
+                </button>
+              ) : null}
+              {linkUrl ? (
+                <a
+                  href={linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={
+                    compact
+                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary'
+                      : 'btn btn-sm btn-light text-xs'
+                  }
+                  title="Abrir enlace"
+                >
+                  {compact ? <KeenIcon icon="exit-up-right" className="w-4 h-4" /> : 'Abrir enlace'}
+                </a>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const estadoBadgeMap: Record<
   Exclude<EstadoActividad, 'TODOS'>,
   { label: string; chip: string; line: string; score: string }
@@ -232,7 +373,7 @@ const estadoBadgeMap: Record<
     score: 'text-slate-500 dark:text-slate-300'
   },
   CORRECCION_SOLICITADA: {
-    label: 'Corrección solicitada',
+    label: 'CorrecciÃ³n solicitada',
     chip:
       'bg-red-100 text-red-900 font-semibold ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-800',
     line: 'border-l-red-600',
@@ -246,7 +387,7 @@ const estadoBadgeMap: Record<
   }
 };
 
-/** Color de nota según resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya está calificada. */
+/** Color de nota segÃºn resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya estÃ¡ calificada. */
 const getScoreColorClass = (score: number | null, estadoVisual: string): string => {
   if (score === null) {
     return 'text-gray-500 dark:text-gray-400';
@@ -315,7 +456,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     }
   }, [actividad, comentario, archivo, onSaved, onSuccess, onClose]);
 
-  // Constantes de validación
+  // Constantes de validaciÃ³n
   const VALID_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'zip', 'rar', 'sql']);
   const VALID_MIME_TYPES = new Set([
     'application/pdf',
@@ -343,7 +484,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       return 'Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, ZIP, RAR, SQL';
     }
     if (file.size > MAX_FILE_SIZE) {
-      return 'El archivo excede el tamaño máximo de 10MB';
+      return 'El archivo excede el tamaÃ±o mÃ¡ximo de 10MB';
     }
     return null;
   }, []);
@@ -386,7 +527,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     }
   }, [validateFile]);
 
-  // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
+  // Extraer informaciÃ³n de proyecto y materia/RAP (misma lÃ³gica que la lista principal)
   const projectInfo = useMemo(() => {
     if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin materia asignada' };
     const title = actividad.tituloActividad || '';
@@ -441,7 +582,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* Información de la actividad */}
+          {/* InformaciÃ³n de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
               Proyecto: {projectInfo.proyecto}
@@ -454,78 +595,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
           {/* Material de Apoyo */}
           <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Material de Apoyo</p>
-            {actividad.materialesApoyo && actividad.materialesApoyo.length > 0 ? (
-              <div className="space-y-1.5">
-                {actividad.materialesApoyo.map((material) => {
-                  const hasDocument = !!material.urlDocumentoUrl;
-                  const hasLink = !!material.urlAdicional;
-                  
-                  return (
-                    <div
-                      key={material.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        {hasDocument ? (
-                          <KeenIcon
-                            icon="file-pdf"
-                            className="text-red-500 dark:text-red-400 shrink-0 w-4 h-4"
-                          />
-                        ) : hasLink ? (
-                          <KeenIcon
-                            icon="exit-up-right"
-                            className="text-gray-500 dark:text-gray-400 shrink-0 w-4 h-4"
-                          />
-                        ) : (
-                          <KeenIcon
-                            icon="document"
-                            className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4"
-                          />
-                        )}
-                        <span className="text-xs text-gray-900 dark:text-white truncate">
-                          {material.titulo || 'Material de apoyo'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {hasDocument && (
-                          <a
-                            href={getDocumentUrl(material.urlDocumentoUrl) ?? '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              const url = getDocumentUrl(material.urlDocumentoUrl);
-                              if (url) {
-                                window.open(url, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
-                            className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
-                            title="Descargar"
-                          >
-                            <KeenIcon icon="download" className="w-4 h-4" />
-                          </a>
-                        )}
-                        {hasLink && (
-                          <a
-                            href={material.urlAdicional ?? '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
-                            title="Ver enlace"
-                          >
-                            <KeenIcon icon="exit-up-right" className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-coal-300 px-3 py-2.5 text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">No hay material de apoyo</p>
-              </div>
-            )}
+            <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
           {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
@@ -671,12 +741,12 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                     <>
                       {tieneArchivoActual ? (
                         <>
-                          Arrastra el nuevo archivo aquí o{' '}
+                          Arrastra el nuevo archivo aquÃ­ o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       ) : (
                         <>
-                          Arrastra tu archivo aquí o{' '}
+                          Arrastra tu archivo aquÃ­ o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       )}
@@ -684,7 +754,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   )}
                 </p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  PDF, DOC, DOCX, ZIP, RAR, SQL (máx. 10MB)
+                  PDF, DOC, DOCX, ZIP, RAR, SQL (mÃ¡x. 10MB)
                 </p>
               </div>
               {archivo && (
@@ -1007,10 +1077,10 @@ const ActividadesAprendiz: React.FC = () => {
                         <div className="space-y-4">
                           <div>
                             <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                              Descripción
+                              DescripciÃ³n
                             </p>
                             <p className="text-sm text-gray-700 dark:text-gray-300">
-                              {actividad.descripcionActividad || 'Sin descripción'}
+                              {actividad.descripcionActividad || 'Sin descripciÃ³n'}
                             </p>
                           </div>
 
@@ -1025,7 +1095,7 @@ const ActividadesAprendiz: React.FC = () => {
 
                           {actividad.estadoVisual === 'CORRECCION_SOLICITADA' && (
                             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/35 dark:text-red-100">
-                              El instructor solicitó corregir esta entrega. Actualiza tu evidencia según lo acordado con tu
+                              El instructor solicitÃ³ corregir esta entrega. Actualiza tu evidencia segÃºn lo acordado con tu
                               instructor.
                             </div>
                           )}
@@ -1039,18 +1109,18 @@ const ActividadesAprendiz: React.FC = () => {
                                 <KeenIcon icon="information" className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <span>
                                   {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                    'No se recibió la entrega. Comunicarse con el instructor.'}
+                                    'No se recibiÃ³ la entrega. Comunicarse con el instructor.'}
                                 </span>
                               </div>
                             ) : actividad.estadoVisual === 'CORRECCION_SOLICITADA' &&
                               !textoComentarioDocenteVisible(actividad.comentarioDocente) ? (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                El instructor solicitó corregir esta entrega.
+                                El instructor solicitÃ³ corregir esta entrega.
                               </div>
                             ) : (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                  'Aún no hay observaciones del instructor.'}
+                                  'AÃºn no hay observaciones del instructor.'}
                               </div>
                             )}
                           </div>
@@ -1061,89 +1131,7 @@ const ActividadesAprendiz: React.FC = () => {
                             <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
                               Material de Apoyo
                             </p>
-                            <div className="space-y-2">
-                              {actividad.materialesApoyo && actividad.materialesApoyo.length > 0 ? (
-                                actividad.materialesApoyo.flatMap((material) => {
-                                  const items: React.ReactNode[] = [];
-                                  if (material.urlDocumento || material.urlDocumentoUrl) {
-                                    const matDocExt = extensionFromPath(
-                                      material.urlDocumentoUrl || material.urlDocumento || material.titulo
-                                    );
-                                    items.push(
-                                      <div
-                                        key={`${material.id}-doc`}
-                                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300"
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                                          <KeenIcon
-                                            icon={materialDocumentoKeenIcon(matDocExt)}
-                                            className="text-gray-600 dark:text-gray-300 shrink-0 w-4 h-4"
-                                          />
-                                          <div className="min-w-0">
-                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                              {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Documento'}
-                                            </p>
-                                            {matDocExt ? (
-                                              <span
-                                                className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${materialDocumentoBadgeClass(matDocExt)}`}
-                                              >
-                                                {materialDocumentoTypeLabel(matDocExt)}
-                                              </span>
-                                            ) : null}
-                                          </div>
-                                        </div>
-                                        <a
-                                          href={getDocumentUrl(material.urlDocumentoUrl || material.urlDocumento) ?? '#'}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            const url = getDocumentUrl(material.urlDocumentoUrl || material.urlDocumento);
-                                            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-                                          }}
-                                          className="btn btn-sm btn-primary shrink-0 text-xs"
-                                        >
-                                          {matDocExt ? materialDocumentoActionLabel(matDocExt) : 'Abrir documento'}
-                                        </a>
-                                      </div>
-                                    );
-                                  }
-                                  if (material.urlAdicional) {
-                                    items.push(
-                                      <div
-                                        key={`${material.id}-link`}
-                                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-coal-300"
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                                          <KeenIcon icon="exit-up-right" className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4" />
-                                          <div className="min-w-0">
-                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                              {material.titulo || 'Enlace'}
-                                            </p>
-                                            <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                              Enlace
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <a
-                                          href={material.urlAdicional.startsWith('http') ? material.urlAdicional : `https://${material.urlAdicional}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="btn btn-sm btn-primary shrink-0 text-xs"
-                                        >
-                                          Abrir enlace
-                                        </a>
-                                      </div>
-                                    );
-                                  }
-                                  return items;
-                                })
-                              ) : (
-                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                                  No hay material de apoyo
-                                </div>
-                              )}
-                            </div>
+                            <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} />
                           </div>
 
                           <div>
@@ -1302,7 +1290,7 @@ const ActividadesAprendiz: React.FC = () => {
                                 </div>
                               ) : (
                                 <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                  Aún no has enviado una entrega.
+                                  AÃºn no has enviado una entrega.
                                 </p>
                               )}
                             </div>
@@ -1333,7 +1321,7 @@ const ActividadesAprendiz: React.FC = () => {
                 Anterior
               </button>
               <span className="text-xs text-gray-600 dark:text-gray-300 px-2">
-                Página {pagination.currentPage} de {pagination.lastPage}
+                PÃ¡gina {pagination.currentPage} de {pagination.lastPage}
               </span>
               <button
                 type="button"

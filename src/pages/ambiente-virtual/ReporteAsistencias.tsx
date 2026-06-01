@@ -5,66 +5,8 @@ import { Container } from '@/components/container';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import { Toolbar, ToolbarDescription, ToolbarHeading } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
-
-const getDocumentUrl = (url?: string | null): string | null => {
-  if (!url) return null;
-  
-  // Si ya es una URL completa (http:// o https://)
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    try {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname;
-      
-      // Si el pathname es /excusas/..., convertir a /storage/excusas/...
-      if (path.startsWith('/excusas/')) {
-        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-        return base + '/storage' + path;
-      }
-      
-      // Si el pathname ya empieza con /storage/, solo corregir el puerto si es necesario
-      if (path.startsWith('/storage/')) {
-        if (urlObj.hostname === 'localhost' && !urlObj.port) {
-          const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-          return base + path;
-        }
-        return url;
-      }
-      
-      // Si la URL no tiene puerto pero debería tenerlo (localhost sin puerto)
-      if (urlObj.hostname === 'localhost' && !urlObj.port) {
-        const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-        return base + path;
-      }
-      
-      // Si ya tiene puerto o es otro dominio, devolverla tal cual
-      return url;
-    } catch {
-      return url;
-    }
-  }
-  
-  // Si es una ruta relativa, construir la URL completa
-  if (url.startsWith('/storage/')) {
-    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-    return base + url;
-  }
-  if (url.startsWith('storage/')) {
-    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-    return base + '/' + url;
-  }
-  // Si empieza con /excusas/ o excusas/, convertir a /storage/excusas/
-  if (url.startsWith('/excusas/')) {
-    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-    return base + '/storage' + url;
-  }
-  if (url.startsWith('excusas/')) {
-    const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-    return base + '/storage/' + url;
-  }
-  // Por defecto, asumir que es una ruta relativa y agregar /storage/
-  const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-  return base + '/storage/' + url;
-};
+import JustificarFaltaModal, { type RegistroParaJustificar } from '@/pages/asistencias/JustificarFaltaModal';
+import { getAsistenciaDocumentUrl } from '@/utils/asistenciaDocumentUrl';
 
 interface AreaData {
   idArea: number;
@@ -77,7 +19,7 @@ interface AreaData {
 
 interface JustificacionData {
   id: number;
-  estado: string;
+  estado: string; // PENDIENTE | APROBADA | RECHAZADA
   observacion: string | null;
   excusa: {
     id: number;
@@ -97,6 +39,8 @@ interface RegistroDetallado {
   estado: string;
   idAsistencia?: number;
   justificacion?: JustificacionData;
+  estadoJustificacion?: string | null;
+  puedeJustificar?: boolean;
 }
 
 interface ResumenData {
@@ -124,6 +68,10 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
   });
   const [areaSeleccionada, setAreaSeleccionada] = useState<number | null>(null);
   const [justificacionSeleccionada, setJustificacionSeleccionada] = useState<JustificacionData | null>(null);
+  const [registroParaJustificar, setRegistroParaJustificar] = useState<RegistroParaJustificar | null>(null);
+  const [modalJustificarAbierto, setModalJustificarAbierto] = useState(false);
+  const [justificarModo, setJustificarModo] = useState<'individual' | 'rango'>('individual');
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
   const fetchAsistencias = useCallback(async () => {
     try {
@@ -168,24 +116,17 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
 
   const formatearFecha = (fechaStr: string): string => {
     if (!fechaStr) return '';
-    
     try {
-      const fecha = new Date(fechaStr);
-      if (isNaN(fecha.getTime())) {
-        return fechaStr;
-      }
-      
-      const meses = [
-        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-        'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-      ];
-      
-      const diasSemana = [
-        'dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'
-      ];
-      
-      return `${diasSemana[fecha.getDay()]}, ${fecha.getDate()} ${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
-    } catch (error) {
+      const normalized = fechaStr.length === 10 ? `${fechaStr}T12:00:00` : fechaStr;
+      const fecha = new Date(normalized);
+      if (isNaN(fecha.getTime())) return fechaStr;
+      return fecha.toLocaleDateString('es-CO', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
       return fechaStr;
     }
   };
@@ -218,6 +159,119 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
     ...areas.map(a => ({ id: a.idArea, nombre: a.nombreArea }))
   ];
 
+  const puedeJustificarRegistro = (registro: RegistroDetallado): boolean => {
+    if (registro.asistio) return false;
+    if (!registro.idAsistencia) return false;
+    const estadoJ =
+      registro.estadoJustificacion?.toUpperCase() ||
+      registro.justificacion?.estado?.toUpperCase();
+    if (estadoJ === 'PENDIENTE' || estadoJ === 'APROBADO' || estadoJ === 'APROBADA' || estadoJ === 'ACEPTADO' || estadoJ === 'JUSTIFICADO') {
+      return false;
+    }
+    if (registro.estado === 'Inasistencia Justificada' && estadoJ !== 'RECHAZADO' && estadoJ !== 'RECHAZADA') {
+      return false;
+    }
+    return registro.puedeJustificar !== false;
+  };
+
+  const abrirJustificar = (registro?: RegistroDetallado) => {
+    if (registro?.idAsistencia) {
+      setJustificarModo('individual');
+      setRegistroParaJustificar({
+        idAsistencia: registro.idAsistencia,
+        fecha: registro.fecha,
+        nombreArea: registro.nombreArea
+      });
+    } else {
+      setJustificarModo('rango');
+      setRegistroParaJustificar(null);
+    }
+    setModalJustificarAbierto(true);
+  };
+
+  const renderEstadoRegistro = (registro: RegistroDetallado) => {
+    const estadoJ =
+      registro.estadoJustificacion?.toUpperCase() ||
+      registro.justificacion?.estado?.toUpperCase();
+
+    if (estadoJ === 'PENDIENTE') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[12px] font-medium text-amber-600 dark:text-amber-400">
+          <KeenIcon icon="time" className="text-[10px]" />
+          Pendiente de aprobación
+        </span>
+      );
+    }
+
+    if (estadoJ === 'RECHAZADO' || estadoJ === 'RECHAZADA') {
+      return (
+        <span className="inline-flex flex-col items-start gap-1">
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-red-600 dark:text-red-400">
+            <KeenIcon icon="cross" className="text-[10px]" />
+            Justificación rechazada
+          </span>
+          {puedeJustificarRegistro(registro) && (
+            <button
+              type="button"
+              onClick={() => abrirJustificar(registro)}
+              className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Volver a solicitar
+            </button>
+          )}
+        </span>
+      );
+    }
+
+    if (
+      registro.estado === 'Inasistencia Justificada' ||
+      estadoJ === 'APROBADO' ||
+      estadoJ === 'APROBADA' ||
+      estadoJ === 'ACEPTADO' ||
+      estadoJ === 'JUSTIFICADO'
+    ) {
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            if (registro.justificacion) setJustificacionSeleccionada(registro.justificacion);
+          }}
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-yellow-600 dark:text-yellow-400 hover:underline cursor-pointer"
+        >
+          <KeenIcon icon="check" className="text-[10px]" />
+          Inasistencia justificada
+        </button>
+      );
+    }
+
+    if (!registro.asistio) {
+      return (
+        <span className="inline-flex flex-col items-start gap-1">
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-red-600 dark:text-red-400">
+            <KeenIcon icon="cross" className="text-[10px]" />
+            Ausente
+          </span>
+          {puedeJustificarRegistro(registro) && (
+            <button
+              type="button"
+              onClick={() => abrirJustificar(registro)}
+              className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Justificar falta
+            </button>
+          )}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-blue-600 dark:text-blue-400">
+        <KeenIcon icon="check" className="text-[10px]" />
+        Presente
+      </span>
+    );
+  };
+
   return (
     <>
       {currentLayout?.name === 'demo1-layout' && (
@@ -236,8 +290,19 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
                 <KeenIcon icon="chart-line-up" className="text-blue-600 dark:text-blue-400" />
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Control de Asistencia</h1>
               </div>
-              <ToolbarDescription>Registro detallado de asistencias e inasistencias por área</ToolbarDescription>
+              <ToolbarDescription>
+                Registro de asistencias por área. En cada inasistencia puedes solicitar justificación para que tu instructor la apruebe.
+              </ToolbarDescription>
             </ToolbarHeading>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => abrirJustificar()}
+              >
+                <KeenIcon icon="calendar-add" />
+                Solicitar permiso por fechas
+              </button>
+            </div>
           </Toolbar>
         </Container>
       )}
@@ -250,6 +315,14 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
             </div>
           ) : (
             <>
+              {mensajeExito && (
+                <div
+                  className="mb-4 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-800 dark:border-green-700 dark:bg-green-950/40 dark:text-green-200"
+                  role="status"
+                >
+                  {mensajeExito}
+                </div>
+              )}
               {errorCarga && (
                 <div
                   className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200"
@@ -366,38 +439,7 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
                                 {registro.nombreArea}
                               </td>
                               <td className="px-2.5 py-2 whitespace-nowrap">
-                                {registro.estado === 'Inasistencia Justificada' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (registro.justificacion) {
-                                        setJustificacionSeleccionada(registro.justificacion);
-                                      }
-                                    }}
-                                    className="inline-flex items-center gap-1 text-[12px] font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 hover:underline cursor-pointer"
-                                  >
-                                    <KeenIcon icon="check" className="text-[10px]" />
-                                    Inasistencia Justificada
-                                  </button>
-                                ) : (
-                                  <span className={`inline-flex items-center gap-1 text-[12px] font-medium ${
-                                    registro.asistio
-                                      ? 'text-blue-600 dark:text-blue-400'
-                                      : 'text-red-600 dark:text-red-400'
-                                  }`}>
-                                    {registro.asistio ? (
-                                      <>
-                                        <KeenIcon icon="check" className="text-[10px]" />
-                                        Presente
-                                      </>
-                                    ) : (
-                                      <>
-                                        <KeenIcon icon="cross" className="text-[10px]" />
-                                        Ausente
-                                      </>
-                                    )}
-                                  </span>
-                                )}
+                                {renderEstadoRegistro(registro)}
                               </td>
                             </tr>
                           ))
@@ -415,7 +457,7 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
       {/* Modal de detalles de justificación */}
       {justificacionSeleccionada && (
         <Modal open={true} onClose={() => setJustificacionSeleccionada(null)}>
-          <ModalContent className="max-w-[500px] top-[15%] p-4">
+          <ModalContent className="max-w-[500px] top-[15%] p-4 max-h-[90vh] overflow-y-auto">
             <ModalHeader>
               <ModalTitle>Detalle de Justificación</ModalTitle>
               <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={() => setJustificacionSeleccionada(null)}>
@@ -423,77 +465,119 @@ const ReporteAsistencias: React.FC<ReporteAsistenciasProps> = ({ onVolver }) => 
               </button>
             </ModalHeader>
             <ModalBody className="py-5 space-y-4">
-              {justificacionSeleccionada.excusa?.tipoExcusa && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Tipo de Excusa</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.tipoExcusa}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-coal-300 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Tipo de Excusa</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {justificacionSeleccionada.excusa?.tipoExcusa ? (
+                      <span className="inline-flex items-center rounded-md bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-bold text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
+                        {justificacionSeleccionada.excusa.tipoExcusa}
+                      </span>
+                    ) : (
+                      'No especificado'
+                    )}
+                  </p>
                 </div>
-              )}
+                
+                <div className="bg-gray-50 dark:bg-coal-300 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Estado Actual</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {justificacionSeleccionada.estado === 'APROBADA' || justificacionSeleccionada.estado === 'APROBADO' ? (
+                      <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <KeenIcon icon="check" className="text-sm" /> Aprobada
+                      </span>
+                    ) : justificacionSeleccionada.estado === 'RECHAZADA' || justificacionSeleccionada.estado === 'RECHAZADO' ? (
+                      <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <KeenIcon icon="cross" className="text-sm" /> Rechazada
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                        <KeenIcon icon="time" className="text-sm" /> Pendiente
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
 
               {justificacionSeleccionada.excusa?.observacion && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Observación</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{justificacionSeleccionada.excusa.observacion}</p>
+                <div className="bg-gray-50 dark:bg-coal-300 p-4 rounded-xl border border-gray-100 dark:border-gray-600">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">Observación</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{justificacionSeleccionada.excusa.observacion}"</p>
                 </div>
               )}
 
               {justificacionSeleccionada.excusa?.urlDocumento && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Documento de Soporte</p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2">
-                    {(() => {
-                      const originalUrl = justificacionSeleccionada.excusa.urlDocumento;
-                      // Si la URL ya es completa y empieza con /excusas/, convertir a /storage/excusas/
-                      let docUrl: string | null = originalUrl;
-                      if (originalUrl && originalUrl.startsWith('http://')) {
-                        try {
-                          const urlObj = new URL(originalUrl);
-                          if (urlObj.pathname.startsWith('/excusas/')) {
+                    <KeenIcon icon="file" className="text-blue-600 dark:text-blue-400 text-lg" />
+                    <div>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Documento de Soporte</p>
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400">Ver archivo adjunto</p>
+                    </div>
+                  </div>
+                  {(() => {
+                    const originalUrl = justificacionSeleccionada.excusa.urlDocumento;
+                    let docUrl: string | null = originalUrl;
+                    if (originalUrl && originalUrl.startsWith('http://')) {
+                      try {
+                        const urlObj = new URL(originalUrl);
+                        if (urlObj.pathname.startsWith('/excusas/')) {
+                          const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
+                          docUrl = base + '/storage' + urlObj.pathname;
+                        } else if (urlObj.pathname.startsWith('/storage/')) {
+                          if (urlObj.hostname === 'localhost' && !urlObj.port) {
                             const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-                            docUrl = base + '/storage' + urlObj.pathname;
-                          } else if (urlObj.pathname.startsWith('/storage/')) {
-                            // Si ya tiene /storage/, solo corregir el puerto si es necesario
-                            if (urlObj.hostname === 'localhost' && !urlObj.port) {
-                              const base = (axios.defaults.baseURL || window.location.origin).replace(/\/api\/?$/, '');
-                              docUrl = base + urlObj.pathname;
-                            } else {
-                              docUrl = originalUrl;
-                            }
+                            docUrl = base + urlObj.pathname;
                           } else {
                             docUrl = originalUrl;
                           }
-                        } catch {
+                        } else {
                           docUrl = originalUrl;
                         }
-                      } else if (originalUrl && !originalUrl.startsWith('http')) {
-                        // Si es una ruta relativa, usar getDocumentUrl
-                        docUrl = getDocumentUrl(originalUrl);
+                      } catch {
+                        docUrl = originalUrl;
                       }
-                      return docUrl ? (
-                        <a
-                          href={docUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (docUrl) {
-                              window.open(docUrl, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium cursor-pointer"
-                        >
-                          <KeenIcon icon="file-pdf" className="w-4 h-4 text-red-500 dark:text-red-400" />
-                          Ver PDF
-                        </a>
-                      ) : null;
-                    })()}
-                  </div>
+                    } else if (originalUrl && !originalUrl.startsWith('http')) {
+                      docUrl = getAsistenciaDocumentUrl(originalUrl);
+                    }
+                    return docUrl ? (
+                      <a
+                        href={docUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (docUrl) {
+                            window.open(docUrl, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className="btn btn-sm btn-primary shrink-0"
+                      >
+                        Abrir Documento
+                      </a>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </ModalBody>
           </ModalContent>
         </Modal>
       )}
+
+      <JustificarFaltaModal
+        open={modalJustificarAbierto}
+        registro={registroParaJustificar}
+        modo={justificarModo}
+        onClose={() => {
+          setModalJustificarAbierto(false);
+          setRegistroParaJustificar(null);
+        }}
+        onSuccess={() => {
+          setMensajeExito('Solicitud enviada. Tu instructor la revisará pronto.');
+          fetchAsistencias();
+          setTimeout(() => setMensajeExito(null), 5000);
+        }}
+      />
     </>
   );
 };

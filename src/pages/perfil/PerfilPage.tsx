@@ -74,7 +74,10 @@ const PerfilPage = () => {
       const response = await axios.get('profile/access-check', {
         headers: {
           Authorization: `Bearer ${auth}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
@@ -371,11 +374,14 @@ const PerfilPage = () => {
     try {
       console.log('Verificando estado después de cambiar contraseña...');
 
-      // Verificar el estado actual del perfil
+      // Verificar el estado actual del perfil asegurando que no haya caché
       const response = await axios.get('profile/access-check', {
         headers: {
           Authorization: `Bearer ${auth}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
@@ -384,24 +390,32 @@ const PerfilPage = () => {
       // Actualizar el estado local
       setNeedsPasswordUpdate(response.data.needs_password_update);
 
-      if (!response.data.needs_password_update) {
+      if (response.data.needs_password_update) {
+        enqueueSnackbar(
+          'Contraseña actualizada. Se detectó demora en el servidor, pero puede continuar.',
+          { variant: 'info' }
+        );
+      } else {
         enqueueSnackbar('¡Proceso completado! Redirigiendo al inicio de sesión...', {
           variant: 'success'
         });
-        console.log('Ejecutando logout en 2 segundos...');
-
-        setTimeout(() => {
-          console.log('Ejecutando logout...');
-          authContext.logout();
-        }, 2000);
-      } else {
-        enqueueSnackbar(
-          'Contraseña actualizada, pero el proceso no se completó. Contacte al administrador.',
-          { variant: 'warning' }
-        );
       }
+
+      // Independientemente de si el backend tardó en reflejar el cambio,
+      // la contraseña se cambió (ya que onSuccess se disparó). 
+      // Forzamos el cierre de sesión para que el usuario ingrese con sus nuevos datos.
+      setTimeout(() => {
+        authContext.logout();
+      }, 2000);
+
     } catch (error) {
-      enqueueSnackbar('Error al verificar el estado de la contraseña.', { variant: 'error' });
+      // Si el access-check falla, aún así cerramos sesión porque el cambio de clave ya fue exitoso
+      enqueueSnackbar('¡Contraseña actualizada! Redirigiendo al inicio de sesión...', {
+        variant: 'success'
+      });
+      setTimeout(() => {
+        authContext.logout();
+      }, 2000);
       console.error('Error en handlePasswordChangeSuccess:', error);
     }
   };

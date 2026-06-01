@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { Tooltip } from '@mui/material';
+import ExcelJS from 'exceljs';
+import { KeenIcon } from '@/components';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 
 interface Estudiante {
   idMatriculaAcademica: number;
@@ -53,6 +56,25 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
   const [justificationData, setJustificationData] = useState<JustificationData>(
     initialJustificationData
   );
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowExportMenu(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -110,6 +132,43 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
       );
     });
   }, [localEstudiantes, searchTerm]);
+
+  const exportToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Asistencia');
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 15 },
+        { header: 'Nombre', key: 'nombre', width: 40 },
+        { header: 'Estado', key: 'estado', width: 20 },
+      ];
+      filteredEstudiantes.forEach(est => {
+        worksheet.addRow({
+          id: est.identificacion || 'N/A',
+          nombre: est.nombre,
+          estado: est.estadoLocal || (est.asistio ? 'Presente' : (est.asistio === false ? 'Falta' : 'Pendiente'))
+        });
+      });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Lista_Asistencia.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const exportToPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Permite ventanas emergentes para exportar a PDF.'); return; }
+    const rows = filteredEstudiantes.map(est => `<tr><td>${est.identificacion || 'N/A'}</td><td>${est.nombre}</td><td>${est.estadoLocal || (est.asistio ? 'Presente' : (est.asistio === false ? 'Falta' : 'Pendiente'))}</td></tr>`).join('');
+    printWindow.document.write(`<html><head><title>Lista de Asistencia</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f3f4f6}</style></head><body><h2>Lista de Asistencia</h2><table><thead><tr><th>Identificación</th><th>Nombre</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=function(){window.print();window.close();}</script></body></html>`);
+    printWindow.document.close();
+  };
 
   const resetJustificationForm = () => {
     setJustifyingStudentId(null);
@@ -235,38 +294,53 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity p-4">
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header del Modal */}
-        <div className="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
-          <h2 className="text-xl font-bold text-gray-800">Justificaciones</h2>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <Modal open={isOpen} onClose={onClose}>
+      <ModalContent className="max-w-[520px] top-[10%] p-4 max-h-[90vh] overflow-y-auto">
+        <ModalHeader>
+          <ModalTitle>Lista de Asistencia</ModalTitle>
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="btn btn-sm btn-light border border-gray-300 flex items-center gap-2"
+              >
+                <KeenIcon icon="file-down" className="text-base" /> Exportar
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+                  <div className="py-1" role="menu">
+                    <button
+                      type="button"
+                      onClick={() => { setShowExportMenu(false); exportToPDF(); }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                    >
+                      Exportar PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowExportMenu(false); exportToExcel(); }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                    >
+                      Exportar Excel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
+              onClick={onClose}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+              <KeenIcon icon="cross" />
+            </button>
+          </div>
+        </ModalHeader>
 
-        {/* Buscador */}
-        <div className="px-4 pt-4 pb-3 border-b bg-white">
+        <ModalBody className="p-0">
+          {/* Buscador */}
+          <div className="px-4 py-3 border-b bg-white">
           <div className="relative">
             <input
               type="text"
@@ -465,18 +539,9 @@ const TakeAttendanceModal: React.FC<TakeAttendanceModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 };
 

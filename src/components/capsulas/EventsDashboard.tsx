@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useLocation } from 'react-router-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PremiumEventCard } from './PremiumEventCard';
 import ModalDetalleEvento from './ModalDetalleEvento';
@@ -16,14 +17,19 @@ interface Evento {
   linkRegistro?: string;
   tipoEvento: string;
   estado: string;
-  esPublico: boolean;
+  esPublico?: boolean;
+  idArea?: number;
   area?: {
-    id: number;
+    id?: number;
     nombre: string;
   };
+  formUrl?: string;
+  formProvider?: string;
 }
 
+
 const EventsDashboard = () => {
+  const location = useLocation();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEventoDetalle, setSelectedEventoDetalle] = useState<Evento | null>(null);
@@ -59,33 +65,27 @@ const EventsDashboard = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await axios.get('eventos-multimedia');
-        let data = res.data || [];
+        const res = await axios.get('eventos-multimedia?per_page=100');
+        // Handle both simple array and Laravel paginated response
+        let data = Array.isArray(res.data) ? res.data : (res.data.data || []);
         const now = new Date();
 
-        // Smart sorting: Live/Upcoming first (ASC), then Finished (DESC)
-        data = data.sort((a: Evento, b: Evento) => {
-          const startA = new Date(`${a.fechaInicial.split('T')[0]}T${a.hora}`);
-          const startB = new Date(`${b.fechaInicial.split('T')[0]}T${b.hora}`);
+        // Filter: Hide finished events if more than 12 hours have passed since their end time
+        const twelveHoursInMs = 12 * 60 * 60 * 1000;
+        data = data.filter((evento: Evento) => {
+          const start = new Date(`${evento.fechaInicial.split('T')[0]}T${evento.hora}`);
+          const end = evento.hora_final 
+            ? new Date(`${(evento.fechaFinal || evento.fechaInicial).split('T')[0]}T${evento.hora_final}`) 
+            : new Date(start.getTime() + 2 * 60 * 60 * 1000);
           
-          const endA = a.hora_final ? new Date(`${(a.fechaFinal || a.fechaInicial).split('T')[0]}T${a.hora_final}`) : new Date(startA.getTime() + 2 * 60 * 60 * 1000);
-          const endB = b.hora_final ? new Date(`${(b.fechaFinal || b.fechaInicial).split('T')[0]}T${b.hora_final}`) : new Date(startB.getTime() + 2 * 60 * 60 * 1000);
-
-          const isFinishedA = now > endA;
-          const isFinishedB = now > endB;
-
-          // Priority 1: Not finished
-          if (isFinishedA && !isFinishedB) return 1;
-          if (!isFinishedA && isFinishedB) return -1;
-
-          if (!isFinishedA && !isFinishedB) {
-            // Both upcoming: closest start first
-            return startA.getTime() - startB.getTime();
+          if (now > end && (now.getTime() - end.getTime()) > twelveHoursInMs) {
+            return false;
           }
-
-          // Both finished: most recent first
-          return startB.getTime() - startA.getTime();
+          return true;
         });
+
+        // Sort by idEvento DESC (most recently created/saved first)
+        data = data.sort((a: Evento, b: Evento) => b.idEvento - a.idEvento);
 
         setEventos(data);
       } catch (err) {
@@ -96,6 +96,19 @@ const EventsDashboard = () => {
     };
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openEventId && eventos.length > 0) {
+      const eventId = Number(location.state.openEventId);
+      const eventToOpen = eventos.find(e => e.idEvento === eventId);
+      if (eventToOpen) {
+        setSelectedEventoDetalle(eventToOpen);
+        setModalOpen(true);
+        // Clear navigation state to prevent repeated auto-opening
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, eventos]);
 
   if (loading) {
     return (
@@ -109,9 +122,10 @@ const EventsDashboard = () => {
 
   if (eventos.length === 0) {
     return (
-      <div className="bg-gray-50 dark:bg-coal-500/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-gray-800 text-center">
-        <CalendarIcon className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-        <p className="text-gray-400 text-sm font-medium uppercase tracking-widest">No hay eventos próximos</p>
+      <div className="bg-gray-50 dark:bg-coal-600/30 rounded-2xl p-8 border border-dashed border-gray-200 dark:border-white/5 text-center">
+        <CalendarIcon className="w-10 h-10 text-orange-400 dark:text-orange-500 mx-auto mb-2 animate-pulse" />
+        <p className="text-gray-700 dark:text-gray-200 text-sm font-semibold uppercase tracking-widest">No hay eventos próximos</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Vuelve más tarde para ver nuevos eventos programados.</p>
       </div>
     );
   }

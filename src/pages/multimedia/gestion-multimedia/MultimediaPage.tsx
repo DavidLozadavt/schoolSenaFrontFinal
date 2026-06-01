@@ -9,10 +9,9 @@ import {
 } from '@/partials/toolbar';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Film, BookImage, Calendar } from 'lucide-react';
+import { Film, BookImage } from 'lucide-react';
 import MultimediaContent from './MultimediaContent';
 import { ModalMultimedia } from './ModalMultimedia';
-import EventsContent from './EventsContent';
 
 const MultimediaPage = () => {
   const { currentLayout } = useLayout();
@@ -67,13 +66,6 @@ const MultimediaPage = () => {
                 <Film className="w-4 h-4" />
                 Nuevo Reel
               </button>
-              <button
-                className="btn btn-sm bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2 ml-2"
-                onClick={() => navigate('/multimedia/eventos')}
-              >
-                <Calendar className="w-4 h-4" />
-                Ver Eventos
-              </button>
             </ToolbarActions>
           </Toolbar>
         </Container>
@@ -102,13 +94,6 @@ const MultimediaPage = () => {
           >
             <Film className="w-4 h-4" />
             Reels
-          </button>
-          <button
-            onClick={() => navigate('/multimedia/eventos')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-          >
-            <Calendar className="w-4 h-4" />
-            Eventos
           </button>
         </div>
 
