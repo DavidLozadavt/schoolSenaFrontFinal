@@ -24,7 +24,33 @@ export const MATERIAL_DOCUMENTO_ACCEPT =
 export const MATERIAL_DOCUMENTO_FORMATOS_LABEL =
   'PDF, Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), SQL (.sql), ZIP o RAR';
 
-export const MATERIAL_DOCUMENTO_MAX_BYTES = 10 * 1024 * 1024;
+/** Límite unificado de archivos académicos (material, biblioteca, entregas de actividad). */
+export const MAX_FILE_SIZE_MB = 50;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+export const FILE_SIZE_EXCEEDED_MESSAGE =
+  'El archivo supera el tamaño máximo permitido de 50 MB.';
+
+/** @deprecated Usar MAX_FILE_SIZE_BYTES */
+export const MATERIAL_DOCUMENTO_MAX_BYTES = MAX_FILE_SIZE_BYTES;
+
+/** Evidencia de entrega del aprendiz (Mis Actividades / Responder actividad). */
+export const ENTREGA_EVIDENCIA_EXTENSIONS = [
+  'pdf',
+  'doc',
+  'docx',
+  'png',
+  'jpg',
+  'jpeg',
+  'zip',
+  'rar',
+  'sql',
+] as const;
+
+export const ENTREGA_EVIDENCIA_ACCEPT = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar,.sql';
+
+export const ENTREGA_EVIDENCIA_FORMATOS_LABEL =
+  'PDF, DOC, DOCX, PNG, JPG, JPEG, ZIP, RAR, SQL';
 
 const EXTENSION_SET = new Set<string>(MATERIAL_DOCUMENTO_EXTENSIONS);
 
@@ -42,6 +68,60 @@ export function extensionFromPath(path?: string | null): string {
 
 export function isAllowedMaterialDocumentoExtension(ext: string): boolean {
   return ext !== '' && EXTENSION_SET.has(ext);
+}
+
+/** Valida tamaño máximo; null si es válido. */
+export function validateAcademicFileSize(file: File): string | null {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return FILE_SIZE_EXCEEDED_MESSAGE;
+  }
+  return null;
+}
+
+const ENTREGA_EVIDENCIA_EXTENSION_SET = new Set<string>(ENTREGA_EVIDENCIA_EXTENSIONS);
+
+const ENTREGA_EVIDENCIA_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/vnd.rar',
+  'application/x-rar-compressed',
+  'image/png',
+  'image/jpeg',
+  'text/plain',
+  'application/sql',
+  'application/x-sql',
+]);
+
+/** Valida evidencia de entrega del aprendiz; null si es válido. */
+export function validateEntregaEvidenciaFile(file: File): string | null {
+  const ext = extensionFromFileName(file.name);
+  const mime = String(file.type ?? '').trim().toLowerCase();
+
+  const isAllowedByExt = ext !== '' && ENTREGA_EVIDENCIA_EXTENSION_SET.has(ext);
+  const isAllowedByMime = mime !== '' && ENTREGA_EVIDENCIA_MIME_TYPES.has(mime);
+  const isGenericMime = mime === '' || mime === 'application/octet-stream';
+
+  if ((!isAllowedByExt && !isAllowedByMime) || (isGenericMime && !isAllowedByExt)) {
+    return `Tipo de archivo no permitido. Solo se permiten: ${ENTREGA_EVIDENCIA_FORMATOS_LABEL}.`;
+  }
+
+  if (ext === 'sql') {
+    const sqlMimes = new Set([
+      'text/plain',
+      'text/x-sql',
+      'application/sql',
+      'application/x-sql',
+      'application/octet-stream',
+    ]);
+    if (mime && !sqlMimes.has(mime)) {
+      return 'El archivo SQL no tiene un tipo válido.';
+    }
+  }
+
+  return validateAcademicFileSize(file);
 }
 
 /** Valida archivo antes de subir; null si es válido. */
@@ -63,11 +143,7 @@ export function validateMaterialDocumentoFile(file: File): string | null {
     }
   }
 
-  if (file.size > MATERIAL_DOCUMENTO_MAX_BYTES) {
-    return 'El archivo excede el tamaño máximo de 10 MB.';
-  }
-
-  return null;
+  return validateAcademicFileSize(file);
 }
 
 export function materialDocumentoTypeLabel(ext: string): string {
