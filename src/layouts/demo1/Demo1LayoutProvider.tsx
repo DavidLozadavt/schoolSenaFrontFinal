@@ -1,7 +1,8 @@
 import { createContext, type PropsWithChildren, useContext, useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
 import { useMenuChildren } from '@/components/menu';
 import { MENU_SIDEBAR } from '@/config/menu.config';
+import { fetchPermissionsMenu } from '@/services/menuService';
+import { type TMenuConfig } from '@/components/menu';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useMenus } from '@/providers';
 import { ILayoutConfig, useLayout } from '@/providers';
@@ -52,6 +53,19 @@ const initalLayoutProps: IDemo1LayoutProviderProps = {
   }
 };
 
+// Transforma el formato del backend al formato TMenuConfig
+function normalizeMenu(items: any[]): TMenuConfig {
+  return items
+    .filter(item => item.path !== '#' || item.children?.length) // filtra nodos vacíos sin hijos
+    .map(item => ({
+      title: item.title,
+      icon: item.icon ?? undefined,
+      path: item.path !== '#' ? item.path : undefined,
+      requiredPermissions: item.requiredPermissions,
+      children: item.children ? normalizeMenu(item.children) : undefined,
+    }));
+}
+
 // Creating context for the layout provider with initial properties
 const Demo1LayoutContext = createContext<IDemo1LayoutProviderProps>(initalLayoutProps);
 
@@ -60,14 +74,26 @@ const useDemo1Layout = () => useContext(Demo1LayoutContext);
 
 // Layout provider component that wraps the application
 const Demo1LayoutProvider = ({ children }: PropsWithChildren) => {
-  const { pathname } = useLocation(); // Gets the current path
   const { setMenuConfig } = useMenus(); // Accesses menu configuration methods
-  const secondaryMenu = useMenuChildren(pathname, MENU_SIDEBAR, 0); // Retrieves the secondary menu
 
-  // Sets the primary and secondary menu configurations
-  setMenuConfig('primary', MENU_SIDEBAR);
-  setMenuConfig('secondary', secondaryMenu);
-
+  // Load menu from backend (permissions) and register it. Falls back to MENU_SIDEBAR on error.
+  // En Demo1LayoutProvider
+  useEffect(() => {
+  let mounted = true;
+  (async () => {
+    try {
+      const raw = await fetchPermissionsMenu();
+      const menu = raw ? normalizeMenu(raw) : MENU_SIDEBAR;
+      if (!mounted) return;
+      setMenuConfig('primary', menu);
+      setMenuConfig('secondary', menu);
+    } catch (err) {
+      setMenuConfig('primary', MENU_SIDEBAR);
+      setMenuConfig('secondary', MENU_SIDEBAR);
+    }
+  })();
+  return () => { mounted = false; };
+}, []);
   const { getLayout, updateLayout, setCurrentLayout } = useLayout(); // Layout management methods
 
   // Merges the default layout with the current one

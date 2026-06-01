@@ -17,11 +17,11 @@ export const PusherProvider: React.FC<PusherProviderProps> = ({ children }) => {
   const [pusher, setPusher] = useState<Pusher | null>(null);
 
   useEffect(() => {
-    const pusherKey = import.meta.env.VITE_PUSHER_APP_KEY;
-    const pusherCluster = import.meta.env.VITE_PUSHER_APP_CLUSTER;
+    const pusherKey = import.meta.env.VITE_PUSHER_APP_KEY || import.meta.env.VITE_REACT_APP_PUSHER_KEY;
+    const pusherCluster = import.meta.env.VITE_PUSHER_APP_CLUSTER || import.meta.env.VITE_REACT_APP_CLUSTER_PUSHER;
 
     if (!pusherKey) {
-      console.warn('⚠️ Pusher key not found in environment variables');
+      console.warn('⚠️ Pusher key not found in environment variables (VITE_PUSHER_APP_KEY / VITE_REACT_APP_PUSHER_KEY)');
       return;
     }
 

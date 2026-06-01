@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
-import { Calendar, Clock, MapPin, Type, FileText, Link, Send } from 'lucide-react';
+import { Calendar, Clock, MapPin, Type, FileText, Link, Send, Music, Search, Trash2 } from 'lucide-react';
 
 interface ModalEventoProps {
   open: boolean;
@@ -30,6 +30,30 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
   });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+
+  // States for Music Selection
+  const [selectedSong, setSelectedSong] = useState<any | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [songsList, setSongsList] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showMusicSearch, setShowMusicSearch] = useState(false);
+
+  const handleMusicSearch = async (term: string) => {
+    setSearchQuery(term);
+    if (!term.trim()) {
+      setSongsList([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const resp = await axios.get(`/deezer/search?q=${encodeURIComponent(term)}`);
+      setSongsList(resp.data?.data ?? resp.data ?? []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -58,6 +82,10 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
         idGrupoMultimedia: evento.grupo_multimedia ? (evento.idGrupoMultimedia || true) : null
       });
       setPreview(evento.url || null);
+      setSelectedSong(null);
+      setSearchQuery('');
+      setSongsList([]);
+      setShowMusicSearch(false);
     } else {
       setFormData({
         nombre: '',
@@ -73,6 +101,10 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
       });
       setArchivo(null);
       setPreview(null);
+      setSelectedSong(null);
+      setSearchQuery('');
+      setSongsList([]);
+      setShowMusicSearch(false);
     }
   }, [evento, open]);
 
@@ -97,6 +129,10 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
     
     if (archivo) {
       data.append('archivo', archivo);
+    }
+
+    if (formData.crearHistoria && selectedSong) {
+      data.append('cancion', JSON.stringify(selectedSong));
     }
 
     try {
@@ -252,22 +288,105 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
             </div>
 
             {!formData.idGrupoMultimedia && (
-              <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">
-                    {evento ? 'Generar Historia ahora' : 'Automatización Multimedia'}
-                  </h4>
-                  <p className="text-xs text-orange-600/80 dark:text-orange-400/60">
-                    {evento ? 'Crea una historia multimedia usando el póster actual.' : 'Se creará una "Historia" automáticamente con esta imagen.'}
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">
+                      {evento ? 'Generar Historia ahora' : 'Automatización Multimedia'}
+                    </h4>
+                    <p className="text-xs text-orange-600/80 dark:text-orange-400/60">
+                      {evento ? 'Crea una historia multimedia usando el póster actual.' : 'Se creará una "Historia" automáticamente con esta imagen.'}
+                    </p>
+                  </div>
+                  <div className="form-switch">
+                    <input
+                      type="checkbox"
+                      checked={formData.crearHistoria}
+                      onChange={(e) => setFormData({ ...formData, crearHistoria: e.target.checked })}
+                    />
+                  </div>
                 </div>
-                <div className="form-switch">
-                  <input
-                    type="checkbox"
-                    checked={formData.crearHistoria}
-                    onChange={(e) => setFormData({ ...formData, crearHistoria: e.target.checked })}
-                  />
-                </div>
+
+                {formData.crearHistoria && (
+                  <div className="p-4 bg-neutral-50 dark:bg-neutral-900/40 rounded-xl border border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Music className="w-4 h-4 text-orange-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">Música de fondo</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMusicSearch(!showMusicSearch)}
+                        className="btn btn-xs btn-light"
+                      >
+                        {selectedSong ? 'Cambiar' : 'Añadir música'}
+                      </button>
+                    </div>
+
+                    {selectedSong && !showMusicSearch && (
+                      <div className="flex items-center justify-between p-2.5 bg-white dark:bg-neutral-950 border border-neutral-100 dark:border-white/5 rounded-xl">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img src={selectedSong.image} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-neutral-800 dark:text-white truncate uppercase">{selectedSong.title}</p>
+                            <p className="text-[10px] text-neutral-400 font-bold italic truncate">{selectedSong.artist}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSong(null)}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-neutral-400 hover:text-red-600 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {showMusicSearch && (
+                      <div className="space-y-3 pt-2">
+                        <div className="relative">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                            <Search className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar artista o canción..."
+                            value={searchQuery}
+                            onChange={(e) => handleMusicSearch(e.target.value)}
+                            className="input input-sm pl-9"
+                          />
+                        </div>
+
+                        {searchLoading && (
+                          <div className="flex items-center justify-center py-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-500 border-t-transparent" />
+                          </div>
+                        )}
+
+                        <div className="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
+                          {songsList.map((song) => (
+                            <div
+                              key={song.id}
+                              className="flex items-center gap-3 p-2 hover:bg-neutral-100 dark:hover:bg-white/5 rounded-lg cursor-pointer transition-all border border-transparent"
+                              onClick={() => {
+                                setSelectedSong(song);
+                                setShowMusicSearch(false);
+                                setSongsList([]);
+                                setSearchQuery(song.title);
+                              }}
+                            >
+                              <img src={song.image} className="w-8 h-8 rounded-md object-cover" alt="" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-black text-neutral-800 dark:text-white truncate uppercase tracking-tight">{song.title}</p>
+                                <p className="text-[10px] text-neutral-400 font-bold italic truncate">{song.artist}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -290,3 +409,5 @@ export const ModalEvento = ({ open, onClose, onSave, evento }: ModalEventoProps)
     </Modal>
   );
 };
+
+export default ModalEvento;

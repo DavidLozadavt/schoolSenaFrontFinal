@@ -27,6 +27,10 @@ interface RmiModalProps {
   actividades?: Actividad[];
   onRefresh?: () => void;
   readOnlyAsociacion?: boolean;
+  onAceptar?: () => void;
+  onRechazar?: () => void;
+  onRevertir?: () => void;
+  disableActionRmi?: boolean;
 }
 
 const RmiModal: React.FC<RmiModalProps> = ({
@@ -37,13 +41,28 @@ const RmiModal: React.FC<RmiModalProps> = ({
   fichas,
   onRefresh,
   readOnlyAsociacion,
-  actividades = []
+  actividades = [],
+  onAceptar,
+  onRechazar,
+  onRevertir,
+  disableActionRmi
 }) => {
   if (!isOpen) return null;
 
   const { persona } = instructor;
   const fullName =
     `${persona.nombre1} ${persona.nombre2 ?? ''} ${persona.apellido1} ${persona.apellido2 ?? ''}`.trim();
+
+  const totalHorasFormacion = fichas.reduce((accFicha, ficha) => {
+    return accFicha + (ficha.resultados?.reduce((accResult: any, r: any) => {
+      return accResult + (r.horarios?.reduce((accHorario: any, h: any) => {
+        return accHorario + Number(h.duracionHoras || 0);
+      }, 0) || 0);
+    }, 0) || 0);
+  }, 0);
+
+  const totalOtrasActividades = actividades.reduce((sum, a) => sum + Number(a.numeroHoras || 0), 0);
+  const totalHorasMes = totalHorasFormacion + totalOtrasActividades;
 
   const [calendarioOpen, setCalendarioOpen] = React.useState(false);
   const [materiaSeleccionada, setMateriaSeleccionada] = React.useState<any>(null);
@@ -792,7 +811,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
                 <div className="flex items-center justify-center px-4 py-3">
                   <img src={logoSena} alt="SENA" className="h-16 w-auto object-contain" />
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-coal-300">
+                <div className="grid grid-cols-3 divide-x divide-gray-200 dark:divide-coal-300">
                   <div className="divide-y divide-gray-200 dark:divide-coal-300">
                     <div className="px-4 py-2">
                       <p className="text-[10px] text-gray-400 uppercase font-semibold">Nombre</p>
@@ -822,6 +841,24 @@ const RmiModal: React.FC<RmiModalProps> = ({
                       </p>
                       <p className="text-xs font-bold text-gray-800 dark:text-white">
                         {persona.celular}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-200 dark:divide-coal-300 bg-blue-50/50 dark:bg-blue-500/5">
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">
+                        Horas Formación
+                      </p>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                        {totalHorasFormacion}h
+                      </p>
+                    </div>
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">
+                        Otras Act. / Total
+                      </p>
+                      <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                        {totalOtrasActividades}h / <span className="text-primary font-black">{totalHorasMes}h</span>
                       </p>
                     </div>
                   </div>
@@ -907,6 +944,18 @@ const RmiModal: React.FC<RmiModalProps> = ({
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-coal-300">
                               {r.competencia ?? (
                                 <span className="text-gray-400 italic">Sin competencia</span>
+                              )}
+                              {r.esCompartida && (
+                                <div className="mt-1 flex flex-col gap-1">
+                                  <span className="inline-flex items-center gap-1 w-fit text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap">
+                                    <i className="ki-outline ki-users text-[10px]" /> Compartida
+                                  </span>
+                                  {r.compartidoCon?.length > 0 && (
+                                    <span className="text-[10px] text-gray-500 italic block leading-tight">
+                                      con {r.compartidoCon.join(', ')}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-coal-300">
@@ -1036,6 +1085,50 @@ const RmiModal: React.FC<RmiModalProps> = ({
 
           {/* ── Footer ── */}
           <div className="px-6 py-3 border-t border-gray-100 dark:border-coal-300 bg-white dark:bg-coal-500 flex justify-end gap-2 shrink-0">
+            {instructor.estado === 'PENDIENTE' && onAceptar && onRechazar && (
+              <>
+                <button
+                  onClick={onAceptar}
+                  className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
+                  disabled={disableActionRmi}
+                >
+                  {!disableActionRmi ? (
+                    <i className="ki-outline ki-check-circle text-base" />
+                  ) : (
+                    <i className="ki-outline ki-loading text-base animate-spin" />
+                  )}
+                  Aceptar
+                </button>
+                <button
+                  onClick={onRechazar}
+                  className="flex items-center gap-2 px-4 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
+                  disabled={disableActionRmi}
+                >
+                  {!disableActionRmi ? (
+                    <i className="ki-outline ki-cross-circle text-base" />
+                  ) : (
+                    <i className="ki-outline ki-loading text-base animate-spin" />
+                  )}
+                  Rechazar
+                </button>
+              </>
+            )}
+
+            {(instructor.estado === 'ACEPTADO' || instructor.estado === 'RECHAZADO') && onRevertir && (
+              <button
+                onClick={onRevertir}
+                className="flex items-center gap-2 px-4 py-2 text-xs bg-yellow-50 hover:bg-yellow-100 font-semibold text-yellow-700 dark:text-yellow-400 dark:bg-yellow-500/10 rounded-lg transition-all"
+                disabled={disableActionRmi}
+              >
+                {!disableActionRmi ? (
+                  <i className="ki-outline ki-arrow-circle-left text-base" />
+                ) : (
+                  <i className="ki-outline ki-loading text-base animate-spin" />
+                )}
+                Revertir
+              </button>
+            )}
+
             <button
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all"
@@ -1044,7 +1137,7 @@ const RmiModal: React.FC<RmiModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-xs bg-gray-50 hover:bg-gray-100 font-semibold text-gray-700 dark:text-gray-400 dark:bg-coal-400 dark:hover:bg-coal-300 rounded-lg transition-all border border-gray-200 dark:border-coal-300"
             >
               <X size={13} /> Cerrar
             </button>

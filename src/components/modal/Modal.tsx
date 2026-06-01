@@ -1,15 +1,16 @@
 import { forwardRef } from 'react';
 import { Modal as MuiModal, ModalProps as BaseModalProps } from '@mui/base/Modal';
-import { ModalBackdrop } from '@/components';
+import { ModalBackdrop } from './ModalBackdrop';
 import clsx from 'clsx';
 
-interface IModalProps extends BaseModalProps {
+interface IModalProps extends Omit<BaseModalProps, 'children'> {
   zIndex?: number;
   className?: string; // For content-specific Tailwind styles
   /** Permite cerrar al hacer clic en el overlay. Por defecto false (evita perder formularios). */
   closeOnBackdropClick?: boolean;
   /** Permite cerrar con la tecla Escape. Por defecto false. */
   closeOnEscapeKeyDown?: boolean;
+  children?: React.ReactNode;
 }
 
 // Forwarding ref to ensure this component can hold a ref
@@ -27,30 +28,30 @@ const Modal = forwardRef<HTMLDivElement, IModalProps>(
     },
     ref
   ) => {
-    const handleClose: BaseModalProps['onClose'] = (event, reason) => {
-      if (!onClose) return;
-      if (reason === 'backdropClick' && !closeOnBackdropClick) return;
-      if (reason === 'escapeKeyDown' && !closeOnEscapeKeyDown) return;
-      onClose(event, reason);
-    };
+    if (!open) return null;
 
     return (
-      <MuiModal
+      <div
         ref={ref}
-        open={open}
-        onClose={handleClose}
-        disableEscapeKeyDown={!closeOnEscapeKeyDown}
         style={{
-          zIndex: `${zIndex}`,
-          opacity: open ? 1 : 0,
-          display: open ? 'block' : 'none'
+          position: 'fixed',
+          inset: 0,
+          zIndex: zIndex,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)'
         }}
-        className={clsx('modal', className)}
-        {...props} // Spread any additional props
-        slots={{ backdrop: ModalBackdrop }} // Assign custom backdrop
+        onClick={(e) => {
+          if (e.target === e.currentTarget && closeOnBackdropClick) {
+            onClose?.(e as any, 'backdropClick');
+          }
+        }}
+        className={clsx('modal-root', className)}
       >
         {children}
-      </MuiModal>
+      </div>
     );
   }
 );

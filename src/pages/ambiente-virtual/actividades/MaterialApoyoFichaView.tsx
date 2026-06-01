@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { KeenIcon } from '@/components';
+import { KeenIcon, Toast } from '@/components';
 import { createPortal } from 'react-dom';
 import { useAuthContext } from '@/auth';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
@@ -14,6 +14,9 @@ import {
   materialDocumentoKeenIcon,
   materialDocumentoTypeLabel,
   validateMaterialDocumentoFile,
+  validateVideoFile,
+  VIDEO_ACCEPT,
+  VIDEO_FORMATOS_LABEL,
 } from './materialDocumentoSupport';
 
 export interface MaterialApoyoFichaItem {
@@ -95,6 +98,12 @@ const getDocumentUrl = (url?: string | null): string | null => {
   return base + '/storage/' + url.replace(/^storage\//, '');
 };
 
+const normalizeExternalUrl = (raw?: string | null): string | null => {
+  const u = String(raw ?? '').trim();
+  if (!u) return null;
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+};
+
 const tieneDocumento = (mat: MaterialApoyoFichaItem) =>
   Boolean(mat.urlDocumento || mat.urlDocumentoUrl);
 const tieneEnlace = (mat: MaterialApoyoFichaItem) => Boolean(mat.urlAdicional?.trim());
@@ -135,6 +144,10 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   rapContextLabel,
   idRapContext
 }) => {
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+
   const [items, setItems] = useState<MaterialApoyoFichaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -160,6 +173,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const auth = useAuthContext();
   const miPersonaId = auth?.persona?.id;
   const esGestionUsuario = auth?.permissions?.includes('GESTION_USUARIO') ?? false;
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastOpen(true);
+  };
 
   const puedeMutarMaterial = (mat: MaterialApoyoFichaItem) => {
     if (mat.idPersona != null && Number(mat.idPersona) > 0) {
@@ -353,7 +372,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   const abrirEditar = (row: MaterialApoyoFichaItem) => {
     if (!puedeMutarMaterial(row)) {
-      alert('No tienes permiso para editar este recurso.');
+      showToast('No tienes permiso para editar este recurso.', 'error');
       return;
     }
     setEditandoId(row.id);
@@ -386,16 +405,16 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idMateriaNum) {
-      alert('No se identifico la materia de la clase. No se puede guardar el material.');
+      showToast('No se identificó la materia de la clase. No se puede guardar el material.', 'error');
       return;
     }
     if (!titulo.trim()) {
-      alert('El titulo es obligatorio');
+      showToast('El título es obligatorio.', 'error');
       return;
     }
     const idRapEnvio = idRapContext ?? idRap;
     if (!idRapEnvio) {
-      alert('Debe seleccionar el RAP del material de apoyo.');
+      showToast('Debe seleccionar el RAP del material de apoyo.', 'error');
       return;
     }
     if (
@@ -404,13 +423,20 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       !link.trim() &&
       !videoFile
     ) {
-      alert('Ingrese al menos un recurso: documento, enlace o video (archivo)');
+      showToast('Ingrese al menos un recurso: documento, enlace o video (archivo).', 'error');
       return;
     }
     if (documentoFile) {
       const docErr = validateMaterialDocumentoFile(documentoFile);
       if (docErr) {
-        alert(docErr);
+        showToast(docErr, 'error');
+        return;
+      }
+    }
+    if (videoFile) {
+      const videoErr = validateVideoFile(videoFile);
+      if (videoErr) {
+        showToast(videoErr, 'error');
         return;
       }
     }
@@ -442,6 +468,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       }
       await cargar();
       cancelarForm();
+      showToast(editandoId ? 'Material actualizado correctamente.' : 'Material creado correctamente.', 'success');
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { errors?: Record<string, string[]>; error?: string } } };
       const errs = ax.response?.data?.errors;
@@ -450,7 +477,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             .flat()
             .join('\n')
         : ax.response?.data?.error || 'Error al guardar';
-      alert(msg);
+      showToast(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -458,15 +485,16 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   const eliminar = async (row: MaterialApoyoFichaItem) => {
     if (!puedeMutarMaterial(row)) {
-      alert('No tienes permiso para eliminar este recurso.');
+      showToast('No tienes permiso para eliminar este recurso.', 'error');
       return;
     }
     if (!window.confirm('¿Eliminar este recurso de la biblioteca de conocimiento?')) return;
     try {
       await axios.delete(`fichas/${idFicha}/materiales-apoyo/${row.id}`);
       await cargar();
+      showToast('Material eliminado correctamente.', 'success');
     } catch {
-      alert('No se pudo eliminar el material');
+      showToast('No se pudo eliminar el material.', 'error');
     }
   };
 
@@ -483,12 +511,18 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   return (
     <div className="space-y-5">
+      <Toast
+        isOpen={toastOpen}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastOpen(false)}
+      />
       <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-coal-400">
         <div className="min-w-0 flex-1 space-y-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Biblioteca de conocimiento</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-gray-200/90 bg-gray-50/80 px-3 py-2.5 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
             <div className="min-w-0 shrink max-w-[min(100%,220px)]">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Ficha</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">Ficha</p>
               <p
                 className="text-sm font-semibold text-gray-900 dark:text-white truncate"
                 title={fichaCodigo?.trim() || undefined}
@@ -497,7 +531,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
               </p>
             </div>
             <div className="min-w-0 flex-1 basis-0">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">RAP</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">RAP</p>
               <p
                 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:line-clamp-1 break-words"
                 title={rapContextLabel?.trim() || undefined}
@@ -514,7 +548,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 type="text"
-                className="input w-full"
+                className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-300"
                 placeholder="Buscar por título, descripción, competencia, RAP, materia, instructor o recurso..."
               />
             </div>
@@ -532,19 +566,20 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Titulo</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Titulo</label>
               <input
                 type="text"
                 className="input w-full"
                 placeholder="Titulo del material"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
+                data-preserve-case
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">RAP</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">RAP</label>
               {idRapContext ? (
                 <div
                   className="input w-full bg-gray-50 dark:bg-coal-500/40 text-sm text-gray-800 dark:text-gray-100 truncate cursor-default select-none"
@@ -569,19 +604,20 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Descripcion</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Descripcion</label>
             <textarea
               className="textarea w-full min-h-[110px]"
               placeholder="Descripcion del material"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value.slice(0, 3000))}
+              data-preserve-case
               maxLength={3000}
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Documento</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Documento</label>
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <input
                   ref={fileInputRef}
@@ -598,16 +634,16 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                   Subir documento
                 </button>
                 <span
-                  className="text-xs text-gray-600 dark:text-gray-400 truncate min-w-0 flex-1 max-w-full sm:max-w-[min(100%,280px)]"
+                  className="text-xs text-gray-600 dark:text-gray-200 truncate min-w-0 flex-1 max-w-full sm:max-w-[min(100%,280px)]"
                   title={documentoFile?.name}
                 >
                   {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
                 </span>
               </div>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
+              <p className="text-[10px] text-gray-600 dark:text-gray-200 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Enlace adicional</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Enlace adicional</label>
               <input
                 type="url"
                 className="input w-full"
@@ -615,19 +651,19 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
               />
-              <p className="text-[10px] text-gray-500 mt-1">
+              <p className="text-[10px] text-gray-500 dark:text-gray-200 mt-1">
                 Puedes usar este campo para páginas web, YouTube, Drive u otros enlaces externos.
               </p>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Video (archivo)</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Video (archivo)</label>
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <input
                 ref={videoInputRef}
                 type="file"
-                accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,.mp4,.webm,.mov,.avi"
+                accept={VIDEO_ACCEPT}
                 onChange={(e) => {
                   setVideoFile(e.target.files?.[0] || null);
                   setQuitarVideo(false);
@@ -642,17 +678,17 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 Subir video
               </button>
               <span
-                className="text-xs text-gray-600 dark:text-gray-400 truncate min-w-0 flex-1 max-w-full sm:max-w-[min(100%,280px)]"
+                className="text-xs text-gray-600 dark:text-gray-200 truncate min-w-0 flex-1 max-w-full sm:max-w-[min(100%,280px)]"
                 title={videoFile?.name}
               >
                 {videoFile ? videoFile.name : 'Ningún archivo seleccionado'}
               </span>
             </div>
-            <p className="text-[10px] text-gray-500 mt-1">Formatos permitidos: MP4, WebM, MOV o AVI.</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-200 mt-1">{VIDEO_FORMATOS_LABEL}</p>
           </div>
 
           {filaEdicion && tieneVideo(filaEdicion) && (
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
               <input
                 type="checkbox"
                 checked={quitarVideo}
@@ -673,12 +709,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[120px]">Recurso</th>
-                  <th className="text-left py-2.5 pl-2 pr-2 text-xs font-semibold text-gray-600 dark:text-gray-300 min-w-0">Título</th>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[140px]">Creador</th>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[110px]">RAP</th>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 min-w-0">Descripción</th>
-                  <th className="text-right py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 w-[120px]">Acciones</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[120px]">Recurso</th>
+                  <th className="text-left py-2.5 pl-2 pr-2 text-xs font-semibold text-gray-600 dark:text-white min-w-0">Título</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[140px]">Creador</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[110px]">RAP</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white min-w-0">Descripción</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[120px]">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -690,13 +726,13 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={6} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
                       No hay recursos en la biblioteca de conocimiento para este programa.
                     </td>
                   </tr>
                 ) : itemsFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={6} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
                       No se encontraron materiales con ese criterio.
                     </td>
                   </tr>
@@ -730,7 +766,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                               Ver recursos
                             </button>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500">—</span>
+                            <span className="text-gray-400 dark:text-gray-300">—</span>
                           )}
                         </td>
                         <td className="py-3 pl-2 pr-2 text-sm font-medium text-gray-900 dark:text-white min-w-0">
@@ -746,7 +782,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                                 {nombreCreador}
                               </span>
                               {mat.creador?.email ? (
-                                <span className="block w-full truncate text-[10px] text-gray-500 dark:text-gray-400" title={mat.creador.email}>
+                                <span className="block w-full truncate text-[10px] text-gray-600 dark:text-gray-200" title={mat.creador.email}>
                                   {mat.creador.email}
                                 </span>
                               ) : null}
@@ -758,7 +794,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                             {rapFull}
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-xs text-gray-600 dark:text-gray-300 min-w-0">
+                        <td className="py-3 px-2 text-xs text-gray-600 dark:text-gray-200 min-w-0">
                           <span className="block w-full truncate" title={descripcionFull}>
                             {descripcionFull}
                           </span>
@@ -782,7 +818,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Solo lectura</span>
+                            <span className="text-[10px] text-gray-500 dark:text-gray-300">Solo lectura</span>
                           )}
                         </td>
                       </tr>
@@ -793,7 +829,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             </table>
           </div>
 
-          <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-200">
             <span>{desde}-{hasta} de {itemsFiltrados.length}</span>
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina <= 1} className="btn btn-sm btn-light">Anterior</button>
@@ -812,53 +848,50 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
             if (!active) return null;
             const docUrl = getDocumentUrl(active.urlDocumentoUrl || active.urlDocumento);
             const docExt = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
-            const linkUrl = active.urlAdicional?.startsWith('http')
-              ? active.urlAdicional
-              : active.urlAdicional
-                ? `https://${active.urlAdicional}`
-                : null;
+            const linkUrl = normalizeExternalUrl(active.urlAdicional);
             const videoUrl = getDocumentUrl(active.urlVideoUrl || active.urlVideo);
+            const acciones: Array<{ key: string; label: string; href?: string }> = [];
+
+            if (docUrl) {
+              acciones.push({
+                key: 'doc',
+                label: docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento',
+                href: docUrl,
+              });
+            }
+            if (linkUrl) {
+              acciones.push({ key: 'link', label: 'Abrir enlace adicional', href: linkUrl });
+            }
+            if (videoUrl) {
+              acciones.push({ key: 'video', label: 'Ver video', href: videoUrl });
+            }
+
             return (
               <div
                 data-id="material-apoyo-recursos-menu"
                 className="fixed z-[9999] min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1"
                 style={{ top: recursosMenu.top, left: recursosMenu.left }}
               >
-                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">
+                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
-                {docUrl && (
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    {docExt ? materialDocumentoActionLabel(docExt) : 'Abrir documento'}
-                  </a>
-                )}
-                {linkUrl && (
-                  <a
-                    href={linkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Abrir enlace adicional
-                  </a>
-                )}
-                {videoUrl && (
-                  <a
-                    href={videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setRecursosMenu(null)}
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                  >
-                    Ver video
-                  </a>
+                {acciones.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-200">
+                    Sin recursos disponibles
+                  </div>
+                ) : (
+                  acciones.map((a) => (
+                    <a
+                      key={a.key}
+                      href={a.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setRecursosMenu(null)}
+                      className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                    >
+                      {a.label}
+                    </a>
+                  ))
                 )}
               </div>
             );

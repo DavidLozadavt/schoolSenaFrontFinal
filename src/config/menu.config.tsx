@@ -15,26 +15,22 @@ export const MENU_SIDEBAR: TMenuConfig = [
   {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
+    requiredPermissions: ['GESTION_ACADEMICA'],
     children: [
-      {
-        title: 'Configuración académica',
-        requiredPermissions: ['GESTION_REGIONAL'], //Cambiar por CONFIGURACION_ACADEMICA
-        children: [
           {
             title: 'Planeación',
             path: '/gestion-academica/configuracion/redes',
-            requiredPermissions: ['GESTION_USUARIO']
+            requiredPermissions: ['GESTION_PLANEACION']
           },
           {
             title: 'Periodos',
             path: '/gestion-academica/configuracion/periodos',
-            requiredPermissions: ['GESTION_USUARIO'] //Cambiar por GESTION_PERIODOS
+            requiredPermissions: ['GESTION_PERIODOS'] //Cambiar por GESTION_PERIODOS
           },
           {
             title: 'Jornadas',
             path: '/gestion-academica/configuracion/jornadas',
-            requiredPermissions: ['GESTION_USUARIO'] // Cambiar por GESTION_JORNADAS
+            requiredPermissions: ['GESTION_JORNADAS'] // Cambiar por GESTION_JORNADAS
           },
           {
             title: 'Regionales',
@@ -44,25 +40,23 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Centro Formación',
             path: '/centrosFormacion',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_CENTROS_FORMACION
+            requiredPermissions: ['GESTION_CENTROS_FORMACION'] //Cambiar por GESTION_CENTROS_FORMACION
           },
           {
             title: 'Sedes',
             path: '/sedesSena',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_SEDES
+            requiredPermissions: ['GESTION_SEDES'] //Cambiar por GESTION_SEDES
           },
           {
             title: 'Ambientes',
             path: '/ambientes',
-            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_AMBIENTES
+            requiredPermissions: ['GESTION_AMBIENTES'] //Cambiar por GESTION_AMBIENTES
           },
           {
             title: 'Redes',
             path: '/redes',
             requiredPermissions: ['GESTION_REDES']
           }
-        ]
-      }
     ]
   },
   {
@@ -73,6 +67,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
       {
         title: 'Mis formaciones',
         path: '/ambiente-virtual/historial-raps',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Mis actividades',
+        path: '/ambiente-virtual/instructor/mis-actividades',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
@@ -111,11 +110,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
-      {
-        title: 'CF',
-        path: '/cf',
-        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
-      }
     ]
   },
   {
@@ -682,7 +676,19 @@ export const MENU_SIDEBAR: TMenuConfig = [
       },
       {
         title: 'Eventos',
-        path: '/multimedia/eventos',
+        path: '/gestion-eventos',
+        requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
+      }
+    ]
+  },
+
+  {
+    title: 'Formularios',
+    icon: 'tablet-text-down',
+    children: [
+      {
+        title: 'Gestión de Formularios',
+        path: '/formularios',
         requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
       }
     ]

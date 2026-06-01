@@ -66,9 +66,9 @@ const Login = () => {
     if (!shouldRedirect) return;
     // Wait until roles have been populated from the server
     if (roles.length === 0) return;
-    const isAllowed =
-      (roles.includes('DOCENTEUP') || roles.includes('ESTUDIANTEUP')) &&
-      activacion?.state_id == 18;
+    
+    // We only depend on activacion now for the redirect logic
+    const isAllowed = activacion?.state_id == 18;
     if (isAllowed) {
       navigate('/perfil');
     } else {

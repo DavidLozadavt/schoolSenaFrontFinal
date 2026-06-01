@@ -3,6 +3,11 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useAuthContext } from '@/auth';
+import {
+  ACTIVIDAD_DOCUMENTO_ACCEPT,
+  ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL,
+  validateActividadDocumentoFile,
+} from './materialDocumentoSupport';
 
 export const TIPO_ACTIVIDAD_ENUM = ['sin evidencia', 'con evidencia', 'cuestionario'] as const;
 export type TipoActividadEnum = (typeof TIPO_ACTIVIDAD_ENUM)[number];
@@ -160,6 +165,13 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
     if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !idMateriaFinal || !formData.estrategia || !formData.entregables || !formData.idCompany) {
       return;
     }
+    if (documentoFile) {
+      const docErr = validateActividadDocumentoFile(documentoFile);
+      if (docErr) {
+        alert(docErr);
+        return;
+      }
+    }
     setLoading(true);
     try {
       const payload = {
@@ -266,7 +278,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.doc,.docx"
+                  accept={ACTIVIDAD_DOCUMENTO_ACCEPT}
                   onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)}
                   className="hidden"
                 />
@@ -281,7 +293,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                   {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Formatos aceptados: .pdf, .doc, .docx</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL}</p>
             </div>
 
             <div>

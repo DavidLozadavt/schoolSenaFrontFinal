@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
-import { KeenIcon } from '@/components';
+import { KeenIcon, Toast } from '@/components';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 import {
@@ -63,6 +63,10 @@ const getDocumentUrl = (url?: string | null): string | null => {
 const ITEMS_PER_PAGE = 10;
 
 const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad }) => {
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+
   const [materiales, setMateriales] = useState<MaterialApoyo[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -115,17 +119,23 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     currentPage * ITEMS_PER_PAGE
   );
 
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastOpen(true);
+  };
+
   const handleAgregar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividad?.id || !titulo.trim()) return;
     if (!documentoFile && !link.trim()) {
-      alert('Ingrese un documento o un enlace (página web o YouTube)');
+      showToast('Ingrese un documento o un enlace (página web o YouTube).', 'error');
       return;
     }
     if (documentoFile) {
       const docErr = validateMaterialDocumentoFile(documentoFile);
       if (docErr) {
-        alert(docErr);
+        showToast(docErr, 'error');
         return;
       }
     }
@@ -149,7 +159,12 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
       console.error('Error agregando material:', err);
-      alert(err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join('\n') : 'Error al agregar material');
+      showToast(
+        err.response?.data?.errors
+          ? Object.values(err.response.data.errors).flat().join('\n')
+          : 'Error al agregar material',
+        'error'
+      );
     } finally {
       setSaving(false);
     }
@@ -179,6 +194,12 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-3xl top-[5%] max-h-[90vh] overflow-y-auto flex flex-col p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
+        <Toast
+          isOpen={toastOpen}
+          message={toastMessage}
+          type={toastType}
+          onClose={() => setToastOpen(false)}
+        />
         <ModalHeader>
           <ModalTitle>Material de la actividad</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
@@ -231,11 +252,11 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   >
                     Seleccionar archivo
                   </button>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-sm text-gray-500 dark:text-gray-200">
                     {documentoFile ? documentoFile.name : 'Sin archivos seleccionados'}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-200 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
                 {previewUrl && (
                   <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-coal-400">
                     <iframe src={previewUrl} title="Vista previa PDF" className="w-full h-[300px] border-0" />
@@ -268,9 +289,9 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 w-[140px] shrink-0">Titulo</th>
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400">Descripcion</th>
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-gray-400 w-[100px] shrink-0">Acciones</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[140px] shrink-0">Titulo</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white">Descripcion</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[100px] shrink-0">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -282,7 +303,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                       </tr>
                     ) : paginatedMateriales.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={3} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
                           No hay archivos adjuntos a esta actividad
                         </td>
                       </tr>
@@ -299,7 +320,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                                 {docUrl ? (
                                   <KeenIcon
                                     icon={materialDocumentoKeenIcon(docExt)}
-                                    className="text-base shrink-0 text-gray-500 dark:text-gray-400"
+                                    className="text-base shrink-0 text-gray-500 dark:text-gray-200"
                                   />
                                 ) : null}
                                 <span className="truncate">{mat.titulo}</span>
@@ -312,7 +333,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                                 ) : null}
                               </div>
                             </td>
-                            <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400 align-top min-w-0">
+                            <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-200 align-top min-w-0">
                               <div className="whitespace-pre-wrap break-words">
                                 {mat.descripcion || '-'}
                               </div>
@@ -368,17 +389,17 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
-                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-60"
                   >
                     <KeenIcon icon="left" className="text-sm" />
                   </button>
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                  <span className="text-xs text-gray-600 dark:text-gray-200">
                     {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, materiales.length)} de {materiales.length}
                   </span>
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage >= totalPages}
-                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-60"
                   >
                     <KeenIcon icon="right" className="text-sm" />
                   </button>

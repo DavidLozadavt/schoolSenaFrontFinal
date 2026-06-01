@@ -1,16 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth/useAuthContext';
 import {
-  dedupeClasesAsignadasInstructorPorClaveLogica,
-  normalizarHoraCampoClaseApi,
-  textoJornadaParaAjuste12h,
-  titulosCompetenciaYRapUi,
+  claseOcurreHoy,
+  columnaHorarioApiClase,
   jsGetDayDesdeApiClase,
-  columnaHorarioApiClase
+  normalizarHoraCampoClaseApi,
+  obtenerVentanaHorariaHoy,
+  claseVisibleEnGrillaHorario,
+  ocurrenciaPendienteEnDiaCalendario,
+  seccionesSemanaCalendarioClase,
+  sesionCompletadaEnFecha,
+  textoJornadaParaAjuste12h,
+  textoRangoHorarioClase,
+  titulosCompetenciaYRapUi,
+  normalizarInstructoresRapApi,
+  nombresInstructoresCalificacion,
+  nombreOtroInstructorReemplazo,
+  reemplazoActivoEnClase,
+  horaClaveClaseAsignada,
+  type InstructorRapAsociado
 } from '@/utils/clasesAsignadasLogica';
+import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
+import { fetchHistorialSesionesInstructor, ymdFromFechaSesion } from '@/utils/clasesAsignadasLogica';
 interface Props {
   evento: boolean;
   setEvento: (value: boolean) => void;
@@ -60,6 +73,12 @@ interface Clase {
   idMateria: number;
   /** Salón/aula física si `horarioMateria.idInfraestructura` está enlazado; si no, no mostrar número inventado. */
   aula_nombre?: string | null;
+  tipo_asignacion?: string | null;
+  modalidad_rap?: string | null;
+  asignacion_vigente?: boolean;
+  reemplazo_vigente_por_otro?: boolean;
+  es_reemplazante?: boolean;
+  instructores_rap?: InstructorRapAsociado[];
 }
 
 /** Quita caracteres invisibles que a veces vienen del backend y rompen .includes() en prefijos cortos. */
@@ -144,12 +163,64 @@ function claseCoincideBusquedaHistorial(
   return h != null && h.includes(termFolded);
 }
 
-/** Ocurrencia única de sesión dictada (misma materia + día + # sesión), aunque la BD tenga 2 PK por error. */
+/** Ocurrencia única de sesión dictada (misma franja ficha+día+horas; titular/clon compartido = una tarjeta). */
 function claveOcurrenciaSesionListado(clase: Clase, s: SesionCompletada): string {
-  const hm = Number(clase.idHorarioMateria);
-  const ymd = String(s.fechaSesion ?? '').split('T')[0];
+  const ymd = ymdFromFechaSesion(s.fechaSesion) ?? '';
   const n = Number(s.numeroSesion);
+
+  const ficha = Number(clase.ficha_id ?? 0);
+  const idDia = Number(clase.idDia ?? 0);
+  const hi = horaClaveClaseAsignada(clase.horaInicial ?? '');
+  const hf = horaClaveClaseAsignada(clase.horaFinal ?? '');
+  if (ficha > 0 && idDia > 0 && hi && hf && ymd) {
+    return `slot:${ficha}|${idDia}|${hi}|${hf}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
+  }
+
+  const hm = Number(clase.idHorarioMateria);
+  const id = Number(s.id);
+  if (Number.isFinite(id) && id > 0) return `id:${id}`;
   return `${Number.isFinite(hm) ? hm : 0}|${ymd}|${Number.isFinite(n) ? n : s.numeroSesion}`;
+}
+
+function puntajeClaseHistorialCompletado(clase: Clase): number {
+  let score = 0;
+  if (clase.modalidad_rap === 'COMPARTIDO') score += 1000;
+  if ((clase.instructores_rap ?? []).length > 1) score += 100;
+  return score;
+}
+
+/** Historial API + sesiones de clases-asignadas (misma fuente que el badge X/Y). */
+function fusionarSesionesCompletadasHistorial(
+  historialApi: Array<{ clase: Clase; sesion: SesionCompletada }>,
+  clasesLista: Clase[]
+): Array<{ clase: Clase; sesion: SesionCompletada }> {
+  const porClave = new Map<string, { clase: Clase; sesion: SesionCompletada }>();
+  const insertar = (clase: Clase, sesion: SesionCompletada) => {
+    const ymd = ymdFromFechaSesion(sesion.fechaSesion);
+    if (!ymd) return;
+    const sesionNorm: SesionCompletada = {
+      ...sesion,
+      fechaSesion: ymd
+    };
+    const key = claveOcurrenciaSesionListado(clase, sesionNorm);
+    const prev = porClave.get(key);
+    if (!prev) {
+      porClave.set(key, { clase, sesion: sesionNorm });
+      return;
+    }
+    if (puntajeClaseHistorialCompletado(clase) > puntajeClaseHistorialCompletado(prev.clase)) {
+      porClave.set(key, { clase, sesion: sesionNorm });
+    }
+  };
+  for (const item of historialApi) {
+    insertar(item.clase, item.sesion);
+  }
+  for (const clase of clasesLista) {
+    for (const sesion of clase.sesiones_completadas ?? []) {
+      insertar(clase, sesion);
+    }
+  }
+  return Array.from(porClave.values());
 }
 
 const parseSoloFecha = (dateStr: string): Date => {
@@ -206,7 +277,7 @@ const tituloSeccionSemanaPendiente = (weekOffset: number, primeraFechaYmd: strin
 const ORDEN_DIA_SEMANA_LUN_A_DOM: readonly number[] = [1, 2, 3, 4, 5, 6, 0];
 
 /**
- * Último día de la semana con clase (según `dia_semana` / columna horario), para la vista corta de pendientes.
+ * Último día de la semana con clase (columna horario), para la vista corta de pendientes.
  */
 function calcularAnchorMinVistaPendiente(
   clases: Clase[],
@@ -220,9 +291,7 @@ function calcularAnchorMinVistaPendiente(
   const idxUlt = ORDEN_DIA_SEMANA_LUN_A_DOM.indexOf(ultimoJs);
   const idxNow = ORDEN_DIA_SEMANA_LUN_A_DOM.indexOf(dow);
   if (idxUlt === -1 || idxNow === -1) return 0;
-  // Ya pasó el último día con clase en esta semana calendario (lun→dom)
   if (idxNow > idxUlt) return 1;
-  // Hoy es el último día con clase y esa franja está EN CURSO → mostrar solo semana siguiente
   if (idxNow === idxUlt) {
     const hayUltimoEnCurso = clases.some(
       (c) => columnaHorarioApiClase(c) === colUlt && getEstado(c) === 'EN CURSO'
@@ -232,64 +301,15 @@ function calcularAnchorMinVistaPendiente(
   return 0;
 }
 
-/**
- * Si hoy cae en el rango del curso y coincide el día de la semana, devuelve inicio/fin de la ventana horaria (local).
- */
-const obtenerVentanaHorariaHoy = (
-  clase: Clase,
-  ahora: Date
-): { inicio: Date; fin: Date } | null => {
-  if (!clase.fechaInicial || !clase.fechaFinal || !clase.horaInicial || !clase.horaFinal) {
-    return null;
-  }
-  const diaNumero = jsGetDayDesdeApiClase(clase);
-  if (diaNumero === null) return null;
-  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-  hoy.setHours(0, 0, 0, 0);
-  const fechaInicio = parseSoloFecha(clase.fechaInicial);
-  fechaInicio.setHours(0, 0, 0, 0);
-  const fechaFin = parseSoloFecha(clase.fechaFinal);
-  fechaFin.setHours(0, 0, 0, 0);
-  if (
-    ahora.getDay() !== diaNumero ||
-    fechaInicio.getTime() > hoy.getTime() ||
-    hoy.getTime() > fechaFin.getTime()
-  ) {
-    return null;
-  }
-
-  let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
-  let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-  const lowerJ = textoJornadaParaAjuste12h(clase);
-  const esTardeONoche =
-    lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  if (esTardeONoche && hIni < 12) hIni += 12;
-  if (esTardeONoche && hFin < 12) hFin += 12;
-
-  const inicio = new Date(ahora);
-  inicio.setHours(hIni, mIni, 0, 0);
-  const fin = new Date(ahora);
-  fin.setHours(hFin, mFin || 0, 0, 0);
-  if (fin.getTime() < inicio.getTime()) {
-    fin.setDate(fin.getDate() + 1);
-  }
-  return { inicio, fin };
-};
-
-/**
- * Decide si una fila de `sesiones_completadas` debe mostrarse en el historial "Completado".
- *
- * En BD `sesionMateria` puede crearse el mismo día al iniciar clase o al registrar asistencia
- * (AsistenciaController / iniciarClase / MatriculaAcademica), no solo al terminar la franja.
- * No basta con "hay registro con fecha de hoy": hay que exigir que ya pasó la hora final local.
- */
+/** Sesión con registro en `sesionMateria` → historial Completado (todas, salvo fechas futuras). */
 const sesionListableComoCompletada = (
-  clase: Clase,
+  _clase: Clase,
   sesion: SesionCompletada,
   ahoraRef: Date
 ): boolean => {
-  if (!sesion.fechaSesion) return false;
-  const ymd = sesion.fechaSesion.split('T')[0];
+  if (!sesion.fechaSesion?.trim()) return false;
+  const ymd = ymdFromFechaSesion(sesion.fechaSesion);
+  if (!ymd) return false;
   const [y, m, d] = ymd.split('-').map(Number);
   if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return false;
 
@@ -298,13 +318,13 @@ const sesionListableComoCompletada = (
   const hoy = new Date(ahoraRef.getFullYear(), ahoraRef.getMonth(), ahoraRef.getDate());
   hoy.setHours(0, 0, 0, 0);
 
-  if (diaSesion.getTime() < hoy.getTime()) return true;
-  if (diaSesion.getTime() > hoy.getTime()) return false;
+  return diaSesion.getTime() <= hoy.getTime();
+};
 
-  const ventana = obtenerVentanaHorariaHoy(clase, ahoraRef);
-  if (!ventana) return false;
-
-  return ahoraRef.getTime() > ventana.fin.getTime();
+const sesionValidaEnHistorial = (sesion: SesionCompletada): boolean => {
+  if (!ymdFromFechaSesion(sesion.fechaSesion)) return false;
+  const n = Number(sesion.numeroSesion);
+  return Number.isFinite(n) && n >= 0;
 };
 
 type FiltroEstadoHistorial = 'en_curso' | 'pendiente' | 'completado';
@@ -312,12 +332,17 @@ type FiltroEstadoHistorial = 'en_curso' | 'pendiente' | 'completado';
 const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }) => {
   const navigate = useNavigate();
   const authContext = useAuthContext();
-  const [loading, setLoading] = useState(true);
+  const { clases: clasesApi, loading: loadingApi, refetch } = useClasesInstructorAsignadas(idInstructor);
   const [clases, setClases] = useState<Clase[]>([]);
+  const [historialSesiones, setHistorialSesiones] = useState<
+    Array<{ clase: Clase; sesion: SesionCompletada }>
+  >([]);
+  const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<FiltroEstadoHistorial>('pendiente');
   const [busquedaLista, setBusquedaLista] = useState('');
   // Estado para actualizar el tiempo en tiempo real y recalcular estados de clases
   const [currentTime, setCurrentTime] = useState(new Date());
+  const franjasRefrescadasRef = useRef<Set<string>>(new Set());
 
   const queryBusquedaDisplay = useMemo(() => busquedaLista.trim(), [busquedaLista]);
   const termBusquedaFolded = useMemo(
@@ -417,54 +442,88 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       idHorarioMateria,
       idGradoMateria: toNum(raw.idGradoMateria),
       idMateria: toNum(raw.idMateria),
-      aula_nombre
+      aula_nombre,
+      tipo_asignacion: raw.tipo_asignacion ?? null,
+      modalidad_rap: raw.modalidad_rap ?? null,
+      asignacion_vigente: !!raw.asignacion_vigente,
+      reemplazo_vigente_por_otro: !!raw.reemplazo_vigente_por_otro,
+      es_reemplazante: !!raw.es_reemplazante,
+      instructores_rap: normalizarInstructoresRapApi(raw.instructores_rap),
     };
   };
 
-  useEffect(() => {
-    const fetchClases = async () => {
-      try {
-        setLoading(true);
-        let response;
-
-        if (idInstructor) {
-          // Si se proporciona el ID del instructor, usar endpoint específico
-          response = await axios.get(`fichas/instructor/${idInstructor}/clases-asignadas`);
-        } else {
-          // Si no, el backend obtendrá automáticamente el ID del usuario autenticado
-          response = await axios.get('fichas/instructor/clases-asignadas');
-        }
-
-        const clasesData = dedupeClasesAsignadasInstructorPorClaveLogica<Clase>(
-          (response.data?.data || []).map(normalizarClase)
-        );
-        setClases(clasesData);
-        setEvento(false);
-      } catch (error: any) {
-        // Manejar error de forma silenciosa para el usuario
-        // En producción, esto podría enviarse a un servicio de logging
-        setClases([]);
-        if (error?.response?.status === 401) {
-          // Si es error de autenticación, el interceptor de axios lo manejará
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (evento) {
-      fetchClases();
+  const cargarHistorialSesiones = useCallback(async () => {
+    try {
+      const items = await fetchHistorialSesionesInstructor(idInstructor);
+      setHistorialSesiones(
+        items.map((item) => ({
+          sesion: {
+            id: Number(item.sesion.id),
+            numeroSesion: Number(item.sesion.numeroSesion),
+            fechaSesion: String(item.sesion.fechaSesion ?? ''),
+            fechaFormateada: String(item.sesion.fechaFormateada ?? ''),
+            fechaCorta: String(item.sesion.fechaCorta ?? ''),
+            estado: String(item.sesion.estado ?? ''),
+            observacion: item.sesion.observacion ?? null,
+            evaluador_nombre: item.sesion.evaluador_nombre ?? null
+          },
+          clase: normalizarClase(item.clase) as Clase
+        }))
+      );
+    } catch {
+      setHistorialSesiones([]);
     }
-  }, [evento, setEvento, idInstructor]);
+  }, [idInstructor]);
+
+  useEffect(() => {
+    cargarHistorialSesiones();
+  }, [cargarHistorialSesiones]);
+
+  useEffect(() => {
+    if (!evento) return;
+    Promise.all([refetch(), cargarHistorialSesiones()]).finally(() => setEvento(false));
+  }, [evento, setEvento, refetch, cargarHistorialSesiones]);
+
+  useEffect(() => {
+    setClases(clasesApi.map((raw) => normalizarClase(raw as Record<string, unknown>)) as Clase[]);
+  }, [clasesApi]);
+
+  useEffect(() => {
+    setLoading(loadingApi);
+  }, [loadingApi]);
 
   // Actualizar el tiempo cada segundo para recalcular estados en tiempo real
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000); // Actualizar cada segundo
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
+
+  /** Al cerrar la franja, el backend crea la sesión: refrescar sin recargar la página. */
+  useEffect(() => {
+    const ahora = currentTime;
+    const ymdHoy = formatYmdLocal(
+      new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+    );
+
+    for (const clase of clases) {
+      const ventana = obtenerVentanaHorariaHoy(clase, ahora);
+      if (!ventana || ahora.getTime() <= ventana.fin.getTime()) continue;
+
+      const clave = `${clase.idHorarioMateria}|${ymdHoy}|fin`;
+      if (franjasRefrescadasRef.current.has(clave)) continue;
+      franjasRefrescadasRef.current.add(clave);
+
+      const sincronizar = () => {
+        void refetch();
+        void cargarHistorialSesiones();
+      };
+      sincronizar();
+      window.setTimeout(sincronizar, 2500);
+    }
+  }, [currentTime, clases, refetch, cargarHistorialSesiones]);
 
   /**
    * Obtiene el estado de la clase en tiempo real
@@ -482,14 +541,35 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       return new Date(year, month - 1, day);
     };
 
-    // Hoy con clase programada: hasta que pase la hora final no puede ser COMPLETADO (solo EN CURSO o PENDIENTE).
+    // Hoy con clase programada: pendiente → en curso → completada (igual que compartida).
     const ventanaHoy = obtenerVentanaHorariaHoy(clase, ahora);
-    if (ventanaHoy && ahora.getTime() <= ventanaHoy.fin.getTime()) {
+    if (ventanaHoy) {
+      const ymdHoy = formatYmdLocal(
+        new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+      );
+
       if (
         ahora.getTime() >= ventanaHoy.inicio.getTime() &&
         ahora.getTime() <= ventanaHoy.fin.getTime()
       ) {
         return 'EN CURSO';
+      }
+
+      if (ahora.getTime() < ventanaHoy.inicio.getTime()) {
+        return 'PENDIENTE';
+      }
+
+      // Ya pasó la hora final de hoy
+      if (sesionCompletadaEnFecha(clase, ymdHoy)) {
+        return 'COMPLETADO';
+      }
+      const ymdIni = clase.fechaInicial?.split('T')[0] ?? '';
+      const ymdFin = (clase.fechaFinal ?? clase.fechaInicial)?.split('T')[0] ?? '';
+      if (ymdIni && ymdIni === ymdFin && ymdIni === ymdHoy) {
+        return 'COMPLETADO';
+      }
+      if (sesionesRestantes === 0) {
+        return 'COMPLETADO';
       }
       return 'PENDIENTE';
     }
@@ -690,20 +770,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     }
   };
 
-  const isToday = (dateString: string): boolean => {
-    // Parsear fecha sin problemas de zona horaria (formato YYYY-MM-DD)
-    const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
   const getJornadaType = (jornadaTipo: string): string => {
     if (!jornadaTipo) return 'Mañana';
 
@@ -765,9 +831,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    */
   const getHorario = (clase: Clase): string => {
     if (clase.horaInicial && clase.horaFinal) {
-      const horaIni = formatTime12h(clase.horaInicial);
-      const horaFin = formatTime12h(clase.horaFinal);
-      return `${horaIni} - ${horaFin}`;
+      return textoRangoHorarioClase(clase);
     }
     return '';
   };
@@ -1002,10 +1066,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   }, [clases, termBusquedaFolded, haystackPorHorario, selectedFilter, currentTime]); // Agregar currentTime para actualización en tiempo real
 
   const classesToday = useMemo(() => {
-    const today = filteredClases.filter((clase) => {
-      if (!clase.fechaInicial) return false;
-      return isToday(clase.fechaInicial);
-    });
+    const today = filteredClases.filter((clase) => claseOcurreHoy(clase, currentTime));
 
     // Ordenar por hora inicial
     return today.sort((a, b) => {
@@ -1031,20 +1092,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       return horaA.localeCompare(horaB);
     });
   }, [filteredClases, currentTime]); // Agregar currentTime para actualización en tiempo real
-
-  const clasesPendientes = useMemo(() => {
-    let pendientes = clases.filter((c) => getStatus(c) === 'PENDIENTE');
-    if (termBusquedaFolded) {
-      pendientes = pendientes.filter((clase) =>
-        claseCoincideBusquedaHistorial(
-          Number(clase.idHorarioMateria),
-          termBusquedaFolded,
-          haystackPorHorario
-        )
-      );
-    }
-    return pendientes;
-  }, [clases, currentTime, termBusquedaFolded, haystackPorHorario]);
 
   const clasesCompletadas = useMemo(() => {
     const completadas = filteredClases.filter((c) => getStatus(c) === 'COMPLETADO');
@@ -1073,65 +1120,53 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    *
    * @returns Objeto con todas las sesiones y agrupación por fecha
    */
+  const sesionesCompletadasFuente = useMemo(
+    () => fusionarSesionesCompletadasHistorial(historialSesiones, clases),
+    [historialSesiones, clases]
+  );
+
   const sesionesCompletadasAgrupadas = useMemo(() => {
-    // Obtener todas las sesiones completadas de TODAS las clases (no solo las completadas)
-    const todasLasSesiones: Array<{ clase: Clase; sesion: SesionCompletada }> = [];
-
-    // Importante: iterar sobre TODAS las clases originales, no sobre filteredClases,
-    // para no perder sesiones completadas de clases que aún tienen pendientes.
-    clases.forEach((clase) => {
-      if (
-        termBusquedaFolded &&
-        !claseCoincideBusquedaHistorial(
-          Number(clase.idHorarioMateria),
-          termBusquedaFolded,
-          haystackPorHorario
-        )
-      ) {
-        return;
+    let sesionesFiltradasBusqueda = sesionesCompletadasFuente.filter((item) => {
+      if (!sesionValidaEnHistorial(item.sesion)) return false;
+      if (!sesionListableComoCompletada(item.clase, item.sesion, currentTime)) return false;
+      if (termBusquedaFolded) {
+        const id = Number(item.clase.idHorarioMateria);
+        const h =
+          haystackPorHorario.get(id) ?? foldBusqueda(textoIndexBusquedaClase(item.clase));
+        if (!h.includes(termBusquedaFolded)) return false;
       }
-      // Validar que la clase tenga sesiones completadas y que sean válidas
-      if (
-        clase.sesiones_completadas &&
-        Array.isArray(clase.sesiones_completadas) &&
-        clase.sesiones_completadas.length > 0
-      ) {
-        clase.sesiones_completadas.forEach((sesion) => {
-          if (sesion && sesion.id && sesion.fechaSesion && sesion.numeroSesion) {
-            if (sesionListableComoCompletada(clase, sesion, currentTime)) {
-              todasLasSesiones.push({ clase, sesion });
-            }
-          }
-        });
-      }
+      return true;
     });
-
-    // Una tarjeta por ocurrencia real (hm + día + # sesión); cubre ids string/número y filas BD duplicadas
-    const vistosOcurrencia = new Set<string>();
-    const todasLasSesionesUnicas: typeof todasLasSesiones = [];
-    for (const item of todasLasSesiones) {
-      const k = claveOcurrenciaSesionListado(item.clase, item.sesion);
-      if (vistosOcurrencia.has(k)) continue;
-      vistosOcurrencia.add(k);
-      todasLasSesionesUnicas.push(item);
-    }
-
-    // La exclusión por búsqueda ya se aplicó por clase arriba (haystack incluye datos de sesión).
-    const sesionesFiltradasBusqueda = todasLasSesionesUnicas;
 
     // Agrupar sesiones por fecha
     const grupos: { [fecha: string]: Array<{ clase: Clase; sesion: SesionCompletada }> } = {};
 
     sesionesFiltradasBusqueda.forEach((item) => {
-      const fecha = item.sesion.fechaSesion; // YYYY-MM-DD
+      const fecha = ymdFromFechaSesion(item.sesion.fechaSesion) ?? '';
 
-      // Validar que la fecha no esté vacía
       if (fecha && fecha.trim() !== '') {
         if (!grupos[fecha]) {
           grupos[fecha] = [];
         }
         grupos[fecha].push(item);
       }
+    });
+
+    Object.values(grupos).forEach((items) => {
+      items.sort((a, b) => {
+        const horaFinA = a.clase.horaFinal || a.clase.horaInicial || '00:00:00';
+        const horaFinB = b.clase.horaFinal || b.clase.horaInicial || '00:00:00';
+        const porHora = horaFinB.localeCompare(horaFinA);
+        if (porHora !== 0) return porHora;
+        const porIni = (b.clase.horaInicial || '00:00:00').localeCompare(
+          a.clase.horaInicial || '00:00:00'
+        );
+        if (porIni !== 0) return porIni;
+        const na = Number(a.sesion.numeroSesion);
+        const nb = Number(b.sesion.numeroSesion);
+        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return nb - na;
+        return 0;
+      });
     });
 
     // Ordenar fechas de más reciente a más antigua
@@ -1154,7 +1189,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         items: grupos[fecha] || []
       }))
     };
-  }, [clases, currentTime, termBusquedaFolded, haystackPorHorario]);
+  }, [sesionesCompletadasFuente, currentTime, termBusquedaFolded, haystackPorHorario]);
 
   /**
    * Obtiene la próxima fecha de clase como string para agrupar
@@ -1165,73 +1200,8 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     return getProximaClasePendiente(clase);
   };
 
-  type GrupoPendiente = { rowKey: string; labelTitulo: string; clases: Clase[] };
-
-  /**
-   * Pendientes agrupados por día de la **próxima** sesión únicamente.
-   * Una tarjeta por `idHorarioMateria` (misma competencia/RAP/franja que en Mi horario); no repetir
-   * la misma clase en miércoles, viernes, etc. por cada fecha futura de sesión.
-   */
-  const groupedPendientes = useMemo((): GrupoPendiente[] => {
-    const mapa = new Map<string, GrupoPendiente>();
-    const sinFechas: Clase[] = [];
-
-    clasesPendientes.forEach((clase) => {
-      const jornadasType = getJornadaType(clase.jornada_tipo || '');
-      const todas = getTodasFechasPendientes(clase);
-      let fechaParaGrupo: Date | null = todas.length > 0 ? new Date(todas[0]!) : null;
-
-      if (!fechaParaGrupo) {
-        const prox = calcularProximaFechaClase(clase);
-        if (prox) fechaParaGrupo = prox;
-        else if (clase.fechaInicial) fechaParaGrupo = parseSoloFecha(clase.fechaInicial);
-      }
-
-      if (!fechaParaGrupo) {
-        sinFechas.push(clase);
-        return;
-      }
-
-      const iso = formatYmdLocal(fechaParaGrupo);
-      const labelTitulo = formatDateForGroup(iso, jornadasType);
-      const rowKey = `${iso}|${labelTitulo}`;
-
-      if (!mapa.has(rowKey)) {
-        mapa.set(rowKey, { rowKey, labelTitulo, clases: [] });
-      }
-      const g = mapa.get(rowKey)!;
-      if (!g.clases.some((c) => c.idHorarioMateria === clase.idHorarioMateria)) {
-        g.clases.push(clase);
-      }
-    });
-
-    const ordenados = Array.from(mapa.values()).sort((a, b) => {
-      const pa = a.rowKey.split('|')[0];
-      const pb = b.rowKey.split('|')[0];
-      const wa = weekOffsetFromTodayYmd(pa, currentTime);
-      const wb = weekOffsetFromTodayYmd(pb, currentTime);
-      if (wa !== wb) return wa - wb;
-      return pa.localeCompare(pb);
-    });
-
-    ordenados.forEach((g) => {
-      g.clases.sort((a, b) => {
-        const horaA = a.horaInicial || '00:00:00';
-        const horaB = b.horaInicial || '00:00:00';
-        return horaA.localeCompare(horaB);
-      });
-    });
-
-    if (sinFechas.length) {
-      ordenados.push({
-        rowKey: 'sin-fecha-calendario',
-        labelTitulo: 'Próxima sesión por definir',
-        clases: sinFechas
-      });
-    }
-
-    return ordenados;
-  }, [clasesPendientes, currentTime]);
+  type ItemPendienteSesion = { clase: Clase; fechaYmd: string };
+  type GrupoPendiente = { rowKey: string; labelTitulo: string; items: ItemPendienteSesion[] };
 
   type SeccionSemanaPendiente = {
     weekOffset: number;
@@ -1239,62 +1209,57 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     gruposDia: GrupoPendiente[];
   };
 
-  /** Pendientes agrupados por semana: primero esta semana, luego la siguiente, etc. */
-  const pendientesPorSemana = useMemo((): SeccionSemanaPendiente[] => {
-    const sinGrupo = groupedPendientes.find((g) => g.rowKey === 'sin-fecha-calendario');
-    const dias = groupedPendientes.filter((g) => g.rowKey !== 'sin-fecha-calendario');
-
-    const secciones: SeccionSemanaPendiente[] = [];
-    dias.forEach((g) => {
-      const iso = g.rowKey.split('|')[0];
-      const wo = weekOffsetFromTodayYmd(iso, currentTime);
-      const ultimo = secciones[secciones.length - 1];
-      if (!ultimo || ultimo.weekOffset !== wo) {
-        secciones.push({
-          weekOffset: wo,
-          tituloSemana: tituloSeccionSemanaPendiente(wo, iso),
-          gruposDia: [g]
-        });
-      } else {
-        ultimo.gruposDia.push(g);
-      }
-    });
-
-    if (sinGrupo) {
-      secciones.push({
-        weekOffset: 9999,
-        tituloSemana: 'Sin fecha en calendario',
-        gruposDia: [sinGrupo]
-      });
-    }
-    return secciones;
-  }, [groupedPendientes, currentTime]);
-
   /**
-   * Vista corta: una sola semana a la vez.
-   * El “último día con clase” es dinámico: max(idDia) entre todas las clases del instructor.
-   * Si hoy es después de ese día en la semana (lun→dom) → solo semana siguiente.
-   * Si hoy es ese día y la clase correspondiente está EN CURSO → solo semana siguiente.
+   * Una tarjeta por sesión pendiente (día calendario + franja), alineado con Mi horario.
+   * Pendiente = ese día aún no tiene registro en `sesionMateria` y la franja sigue vigente.
    */
-  const pendientesPorSemanaVistaUnica = useMemo(() => {
-    const conSemana = pendientesPorSemana.filter((s) => s.weekOffset < 9999);
-    const sin = pendientesPorSemana.find((s) => s.weekOffset === 9999);
-
-    const anchorMin = calcularAnchorMinVistaPendiente(clases, currentTime, getStatus);
-
-    const candidatos = conSemana.filter((s) => s.weekOffset >= anchorMin);
-    const unaSemana = candidatos.length > 0 ? [candidatos[0]] : [];
-
-    const out = [...unaSemana];
-    if (sin && sin.gruposDia[0]?.clases?.length) {
-      out.push(sin);
+  const pendientesPorSemana = useMemo((): SeccionSemanaPendiente[] => {
+    let base = clases.filter((c) => claseVisibleEnGrillaHorario(c));
+    if (termBusquedaFolded) {
+      base = base.filter((clase) =>
+        claseCoincideBusquedaHistorial(
+          Number(clase.idHorarioMateria),
+          termBusquedaFolded,
+          haystackPorHorario
+        )
+      );
     }
-    return out;
+
+    const semanas = seccionesSemanaCalendarioClase(
+      base,
+      currentTime,
+      [0, 1],
+      (c, fecha) => {
+        if (getStatus(c) === 'EN CURSO') return false;
+        const ymd = formatYmdLocal(fecha);
+        if (sesionCompletadaEnFecha(c, ymd)) return false;
+        return ocurrenciaPendienteEnDiaCalendario(c, fecha, currentTime);
+      }
+    );
+
+    return semanas.map((s) => ({
+      weekOffset: s.weekOffset,
+      tituloSemana: s.tituloSemana,
+      gruposDia: s.gruposDia.map((g) => ({
+        rowKey: g.rowKey,
+        labelTitulo: g.labelTitulo,
+        items: g.clases.map((clase) => ({
+          clase,
+          fechaYmd: g.fechaYmd
+        }))
+      }))
+    }));
+  }, [clases, currentTime, termBusquedaFolded, haystackPorHorario]);
+
+  const pendientesPorSemanaVistaUnica = useMemo(() => {
+    const anchorMin = calcularAnchorMinVistaPendiente(clases, currentTime, getStatus);
+    const candidatos = pendientesPorSemana.filter((s) => s.weekOffset >= anchorMin);
+    return candidatos.length > 0 ? [candidatos[0]] : [];
   }, [pendientesPorSemana, clases, currentTime]);
 
   // Función para verificar si hay una clase en curso el mismo día y si esta clase es la siguiente
   const esProximaClase = (clase: Clase): boolean => {
-    if (!clase.fechaInicial || !isToday(clase.fechaInicial)) {
+    if (!claseOcurreHoy(clase, currentTime)) {
       return false;
     }
 
@@ -1304,10 +1269,9 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     }
 
     // Buscar si hay alguna clase en curso el mismo día
-    const hayClaseEnCurso = filteredClases.some((c) => {
-      if (!c.fechaInicial) return false;
-      return isToday(c.fechaInicial) && getStatus(c) === 'EN CURSO';
-    });
+    const hayClaseEnCurso = filteredClases.some(
+      (c) => claseOcurreHoy(c, currentTime) && getStatus(c) === 'EN CURSO'
+    );
 
     if (!hayClaseEnCurso) {
       return false;
@@ -1315,10 +1279,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
 
     // Obtener todas las clases de hoy ordenadas por hora
     const clasesHoy = filteredClases
-      .filter((c) => {
-        if (!c.fechaInicial) return false;
-        return isToday(c.fechaInicial);
-      })
+      .filter((c) => claseOcurreHoy(c, currentTime))
       .sort((a, b) => {
         const horaA = a.horaInicial || '00:00:00';
         const horaB = b.horaInicial || '00:00:00';
@@ -1347,27 +1308,46 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
    */
   const getStatusBadge = (status: string, clase?: Clase): React.ReactElement | null => {
     const esProxima = clase && esProximaClase(clase);
+    const instructoresAsociados = clase?.instructores_rap ?? [];
+    const otroInstructor = instructoresAsociados.find((i) => i.idContrato !== clase?.contrato_id);
+    const nombreOtroCompartido = otroInstructor?.nombre ?? '';
+    const nombreOtroReemplazo = clase ? nombreOtroInstructorReemplazo(clase) : '';
+
+    const modalidadBadge = clase?.modalidad_rap === 'COMPARTIDO'
+      ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" title={nombreOtroCompartido ? `Compartido con ${nombreOtroCompartido}` : ''}><i className="ki-outline ki-people text-xs"></i>Compartido{nombreOtroCompartido ? ` — ${nombreOtroCompartido}` : ''}</span>
+      : reemplazoActivoEnClase(clase)
+        ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" title={nombreOtroReemplazo ? (clase?.reemplazo_vigente_por_otro ? `Te reemplaza ${nombreOtroReemplazo}` : `Reemplazando a ${nombreOtroReemplazo}`) : 'Reemplazo'}><i className="ki-outline ki-arrow-right-left text-xs"></i>Reemplazo{nombreOtroReemplazo ? ` — ${nombreOtroReemplazo}` : ''}</span>
+        : null;
 
     switch (status) {
       case 'EN CURSO':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
-            <span>En Curso</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
+              <span>En Curso</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       case 'PENDIENTE':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-orange-600"></span>
-            <span>{esProxima ? 'Próxima' : 'Pendiente'}</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-orange-600"></span>
+              <span>{esProxima ? 'Próxima' : 'Pendiente'}</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       case 'COMPLETADO':
         return (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shadow-sm">
-            <i className="ki-outline ki-check text-xs dark:text-gray-300"></i>
-            <span>Completado</span>
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 shadow-sm">
+              <i className="ki-outline ki-check text-xs dark:text-gray-300"></i>
+              <span>Completado</span>
+            </span>
+            {modalidadBadge}
           </span>
         );
       default:
@@ -1464,6 +1444,36 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
     const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
+    const instructoresAsociados = clase.instructores_rap ?? [];
+    const otroInstructor = instructoresAsociados.find((i) => i.idContrato !== clase.contrato_id);
+    const nombreOtroCompartido = otroInstructor?.nombre ?? '';
+    const nombreOtroReemplazo = nombreOtroInstructorReemplazo(clase);
+    const modalidadBadge =
+      clase.modalidad_rap === 'COMPARTIDO' ? (
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+          title={nombreOtroCompartido ? `Compartido con ${nombreOtroCompartido}` : 'Clase compartida'}
+        >
+          <i className="ki-outline ki-people text-xs"></i>
+          Compartido{nombreOtroCompartido ? ` — ${nombreOtroCompartido}` : ''}
+        </span>
+      ) : reemplazoActivoEnClase(clase) ? (
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+          title={
+            nombreOtroReemplazo
+              ? clase.reemplazo_vigente_por_otro
+                ? `Te reemplaza ${nombreOtroReemplazo}`
+                : `Reemplazando a ${nombreOtroReemplazo}`
+              : 'Reemplazo'
+          }
+        >
+          <i className="ki-outline ki-arrow-right-left text-xs"></i>
+          Reemplazo{nombreOtroReemplazo ? ` — ${nombreOtroReemplazo}` : ''}
+        </span>
+      ) : null;
+
+    const calificadoPor = nombresInstructoresCalificacion(clase);
 
     // Formatear fecha usando fechaSesion directamente para garantizar consistencia con el agrupamiento
     const fechaMostrar = formatearFechaSesion(sesion.fechaSesion);
@@ -1487,11 +1497,12 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                   {tituloRap}
                 </p>
               ) : null}
-              <div className="flex items-center gap-2 pt-0.5">
+              <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm">
                   <i className="ki-outline ki-check text-xs"></i>
                   <span>Completado</span>
                 </span>
+                {modalidadBadge}
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                   Sesión {sesion.numeroSesion || 'N/A'}
                 </span>
@@ -1521,10 +1532,15 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                   <i className="ki-outline ki-user text-sm"></i>
                   <span>Evaluado por: {sesion.evaluador_nombre}</span>
                 </div>
-              ) : clase.instructor_nombre ? (
+              ) : calificadoPor ? (
                 <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
                   <i className="ki-outline ki-user text-sm"></i>
-                  <span>Calificado por: {clase.instructor_nombre}</span>
+                  <span>
+                    {clase.modalidad_rap === 'COMPARTIDO' || reemplazoActivoEnClase(clase)
+                      ? 'Calificados por: '
+                      : 'Calificado por: '}
+                    {calificadoPor}
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -1540,16 +1556,30 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   /**
    * Componente reutilizable para renderizar una tarjeta de clase
    */
-  const ClaseCard: React.FC<{ clase: Clase; showProximaFecha?: boolean }> = ({
-    clase,
-    showProximaFecha = false
-  }) => {
+  const ClaseCard: React.FC<{
+    clase: Clase;
+    showProximaFecha?: boolean;
+    fechaPendienteYmd?: string;
+  }> = ({ clase, showProximaFecha = false, fechaPendienteYmd }) => {
     const status = getStatus(clase);
     const jornadaType = getJornadaType(clase.jornada_tipo || '');
     const horario = getHorario(clase);
     const numSesiones = getNumSesiones(clase);
-    const proximaClase = showProximaFecha ? getProximaClasePendiente(clase) : null;
+    const proximaClase = showProximaFecha
+      ? fechaPendienteYmd
+        ? formatDateForGroup(fechaPendienteYmd, jornadaType)
+        : getProximaClasePendiente(clase)
+      : null;
     const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
+    const iconoTarjeta = status === 'EN CURSO' ? (
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-300 dark:border-green-600 flex items-center justify-center">
+        <i className="ki-outline ki-time text-lg text-green-600 dark:text-green-400"></i>
+      </div>
+    ) : (
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
+        <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
+      </div>
+    );
 
     return (
       <div
@@ -1557,9 +1587,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         onClick={() => handleNavigateToClase(clase)}
       >
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
-            <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
-          </div>
+          {iconoTarjeta}
           <div className="flex-1 min-w-0">
             {/* Título y Badge en líneas separadas para mejor espaciado */}
             <div className="mb-2 space-y-1">
@@ -1737,6 +1765,11 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
       ) : (
         <>
           {/* Clases En Curso */}
+          {showEnCurso && clasesEnCurso.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+              No hay clases en curso en este momento.
+            </div>
+          )}
           {showEnCurso && clasesEnCurso.length > 0 && (
             <div className="space-y-3">
               {clasesEnCurso.map((clase) => (
@@ -1745,7 +1778,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
             </div>
           )}
 
-          {/* Clases Pendientes - Agrupadas por fecha */}
+          {/* Pendientes: próxima sesión única por franja (aún no creada en sesionMateria) */}
           {showPendiente && pendientesPorSemanaVistaUnica.length === 0 && (
             <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
               {hayBusqueda
@@ -1763,33 +1796,40 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
                   </span>
                   <div className="h-px flex-1 bg-slate-200 dark:bg-gray-600" />
                 </div>
-                {semana.gruposDia.map(({ rowKey, labelTitulo, clases: clasesGrupo }) => (
+                {semana.gruposDia.map(({ rowKey, labelTitulo, items }) => (
                   <div key={rowKey} className="space-y-3">
-                    {rowKey !== 'sin-fecha-calendario' && (
-                      <div className="flex items-center gap-3 py-2">
-                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {labelTitulo}
-                          </span>
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                            {clasesGrupo.length} {clasesGrupo.length === 1 ? 'clase' : 'clases'}
-                          </span>
-                        </div>
-                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {labelTitulo}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                          {items.length} {items.length === 1 ? 'clase' : 'clases'}
+                        </span>
                       </div>
-                    )}
-                    {clasesGrupo.map((clase) => (
+                      <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                    </div>
+                    {items.map(({ clase, fechaYmd }) => (
                       <ClaseCard
-                        key={`${rowKey}-${clase.idHorarioMateria}`}
+                        key={`${rowKey}-${clase.idHorarioMateria}-${fechaYmd}`}
                         clase={clase}
-                        showProximaFecha={true}
+                        showProximaFecha
+                        fechaPendienteYmd={fechaYmd}
                       />
                     ))}
                   </div>
                 ))}
               </div>
             ))}
+
+          {showCompletado && sesionesCompletadasAgrupadas.todasLasSesiones.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+              {hayBusqueda
+                ? `No hay resultados para «${queryBusquedaDisplay}».`
+                : 'No hay sesiones completadas registradas.'}
+            </div>
+          )}
 
           {/* Clases Completadas - Una tarjeta por cada sesión */}
           {showCompletado && sesionesCompletadasAgrupadas.todasLasSesiones.length > 0 && (

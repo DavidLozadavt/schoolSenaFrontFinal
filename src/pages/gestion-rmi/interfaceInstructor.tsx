@@ -19,6 +19,7 @@ export interface Instructor {
   roles: string[];
   totalHoras: number;
   totalHorasFormato: string;
+  totalHorasProgramadas?: number;
   horarios: HorarioMateria[];
   estado?: string; // 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO'
   idRmi?: number;

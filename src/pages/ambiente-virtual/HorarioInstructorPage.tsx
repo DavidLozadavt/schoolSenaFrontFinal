@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import axios from 'axios';
+import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/container';
 import { KeenIcon } from '@/components';
@@ -11,11 +11,14 @@ import {
   ModalTitle
 } from '@/components/modal';
 import {
-  dedupeClasesAsignadasInstructorPorClaveLogica,
   extraerHoraHHMM,
   titulosCompetenciaYRapUi,
-  columnaHorarioApiClase
+  columnaHorarioApiClase,
+  claseVisibleEnGrillaHorario,
+  minutosFranjaHorarioClase,
+  tipoJornadaClaseAsignada
 } from '@/utils/clasesAsignadasLogica';
+import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 
 /** Columnas Lun–Dom; BD `idDia` 1=Lun … 7=Dom. */
 const DIAS_CORTO = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
@@ -93,11 +96,7 @@ const MESES_ES = [
 ] as const;
 
 function tipoJornadaVisual(clase: ClaseHorario): TipoJornadaVisual {
-  const j = `${clase.jornada_nombre} ${clase.jornada_tipo}`.toLowerCase();
-  if (j.includes('noche') || j.includes('nocturna')) return 'noche';
-  if (j.includes('tarde')) return 'tarde';
-  if (j.includes('mañana') || j.includes('manana') || j.includes('diurna')) return 'manana';
-  return 'otro';
+  return tipoJornadaClaseAsignada(clase);
 }
 
 function clasesTarjetaPorJornada(t: TipoJornadaVisual): string {
@@ -376,10 +375,9 @@ type ItemRenderDia =
 function planificarColumnaDia(diaClases: ClaseHorario[]): ItemRenderDia[] {
   const intervalos: IntervaloClase[] = diaClases
     .map((c) => {
-      const start = horaAMinutos(c.horaInicial, c.jornada_tipo || c.jornada_nombre);
-      const end = horaAMinutos(c.horaFinal, c.jornada_tipo || c.jornada_nombre);
-      if (start == null || end == null || end <= start) return null;
-      return { c, start, end };
+      const mins = minutosFranjaHorarioClase(c);
+      if (!mins) return null;
+      return { c, start: mins.start, end: mins.end };
     })
     .filter(Boolean) as IntervaloClase[];
 
@@ -414,15 +412,140 @@ function scheduleCardKey(colIdx: number, kind: 'hm' | 'rs', id: string | number)
   return `c${colIdx}-${kind}-${id}`;
 }
 
+/** Por encima de esto se muestra acordeón (flecha + texto colapsado con …). Igual que estudiante. */
+const UMBRAL_TEXTO_COMPETENCIA_ACORDEON = 52;
+
+/** Altura fija colapsada: 2 líneas de competencia + pie ficha/aula (no depende de duración del bloque). */
+const ALTURA_TARJETA_HORARIO_PX = 118;
+
+type TarjetaClaseInstructorHorarioProps = {
+  bloque: BloqueConGeometria;
+  competencia: string;
+  salon: string | undefined;
+  jv: TipoJornadaVisual;
+  lineaHoraJornada: string;
+  cardKey: string;
+  topPct: number;
+  topPx: number | undefined;
+  izqPct: number;
+  anchoPct: number;
+  expandido: boolean;
+  onToggleExpandido: () => void;
+  onAbrirDetalle: () => void;
+};
+
+const TarjetaClaseInstructorHorario: React.FC<TarjetaClaseInstructorHorarioProps> = ({
+  bloque,
+  competencia,
+  salon,
+  jv,
+  lineaHoraJornada,
+  cardKey,
+  topPct,
+  topPx,
+  izqPct,
+  anchoPct,
+  expandido,
+  onToggleExpandido,
+  onAbrirDetalle
+}) => {
+  const textoCompetencia = competencia.trim();
+  const conAcordeon = textoCompetencia.length > UMBRAL_TEXTO_COMPETENCIA_ACORDEON;
+  const competenciaId = `competencia-horario-instructor-${bloque.idHorarioMateria}`;
+
+  return (
+    <button
+      type="button"
+      data-card-key={cardKey}
+      data-card-start={String(bloque.start)}
+      onClick={onAbrirDetalle}
+      className={clsx(
+        'absolute z-[1] flex flex-col items-stretch overflow-hidden px-2.5 pb-2.5 pt-1 text-left transition hover:brightness-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-400/80',
+        clasesTarjetaPorJornada(jv),
+        expandido && 'z-[2]'
+      )}
+      style={{
+        top: topPx != null ? `${topPx}px` : `${topPct}%`,
+        left: `${izqPct + 0.5}%`,
+        width: `${anchoPct - 1}%`,
+        ...(expandido
+          ? { height: 'auto', minHeight: ALTURA_TARJETA_HORARIO_PX }
+          : {
+              height: ALTURA_TARJETA_HORARIO_PX,
+              minHeight: ALTURA_TARJETA_HORARIO_PX,
+              maxHeight: ALTURA_TARJETA_HORARIO_PX
+            })
+      }}
+    >
+      {conAcordeon ? (
+        <div
+          role="button"
+          tabIndex={0}
+          className="absolute right-0.5 top-0.5 z-[2] flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-gray-700 transition hover:bg-black/5 dark:text-gray-200 dark:hover:bg-white/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpandido();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleExpandido();
+            }
+          }}
+          aria-expanded={expandido}
+          aria-controls={competenciaId}
+          title={expandido ? 'Contraer competencia' : 'Ver competencia completa'}
+        >
+          <KeenIcon
+            icon="down"
+            className={clsx('text-sm transition-transform duration-200', expandido && 'rotate-180')}
+          />
+        </div>
+      ) : null}
+
+      <div className={clsx('min-w-0', conAcordeon && 'pr-7')}>
+        <div
+          className={`shrink-0 truncate text-[11px] font-semibold leading-tight ${claseTextoHoraJornada(jv)}`}
+        >
+          {lineaHoraJornada}
+        </div>
+        <p
+          id={competenciaId}
+          className={clsx(
+            'mt-1.5 text-xs font-bold uppercase leading-snug text-gray-900 dark:text-gray-50 break-words',
+            conAcordeon && !expandido && 'line-clamp-2'
+          )}
+        >
+          {textoCompetencia}
+        </p>
+      </div>
+
+      <div className="mt-2.5 shrink-0 border-t border-gray-900/10 pt-2 dark:border-white/10">
+        <div className="truncate text-[10px] font-semibold text-gray-700 dark:text-gray-200">
+          Ficha {bloque.ficha_codigo}
+        </div>
+        {salon ? (
+          <div className="mt-0.5 truncate text-[10px] leading-snug text-gray-500 dark:text-gray-400">
+            {salon}
+          </div>
+        ) : null}
+      </div>
+    </button>
+  );
+};
+
 const HorarioInstructorPage: React.FC = () => {
   const navigate = useNavigate();
   const [filtroJornada, setFiltroJornada] = useState<FiltroJornada>('todos');
-  const [loading, setLoading] = useState(true);
+  const { clases: clasesApi, loading } = useClasesInstructorAsignadas();
   const [clases, setClases] = useState<ClaseHorario[]>([]);
   const [modalClase, setModalClase] = useState<ClaseHorario | null>(null);
   const [modalResumen, setModalResumen] = useState<ClaseHorario[] | null>(null);
   /** `top` en px tras apilar por altura real; si falta clave, se usa % por horario. */
   const [cardTopPx, setCardTopPx] = useState<Record<string, number>>({});
+  /** Tarjetas con acordeón abierto (recalcula apilado para empujar las de abajo). */
+  const [tarjetasExpandidas, setTarjetasExpandidas] = useState<Record<string, boolean>>({});
   const columnInnerRefs = useRef<(HTMLDivElement | null)[]>([
     null,
     null,
@@ -434,28 +557,13 @@ const HorarioInstructorPage: React.FC = () => {
   ]);
 
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data } = await axios.get<{ data?: unknown[] }>('fichas/instructor/clases-asignadas');
-        if (cancel) return;
-        const list = Array.isArray(data?.data) ? data.data : [];
-        setClases(dedupeClasesAsignadasInstructorPorClaveLogica<ClaseHorario>(list.map((r) => normalizarClase(r as Record<string, unknown>))));
-      } catch {
-        if (!cancel) setClases([]);
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    setClases(clasesApi.map((r) => normalizarClase(r as Record<string, unknown>)) as ClaseHorario[]);
+  }, [clasesApi]);
 
   const clasesFiltradas = useMemo(() => {
-    if (filtroJornada === 'todos') return clases;
-    return clases.filter((c) => tipoJornadaVisual(c) === filtroJornada);
+    let list = clases.filter((c) => claseVisibleEnGrillaHorario(c));
+    if (filtroJornada === 'todos') return list;
+    return list.filter((c) => tipoJornadaVisual(c) === filtroJornada);
   }, [clases, filtroJornada]);
 
   const nombreCabecera = useMemo(
@@ -472,6 +580,8 @@ const HorarioInstructorPage: React.FC = () => {
     }
     return cols.map((lista) => planificarColumnaDia(lista));
   }, [clasesFiltradas]);
+
+  const recomputarApiladoTarjetasRef = useRef<() => void>(() => {});
 
   useLayoutEffect(() => {
     const recompute = () => {
@@ -519,8 +629,20 @@ const HorarioInstructorPage: React.FC = () => {
           i = j;
         }
       }
-      setCardTopPx(next);
+      setCardTopPx((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if (
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((k) => prev[k] === next[k])
+        ) {
+          return prev;
+        }
+        return next;
+      });
     };
+
+    recomputarApiladoTarjetasRef.current = recompute;
 
     recompute();
     let raf2 = 0;
@@ -536,11 +658,20 @@ const HorarioInstructorPage: React.FC = () => {
       for (let colIdx = 0; colIdx < 7; colIdx++) {
         const col = columnInnerRefs.current[colIdx];
         if (!col) continue;
-        const ro = new ResizeObserver(() => {
+        const roCol = new ResizeObserver(() => {
           window.requestAnimationFrame(recompute);
         });
-        ro.observe(col);
-        observers.push(ro);
+        roCol.observe(col);
+        observers.push(roCol);
+
+        const buttons = col.querySelectorAll<HTMLButtonElement>('button[data-card-key]');
+        for (const btn of buttons) {
+          const roBtn = new ResizeObserver(() => {
+            window.requestAnimationFrame(recompute);
+          });
+          roBtn.observe(btn);
+          observers.push(roBtn);
+        }
       }
     }
 
@@ -549,7 +680,19 @@ const HorarioInstructorPage: React.FC = () => {
       window.cancelAnimationFrame(raf2);
       observers.forEach((o) => o.disconnect());
     };
-  }, [loading, clasesFiltradas, itemsPorColumna]);
+  }, [loading, clasesFiltradas, itemsPorColumna, tarjetasExpandidas]);
+
+  const toggleTarjetaExpandida = useCallback((cardKey: string) => {
+    setTarjetasExpandidas((prev) => {
+      const next = { ...prev, [cardKey]: !prev[cardKey] };
+      return next;
+    });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        recomputarApiladoTarjetasRef.current();
+      });
+    });
+  }, []);
 
   const irAClase = useCallback(
     (clase: ClaseHorario) => {
@@ -654,7 +797,7 @@ const HorarioInstructorPage: React.FC = () => {
                         {itemsPorColumna[colIdx]?.map((item) => {
                           if (item.kind === 'resumen') {
                             const { start, end, clases: lista } = item;
-                            const listaVista = dedupeClasesAsignadasInstructorPorClaveLogica<ClaseHorario>(lista);
+                            const listaVista = lista;
                             const topPct = Math.max(0, ((start - HORA_INICIO_DIA_MIN) / RANGO_MINUTOS) * 100);
                             const hPct = Math.max(
                               ALTURA_MIN_BLOQUE_PCT,
@@ -696,60 +839,34 @@ const HorarioInstructorPage: React.FC = () => {
 
                           const b = item.bloque;
                           const topPct = Math.max(0, ((b.start - HORA_INICIO_DIA_MIN) / RANGO_MINUTOS) * 100);
-                          const hPctRaw = ((b.end - b.start) / RANGO_MINUTOS) * 100;
-                          const hPct = Math.max(ALTURA_MIN_BLOQUE_PCT, hPctRaw);
                           const carriles = Math.max(1, b.laneCount);
                           const anchoPct = 100 / carriles;
                           const izqPct = b.lane * anchoPct;
                           const { competencia } = titulosCompetenciaYRapUi(b);
-                          const titulo = competencia.trim();
                           const salon = b.aula_nombre?.trim();
                           const jv = tipoJornadaVisual(b);
                           const horaIni = formatoHoraCorta(b.start);
                           const horaFin = formatoHoraCorta(b.end);
-                          const lineaHoraJornada = `${horaIni}–${horaFin} · ${etiquetaJornadaLinea(b)}`;
+                          const lineaHoraJornada = `${horaIni}-${horaFin} - ${etiquetaJornadaLinea(b)}`;
                           const cardKey = scheduleCardKey(colIdx, 'hm', b.idHorarioMateria);
 
                           return (
-                            <button
+                            <TarjetaClaseInstructorHorario
                               key={b.idHorarioMateria}
-                              type="button"
-                              data-card-key={cardKey}
-                              data-card-start={String(b.start)}
-                              onClick={() => setModalClase(b)}
-                              className={`absolute z-[1] flex flex-col items-stretch overflow-visible px-2.5 pb-3 pt-2 text-left transition hover:z-[2] hover:brightness-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-400/80 ${clasesTarjetaPorJornada(jv)}`}
-                              style={{
-                                top:
-                                  cardTopPx[cardKey] != null
-                                    ? `${cardTopPx[cardKey]}px`
-                                    : `${topPct}%`,
-                                minHeight: `${hPct}%`,
-                                height: 'auto',
-                                left: `${izqPct + 0.5}%`,
-                                width: `${anchoPct - 1}%`
-                              }}
-                            >
-                              <div
-                                className={`shrink-0 text-xs font-semibold leading-snug tracking-tight ${claseTextoHoraJornada(jv)}`}
-                              >
-                                {lineaHoraJornada}
-                              </div>
-                              <div className="mt-1.5 text-left">
-                                <span className="block text-xs font-bold uppercase leading-relaxed text-gray-900 dark:text-gray-50">
-                                  {titulo}
-                                </span>
-                              </div>
-                              <div className="mt-3 shrink-0 border-t border-gray-900/10 pt-2.5 dark:border-white/10">
-                                <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                  Ficha {b.ficha_codigo}
-                                </div>
-                                {salon ? (
-                                  <div className="mt-0.5 break-words text-[11px] leading-snug text-gray-500 dark:text-gray-400">
-                                    {salon}
-                                  </div>
-                                ) : null}
-                              </div>
-                            </button>
+                              bloque={b}
+                              competencia={competencia}
+                              salon={salon}
+                              jv={jv}
+                              lineaHoraJornada={lineaHoraJornada}
+                              cardKey={cardKey}
+                              topPct={topPct}
+                              topPx={cardTopPx[cardKey]}
+                              izqPct={izqPct}
+                              anchoPct={anchoPct}
+                              expandido={Boolean(tarjetasExpandidas[cardKey])}
+                              onToggleExpandido={() => toggleTarjetaExpandida(cardKey)}
+                              onAbrirDetalle={() => setModalClase(b)}
+                            />
                           );
                         })}
                       </div>
