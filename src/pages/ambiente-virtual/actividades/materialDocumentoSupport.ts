@@ -23,10 +23,30 @@ export type MaterialDocumentoExtension = (typeof MATERIAL_DOCUMENTO_EXTENSIONS)[
 export const MATERIAL_DOCUMENTO_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.sql,.zip,.rar';
 
-export const MATERIAL_DOCUMENTO_FORMATOS_LABEL =
-  'PDF, Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), SQL (.sql), ZIP o RAR';
+export const MAX_FILE_SIZE_MB = 50;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export const MATERIAL_DOCUMENTO_MAX_BYTES = 10 * 1024 * 1024;
+export const FILE_SIZE_EXCEEDED_MESSAGE =
+  'El archivo supera el límite permitido de 50 MB. Selecciona un archivo más liviano.';
+
+export const MATERIAL_DOCUMENTO_FORMATOS_LABEL =
+  'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, ZIP, RAR. Máximo 50 MB.';
+
+/** @deprecated Usar MAX_FILE_SIZE_BYTES */
+export const MATERIAL_DOCUMENTO_MAX_BYTES = MAX_FILE_SIZE_BYTES;
+
+export const ACTIVIDAD_DOCUMENTO_ACCEPT = '.pdf,.doc,.docx';
+
+export const ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL =
+  'Formatos aceptados: PDF, Word (.doc, .docx). Máximo 50 MB.';
+
+export const VIDEO_ACCEPT =
+  'video/mp4,video/webm,video/quicktime,video/x-msvideo,.mp4,.webm,.mov,.avi';
+
+export const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi'] as const;
+
+export const VIDEO_FORMATOS_LABEL =
+  'Formatos permitidos: MP4, WebM, MOV o AVI. Máximo 50 MB.';
 
 const EXTENSION_SET = new Set<string>(MATERIAL_DOCUMENTO_EXTENSIONS);
 
@@ -44,6 +64,32 @@ export function extensionFromPath(path?: string | null): string {
 
 export function isAllowedMaterialDocumentoExtension(ext: string): boolean {
   return ext !== '' && EXTENSION_SET.has(ext);
+}
+
+/** Valida tamaño máximo de archivos académicos; null si es válido. */
+export function validateAcademicFileSize(file: File): string | null {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return FILE_SIZE_EXCEEDED_MESSAGE;
+  }
+  return null;
+}
+
+/** Documento base de actividad (PDF, Word). */
+export function validateActividadDocumentoFile(file: File): string | null {
+  const ext = extensionFromFileName(file.name);
+  if (!['pdf', 'doc', 'docx'].includes(ext)) {
+    return 'Tipo de archivo no permitido. Solo se permiten: PDF, Word (.doc, .docx).';
+  }
+  return validateAcademicFileSize(file);
+}
+
+/** Valida video de biblioteca; null si es válido. */
+export function validateVideoFile(file: File): string | null {
+  const ext = extensionFromFileName(file.name);
+  if (!VIDEO_EXTENSIONS.includes(ext as (typeof VIDEO_EXTENSIONS)[number])) {
+    return 'Tipo de video no permitido. Solo se permiten: MP4, WebM, MOV o AVI.';
+  }
+  return validateAcademicFileSize(file);
 }
 
 /** Valida archivo antes de subir; null si es válido. */
@@ -65,8 +111,9 @@ export function validateMaterialDocumentoFile(file: File): string | null {
     }
   }
 
-  if (file.size > MATERIAL_DOCUMENTO_MAX_BYTES) {
-    return 'El archivo excede el tamaño máximo de 10 MB.';
+  const sizeErr = validateAcademicFileSize(file);
+  if (sizeErr) {
+    return sizeErr;
   }
 
   return null;
