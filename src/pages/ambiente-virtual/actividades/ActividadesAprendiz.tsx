@@ -6,11 +6,15 @@ import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAv
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 import {
+  ENTREGA_EVIDENCIA_ACCEPT,
+  ENTREGA_EVIDENCIA_FORMATOS_LABEL,
   extensionFromPath,
   materialDocumentoActionLabel,
   materialDocumentoBadgeClass,
   materialDocumentoKeenIcon,
   materialDocumentoTypeLabel,
+  MAX_FILE_SIZE_MB,
+  validateEntregaEvidenciaFile,
 } from './materialDocumentoSupport';
 
 type EstadoActividad = 'TODOS' | 'CALIFICADO' | 'POR_EVALUAR' | 'PENDIENTE' | 'SIN_ENTREGAR' | 'CORRECCION_SOLICITADA';
@@ -292,6 +296,17 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       return;
     }
 
+    if (archivo) {
+      const fileError = validateEntregaEvidenciaFile(archivo);
+      if (fileError) {
+        setError(fileError);
+        setArchivo(null);
+        const input = document.getElementById('file-input-responder') as HTMLInputElement | null;
+        if (input) input.value = '';
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
 
@@ -308,45 +323,36 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       onSaved();
       onClose();
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.error || 'No fue posible enviar la respuesta';
+      const data = err?.response?.data;
+      const validationArchivo = data?.errors?.archivo?.[0];
+      const errorMessage =
+        validationArchivo || data?.error || 'No fue posible enviar la respuesta';
       setError(errorMessage);
     } finally {
       setSaving(false);
     }
   }, [actividad, comentario, archivo, onSaved, onSuccess, onClose]);
 
-  // Constantes de validación
-  const VALID_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'zip', 'rar', 'sql']);
-  const VALID_MIME_TYPES = new Set([
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/zip',
-    'application/x-zip-compressed',
-    'application/vnd.rar',
-    'application/x-rar-compressed',
-    'text/plain',
-    'application/sql',
-  ]);
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-  const validateFile = useCallback((file: File): string | null => {
-    const name = String(file.name ?? '').trim();
-    const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? '').toLowerCase();
-    const mime = String(file.type ?? '').trim().toLowerCase();
-
-    const isAllowedByExt = !!ext && VALID_EXTENSIONS.has(ext);
-    const isAllowedByMime = !!mime && VALID_MIME_TYPES.has(mime);
-    const isGenericMime = mime === '' || mime === 'application/octet-stream';
-
-    if ((!isAllowedByExt && !isAllowedByMime) || (isGenericMime && !isAllowedByExt)) {
-      return 'Tipo de archivo no permitido. Solo se permiten: PDF, DOC, DOCX, ZIP, RAR, SQL';
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return 'El archivo excede el tamaño máximo de 10MB';
-    }
-    return null;
+  const clearFileInput = useCallback(() => {
+    setArchivo(null);
+    const input = document.getElementById('file-input-responder') as HTMLInputElement | null;
+    if (input) input.value = '';
   }, []);
+
+  const applySelectedFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      const validationError = validateEntregaEvidenciaFile(file);
+      if (validationError) {
+        setError(validationError);
+        clearFileInput();
+        return;
+      }
+      setArchivo(file);
+      setError(null);
+    },
+    [clearFileInput]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -361,30 +367,15 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      const error = validateFile(file);
-      if (error) {
-        setError(error);
-      } else {
-        setArchivo(file);
-        setError(null);
-      }
-    }
-  }, [validateFile]);
+    applySelectedFile(e.dataTransfer.files?.[0]);
+  }, [applySelectedFile]);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const error = validateFile(file);
-      if (error) {
-        setError(error);
-      } else {
-        setArchivo(file);
-        setError(null);
-      }
-    }
-  }, [validateFile]);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      applySelectedFile(e.target.files?.[0]);
+    },
+    [applySelectedFile]
+  );
 
   // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
   const projectInfo = useMemo(() => {
@@ -662,7 +653,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   type="file"
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".pdf,.doc,.docx,.zip,.rar,.sql"
+                  accept={ENTREGA_EVIDENCIA_ACCEPT}
                 />
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
                   {archivo ? (
@@ -684,7 +675,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   )}
                 </p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  PDF, DOC, DOCX, ZIP, RAR, SQL (máx. 10MB)
+                  {ENTREGA_EVIDENCIA_FORMATOS_LABEL}. Máximo {MAX_FILE_SIZE_MB} MB.
                 </p>
               </div>
               {archivo && (
@@ -697,11 +688,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setArchivo(null);
-                      const input = document.getElementById('file-input-responder') as HTMLInputElement;
-                      if (input) input.value = '';
-                    }}
+                    onClick={clearFileInput}
                     className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                   >
                     <KeenIcon icon="cross" className="w-3.5 h-3.5" />
