@@ -22,3 +22,15 @@ export const getColombianHolidayDateSet = (fromYear: number, toYear: number): Se
 
 export const isColombianHoliday = (date: Date, holidays: Set<string>): boolean =>
   holidays.has(toLocalDateKey(date));
+
+/** Mapa de festivos colombianos: 'YYYY-MM-DD' -> nombre del festivo */
+export const getColombianHolidayMap = (fromYear: number, toYear: number): Map<string, string> => {
+  const hd = new Holidays('CO');
+  const map = new Map<string, string>();
+  for (let year = fromYear; year <= toYear; year++) {
+    hd.getHolidays(year).forEach((holiday: { date: string; name: string }) => {
+      map.set(holiday.date.split(' ')[0], holiday.name);
+    });
+  }
+  return map;
+};

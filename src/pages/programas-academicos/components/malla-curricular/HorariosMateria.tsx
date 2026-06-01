@@ -99,7 +99,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   const [horaGlobalFin, setHoraGlobalFin] = useState('');
 
   // Si es false, la proyección excluye festivos de Colombia
-  const [incluirFestivos, setIncluirFestivos] = useState(false);
+  const [incluirFestivos, setIncluirFestivos] = useState(true);
 
   // Inicializar Formik
   const formik = useFormik({
@@ -295,7 +295,7 @@ const toggleDia = (index: number) => {
         horaFin: h.horaFin
       })),
       esCompartido: values.esCompartido,
-      festivos: incluirFestivos || false,
+      festivos: incluirFestivos || true,
     };
 
     setGuardando(true);
@@ -480,7 +480,7 @@ const toggleDia = (index: number) => {
                 </div>
               </div>
 
-              <div className='flex flex-col md:flex-row gap-2'>
+              <div className='flex flex-col gap-2'>
 
               {/* Horario compartido */}
               <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -499,7 +499,7 @@ const toggleDia = (index: number) => {
               </div>
 
               {/* Incluir festivos en el cálculo */}
-              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              {/* <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <label className="switch">
                   <input
                     type="checkbox"
@@ -517,7 +517,7 @@ const toggleDia = (index: number) => {
                       : 'La proyección omite los festivos oficiales de Colombia al estimar fecha fin y sesiones.'}
                   </p>
                 </div>
-              </div>
+              </div> */}
 
             </div> 
 

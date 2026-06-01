@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import {
   Calendar as CalendarIcon,
@@ -19,7 +19,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
-import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey } from '@/utils/colombianHolidays';
+import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey, getColombianHolidayMap } from '@/utils/colombianHolidays';
 import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
 
 interface CalendarioProps {
@@ -310,6 +310,21 @@ export const Calendario: React.FC<CalendarioProps> = ({
       })),
     [holidayDates]
   );
+
+  const holidayMap = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    let minYear = currentYear;
+    let maxYear = currentYear + 1;
+
+    [...asignados, ...sinAsignar].forEach((h: any) => {
+      const start = parseDate(h.fechaInicial || h.fechaInicio);
+      const end = parseDate(h.fechaFinal || h.fechaFin);
+      if (start) minYear = Math.min(minYear, start.getFullYear());
+      if (end) maxYear = Math.max(maxYear, end.getFullYear());
+    });
+
+    return getColombianHolidayMap(minYear, maxYear);
+  }, [asignados, sinAsignar]);
 
   const horarioIncluyeFestivos = (h: any): boolean =>
     h.festivos === true || h.festivos === 1 || h.festivos === '1';
@@ -657,6 +672,23 @@ const renderEventContent = (arg: EventContentArg) => {
               eventClassNames={(arg) =>
                 arg.event.extendedProps?.isHoliday ? 'holiday-bg' : ''
               }
+              dayCellContent={(arg) => {
+                const key = toLocalDateKey(arg.date);
+                const nombreFestivo = holidayMap.get(key);
+                return (
+                  <div className="w-full flex justify-between items-center gap-2">
+                    {nombreFestivo && (
+                      <span
+                        className="text-[9px] font-semibold uppercase text-white truncate"
+                        title={nombreFestivo}
+                      >
+                        {nombreFestivo}
+                      </span>
+                    )}
+                    <span className="">{arg.dayNumberText}</span>
+                  </div>
+                );
+              }}
             />
           </ModalBody>
 
