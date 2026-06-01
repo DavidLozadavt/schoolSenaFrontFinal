@@ -361,7 +361,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                       {nombreCreador}
                     </p>
                     {item.creador?.email ? (
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate" title={item.creador.email}>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-200 truncate" title={item.creador.email}>
                         {item.creador.email}
                       </p>
                     ) : null}
@@ -420,7 +420,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                     </span>
                   ) : null}
                   {fechaTxt ? (
-                    <span className="inline-flex items-center rounded-full px-2 py-1 text-gray-600 dark:text-gray-400 text-[10px]">
+                    <span className="inline-flex items-center rounded-full px-2 py-1 text-gray-600 dark:text-gray-200 text-[10px]">
                       {fechaTxt}
                     </span>
                   ) : null}
@@ -444,7 +444,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                     Ver recursos
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400 text-center lg:text-right">Sin recursos</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-200 text-center lg:text-right">Sin recursos</span>
                 )}
               </div>
             </div>
@@ -459,13 +459,13 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       {!modoBibliotecaGlobal && (fichaCodigo || rapContextLabel) && (
         <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-gray-200/90 bg-gray-50/80 px-3 py-2.5 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
           <div className="min-w-0 shrink max-w-[min(100%,220px)]">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Ficha</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">Ficha</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={fichaCodigo?.trim()}>
               {fichaCodigo?.trim() || '—'}
             </p>
           </div>
           <div className="min-w-0 flex-1 basis-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">RAP</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">RAP</p>
             <p
               className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:line-clamp-1 break-words"
               title={rapContextLabel?.trim()}
@@ -481,7 +481,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           type="text"
-          className="input w-full"
+          className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-300"
           placeholder="Buscar por título, descripción, competencia, RAP, materia o recurso..."
         />
       </div>
@@ -550,11 +550,11 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                 className="fixed z-[9999] min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1"
                 style={{ top: recursosMenu.top, left: recursosMenu.left }}
               >
-                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">
+                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
                 {acciones.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-200">
                     Sin recursos disponibles
                   </div>
                 ) : (
