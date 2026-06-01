@@ -10,13 +10,13 @@ const FormBuilderPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'editor' | 'respuestas'>(
+  const [activeTab, setActiveTab] = useState<'editor' | 'respuestas' | 'vista_previa'>(
     window.history.state?.usr?.activeTab || 'editor'
   );
 
   useEffect(() => {
     if (window.history.state?.usr?.activeTab) {
-      setActiveTab(window.history.state.usr.activeTab);
+      setActiveTab(window.history.state.usr.activeTab as any);
     }
   }, [id]);
 
@@ -360,7 +360,7 @@ const FormBuilderPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-[760px] mx-auto px-4 pb-20">
+    <div className="max-w-[1100px] mx-auto px-4 pb-20">
       
       {/* Simple Toast */}
       {toast && (
@@ -402,6 +402,12 @@ const FormBuilderPage: React.FC = () => {
                   <i className="bi bi-ui-checks me-1"></i> Preguntas
                 </button>
                 <button
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  onClick={() => setActiveTab('vista_previa')}
+                >
+                  <i className="bi bi-eye me-1"></i> Vista Previa
+                </button>
+                <button
                   className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('respuestas')}
                   disabled={!id}
@@ -431,7 +437,7 @@ const FormBuilderPage: React.FC = () => {
               <button 
                 className="btn btn-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/20" 
                 onClick={() => handleSave()} 
-                disabled={saving || activeTab !== 'editor'}
+                disabled={saving || activeTab === 'respuestas'}
               >
                 {saving ? (
                   <div className="w-3.5 h-3.5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
@@ -518,7 +524,7 @@ const FormBuilderPage: React.FC = () => {
         </div>
       </div>
 
-      {activeTab === 'editor' ? (
+      {activeTab === 'editor' && (
         <div className="questions-container relative">
           {formData.preguntas.map((q, idx) => (
             <QuestionCard
@@ -543,9 +549,151 @@ const FormBuilderPage: React.FC = () => {
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'vista_previa' && (
+        <FormPreviewSection data={formData} />
+      )}
+
+      {activeTab === 'respuestas' && (
         <FormResponsesTab formularioId={id!} />
       )}
+    </div>
+  );
+};
+
+const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
+  return (
+    <div className="flex flex-col gap-6 w-full max-w-[760px] mx-auto px-4 pb-20">
+      {/* Title Card */}
+      <div 
+        className="bg-white dark:bg-neutral-900 p-8 md:p-12 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl relative overflow-hidden"
+        style={{ borderTop: `10px solid ${data.colorTema}` }}
+      >
+        <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-10" style={{ backgroundColor: data.colorTema }} />
+        
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
+            Vista Previa en Tiempo Real
+          </span>
+        </div>
+
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-4">{data.titulo || 'Formulario sin título'}</h1>
+        {data.descripcion && (
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 font-semibold leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
+            {data.descripcion}
+          </p>
+        )}
+      </div>
+
+      {/* Questions list */}
+      {data.preguntas.map((q, idx) => {
+        const scaleConfig = q.configuracion || { min: 1, max: 5, minLabel: '', maxLabel: '' };
+        const scaleArray = Array.from({ length: scaleConfig.max - scaleConfig.min + 1 }, (_, i) => scaleConfig.min + i);
+
+        return (
+          <div 
+            key={q.id || idx}
+            className="bg-white dark:bg-neutral-900 p-8 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-lg"
+            style={{ borderLeft: `6px solid ${data.colorTema}30` }}
+          >
+            <h3 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed">
+              {q.titulo || 'Pregunta sin título'} {q.esObligatoria && <span className="text-rose-500 ml-1">*</span>}
+            </h3>
+            {q.descripcion && <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mb-4">{q.descripcion}</p>}
+            
+            <div className="mt-4">
+              {q.tipo === 'texto_corto' && (
+                <input 
+                  type="text" 
+                  disabled
+                  className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  placeholder="Respuesta corta..."
+                />
+              )}
+
+              {q.tipo === 'texto_largo' && (
+                <textarea 
+                  disabled
+                  className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  rows={3}
+                  placeholder="Respuesta larga..."
+                />
+              )}
+
+              {q.tipo === 'opcion_multiple' && (
+                <div className="flex flex-col gap-2">
+                  {(q.opciones || []).map(opt => (
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                      <input type="radio" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
+                      <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {q.tipo === 'casillas' && (
+                <div className="flex flex-col gap-2">
+                  {(q.opciones || []).map(opt => (
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                      <input type="checkbox" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
+                      <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {q.tipo === 'desplegable' && (
+                <select disabled className="w-full max-w-xs bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider">
+                  <option>Selecciona una opción...</option>
+                  {(q.opciones || []).map(opt => (
+                    <option key={opt.id}>{opt.texto}</option>
+                  ))}
+                </select>
+              )}
+
+              {q.tipo === 'escala_lineal' && (
+                <div className="flex flex-col gap-4 py-4 px-6 bg-neutral-50/50 dark:bg-neutral-800/10 rounded-2xl border border-neutral-100/50">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {scaleArray.map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        disabled
+                        className="w-10 h-10 rounded-full font-black text-xs flex items-center justify-center border border-neutral-200/50 bg-white dark:bg-neutral-800"
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[9px] font-black uppercase text-neutral-400">
+                    <span>{scaleConfig.minLabel || 'Bajo'}</span>
+                    <span>{scaleConfig.maxLabel || 'Alto'}</span>
+                  </div>
+                </div>
+              )}
+
+              {q.tipo === 'fecha' && (
+                <input 
+                  type="date" 
+                  disabled
+                  className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider"
+                />
+              )}
+
+              {q.tipo === 'archivo' && (
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-neutral-800 rounded-3xl cursor-not-allowed bg-neutral-50/20">
+                  <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-neutral-800/50 flex items-center justify-center mb-3">
+                    <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
+                  </div>
+                  <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>
+                  <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">Arrastra aquí o haz clic (Máx 5MB)</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -167,6 +167,7 @@ const QuestionCard: React.FC<Props> = ({
               <option value="escala_lineal">Escala lineal</option>
               <option value="fecha">Fecha</option>
               <option value="hora">Hora</option>
+              <option value="archivo">Subir archivo (PDF o Imagen)</option>
             </select>
           </div>
         </div>
@@ -185,7 +186,7 @@ const QuestionCard: React.FC<Props> = ({
                   
                   <input
                     type="text"
-                    className="flex-1 bg-neutral-50 dark:bg-neutral-850/10 border border-neutral-200 dark:border-neutral-800 px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 rounded-xl outline-none transition-all max-w-[400px]"
+                    className="flex-1 bg-neutral-50 dark:bg-neutral-850/10 border border-neutral-200 dark:border-neutral-800 px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 rounded-xl outline-none transition-all max-w-[650px]"
                     style={focusedField === `option-${oIdx}` ? { borderColor: accentColor, boxShadow: `0 0 0 4px ${accentColor}20` } : {}}
                     onFocus={() => setFocusedField(`option-${oIdx}`)}
                     onBlur={() => setFocusedField(null)}
@@ -324,6 +325,12 @@ const QuestionCard: React.FC<Props> = ({
             <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-850/30 border border-neutral-150 dark:border-neutral-800 px-4 py-2.5 rounded-xl w-fit">
                <input type="time" className="bg-transparent border-0 text-sm text-neutral-450 outline-none cursor-not-allowed" disabled />
                <i className="bi bi-clock text-neutral-400"></i>
+            </div>
+          )}
+          {question.tipo === 'archivo' && (
+            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-850/30 border border-neutral-150 dark:border-neutral-800 px-4 py-2.5 rounded-xl w-fit">
+               <i className="bi bi-cloud-upload text-neutral-400 fs-5"></i>
+               <span className="text-xs text-neutral-400">Subir archivo (PDF o Imagen) (vista previa)</span>
             </div>
           )}
         </div>

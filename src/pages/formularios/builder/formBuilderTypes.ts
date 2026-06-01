@@ -1,4 +1,4 @@
-export type QuestionType = 'texto_corto' | 'texto_largo' | 'opcion_multiple' | 'casillas' | 'desplegable' | 'escala_lineal' | 'fecha' | 'hora';
+export type QuestionType = 'texto_corto' | 'texto_largo' | 'opcion_multiple' | 'casillas' | 'desplegable' | 'escala_lineal' | 'fecha' | 'hora' | 'archivo';
 
 export interface FormOption {
   id?: string | number;
