@@ -18,6 +18,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
   const [loading, setLoading] = useState(true);
   const [selectedResponse, setSelectedResponse] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'tabla' | 'individual'>('tabla');
+  const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -320,23 +321,80 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         {getPreguntaTitulo(item.idPregunta)}
                       </label>
                       <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-250">
-                        {Array.isArray(item.valor) ? (
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {item.valor.map((v, vi) => (
-                              <span
-                                key={vi}
-                                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl"
-                                style={{ backgroundColor: `${accentColor}12`, color: accentColor }}
-                              >
-                                {v}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          item.valor
-                            ? <span>{item.valor}</span>
-                            : <span className="italic text-neutral-350 dark:text-neutral-600 text-xs">Sin respuesta</span>
-                        )}
+                        {(() => {
+                          if (Array.isArray(item.valor)) {
+                            return (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {item.valor.map((v, vi) => (
+                                  <span
+                                    key={vi}
+                                    className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl"
+                                    style={{ backgroundColor: `${accentColor}12`, color: accentColor }}
+                                  >
+                                    {v}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          }
+
+                          const valorStr = String(item.valor || '');
+                          if (!valorStr.trim()) {
+                            return <span className="italic text-neutral-350 dark:text-neutral-600 text-xs">Sin respuesta</span>;
+                          }
+
+                          // Check if the value is a JSON array or a comma-separated list of URLs
+                          let urls: string[] = [];
+                          try {
+                            if (valorStr.startsWith('[') && valorStr.endsWith(']')) {
+                              const parsed = JSON.parse(valorStr);
+                              if (Array.isArray(parsed)) {
+                                urls = parsed;
+                              }
+                            }
+                          } catch (e) {}
+
+                          if (urls.length === 0) {
+                            if (valorStr.includes('http://') || valorStr.includes('https://')) {
+                              urls = valorStr.split(',').map(s => s.trim()).filter(Boolean);
+                            }
+                          }
+
+                          if (urls.length > 0) {
+                            return (
+                              <div className="flex flex-col gap-3 mt-2">
+                                {urls.map((url, uidx) => {
+                                  const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(url);
+                                  return (
+                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/20 border border-neutral-100/50 max-w-lg shadow-inner">
+                                      <div 
+                                        className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-neutral-200/20 bg-neutral-100 flex items-center justify-center ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                        onClick={() => isImage && setActiveLightboxUrl(url)}
+                                      >
+                                        {isImage ? (
+                                          <img src={url} alt="Archivo" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <i className="bi bi-file-earmark-pdf fs-2 text-rose-500"></i>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-black uppercase text-neutral-400 dark:text-neutral-500">
+                                          Archivo {uidx + 1}
+                                        </span>
+                                        <span className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate max-w-[250px] mb-1.5">{url.split('/').pop()}</span>
+                                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1.5 mt-0.5">
+                                          <i className="bi bi-eye"></i> Ver archivo completo
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+
+                          return <span>{valorStr}</span>;
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -346,7 +404,27 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
           )}
         </div>
       )}
-
+      {/* Lightbox Modal */}
+      {activeLightboxUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-all duration-300 animate-fade-in"
+          onClick={() => setActiveLightboxUrl(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg cursor-pointer border-0"
+            onClick={() => setActiveLightboxUrl(null)}
+          >
+            <i className="bi bi-x-lg text-lg"></i>
+          </button>
+          <div className="max-w-[90vw] max-h-[90vh] relative p-2" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={activeLightboxUrl} 
+              alt="Ampliada" 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/10 animate-scale-up" 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

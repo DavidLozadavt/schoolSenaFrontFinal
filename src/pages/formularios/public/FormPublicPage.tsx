@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FormData } from '../builder/formBuilderTypes';
+import type { FormData } from '../builder/formBuilderTypes';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -15,7 +15,12 @@ import {
   ClipboardCheck,
   UserPlus,
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  Upload,
+  File,
+  FileText,
+  X,
+  Eye
 } from 'lucide-react';
 
 const FormPublicPage: React.FC = () => {
@@ -30,6 +35,9 @@ const FormPublicPage: React.FC = () => {
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [validationErrors, setValidationErrors] = useState<number[]>([]);
+  const [uploadingFileId, setUploadingFileId] = useState<number | string | null>(null);
+  const [filePreviews, setFilePreviews] = useState<{ [preguntaId: number | string]: { name: string; url: string }[] }>({});
+  const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -58,6 +66,74 @@ const FormPublicPage: React.FC = () => {
     if (validationErrors.includes(idPregunta as number)) {
       setValidationErrors(prev => prev.filter(id => id !== idPregunta));
     }
+  };
+
+  // Handle public multiple files upload
+  const handleMultipleFilesUpload = async (preguntaId: number | string, filesList: FileList) => {
+    const files = Array.from(filesList);
+    for (const file of files) {
+      const allowedTypes = [
+        'application/pdf', 
+        'image/jpeg', 
+        'image/png', 
+        'image/jpg',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        alert(`El archivo "${file.name}" no es válido. Solo se permiten PDF, Word o imágenes (JPG, PNG).`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`El archivo "${file.name}" supera el tamaño máximo permitido de 5MB.`);
+        continue;
+      }
+
+      setUploadingFileId(preguntaId);
+      const formData = new FormData();
+      formData.append('archivo', file);
+
+      try {
+        const { data } = await axios.post('formulario-publico/upload-adjunto', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (data.success) {
+          setFilePreviews(prev => {
+            const current = prev[preguntaId] || [];
+            const updated = [...current, { name: file.name, url: data.url }];
+            const urlsStr = updated.map(f => f.url).join(',');
+            handleChange(preguntaId, urlsStr);
+            return {
+              ...prev,
+              [preguntaId]: updated
+            };
+          });
+        }
+      } catch (err: any) {
+        alert(`Error al subir el archivo "${file.name}".`);
+      } finally {
+        setUploadingFileId(null);
+      }
+    }
+  };
+
+  const handleRemoveFile = (preguntaId: number | string, index: number) => {
+    setFilePreviews(prev => {
+      const current = prev[preguntaId] || [];
+      const updated = current.filter((_, idx) => idx !== index);
+      const urlsStr = updated.map(f => f.url).join(',');
+      handleChange(preguntaId, urlsStr);
+      
+      const next = { ...prev };
+      if (updated.length === 0) {
+        delete next[preguntaId];
+      } else {
+        next[preguntaId] = updated;
+      }
+      return next;
+    });
   };
 
   const handleCheckboxChange = (idPregunta: number | string, optionText: string, checked: boolean) => {
@@ -581,6 +657,77 @@ const FormPublicPage: React.FC = () => {
                       />
                     </div>
                   )}
+                  {/* ARCHIVO */}
+                  {q.tipo === 'archivo' && (
+                    <div className="mt-2 w-full max-w-md flex flex-col gap-4">
+                      {(() => {
+                        const files = filePreviews[q.id!] || [];
+                        return (
+                          <>
+                            {files.length > 0 && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {files.map((fileInfo, idx) => {
+                                  const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(fileInfo.url);
+                                  const isWord = /\.(doc|docx)$/i.test(fileInfo.url);
+                                  return (
+                                    <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-white/5 shadow-inner">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div 
+                                          className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center border border-neutral-200/20 ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                          onClick={() => isImage && setActiveLightboxUrl(fileInfo.url)}
+                                        >
+                                          {isImage ? (
+                                            <img src={fileInfo.url} alt="Archivo" className="w-full h-full object-cover" />
+                                          ) : isWord ? (
+                                            <FileText className="w-5 h-5 text-blue-500" />
+                                          ) : (
+                                            <File className="w-5 h-5 text-rose-500" />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h4 className="text-xs font-bold text-neutral-800 dark:text-white truncate max-w-[100px]">{fileInfo.name}</h4>
+                                          <a href={fileInfo.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1 mt-1">
+                                            <Eye className="w-3 h-3" /> Ver
+                                          </a>
+                                        </div>
+                                      </div>
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleRemoveFile(q.id!, idx)}
+                                        className="w-8 h-8 rounded-full hover:bg-rose-500/10 hover:text-rose-500 flex items-center justify-center transition-colors shrink-0"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-neutral-300 dark:border-neutral-850 rounded-2xl cursor-pointer hover:border-indigo-500 transition-colors">
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept=".pdf,.doc,.docx,image/*"
+                                multiple
+                                onChange={(e) => e.target.files && handleMultipleFilesUpload(q.id!, e.target.files)}
+                                disabled={uploadingFileId === q.id!}
+                              />
+                              <div className="w-10 h-10 rounded-full bg-neutral-50 dark:bg-neutral-800/50 flex items-center justify-center mb-2">
+                                {uploadingFileId === q.id! ? (
+                                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4 text-neutral-450" />
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-neutral-850 dark:text-neutral-250">Seleccionar archivos</span>
+                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">PDF, Word o Imagen (Máx 5MB)</span>
+                            </label>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Validation Error Message */}
@@ -642,6 +789,28 @@ const FormPublicPage: React.FC = () => {
            <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">Sistema avanzado de gestión educativa</p>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {activeLightboxUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-all duration-300 animate-fade-in"
+          onClick={() => setActiveLightboxUrl(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg cursor-pointer"
+            onClick={() => setActiveLightboxUrl(null)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <div className="max-w-[90vw] max-h-[90vh] relative p-2" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={activeLightboxUrl} 
+              alt="Ampliada" 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/10 animate-scale-up" 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
