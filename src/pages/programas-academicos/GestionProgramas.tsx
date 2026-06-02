@@ -7,6 +7,7 @@ import Toast from './components/Toast';
 import { Program } from './types';
 import InformacionPrograma from './components/InformacionPrograma';
 import MallaCurricular from './components/malla-curricular/MallaCurricular';
+import AperturarPrograma from './proyectoFormativo/AperturarPrograma';
 import { TiposDocumentoModal } from '@/pages/tipos-documento/TiposDocumentoModal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import Select from 'react-select';
@@ -45,6 +46,14 @@ export const GestionProgramas = ({
   const openMallaModal = (program: Program) => {
     setSelectedMallaProgram(program);
     setIsMallaOpen(true);
+  };
+
+  const [isAperturaOpen, setIsAperturaOpen] = useState(false);
+  const [selectedAperturaProgram, setSelectedAperturaProgram] = useState<Program | null>(null);
+
+  const openAperturaModal = (program: Program) => {
+    // Navegar a la página de Aperturar Programa en vez de abrir modal
+    navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/${program.id}/aperturar`);
   };
 
   const authContext = useContext(AuthContext);
@@ -533,13 +542,6 @@ export const GestionProgramas = ({
                             {!esInstructorSena && (
                               <>
                                 <button
-                                  onClick={() => openEditModal(program)}
-                                  title="Actualizar"
-                                  className="flex items-center justify-center flex-1 py-1.5 text-blue-500 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
-                                >
-                                  <i className="text-sm ki-outline ki-arrows-loop"></i>
-                                </button>
-                                <button
                                   onClick={() => openDeleteConfirm(program)}
                                   title="Eliminar"
                                   className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
@@ -555,6 +557,14 @@ export const GestionProgramas = ({
                               className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
+                            </button>
+
+                            <button
+                              title="Aperturar programa"
+                              onClick={() => openAperturaModal(program)}
+                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
+                            >
+                              <i className="text-sm ki-outline ki-toggle-on-circle"></i>
                             </button>
 
                             {!esInstructorSena && (
@@ -629,6 +639,16 @@ export const GestionProgramas = ({
         isOpen={isMallaOpen}
         onClose={() => setIsMallaOpen(false)}
         program={selectedMallaProgram}
+      />
+
+      <AperturarPrograma
+        isOpen={isAperturaOpen}
+        onClose={() => {
+          setIsAperturaOpen(false);
+          setSelectedAperturaProgram(null);
+        }}
+        program={selectedAperturaProgram}
+        onAperturaComplete={fetchProgramas}
       />
 
       <FormularioPrograma
