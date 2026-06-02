@@ -302,9 +302,6 @@ export const GestionProgramas = ({
     setIsInfoOpen(true);
   };
 
-  const handleOpenProgramacionFichas = (program: Program) => {
-    navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas`);
-  };
 
   const optionsRegional = regionales.map((val) => ({
     value: val.id,
@@ -514,10 +511,10 @@ export const GestionProgramas = ({
                           </div>
 
                           <button
-                            onClick={() => handleOpenProgramacionFichas(program)}
+                            onClick={() => openAperturaModal(program)}
                             className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors mb-3"
                           >
-                            Ver Programación de Fichas →
+                            Aperturas →
                           </button>
 
                           <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
@@ -557,14 +554,6 @@ export const GestionProgramas = ({
                               className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
-                            </button>
-
-                            <button
-                              title="Aperturar programa"
-                              onClick={() => openAperturaModal(program)}
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-toggle-on-circle"></i>
                             </button>
 
                             {!esInstructorSena && (
