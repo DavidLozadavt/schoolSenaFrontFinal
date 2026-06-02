@@ -1,17 +1,19 @@
 import axios from 'axios';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataGrid, KeenIcon } from '@/components';
 import { ColumnDef } from '@tanstack/react-table';
 import { ModalConfiguracionPagos } from './ModalConfiguracionPagos';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
+import { useConfirm } from '@/hooks';
+import { useSnackbar } from 'notistack';
 
 interface contentProps {
   reload: boolean;
 }
 
 const ConfiguracionPagosContent = ({ reload }: contentProps) => {
-  const StorageFilteredId = 'filtered_idTipoDocumento';
+  const StorageFilteredId = 'filtered_configuracion_pago';
   const [datos, setDatos] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -20,6 +22,8 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
   const [searchTerm, setSearchTerm] = useState(() => {
     return localStorage.getItem(StorageFilteredId) || '';
   });
+  const { confirmAction } = useConfirm();
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     localStorage.setItem(StorageFilteredId, searchTerm);
@@ -30,20 +34,31 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
       const response = await axios.get(`configuraciones_pago`);
       setDatos(response.data);
     } catch (err) {
-      setError(`Error fetching payment methods: ${err}`);
+      setError(`Error fetching configuraciones de pago: ${err}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteData = async (id: number) => {
-    try {
-      await axios.delete(`delete_configuracion_pago/${id}`);
-      setDatos((data) => data.filter((data) => data.id !== id));
-    } catch (err) {
-      console.log(`Error deleting data: ${err}`);
-    }
-  };
+  const handleDelete = useCallback(
+    async (id: number) => {
+      confirmAction('Esta acción eliminará esta configuración de pago.', async () => {
+        try {
+          await axios.delete(`delete_configuracion_pago/${id}`);
+          enqueueSnackbar('Configuración de pago eliminada exitosamente', { variant: 'success' });
+          fetchData();
+        } catch (err: any) {
+          const errorMessage =
+            err.response?.data?.message ||
+            err.message ||
+            'Error al eliminar la configuración de pago';
+          enqueueSnackbar(errorMessage, { variant: 'error' });
+          throw err;
+        }
+      });
+    },
+    [confirmAction, enqueueSnackbar]
+  );
 
   const handleAfterSave = () => {
     fetchData();
@@ -68,7 +83,7 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
         }
       },
       {
-        accessorFn: (row) => row.configuracion_pago.titulo,
+        accessorFn: (row) => row.titulo,
         id: 'titulo',
         header: () => 'Título del Pago',
         enableSorting: true,
@@ -77,29 +92,44 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
             className="text-sm font-medium leading-none text-gray-900 hover:text-primary"
             to="#"
           >
-            {info.row.original.configuracion_pago.titulo}
+            {info.row.original.titulo}
           </Link>
         ),
         meta: { className: 'min-w-[200px]', cellClassName: 'text-gray-700 font-normal' }
       },
       {
-        accessorFn: (row) => row.configuracion_pago.valor,
+        accessorFn: (row) => row.configuracionPagoVigenciaActual?.valor ?? row.valor,
+
         id: 'valor',
+
         header: () => 'Valor',
+
         enableSorting: true,
-        cell: (info) => (
-          <span className="text-gray-700">
-            $
-            {new Intl.NumberFormat('es-CO', {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(info.row.original.configuracion_pago.valor)}
-          </span>
-        ),
-        meta: { className: 'min-w-[150px]', cellClassName: 'text-gray-700 font-normal' }
+
+        cell: (info) => {
+          const valor =
+            info.row.original.configuracionPagoVigenciaActual?.valor ??
+            info.row.original.valor ??
+            0;
+
+          return (
+            <span className="text-gray-700">
+              $
+              {new Intl.NumberFormat('es-CO', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(valor)}
+            </span>
+          );
+        },
+
+        meta: {
+          className: 'min-w-[150px]',
+          cellClassName: 'text-gray-700 font-normal'
+        }
       },
       {
-        accessorFn: (row) => row.proceso.nombreProceso,
+        accessorFn: (row) => row.asignacion_proceso_pago.proceso.nombrePrceso,
         id: 'proceso',
         header: () => 'Proceso',
         enableSorting: true,
@@ -108,7 +138,7 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
             className="text-sm font-medium leading-none text-gray-900 hover:text-primary"
             to="#"
           >
-            {info.row.original.proceso.nombreProceso}
+            {info.row.original.asignacion_proceso_pago?.proceso?.nombreProceso || 'N/A'}
           </Link>
         ),
         meta: { className: 'min-w-[250px]', cellClassName: 'text-gray-700 font-normal' }
@@ -118,7 +148,7 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
         header: () => 'Estado',
         enableSorting: true,
         cell: (info) => {
-          const estado = info.row.original.configuracion_pago.estado as string;
+          const estado = info.row.original.estado as string;
 
           return (
             <span
@@ -157,15 +187,7 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
         cell: ({ row }) => (
           <button
             className="btn btn-sm btn-icon btn-clear btn-light"
-            onClick={() => {
-              if (
-                window.confirm(
-                  `¿Estás seguro de que deseas eliminar el pago: ${row.original.configuracion_pago.titulo}?`
-                )
-              ) {
-                deleteData(row.original.id);
-              }
-            }}
+            onClick={() => handleDelete(row.original.id)}
           >
             <KeenIcon icon="trash" />
           </button>
@@ -173,7 +195,7 @@ const ConfiguracionPagosContent = ({ reload }: contentProps) => {
         meta: { className: 'w-[60px]' }
       }
     ],
-    []
+    [handleDelete]
   );
 
   const filteredData = useMemo(() => {

@@ -309,7 +309,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Configuración de Pagos',
             path: '/pagos/configuracion-pagos',
-            requiredPermissions: ['GESTION_TIPO_PAGO']
+            requiredPermissions: ['GESTION_CONFIGURACION_PAGOS']
           },
           {
             title: 'Medios de Pago',

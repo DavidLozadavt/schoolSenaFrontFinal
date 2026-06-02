@@ -374,7 +374,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/pagos/configuracion-pagos"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_PAGOS']}>
                 <ConfiguracionPagosPage />
               </ProtectedRoute>
             }
