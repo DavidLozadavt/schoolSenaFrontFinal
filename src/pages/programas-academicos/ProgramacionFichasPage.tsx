@@ -375,12 +375,12 @@ export const ProgramacionFichasPage = () => {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-                Programación de Fichas
+                Programación de grados
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {esInstructorSena
-                  ? 'Fichas asignadas a ti y fichas disponibles para asignarte'
-                  : 'Gestiona las fichas del programa y asigna líderes'}
+                  ? 'Grados asignados a ti y grados disponibles para asignarte'
+                  : 'Gestiona los grados del nivel académico y asigna líderes'}
               </p>
             </div>
             <button
@@ -389,7 +389,7 @@ export const ProgramacionFichasPage = () => {
               onClick={() => setIsModalOpen(true)}
             >
               <i className="ki-outline ki-plus text-lg"></i>
-              Crear Ficha
+              Crear Grado
             </button>
           </div>
 
@@ -429,8 +429,8 @@ export const ProgramacionFichasPage = () => {
               <i className="mb-4 text-5xl text-gray-400 ki-outline ki-file-deleted"></i>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {esInstructorSena
-                  ? 'No tienes fichas asignadas en este programa'
-                  : 'No hay fichas registradas para este programa'}
+                  ? 'No tienes grados asignados en este programa'
+                  : 'No hay grados registrados para este programa'}
               </p>
             </div>
           ) : (
@@ -504,7 +504,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                                  Ficha {ficha.codigo}
+                                  {ficha.codigo}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${
