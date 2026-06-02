@@ -37,12 +37,12 @@ const AperturarProgramaPage: React.FC = () => {
         setLoading(true);
         const res = await axios.get(`aperturarprograma/disponibles`, { params: { idPrograma } });
         const data = res.data;
-        const p = data && (Array.isArray(data) ? data[0] : data);
+        const p = data[0];
         if (p && p.id) {
           setProgram({
             id: Number(p.id),
-            name: p.nombrePrograma || p.name || '',
-            codigo: p.codigoPrograma || p.codigo || ''
+            name: p.programa.nombrePrograma,
+            codigo: p.programa.codigoPrograma
           });
         } else {
           setError('Programa no encontrado.');
