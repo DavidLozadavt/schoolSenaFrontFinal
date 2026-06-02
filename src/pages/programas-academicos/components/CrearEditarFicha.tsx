@@ -81,28 +81,12 @@ const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
       .typeError('Debe seleccionar una apertura')
       .required('Debe seleccionar una apertura'),
 
-    // En edición el programa se puede cambiar; en creación viene por prop
-    idPrograma: isEditing
-      ? Yup.number()
-          .typeError('Debe seleccionar un programa')
-          .required('Debe seleccionar un programa')
-      : Yup.number().nullable(),
-
     idSede: Yup.number()
       .min(1, 'Debe seleccionar una sede')
       .typeError('Debe seleccionar una sede')
       .required('Debe seleccionar una sede'),
 
-    // Estado solo se valida en edición
-    estado: isEditing
-      ? Yup.string().required('Debe seleccionar un estado')
-      : Yup.string().nullable(),
-
     idInfraestructura: Yup.number().nullable(),
-
-    idJornada: Yup.number()
-      .typeError('Debe seleccionar una jornada')
-      .required('Debe seleccionar una jornada'),
 
     codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
@@ -465,9 +449,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </h3>
                 </div>
 
-                {/* Código */}
+                {/* Grado */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Código de la ficha</label>
+                  <label className="text-sm font-medium text-gray-700">Grado</label>
                   <input
                     type="text"
                     name="codigo"
@@ -486,70 +470,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                     <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
                   )}
                 </div>
-
-                {/* Porcentaje de ejecución */}
-                <div>
-                  <div className="md:col-span-2 mt-3">
-                    <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
-                  </div>
-                  <input
-                    type="number"
-                    name="porcentajeEjecucion"
-                    min={1}
-                    max={100}
-                    value={formik.values.porcentajeEjecucion ?? ''}
-                    onChange={(e) =>
-                      formik.setFieldValue(
-                        'porcentajeEjecucion',
-                        e.target.value === '' ? null : Number(e.target.value)
-                      )
-                    }
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                    placeholder="Ej: 75"
-                  />
-                  {formik.touched.porcentajeEjecucion && formik.errors.porcentajeEjecucion && (
-                    <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
-                  )}
-                </div>
-
-                {/* Programa (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Programa</label>
-                    <Select
-                      options={optionsProgramas}
-                      placeholder="Seleccione el programa"
-                      isClearable
-                      value={optionsProgramas.find((o) => o.value === formik.values.idPrograma)}
-                      onChange={(option) => formik.setFieldValue('idPrograma', option?.value || 0)}
-                      onBlur={() => formik.setFieldTouched('idPrograma', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.idPrograma && formik.errors.idPrograma && (
-                      <p className="text-red-500 text-xs">{formik.errors.idPrograma}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Estado (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Estado</label>
-                    <Select
-                      options={ESTADOS_APERTURA}
-                      placeholder="Seleccione el estado"
-                      isClearable
-                      value={ESTADOS_APERTURA.find((o) => o.value === formik.values.estado)}
-                      onChange={(option) => formik.setFieldValue('estado', option?.value || '')}
-                      onBlur={() => formik.setFieldTouched('estado', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.estado && formik.errors.estado && (
-                      <p className="text-red-500 text-xs">{formik.errors.estado}</p>
-                    )}
-                  </div>
-                )}
 
                 {/* ── Ubicación ────────────────────────────────────── */}
                 <div className="md:col-span-2 mt-4">
@@ -648,23 +568,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </div>
                   {formik.touched.idInfraestructura && formik.errors.idInfraestructura && (
                     <p className="text-red-500 text-xs mt-1">{formik.errors.idInfraestructura}</p>
-                  )}
-                </div>
-
-                {/* Jornada */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Jornada</label>
-                  <Select
-                    options={optionsJornadas}
-                    placeholder="Seleccione la jornada"
-                    isClearable
-                    value={optionsJornadas.find((o) => o.value === formik.values.idJornada)}
-                    onChange={(option) => formik.setFieldValue('idJornada', option?.value || 0)}
-                    onBlur={() => formik.setFieldTouched('idJornada', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idJornada && formik.errors.idJornada && (
-                    <p className="text-red-500 text-xs">{formik.errors.idJornada}</p>
                   )}
                 </div>
 

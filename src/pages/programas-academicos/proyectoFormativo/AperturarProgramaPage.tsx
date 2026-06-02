@@ -87,8 +87,9 @@ const AperturarProgramaPage: React.FC = () => {
     if (!program) return;
     try {
       setLoadingAperturas(true);
-      const res = await axios.get('/aperturaPrograma');
-      console.log(res);
+      const res = await axios.get(`aperturarprograma/disponibles`,
+          {params: { idPrograma: idPrograma || program.id }}
+        );
       const data = res.data.data || res.data;
       const filtered = Array.isArray(data)
         ? data.filter((a: any) => a.idPrograma === program.id || a.programa?.id === program.id)
