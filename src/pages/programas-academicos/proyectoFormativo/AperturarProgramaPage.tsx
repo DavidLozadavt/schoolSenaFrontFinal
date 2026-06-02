@@ -35,8 +35,8 @@ const AperturarProgramaPage: React.FC = () => {
     const loadProgram = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`/aperturaPrograma/${idPrograma}`);
-        const data = res.data.data || res.data;
+        const res = await axios.get(`aperturarprograma/disponibles`, { params: { idPrograma } });
+        const data = res.data;
         const p = data && (Array.isArray(data) ? data[0] : data);
         if (p && p.id) {
           setProgram({
@@ -91,10 +91,7 @@ const AperturarProgramaPage: React.FC = () => {
           {params: { idPrograma: idPrograma || program.id }}
         );
       const data = res.data.data || res.data;
-      const filtered = Array.isArray(data)
-        ? data.filter((a: any) => a.idPrograma === program.id || a.programa?.id === program.id)
-        : [];
-      setAperturas(filtered);
+      setAperturas(data);
     } catch (err) {
       console.error('Error cargando aperturas:', err);
     } finally {

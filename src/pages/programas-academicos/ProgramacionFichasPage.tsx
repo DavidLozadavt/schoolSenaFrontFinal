@@ -172,7 +172,7 @@ export const ProgramacionFichasPage = () => {
 
       const centroId = Number(centroF) !== 0 ? Number(centroF) : Number(user?.idCentroFormacion);
 
-      const res = await axios.get(`fichas/programa/${programId}/${centroId}`);
+      const res = await axios.get(`fichas/programa/${programId}`,);
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {
