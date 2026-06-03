@@ -1,9 +1,9 @@
 import { FacturaSolicitudMock, EstadoFactura } from '../mockFacturaSolicitud';
-import { SolicitudInscripcionMock } from '../mockSolicitudesInscripcion';
+import { SolicitudInscripcion } from '../solicitudInscripcionTypes';
 import { formatearPeso } from '../validacionSolicitudTypes';
 
 interface Props {
-  solicitud: SolicitudInscripcionMock;
+  solicitud: SolicitudInscripcion;
   factura: FacturaSolicitudMock | null;
 }
 
@@ -15,20 +15,15 @@ const estilosEstadoFactura: Record<EstadoFactura, string> = {
 };
 
 const Paso2RevisionPago = ({ solicitud, factura }: Props) => {
-  const sinCobro = !solicitud.requierePago || !factura || !factura.requierePago;
-
-  if (sinCobro) {
+  if (!factura) {
     return (
       <div className="space-y-4">
         <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">
           Revisión de pago
         </h3>
-        <div className="p-5 border border-emerald-200 rounded-xl bg-emerald-50/80 dark:bg-emerald-500/10 dark:border-emerald-500/30">
-          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-            Esta solicitud no requiere pago.
-          </p>
-          <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-300">
-            No hay factura asociada para cobro. Puede continuar al siguiente paso sin registrar pago.
+        <div className="p-5 border border-gray-200 rounded-xl bg-gray-50 dark:bg-coal-400/50">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            No hay factura asociada a esta solicitud.
           </p>
         </div>
       </div>

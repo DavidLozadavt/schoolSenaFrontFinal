@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Container } from '@/components/container';
 import {
@@ -9,13 +9,18 @@ import {
   ToolbarPageTitle
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
-import { getFacturaPorSolicitud } from './mockFacturaSolicitud';
-import { getSolicitudPorId } from './mockSolicitudesInscripcion';
+import Spinner from '@/components/loaders/Spinner';
+import { FacturaSolicitudMock } from './mockFacturaSolicitud';
 import {
   buildValidacionPayload,
   initialWizardState,
   ValidacionSolicitudWizardState
 } from './validacionSolicitudTypes';
+import {
+  EstudianteSolicitudInscripcion,
+  SolicitudInscripcion
+} from './solicitudInscripcionTypes';
+import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion } from './validacionInscripcionApi';
 import Paso1RecibirInscripcion from './steps/Paso1RecibirInscripcion';
 import Paso2RevisionPago from './steps/Paso2RevisionPago';
 import Paso3InformacionSolicitante from './steps/Paso3InformacionSolicitante';
@@ -27,23 +32,60 @@ const STEPS = [
   { number: 2, title: 'Revisión de pago', icon: 'ki-bill' },
   { number: 3, title: 'Información solicitante', icon: 'ki-profile-user' },
   { number: 4, title: 'Pago de matrícula', icon: 'ki-wallet' },
-  { number: 5, title: 'Validación final', icon: 'ki-check-circle' }
+  { number: 5, title: 'Resumen', icon: 'ki-check-circle' }
 ];
 
 const ValidacionSolicitudInscripcionPage = () => {
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
   const { idSolicitud } = useParams<{ idSolicitud: string }>();
-  const solicitudId = Number(idSolicitud);
+  const idFactura = Number(idSolicitud);
 
-  const solicitud = useMemo(() => getSolicitudPorId(solicitudId), [solicitudId]);
-  const factura = useMemo(
-    () => (solicitud ? getFacturaPorSolicitud(solicitud.idSolicitud) : null),
-    [solicitud]
-  );
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [solicitud, setSolicitud] = useState<SolicitudInscripcion | null>(null);
+  const [estudiante, setEstudiante] = useState<EstudianteSolicitudInscripcion | null>(null);
+  const [factura, setFactura] = useState<FacturaSolicitudMock | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [wizard, setWizard] = useState<ValidacionSolicitudWizardState>(initialWizardState);
+  const [finalizando, setFinalizando] = useState(false);
+
+  useEffect(() => {
+    if (!idFactura || Number.isNaN(idFactura)) {
+      setLoading(false);
+      setSolicitud(null);
+      return;
+    }
+
+    let cancelado = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      setWizard(initialWizardState);
+      setCurrentStep(0);
+      try {
+        const detalle = await fetchSolicitudInscripcionDetalle(idFactura);
+        if (cancelado) return;
+        setSolicitud(detalle.solicitud);
+        setEstudiante(detalle.estudiante);
+        setFactura(mapFacturaApiToMock(detalle.factura, detalle.solicitud.idSolicitud));
+      } catch (err) {
+        console.error(err);
+        if (!cancelado) {
+          setError('No se pudo cargar la solicitud. Verifique que la factura exista.');
+          setSolicitud(null);
+          setEstudiante(null);
+          setFactura(null);
+        }
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [idFactura]);
 
   const omitirPasoPago = useMemo(() => {
     if (!solicitud?.requierePago) return true;
@@ -84,8 +126,7 @@ const ValidacionSolicitudInscripcionPage = () => {
   };
 
   const aplicarRevisionPagoAlSalirPaso2 = () => {
-    const requiere =
-      Boolean(solicitud?.requierePago && factura?.requierePago && factura);
+    const requiere = Boolean(solicitud?.requierePago && factura?.requierePago && factura);
     setWizard((w) => ({
       ...w,
       pagoRevisado: true,
@@ -116,20 +157,43 @@ const ValidacionSolicitudInscripcionPage = () => {
     setCurrentStep(getPrevStepIndex(currentStep));
   };
 
-  const handleFinalizar = () => {
-    if (!solicitud) return;
-    const payload = buildValidacionPayload(solicitud, factura, wizard);
-    console.log('Payload validación solicitud inscripción:', payload);
-    alert(
-      'Maqueta: validación registrada en consola. Sin guardar en servidor hasta conectar backend.'
-    );
-    navigate('/gestion-academica/inscripciones/solicitudes');
+  const handleFinalizar = async () => {
+    if (!idFactura || Number.isNaN(idFactura)) return;
+
+    setFinalizando(true);
+    setError('');
+    try {
+      if (solicitud?.estado !== 'APROBADA' && !solicitud?.validacionCompletada) {
+        await aprobarValidacionSolicitudInscripcion(idFactura, wizard.observacionesFinales || undefined);
+      }
+      navigate('/gestion-academica/inscripciones/solicitudes?tab=aprobadas');
+    } catch (err) {
+      console.error(err);
+      setError('No se pudo registrar la aprobación. Verifique que la factura esté pagada e intente de nuevo.');
+    } finally {
+      setFinalizando(false);
+    }
   };
 
-  if (!solicitud) {
+  const yaAprobada = solicitud?.estado === 'APROBADA' || solicitud?.validacionCompletada;
+
+  if (loading) {
     return (
       <Container>
-        <p className="py-10 text-sm text-center text-gray-500">Solicitud no encontrada.</p>
+        <div className="flex flex-col items-center py-20">
+          <Spinner />
+          <p className="mt-3 text-sm text-gray-500">Cargando solicitud y factura…</p>
+        </div>
+      </Container>
+    );
+  }
+
+  if (error || !solicitud) {
+    return (
+      <Container>
+        <p className="py-10 text-sm text-center text-gray-500">
+          {error || 'Solicitud no encontrada.'}
+        </p>
         <button
           type="button"
           onClick={() => navigate('/gestion-academica/inscripciones/solicitudes')}
@@ -141,7 +205,7 @@ const ValidacionSolicitudInscripcionPage = () => {
     );
   }
 
-  const payloadPreview = buildValidacionPayload(solicitud, factura, wizard);
+  const payloadPreview = buildValidacionPayload(solicitud, factura, wizard, estudiante);
 
   return (
     <Fragment>
@@ -169,6 +233,19 @@ const ValidacionSolicitudInscripcionPage = () => {
 
       <Container>
         <div className="max-w-5xl mx-auto py-4 space-y-6">
+          {yaAprobada && (
+            <div className="p-4 text-sm border border-emerald-200 rounded-xl bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-200">
+              Esta solicitud ya fue validada y aprobada. Puede revisar el resumen o volver al listado
+              de aprobadas.
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 text-sm border border-red-200 rounded-xl bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-300">
+              {error}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             {STEPS.map((step, index) => {
               const omitido = index === 3 && omitirPasoPago;
@@ -207,6 +284,7 @@ const ValidacionSolicitudInscripcionPage = () => {
             {currentStep === 2 && (
               <Paso3InformacionSolicitante
                 solicitud={solicitud}
+                estudiante={estudiante}
                 revisada={wizard.informacionRevisada}
                 onRevisadaChange={(v) => setWizard((w) => ({ ...w, informacionRevisada: v }))}
               />
@@ -221,6 +299,7 @@ const ValidacionSolicitudInscripcionPage = () => {
                 onMedioChange={(m) => setWizard((w) => ({ ...w, medioPagoSeleccionado: m }))}
                 onTipoChange={(t) => setWizard((w) => ({ ...w, tipoPagoSeleccionado: t }))}
                 onPagoRegistradoChange={(v) => setWizard((w) => ({ ...w, pagoRegistrado: v }))}
+                onFacturaActualizada={setFactura}
               />
             )}
             {currentStep === 4 && (
@@ -256,9 +335,14 @@ const ValidacionSolicitudInscripcionPage = () => {
               <button
                 type="button"
                 onClick={handleFinalizar}
-                className="px-4 py-2 text-xs font-bold text-white uppercase rounded-lg bg-emerald-600 hover:bg-emerald-700"
+                disabled={finalizando}
+                className="px-4 py-2 text-xs font-bold text-white uppercase rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
               >
-                Finalizar validación (maqueta)
+                {finalizando
+                  ? 'Guardando…'
+                  : yaAprobada
+                    ? 'Volver al listado'
+                    : 'Aprobar y volver al listado'}
               </button>
             )}
           </div>

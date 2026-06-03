@@ -1,6 +1,8 @@
 import { FacturaDetalleMock, FacturaSolicitudMock } from './mockFacturaSolicitud';
-import { EstudianteInscripcionMock, getEstudiantePorId } from './mockEstudiantesInscripcion';
-import { SolicitudInscripcionMock } from './mockSolicitudesInscripcion';
+import {
+  EstudianteSolicitudInscripcion,
+  SolicitudInscripcion
+} from './solicitudInscripcionTypes';
 
 export interface MedioTipoPagoSeleccion {
   id: number;
@@ -31,11 +33,11 @@ export const initialWizardState: ValidacionSolicitudWizardState = {
 
 export interface ValidacionSolicitudPayload {
   idSolicitud: number;
-  idEstudiante: number;
+  idEstudiante: number | null;
   idMatricula: number | null;
-  idPrograma: number;
+  idPrograma: number | null;
   estudiante: Pick<
-    EstudianteInscripcionMock,
+    EstudianteSolicitudInscripcion,
     'nombreCompleto' | 'tipoDocumento' | 'documento' | 'email' | 'celular' | 'estadoMatricula'
   > | null;
   idFactura: number | null;
@@ -55,11 +57,11 @@ export interface ValidacionSolicitudPayload {
 }
 
 export function buildValidacionPayload(
-  solicitud: SolicitudInscripcionMock,
+  solicitud: SolicitudInscripcion,
   factura: FacturaSolicitudMock | null,
-  wizard: ValidacionSolicitudWizardState
+  wizard: ValidacionSolicitudWizardState,
+  estudiante: EstudianteSolicitudInscripcion | null
 ): ValidacionSolicitudPayload {
-  const estudiante = getEstudiantePorId(solicitud.idEstudiante);
   return {
     idSolicitud: solicitud.idSolicitud,
     idEstudiante: solicitud.idEstudiante,
@@ -74,14 +76,21 @@ export function buildValidacionPayload(
           celular: estudiante.celular,
           estadoMatricula: estudiante.estadoMatricula
         }
-      : null,
-    idFactura: factura?.idFactura ?? null,
-    numeroFactura: factura?.numeroFactura ?? null,
-    idTransaccion: factura?.idTransaccion ?? null,
-    estadoFactura: factura?.estadoFactura ?? null,
+      : {
+          nombreCompleto: solicitud.nombreEstudiante,
+          tipoDocumento: 'CC',
+          documento: solicitud.documento,
+          email: solicitud.email,
+          celular: solicitud.telefono,
+          estadoMatricula: solicitud.estadoMatricula
+        },
+    idFactura: factura?.idFactura ?? solicitud.idFactura ?? null,
+    numeroFactura: factura?.numeroFactura ?? solicitud.numeroFactura ?? null,
+    idTransaccion: factura?.idTransaccion ?? solicitud.idTransaccion ?? null,
+    estadoFactura: factura?.estadoFactura ?? solicitud.estadoFactura ?? null,
     facturaDetalles: factura?.detalles ?? [],
-    totalFactura: factura?.total ?? 0,
-    saldoPendiente: factura?.saldoPendiente ?? 0,
+    totalFactura: factura?.total ?? solicitud.totalFactura ?? 0,
+    saldoPendiente: factura?.saldoPendiente ?? solicitud.saldoPendiente ?? 0,
     requierePago: wizard.pagoRequerido,
     pagoRevisado: wizard.pagoRevisado,
     pagoRegistrado: wizard.pagoRegistrado,

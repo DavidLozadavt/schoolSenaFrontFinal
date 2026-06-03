@@ -1,7 +1,7 @@
-import { SolicitudInscripcionMock } from '../mockSolicitudesInscripcion';
+import { SolicitudInscripcion } from '../solicitudInscripcionTypes';
 
 interface Props {
-  solicitud: SolicitudInscripcionMock;
+  solicitud: SolicitudInscripcion;
   recibida: boolean;
   onRecibidaChange: (value: boolean) => void;
 }
@@ -22,6 +22,9 @@ const Paso1RecibirInscripcion = ({ solicitud, recibida, onRecibidaChange }: Prop
           {solicitud.numeroSolicitud}
         </p>
         <p className="text-xs text-gray-500">{solicitud.fechaSolicitud}</p>
+        {solicitud.numeroFactura && (
+          <p className="text-xs text-primary">Factura {solicitud.numeroFactura}</p>
+        )}
       </div>
       <div className="p-4 border border-gray-200 rounded-xl bg-white dark:bg-coal-500 dark:border-white/10">
         <span className="text-[10px] font-bold uppercase text-gray-500">Programa</span>

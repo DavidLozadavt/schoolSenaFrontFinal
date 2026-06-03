@@ -9,10 +9,11 @@ interface Props {
 
 const Paso5ValidacionFinal = ({ payload, observaciones, onObservacionesChange }: Props) => (
   <div className="space-y-4">
-    <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">Validación final</h3>
+    <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">Resumen</h3>
     <p className="text-xs text-gray-600 dark:text-gray-400">
-      Revise el resumen del proceso. Al finalizar se imprimirá el payload en consola (maqueta, sin
-      guardar en servidor).
+      Revise el resumen. Al confirmar, la solicitud quedará <strong>aprobada</strong> y pasará al
+      listado de aprobadas. El único dato financiero que se guarda antes es el pago (paso 4), en{' '}
+      <strong>transacción</strong> y <strong>pagos</strong>. La matrícula la gestionan otras áreas.
     </p>
 
     <div className="p-5 space-y-3 border border-gray-200 rounded-xl bg-white dark:bg-coal-500 dark:border-white/10">
@@ -33,6 +34,12 @@ const Paso5ValidacionFinal = ({ payload, observaciones, onObservacionesChange }:
         )}
         <span className="text-gray-500">Factura</span>
         <span className="font-bold">{payload.numeroFactura ?? 'N/A'}</span>
+        {payload.idTransaccion != null && (
+          <>
+            <span className="text-gray-500">Transacción</span>
+            <span className="font-bold">#{payload.idTransaccion}</span>
+          </>
+        )}
         <span className="text-gray-500">Estado factura</span>
         <span className="font-bold">{payload.estadoFactura ?? '—'}</span>
         <span className="text-gray-500">Total factura</span>

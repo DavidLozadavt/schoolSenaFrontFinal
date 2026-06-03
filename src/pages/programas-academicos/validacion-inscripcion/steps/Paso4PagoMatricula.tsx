@@ -10,6 +10,10 @@ import {
 import { FacturaSolicitudMock } from '../mockFacturaSolicitud';
 import { formatearPeso } from '../validacionSolicitudTypes';
 import { MedioTipoPagoSeleccion } from '../validacionSolicitudTypes';
+import {
+  mapFacturaApiToMock,
+  registrarPagoFacturaAcademica
+} from '../validacionInscripcionApi';
 
 interface Props {
   factura: FacturaSolicitudMock | null;
@@ -20,6 +24,7 @@ interface Props {
   onMedioChange: (medio: MedioTipoPagoSeleccion | null) => void;
   onTipoChange: (tipo: MedioTipoPagoSeleccion | null) => void;
   onPagoRegistradoChange: (value: boolean) => void;
+  onFacturaActualizada?: (factura: FacturaSolicitudMock) => void;
 }
 
 const Paso4PagoMatricula = ({
@@ -30,15 +35,18 @@ const Paso4PagoMatricula = ({
   tipoSeleccionado,
   onMedioChange,
   onTipoChange,
-  onPagoRegistradoChange
+  onPagoRegistradoChange,
+  onFacturaActualizada
 }: Props) => {
   const [mediosPago, setMediosPago] = useState<MedioPagoOption[]>([]);
   const [tiposPago, setTiposPago] = useState<TipoPagoOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(false);
+  const [registrandoPago, setRegistrandoPago] = useState(false);
   const [error, setError] = useState('');
+  const [mensajeExito, setMensajeExito] = useState('');
 
   const cargarCatalogos = useCallback(async () => {
-    setLoading(true);
+    setLoadingCatalogos(true);
     setError('');
     try {
       const [resMedios, resTipos] = await Promise.all([
@@ -57,7 +65,7 @@ const Paso4PagoMatricula = ({
       console.error(err);
       setError('No se pudieron cargar medios y tipos de pago.');
     } finally {
-      setLoading(false);
+      setLoadingCatalogos(false);
     }
   }, [onTipoChange, tipoSeleccionado]);
 
@@ -70,25 +78,45 @@ const Paso4PagoMatricula = ({
   const totalFactura = factura?.total ?? 0;
 
   const puedeRegistrar = useMemo(
-    () => requiereRegistroPago && medioSeleccionado !== null && !pagoRegistrado,
-    [requiereRegistroPago, medioSeleccionado, pagoRegistrado]
+    () =>
+      requiereRegistroPago &&
+      medioSeleccionado !== null &&
+      !pagoRegistrado &&
+      !registrandoPago,
+    [requiereRegistroPago, medioSeleccionado, pagoRegistrado, registrandoPago]
   );
 
-  const handleRegistrarMock = () => {
+  const handleRegistrarPago = async () => {
     if (!factura || !medioSeleccionado) return;
-    console.log('Registro mock pago matrícula (validación solicitud):', {
-      idFactura: factura.idFactura,
-      numeroFactura: factura.numeroFactura,
-      total: factura.total,
-      saldoPendiente: factura.saldoPendiente,
-      medioPago: medioSeleccionado,
-      tipoPago: tipoSeleccionado,
-      detalles: factura.detalles
-    });
-    alert(
-      `Maqueta: pago registrado por ${formatearPeso(factura.total)} con ${medioSeleccionado.nombre}. Sin guardar en servidor.`
-    );
-    onPagoRegistradoChange(true);
+
+    setRegistrandoPago(true);
+    setError('');
+    setMensajeExito('');
+
+    try {
+      const respuesta = await registrarPagoFacturaAcademica(factura.idFactura, {
+        idMedioPago: medioSeleccionado.id,
+        idTipoPago: tipoSeleccionado?.id,
+        valorAbono: factura.saldoPendiente > 0 ? factura.saldoPendiente : factura.total
+      });
+
+      const facturaActualizada = mapFacturaApiToMock(respuesta.factura, factura.idSolicitud);
+      onFacturaActualizada?.(facturaActualizada);
+      onPagoRegistradoChange(true);
+      setMensajeExito(
+        `Pago registrado correctamente. Transacción #${respuesta.idTransaccion} — ${formatearPeso(facturaActualizada.total)} con ${medioSeleccionado.nombre}.`
+      );
+    } catch (err: unknown) {
+      console.error(err);
+      const detalle =
+        axios.isAxiosError(err) && err.response?.data
+          ? (err.response.data as { error?: string; detalle?: string }).error ??
+            (err.response.data as { detalle?: string }).detalle
+          : null;
+      setError(detalle ?? 'No se pudo registrar el pago. Verifique que la factura exista en el sistema.');
+    } finally {
+      setRegistrandoPago(false);
+    }
   };
 
   if (!requiereRegistroPago) {
@@ -135,7 +163,7 @@ const Paso4PagoMatricula = ({
         </div>
       )}
 
-      {loading ? (
+      {loadingCatalogos ? (
         <div className="flex flex-col items-center py-10">
           <Spinner />
           <p className="mt-2 text-sm text-gray-500">Cargando medios y tipos de pago…</p>
@@ -186,17 +214,22 @@ const Paso4PagoMatricula = ({
           {pagoRegistrado ? (
             <div className="p-4 border border-emerald-200 rounded-xl bg-emerald-50/80 dark:bg-emerald-500/10">
               <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                Pago registrado (maqueta). Puede continuar a validación final.
+                {mensajeExito || 'Pago registrado correctamente. Puede continuar a validación final.'}
               </p>
+              {factura.idTransaccion != null && (
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                  Transacción #{factura.idTransaccion}
+                </p>
+              )}
             </div>
           ) : (
             <button
               type="button"
               disabled={!puedeRegistrar}
-              onClick={handleRegistrarMock}
+              onClick={handleRegistrarPago}
               className="w-full py-2 text-xs font-bold text-white uppercase rounded-lg bg-primary hover:bg-primary-active disabled:opacity-50"
             >
-              Registrar pago (maqueta)
+              {registrandoPago ? 'Registrando pago…' : 'Registrar pago'}
             </button>
           )}
         </>

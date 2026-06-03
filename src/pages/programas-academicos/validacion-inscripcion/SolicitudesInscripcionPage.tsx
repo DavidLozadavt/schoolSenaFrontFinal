@@ -20,7 +20,7 @@ const SolicitudesInscripcionPage = () => {
             <ToolbarHeading>
               <ToolbarPageTitle text="Solicitudes de inscripción" />
               <ToolbarDescription>
-                Validación administrativa de solicitudes de inscripción
+                Revisión de solicitudes y registro de pago en facturas académicas (matrícula la gestionan otras áreas)
               </ToolbarDescription>
             </ToolbarHeading>
           </Toolbar>
