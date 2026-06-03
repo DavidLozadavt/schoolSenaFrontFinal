@@ -152,6 +152,7 @@ import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativ
 import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
 import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
+import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -925,7 +926,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gestion-academica/inscripciones/solicitudes"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
                 <SolicitudesInscripcionPage />
               </ProtectedRoute>
             }
@@ -933,7 +934,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gestion-academica/inscripciones/solicitudes/:idSolicitud/validar"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
                 <ValidacionSolicitudInscripcionPage />
               </ProtectedRoute>
             }

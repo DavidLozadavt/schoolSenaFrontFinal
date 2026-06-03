@@ -149,7 +149,7 @@ const ValidacionSolicitudInscripcionPage = () => {
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <ToolbarPageTitle />
+              <ToolbarPageTitle text="Validar solicitud" />
               <ToolbarDescription>
                 {solicitud.numeroSolicitud} — {solicitud.nombreEstudiante}
               </ToolbarDescription>

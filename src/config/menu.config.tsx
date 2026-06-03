@@ -25,7 +25,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
           {
             title: 'Solicitudes de inscripción',
             path: '/gestion-academica/inscripciones/solicitudes',
-            requiredPermissions: ['GESTION_ACADEMICA']
+            requiredPermissions: ['GESTION_SOLICITUDES_INSCRIPCION', 'GESTION_ACADEMICA']
           },
           {
             title: 'Periodos',

@@ -18,7 +18,7 @@ const SolicitudesInscripcionPage = () => {
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <ToolbarPageTitle />
+              <ToolbarPageTitle text="Solicitudes de inscripción" />
               <ToolbarDescription>
                 Validación administrativa de solicitudes de inscripción
               </ToolbarDescription>

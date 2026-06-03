@@ -113,7 +113,9 @@ const SolicitudesInscripcionContent = () => {
           className="input input-sm max-w-xs"
         />
       </div>
-      <DataGrid columns={columns} data={filtered} />
+      <div className="card-body">
+        <DataGrid columns={columns} data={filtered} pagination={{ size: 10 }} />
+      </div>
     </div>
   );
 };
