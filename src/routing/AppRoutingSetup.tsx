@@ -81,6 +81,14 @@ import { FacturacionElectronicaPage } from '@/pages/facturacion-electronica/Fact
 import { GrupoNominaPage } from '@/pages/grupo-nomina';
 import ReservasPage from '@/pages/reservas-pendientes/ReservasPage';
 import { ConfiguracionPagosPage } from '@/pages/configuracion-pagos';
+import {
+  ConfiguracionValoresEconomicosPage,
+  PERMISO_GESTION_VALORES_ECONOMICOS
+} from '@/pages/configuracion-valores-economicos';
+import {
+  FacturasAcademicasPage,
+  PERMISOS_ACCESO_VER_FACTURAS
+} from '@/pages/facturas-academicas';
 import { TarifasPage } from '@/pages/tarifas';
 import CalendarioReunionesPage from '@/pages/calendario-reuniones/ReunionesPage';
 import Pedidos from '@/pages/gestion-pedidos/Pedidos';
@@ -141,6 +149,10 @@ import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
 import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativo/AperturarProgramaPage';
+import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
+import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
+import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
+import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -350,6 +362,51 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_AREAS']}>
                 <AreaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/configuracion-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_PAGOS']}>
+                <ConfiguracionPagosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/configuracion-valores-economicos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <ConfiguracionValoresEconomicosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/facturas-academicas"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VER_FACTURAS]}>
+                <FacturasAcademicasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
               </ProtectedRoute>
             }
           />
@@ -855,6 +912,30 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <ProgramasEntryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/pagos/checkout"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CheckoutMetodosPagoAcademicoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <SolicitudesInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes/:idSolicitud/validar"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <ValidacionSolicitudInscripcionPage />
               </ProtectedRoute>
             }
           />
