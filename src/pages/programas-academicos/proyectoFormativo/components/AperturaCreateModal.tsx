@@ -9,7 +9,7 @@ interface AperturaCreateModalProps {
   programId: number;
   periodos: any[];
   sedes: any[];
-  jornadas:any[];
+  jornadas: any[];
   onSuccess: () => void;
   aperturaToEdit?: any | null;
 }
@@ -122,14 +122,44 @@ const validationSchema = Yup.object().shape({
     ),
 
   // ─── OTROS ────────────────────────────────────────────────────────────────
-  observacion: Yup.string()
-    .required('La observación es obligatoria')
-    .max(1000, 'Máximo 1000 caracteres'),
-  pension: Yup.boolean().required('Debe indicar si tiene pensión'),
-  valorPension: Yup.number().nullable().typeError('Debe ser un número'),
-  diasMoraMatricula: Yup.number().nullable().typeError('Debe ser un número entero'),
-  porcentajeMoraPension: Yup.number().nullable().typeError('Debe ser un número'),
-  diaCobroPension: Yup.number().nullable().typeError('Debe ser un número entero')
+  observacion: Yup.string().max(1000, 'Máximo 1000 caracteres'),
+  pension: Yup.boolean().required(),
+  valorPension: Yup.number()
+    .nullable()
+    .transform((v, orig) => (orig === '' ? null : v))
+    .typeError('Debe ser un número')
+    .when('pension', {
+      is: true,
+      then: (schema) => schema.required('El valor de pensión es obligatorio'),
+      otherwise: (schema) => schema.nullable().optional()
+    }),
+  diasMoraMatricula: Yup.number()
+    .nullable()
+    .transform((v, orig) => (orig === '' ? null : v))
+    .typeError('Debe ser un número entero')
+    .when('pension', {
+      is: true,
+      then: (schema) => schema.required('Los días de mora son obligatorios'),
+      otherwise: (schema) => schema.nullable().optional()
+    }),
+  porcentajeMoraPension: Yup.number()
+    .nullable()
+    .transform((v, orig) => (orig === '' ? null : v))
+    .typeError('Debe ser un número')
+    .when('pension', {
+      is: true,
+      then: (schema) => schema.required('El porcentaje de mora es obligatorio'),
+      otherwise: (schema) => schema.nullable().optional()
+    }),
+  diaCobro: Yup.number()
+    .nullable()
+    .transform((v, orig) => (orig === '' ? null : v))
+    .typeError('Debe ser un número entero')
+    .when('pension', {
+      is: true,
+      then: (schema) => schema.required('El día de cobro es obligatorio'),
+      otherwise: (schema) => schema.nullable().optional()
+    })
 });
 
 const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
@@ -159,7 +189,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
     idPeriodo: '',
     idJornada: '',
     idSede: '',
-    estado: 'ABIERTO',
+    estado: 'EN CURSO',
     tipoCalificacion: 'NUMERICO',
     fechaInicialClases: new Date().toISOString().split('T')[0],
     fechaFinalClases: new Date().toISOString().split('T')[0],
@@ -174,7 +204,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
     valorPension: '',
     diasMoraMatricula: '',
     porcentajeMoraPension: '',
-    diaCobroPension: ''
+    diaCobro: ''
   });
 
   const [formData, setFormData] = useState(getInitialFormState());
@@ -188,7 +218,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
           idPeriodo: aperturaToEdit.idPeriodo || aperturaToEdit.periodo?.id || '',
           idJornada: aperturaToEdit.idJornada || aperturaToEdit.jornada?.id || '',
           idSede: aperturaToEdit.idSede || aperturaToEdit.sede?.id || '',
-          estado: aperturaToEdit.estado || 'ABIERTO',
+          estado: aperturaToEdit.estado || 'EN CURSO',
           tipoCalificacion: aperturaToEdit.tipoCalificacion || 'NUMERICO',
           fechaInicialClases:
             aperturaToEdit.fechaInicialClases?.split('T')[0] ||
@@ -227,7 +257,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
           valorPension: aperturaToEdit.valorPension || '',
           diasMoraMatricula: aperturaToEdit.diasMoraMatricula || '',
           porcentajeMoraPension: aperturaToEdit.porcentajeMoraPension || '',
-          diaCobroPension: aperturaToEdit.diaCobroPension || ''
+          diaCobro: aperturaToEdit.diaCobro || ''
         });
       } else {
         setFormData(getInitialFormState());
@@ -243,6 +273,18 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
 
     if (type === 'checkbox') {
       finalValue = (e.target as HTMLInputElement).checked;
+      // Limpiar campos de pensión si se desmarca
+      if (name === 'pension' && !finalValue) {
+        setFormData((prev) => ({
+          ...prev,
+          pension: false,
+          valorPension: '',
+          diasMoraMatricula: '',
+          porcentajeMoraPension: '',
+          diaCobro: ''
+        }));
+        return;
+      }
     } else {
       finalValue = e.target.value;
     }
@@ -278,13 +320,18 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
       case 'valorPension':
       case 'diasMoraMatricula':
       case 'porcentajeMoraPension':
-      case 'diaCobroPension':
+      case 'diaCobro':
         return 5;
       default:
         return 0;
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && currentStep < steps.length - 1) {
+      e.preventDefault();
+    }
+  };
   const validateForm = async () => {
     try {
       await validationSchema.validate(formData, { abortEarly: false });
@@ -333,8 +380,8 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
         porcentajeMoraPension: formData.porcentajeMoraPension
           ? parseFloat(formData.porcentajeMoraPension as string)
           : null,
-        diaCobroPension: formData.diaCobroPension
-          ? parseInt(formData.diaCobroPension as string)
+        diaCobro: formData.diaCobro
+          ? parseInt(formData.diaCobro as string)
           : null
       };
 
@@ -504,6 +551,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         onChange={handleInputChange}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.estado ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       >
+                        <option value="EN CURSO">EN CURSO</option>
                         <option value="ABIERTO">ABIERTO</option>
                         <option value="CERRADO">CERRADO</option>
                       </select>
@@ -545,6 +593,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaInicialInscripciones"
                         value={formData.fechaInicialInscripciones}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaInicialInscripciones ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaInicialInscripciones && (
@@ -562,6 +611,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaFinalInscripciones"
                         value={formData.fechaFinalInscripciones}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaFinalInscripciones ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaFinalInscripciones && (
@@ -586,6 +636,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaInicialMatriculas"
                         value={formData.fechaInicialMatriculas}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaInicialMatriculas ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaInicialMatriculas && (
@@ -603,6 +654,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaFinalMatriculas"
                         value={formData.fechaFinalMatriculas}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaFinalMatriculas ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaFinalMatriculas && (
@@ -627,6 +679,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaInicialClases"
                         value={formData.fechaInicialClases}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaInicialClases ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaInicialClases && (
@@ -642,6 +695,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaFinalClases"
                         value={formData.fechaFinalClases}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaFinalClases ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaFinalClases && (
@@ -664,6 +718,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaInicialPlanMejoramiento"
                         value={formData.fechaInicialPlanMejoramiento}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaInicialPlanMejoramiento ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaInicialPlanMejoramiento && (
@@ -681,6 +736,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="fechaFinalPlanMejoramiento"
                         value={formData.fechaFinalPlanMejoramiento}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.fechaFinalPlanMejoramiento ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                       />
                       {formErrors.fechaFinalPlanMejoramiento && (
@@ -717,6 +773,7 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         name="pension"
                         checked={formData.pension}
                         onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                         className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
@@ -732,13 +789,33 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                          Días Mora Matrícula
+                        </label>
+                        <input
+                          type="number"
+                          name="diasMoraMatricula"
+                          value={formData.diasMoraMatricula ?? 0}
+                          onChange={handleInputChange}
+                          onKeyDown={handleKeyDown}
+                          className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.diasMoraMatricula ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
+                        />
+                        {formErrors.diasMoraMatricula && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {formErrors.diasMoraMatricula}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
                           Valor Pensión
                         </label>
                         <input
                           type="number"
                           name="valorPension"
-                          value={formData.valorPension}
+                          value={formData.valorPension ?? 0}
                           onChange={handleInputChange}
+                          onKeyDown={handleKeyDown}
                           className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.valorPension ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                         />
                         {formErrors.valorPension && (
@@ -753,8 +830,9 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                           type="number"
                           step="0.01"
                           name="porcentajeMoraPension"
-                          value={formData.porcentajeMoraPension}
+                          value={formData.porcentajeMoraPension ?? 0}
                           onChange={handleInputChange}
+                          onKeyDown={handleKeyDown}
                           className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.porcentajeMoraPension ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                         />
                         {formErrors.porcentajeMoraPension && (
@@ -769,34 +847,18 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                         </label>
                         <input
                           type="number"
-                          name="diaCobroPension"
-                          value={formData.diaCobroPension}
+                          name="diaCobro"
+                          value={formData.diaCobro ?? 0}
                           onChange={handleInputChange}
-                          className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.diaCobroPension ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
+                          onKeyDown={handleKeyDown}
+                          className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.diaCobro ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
                         />
-                        {formErrors.diaCobroPension && (
-                          <p className="text-xs text-red-500 mt-1">{formErrors.diaCobroPension}</p>
+                        {formErrors.diaCobro && (
+                          <p className="text-xs text-red-500 mt-1">{formErrors.diaCobro}</p>
                         )}
                       </div>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
-                        Días Mora Matrícula
-                      </label>
-                      <input
-                        type="number"
-                        name="diasMoraMatricula"
-                        value={formData.diasMoraMatricula}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border ${formErrors.diasMoraMatricula ? 'border-red-500' : 'border-gray-200 dark:border-coal-300'} rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none`}
-                      />
-                      {formErrors.diasMoraMatricula && (
-                        <p className="text-xs text-red-500 mt-1">{formErrors.diasMoraMatricula}</p>
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
             </fieldset>
@@ -821,14 +883,19 @@ const AperturaCreateModal: React.FC<AperturaCreateModalProps> = ({
                 </button>
                 {currentStep < steps.length - 1 ? (
                   <button
+                    key="btn-next"
                     type="button"
-                    onClick={() => setCurrentStep(currentStep + 1)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCurrentStep(currentStep + 1);
+                    }}
                     className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-colors text-sm font-bold"
                   >
                     Siguiente
                   </button>
                 ) : (
                   <button
+                    key="btn-submit"
                     type="submit"
                     disabled={isSubmitting}
                     className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg shadow-green-500/20 transition-all text-sm font-bold disabled:opacity-50"

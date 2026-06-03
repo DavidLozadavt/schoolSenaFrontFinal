@@ -37,15 +37,15 @@ const AperturarProgramaPage: React.FC = () => {
     const loadProgram = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`aperturarprograma/disponibles`, { params: { idPrograma } });
-        const data = res.data;
-        const p = data[0];
-        if (p && p.id) {
-          console.log(p)
+        const res = await axios.get('/programas');
+        const data = res.data.data || res.data;
+        const list = Array.isArray(data) ? data : [];
+        const p = list.find((prog: any) => prog.id === Number(idPrograma));
+        if (p) {
           setProgram({
             id: Number(p.id),
-            name: p.programa.nombrePrograma,
-            codigo: p.programa.codigoPrograma
+            name: p.nombrePrograma,
+            codigo: p.codigoPrograma
           });
         } else {
           setError('Programa no encontrado.');
@@ -74,13 +74,13 @@ const AperturarProgramaPage: React.FC = () => {
       setError(null);
       const [periodosRes, sedesRes] = await Promise.all([
         axios.get('/periodos'),
-        axios.get('/sedesSena'),
+        axios.get('/sedesSena')
       ]);
-      
+
       setPeriodos(periodosRes.data.data || periodosRes.data || []);
       const sedesData = sedesRes.data.data || sedesRes.data || [];
       setSedes(sedesData);
-      
+
       // Cargar jornadas si hay sedes disponibles
       if (sedesData.length > 0 && sedesData[0]?.centro_formacion?.id) {
         try {
@@ -107,11 +107,11 @@ const AperturarProgramaPage: React.FC = () => {
     if (!program) return;
     try {
       setLoadingAperturas(true);
-      const res = await axios.get(`aperturarprograma/disponibles`,
-          {params: { idPrograma: idPrograma || program.id }}
-        );
+      const res = await axios.get(`aperturarprograma/disponibles`, {
+        params: { idPrograma: idPrograma || program.id }
+      });
       const data = res.data.data || res.data;
-      setAperturas(data);
+      setAperturas(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error cargando aperturas:', err);
     } finally {
