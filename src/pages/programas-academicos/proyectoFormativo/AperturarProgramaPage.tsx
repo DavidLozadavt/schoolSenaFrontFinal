@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import AperturaCard from './components/AperturaCard';
 import AperturaCreateModal from './components/AperturaCreateModal';
+import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 
 interface Program {
   id: number;
@@ -20,6 +21,7 @@ const AperturarProgramaPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [periodos, setPeriodos] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
+  const [jornadas, setJornadas] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [aperturas, setAperturas] = useState<any[]>([]);
@@ -39,6 +41,7 @@ const AperturarProgramaPage: React.FC = () => {
         const data = res.data;
         const p = data[0];
         if (p && p.id) {
+          console.log(p)
           setProgram({
             id: Number(p.id),
             name: p.programa.nombrePrograma,
@@ -71,10 +74,27 @@ const AperturarProgramaPage: React.FC = () => {
       setError(null);
       const [periodosRes, sedesRes] = await Promise.all([
         axios.get('/periodos'),
-        axios.get('/sedes')
+        axios.get('/sedesSena'),
       ]);
+      
       setPeriodos(periodosRes.data.data || periodosRes.data || []);
-      setSedes(sedesRes.data.data || sedesRes.data || []);
+      const sedesData = sedesRes.data.data || sedesRes.data || [];
+      setSedes(sedesData);
+      
+      // Cargar jornadas si hay sedes disponibles
+      if (sedesData.length > 0 && sedesData[0]?.centro_formacion?.id) {
+        try {
+          const jornadasRes = await axios.get('/jornadas/agrupadas', {
+            params: { idCentroFormacion: sedesData[0].centro_formacion.id }
+          });
+          setJornadas(jornadasRes.data.data || jornadasRes.data || []);
+        } catch (err) {
+          console.error('Error cargando jornadas:', err);
+          setJornadas([]);
+        }
+      } else {
+        setJornadas([]);
+      }
     } catch (err) {
       console.error('Error cargando datos:', err);
       setError('No se pudieron cargar los datos necesarios');
@@ -272,6 +292,7 @@ const AperturarProgramaPage: React.FC = () => {
           programId={program.id}
           periodos={periodos}
           sedes={sedes}
+          jornadas={jornadas}
           onSuccess={loadAperturas}
           aperturaToEdit={aperturaToEdit}
         />
