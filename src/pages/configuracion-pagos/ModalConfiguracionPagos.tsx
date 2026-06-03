@@ -4,12 +4,19 @@ import { KeenIcon } from '@/components';
 import axios from 'axios';
 import Select from 'react-select';
 import Spinner from '@/components/loaders/Spinner';
+import { useSnackbar } from 'notistack';
+import {
+  ConfiguracionPagosVariant,
+  existeProcesoMatricula,
+  getLabelsConfiguracionPagos
+} from './configuracionPagosShared';
 
 interface ModalProps {
   open: boolean;
   data?: any;
   onClose: () => void;
   onSave?: () => void;
+  variant?: ConfiguracionPagosVariant;
 }
 
 interface ConfiguracionPagoVigencia {
@@ -20,7 +27,16 @@ interface ConfiguracionPagoVigencia {
   fechaFinal: string | null;
 }
 
-const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) => {
+const ModalConfiguracionPagos = ({
+  open,
+  onClose,
+  data,
+  onSave,
+  variant = 'pagos'
+}: ModalProps) => {
+  const labels = getLabelsConfiguracionPagos(variant);
+  const { enqueueSnackbar } = useSnackbar();
+  const [errorTitulo, setErrorTitulo] = useState('');
   const [tituloPago, setTituloPago] = useState('');
   const [description, setDescription] = useState('');
   const [valor, setValor] = useState<number>(0);
@@ -103,6 +119,11 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
         value: Number(proceso.id),
         label: String(proceso.nombreProceso || `Proceso #${proceso.id}`)
       })),
+    [procesos]
+  );
+
+  const procesoMatriculaDisponible = useMemo(
+    () => existeProcesoMatricula(procesos),
     [procesos]
   );
 
@@ -594,11 +615,28 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
   const handleSave = async () => {
     setLoading(true);
     try {
+      const tituloLimpio = String(tituloPago ?? '').trim();
+      if (!tituloLimpio) {
+        setErrorTitulo('El nombre del concepto es obligatorio.');
+        return;
+      }
+      setErrorTitulo('');
+
       if (!idProceso || Number(idProceso) === 0) {
         setErrorProceso('El proceso es requerido.');
         return;
       }
       setErrorProceso('');
+
+      if (
+        variant === 'economicos' &&
+        !ocultarCampoValor &&
+        porcentaje === '' &&
+        (valor < 0 || Number.isNaN(valor))
+      ) {
+        enqueueSnackbar('El valor debe ser numérico y mayor o igual a 0.', { variant: 'warning' });
+        return;
+      }
       if (
         !ocultarCampoValor &&
         porcentaje === '' &&
@@ -637,7 +675,7 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
         // idContabilizacion: idContabilizacion ? Number(idContabilizacion) : null,
         // idCentroCosto: idCentroCosto ? Number(idCentroCosto) : null,
         tipoMovimiento: tipoMovimiento || null,
-        titulo: tituloPago,
+        titulo: tituloLimpio,
         detalle: description,
         valor: ocultarCampoValor ? 0 : porcentaje !== '' && Number(porcentaje) > 0 ? null : valor,
         porcentaje:
@@ -691,12 +729,22 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
         await axios.post('store_configuracion_pago', payload);
       }
 
+      enqueueSnackbar(
+        data ? 'Configuración guardada correctamente' : 'Configuración creada correctamente',
+        { variant: 'success' }
+      );
+
       if (onSave) {
         onSave();
       }
       clearFields();
-    } catch (error) {
-      console.error('Error al guardar el documento:', error);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        'No fue posible guardar la configuración';
+      enqueueSnackbar(msg, { variant: 'error' });
+      console.error('Error al guardar configuración de pago:', error);
     } finally {
       setLoading(false);
     }
@@ -839,9 +887,7 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
     
            <ModalContent className="max-w-[700px] top-[5%] max-h-[100vh] overflow-y-auto p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
         <ModalHeader>
-          <ModalTitle>
-            {data ? 'Editar Configuración de Pago' : 'Nueva Configuración de Pago'}
-          </ModalTitle>
+          <ModalTitle>{data ? labels.modalEdit : labels.modalCreate}</ModalTitle>
           <button
             className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
             onClick={() => {
@@ -854,14 +900,29 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
         </ModalHeader>
         {loading && <Spinner />}
         <ModalBody className="grid gap-5 px-0 py-5">
+          {variant === 'economicos' && !procesoMatriculaDisponible && (
+            <div className="mx-auto w-[calc(100%-2rem)] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              No se encontró el proceso <strong>MATRICULA</strong> en el catálogo. Puede asociar el
+              concepto a otro proceso existente. Solicite al administrador crear el proceso MATRICULA
+              en base de datos si lo requiere para matrícula académica.
+            </div>
+          )}
+
+          {variant === 'economicos' && (
+            <p className="mx-auto w-[calc(100%-2rem)] text-xs text-gray-500 dark:text-gray-400">
+              Los valores configurados preparan recibos o facturas (cobro pendiente). No
+              procesan pagos en pasarela.
+            </p>
+          )}
+
           <div className="flex flex-col gap-1 w-[calc(100%-2rem)] mx-auto">
             <label htmlFor="tituloDoc" className="text-sm font-medium text-gray-700">
-              Título de la configuración
+              {labels.labelTitulo}
             </label>
             <input
               id="tituloDoc"
               className="input p-2 border border-gray-300 rounded-md"
-              placeholder="Ingrese el título de la configuración"
+              placeholder={labels.placeholderTitulo}
               type="text"
               value={tituloPago}
               disabled={
@@ -869,18 +930,24 @@ const ModalConfiguracionPagos = ({ open, onClose, data, onSave }: ModalProps) =>
                   .trim()
                   .toUpperCase() === 'PLANILLA'
               }
-              onChange={(e) => setTituloPago(e.target.value)}
+              onChange={(e) => {
+                setTituloPago(e.target.value);
+                if (errorTitulo) setErrorTitulo('');
+              }}
             />
+            {errorTitulo ? (
+              <p className="text-xs text-red-600 dark:text-red-400">{errorTitulo}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1 w-[calc(100%-2rem)] mx-auto">
             <label htmlFor="descripcion" className="text-sm font-medium text-gray-700">
-              Descripción
+              {labels.labelDescripcion}
             </label>
             <textarea
               id="descripcion"
               className="textarea p-2 border border-gray-300 rounded-md"
-              placeholder="Ingrese la descripción"
+              placeholder={labels.placeholderDescripcion}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
