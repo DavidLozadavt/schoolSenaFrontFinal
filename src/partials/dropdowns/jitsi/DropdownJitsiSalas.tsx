@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { MenuSub } from '@/components/menu';
 
 interface IDropdownJitsiSalasProps {
@@ -17,6 +18,7 @@ const roomNameFromCodigo = (codigo: string) => `meet-${normalizarCodigo(codigo).
 const DropdownJitsiSalas = ({ menuTtemRef }: IDropdownJitsiSalasProps) => {
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
+  const [validating, setValidating] = useState(false);
 
   const handleClose = () => {
     if (menuTtemRef.current) {
@@ -24,7 +26,7 @@ const DropdownJitsiSalas = ({ menuTtemRef }: IDropdownJitsiSalasProps) => {
     }
   };
 
-  const abrirSalaConCodigo = () => {
+  const abrirSalaConCodigo = async () => {
     const codigoNormalizado = normalizarCodigo(codigo);
 
     if (!codigoNormalizado) {
@@ -33,6 +35,29 @@ const DropdownJitsiSalas = ({ menuTtemRef }: IDropdownJitsiSalasProps) => {
     }
 
     setError('');
+    setValidating(true);
+
+    // Validar que la reunión exista y haya iniciado
+    try {
+      const response = await axios.get('reuniones_temporales');
+      const reuniones: any[] = response.data || [];
+      const reunion = reuniones.find(
+        (r: any) => normalizarCodigo(r.codigo || '') === codigoNormalizado
+      );
+
+      if (reunion && reunion.start_at) {
+        const inicio = new Date(reunion.start_at).getTime();
+        if (inicio > Date.now()) {
+          setValidating(false);
+          setError(`Esta reunión inicia el ${new Date(reunion.start_at).toLocaleString()}. Aún no puedes ingresar.`);
+          return;
+        }
+      }
+    } catch {
+      // Si falla la validación, igual permitimos entrar (el servidor validará)
+    }
+
+    setValidating(false);
     handleClose();
 
     const room = roomNameFromCodigo(codigoNormalizado);
@@ -49,16 +74,16 @@ const DropdownJitsiSalas = ({ menuTtemRef }: IDropdownJitsiSalasProps) => {
   return (
     <MenuSub
       rootClassName="w-full max-w-[280px]"
-      className="relative overflow-hidden rounded-xl border border-white/10 bg-[#111] p-3 shadow-2xl"
+      className="relative overflow-hidden rounded-xl border border-muted bg-card p-3 shadow-lg"
     >
-      <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+      <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
         Unirse con código
       </div>
       <div className="my-2 h-px " />
 
       <div className="space-y-3">
-        <div className="rounded-xl border  p-3">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400">
+        <div className="rounded-xl border border-muted p-3">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Código de acceso
           </label>
           <input
@@ -75,20 +100,26 @@ const DropdownJitsiSalas = ({ menuTtemRef }: IDropdownJitsiSalasProps) => {
             }}
             placeholder="XXXX-XXXX-XXX"
             maxLength={14}
-            className="w-full rounded-lg border border-white/10 px-3 py-2 font-mono text-sm tracking-wider text-white placeholder:text-gray-500 outline-none transition focus:border-primary/60"
+            disabled={validating}
+            className="w-full rounded-lg border border-muted bg-background px-3 py-2 font-mono text-sm tracking-wider text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary/60 disabled:opacity-50"
           />
-          {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
+          {error ? <p className="mt-2 text-danger text-xs ">{error}</p> : null}
         </div>
 
         <button
           type="button"
           onClick={abrirSalaConCodigo}
-          className="flex w-full items-center gap-3 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 text-left"
+          disabled={validating}
+          className="flex w-full btn btn-primary text-justify"
         >
-          <span className="text-lg">➜</span>
+          {validating ? (
+            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          ) : (
+            <span className="text-lg">➜</span>
+          )}
           <div className="flex-1">
-            <div className="font-semibold text-white/90">Entrar a la reunión</div>
-            <div className="text-xs text-white/70">Solo con el código compartido</div>
+            <div className="font-semibold">Entrar a la reunión</div>
+            <div className="text-xs">Solo con el código compartido</div>
           </div>
         </button>
       </div>

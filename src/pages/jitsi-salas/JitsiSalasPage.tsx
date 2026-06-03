@@ -30,6 +30,7 @@ interface Reunion {
   created_at: string;
   expires_at: string;
   extended: boolean;
+  start_at?: string | null;
 }
 
 const esSalaDinamica = (room: string) => room.startsWith('meet-');
@@ -390,6 +391,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
   const [reunionesActivas, setReunionesActivas] = useState<Reunion[]>([]);
   const [loading, setLoading] = useState(false);
   const [nombrePersonalizado, setNombrePersonalizado] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
 
   const [, setTick] = useState(0);
 
@@ -432,12 +434,14 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
       const response = await axios.post('reuniones_temporales', {
         codigo,
         nombre: nombrePersonalizado || undefined,
-        duracion_minutos: duracionMinutos
+        duracion_minutos: duracionMinutos,
+        start_at: fechaInicio || undefined
       });
 
       const nueva: Reunion = response.data;
       setReunionCreada(nueva);
       setNombrePersonalizado('');
+      setFechaInicio('');
       await cargarReuniones();
     } catch (err) {
       console.error('Error al crear reunión:', err);
@@ -479,6 +483,20 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
   };
 
   const abrirReunion = (reunion: Reunion) => {
+    // Validar start_at
+    if (reunion.start_at) {
+      const inicio = new Date(reunion.start_at).getTime();
+      if (inicio > Date.now()) {
+        setError(`Esta reunión inicia el ${new Date(reunion.start_at).toLocaleString()}. Aún no es la hora.`);
+        return;
+      }
+    }
+
+    // Limpiar token anterior antes de abrir una nueva sala
+    setToken('');
+    setServerUrl('');
+    setError('');
+
     const popupUrl = buildStandaloneUrl(reunion.room_name, reunion.codigo);
     const width = 1100;
     const height = 750;
@@ -628,11 +646,11 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
         {!standalone && (
           <div className="space-y-4">
             <div className="rounded-3xl border border-muted bg-background p-6 text-foreground shadow-xl">
-              <div className="max-w-3xl">
+              <div >
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary/80">
                   Crear reunión
                 </p>
-                <h2 className="mt-3 text-2xl font-bold">Genera un código con tiempo de vida</h2>
+                <h2 className="mt-3 text-2xl font-bold">Genera una videollamada con tiempo de vida</h2>
                 <p className="mt-2 text-sm leading-6 text-foreground/70">
                   Aquí generas la sala, defines cuánto dura y compartes el código. Cuando expire,
                   desaparece de la lista.
@@ -648,6 +666,18 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                       value={nombrePersonalizado}
                       onChange={(e) => setNombrePersonalizado(e.target.value)}
                       placeholder="Ej: Reunión de equipo"
+                      className="input"
+                    />
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-foreground/60">
+                      Inicio programado (opcional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={fechaInicio}
+                      onChange={(e) => setFechaInicio(e.target.value)}
                       className="input"
                     />
                   </div>
@@ -672,7 +702,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                     type="button"
                     onClick={crearReunion}
                     disabled={loading}
-                    className="btn btn-lg btn-primary"
+                    className="btn btn-primary"
                   >
                     {loading ? 'Creando...' : 'Generar código'}
                   </button>
@@ -691,6 +721,9 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                       </div>
 
                       <div className="text-sm text-foreground/70">
+                        {reunionCreada.start_at ? (
+                          <>Inicio: {new Date(reunionCreada.start_at).toLocaleString()} &nbsp;|&nbsp;</>
+                        ) : null}
                         Expira: {new Date(reunionCreada.expires_at).toLocaleString()}
                       </div>
 
@@ -765,9 +798,13 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                           <div className="mt-1 text-sm text-foreground/70">{reunion.nombre}</div>
                         )}
                         <div className="mt-1 text-sm text-foreground/60">
-                          ⏱️{' '}
-                          {formatearRestante(new Date(reunion.expires_at).getTime() - Date.now())}{' '}
-                          restantes
+                          {reunion.start_at && new Date(reunion.start_at).getTime() > Date.now() ? (
+                            <>📅 Inicia: {new Date(reunion.start_at).toLocaleString()}</>
+                          ) : (
+                            <>⏱️{' '}
+                            {formatearRestante(new Date(reunion.expires_at).getTime() - Date.now())}{' '}
+                            restantes</>
+                          )}
                         </div>
                       </div>
 
@@ -775,9 +812,10 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                         <button
                           type="button"
                           onClick={() => abrirReunion(reunion)}
-                          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/90"
+                          disabled={reunion.start_at ? new Date(reunion.start_at).getTime() > Date.now() : false}
+                          className="btn rounded-xl btn-primary"
                         >
-                          Entrar
+                          {reunion.start_at && new Date(reunion.start_at).getTime() > Date.now() ? 'Programada' : 'Entrar'}
                         </button>
                         <button
                           type="button"
@@ -860,7 +898,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center text-gray-500">
+          <div className="rounded-2xl border border-gray-200  p-6 text-center text-gray-500">
             Sin datos de conexión.
           </div>
         )}
