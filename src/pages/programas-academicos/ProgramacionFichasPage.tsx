@@ -346,18 +346,19 @@ export const ProgramacionFichasPage = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setCrearGrupoModal(true)}
-            className="h-11 px-4 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+            className="h-11 px-4 gap-2 flex items-center rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
           >
-            <i className="ki-outline ki-setting text-base"></i>
+            <i className="ki-outline ki-plus text-base"></i>
+            Crear Grados
           </button>
 
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="h-11 px-5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition flex items-center gap-2 shadow-sm"
+            className="h-11 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition flex items-center gap-2 shadow-sm"
           >
             <i className="ki-outline ki-plus text-base"></i>
-            Crear Grupo
+            Crear Grado
           </button>
         </div>
       </div>
