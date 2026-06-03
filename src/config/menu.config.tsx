@@ -313,8 +313,27 @@ export const MENU_SIDEBAR: TMenuConfig = [
           },
           {
             title: 'Medios de Pago',
-            path: '/pagos/medio-pagos',
-            requiredPermissions: ['GESTION_MEDIO_PAGO']
+            icon: 'wallet',
+            requiredPermissions: ['GESTION_MEDIO_PAGO'],
+            children: [
+              {
+                title: 'Medios de Pago',
+                path: '/pagos/medio-pagos',
+                requiredPermissions: ['GESTION_MEDIO_PAGO']
+              },
+              {
+                title: 'Valores económicos',
+                icon: 'wallet',
+                path: '/pagos/configuracion-valores-economicos',
+                requiredPermissions: ['GESTION_VALORES_ECONOMICOS']
+              },
+              {
+                title: 'Facturas',
+                icon: 'file-text',
+                path: '/pagos/facturas-academicas',
+                requiredPermissions: ['GESTION_FACTURAS_ACADEMICAS', 'GESTION_VALORES_ECONOMICOS']
+              }
+            ]
           },
           {
             title: 'Tipos de Pago',

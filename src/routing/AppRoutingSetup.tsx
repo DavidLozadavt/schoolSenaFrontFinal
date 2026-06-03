@@ -81,6 +81,14 @@ import { FacturacionElectronicaPage } from '@/pages/facturacion-electronica/Fact
 import { GrupoNominaPage } from '@/pages/grupo-nomina';
 import ReservasPage from '@/pages/reservas-pendientes/ReservasPage';
 import { ConfiguracionPagosPage } from '@/pages/configuracion-pagos';
+import {
+  ConfiguracionValoresEconomicosPage,
+  PERMISO_GESTION_VALORES_ECONOMICOS
+} from '@/pages/configuracion-valores-economicos';
+import {
+  FacturasAcademicasPage,
+  PERMISOS_ACCESO_VER_FACTURAS
+} from '@/pages/facturas-academicas';
 import { TarifasPage } from '@/pages/tarifas';
 import CalendarioReunionesPage from '@/pages/calendario-reuniones/ReunionesPage';
 import Pedidos from '@/pages/gestion-pedidos/Pedidos';
@@ -350,6 +358,51 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_AREAS']}>
                 <AreaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/configuracion-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_PAGOS']}>
+                <ConfiguracionPagosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/configuracion-valores-economicos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <ConfiguracionValoresEconomicosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/facturas-academicas"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VER_FACTURAS]}>
+                <FacturasAcademicasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
               </ProtectedRoute>
             }
           />
