@@ -10,11 +10,11 @@ import {
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 import Spinner from '@/components/loaders/Spinner';
-import { FacturaSolicitudMock } from './mockFacturaSolicitud';
 import {
   buildValidacionPayload,
   initialWizardState,
-  ValidacionSolicitudWizardState
+  ValidacionSolicitudWizardState,
+  FacturaSolicitudMock
 } from './validacionSolicitudTypes';
 import {
   EstudianteSolicitudInscripcion,

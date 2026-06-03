@@ -7,8 +7,7 @@ import {
   normalizarListaTipos,
   TipoPagoOption
 } from '../../pagos/academicoPagoCatalogo';
-import { FacturaSolicitudMock } from '../mockFacturaSolicitud';
-import { formatearPeso } from '../validacionSolicitudTypes';
+import { FacturaSolicitudMock, formatearPeso } from '../validacionSolicitudTypes';
 import { MedioTipoPagoSeleccion } from '../validacionSolicitudTypes';
 import {
   mapFacturaApiToMock,
@@ -216,9 +215,9 @@ const Paso4PagoMatricula = ({
               <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
                 {mensajeExito || 'Pago registrado correctamente. Puede continuar a validación final.'}
               </p>
-              {factura.idTransaccion != null && (
+              {factura?.idTransaccion != null && (
                 <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                  Transacción #{factura.idTransaccion}
+                  Transacción #{factura?.idTransaccion}
                 </p>
               )}
             </div>

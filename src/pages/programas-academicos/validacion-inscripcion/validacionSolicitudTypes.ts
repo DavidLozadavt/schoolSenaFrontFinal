@@ -1,8 +1,38 @@
-import { FacturaDetalleMock, FacturaSolicitudMock } from './mockFacturaSolicitud';
 import {
   EstudianteSolicitudInscripcion,
   SolicitudInscripcion
 } from './solicitudInscripcionTypes';
+
+export type EstadoFactura = 'PENDIENTE' | 'PAGADA' | 'ANULADA' | 'EN_PROCESO';
+export type EstadoFacturaDetalle = 'PENDIENTE' | 'PAGADO' | 'ANULADO';
+
+export interface FacturaDetalleMock {
+  idFacturaDetalle: number;
+  concepto: string;
+  descripcion?: string;
+  cantidad: number;
+  valorUnitario: number;
+  subtotal: number;
+  estado?: EstadoFacturaDetalle;
+}
+
+export interface FacturaSolicitudMock {
+  idFactura: number;
+  numeroFactura: string;
+  idSolicitud: number;
+  idTransaccion?: number;
+  estadoFactura: EstadoFactura;
+  fechaEmision: string;
+  fechaVencimiento?: string;
+  subtotal: number;
+  descuento: number;
+  impuestos: number;
+  total: number;
+  saldoPendiente: number;
+  requierePago: boolean;
+  detalles: FacturaDetalleMock[];
+}
+
 
 export interface MedioTipoPagoSeleccion {
   id: number;

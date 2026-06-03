@@ -1,6 +1,5 @@
-import { FacturaSolicitudMock, EstadoFactura } from '../mockFacturaSolicitud';
+import { FacturaSolicitudMock, EstadoFactura, FacturaDetalleMock, formatearPeso } from '../validacionSolicitudTypes';
 import { SolicitudInscripcion } from '../solicitudInscripcionTypes';
-import { formatearPeso } from '../validacionSolicitudTypes';
 
 interface Props {
   solicitud: SolicitudInscripcion;
@@ -174,7 +173,7 @@ function renderTablaDetalle(factura: FacturaSolicitudMock) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-white/10">
-          {factura.detalles.map((d) => (
+          {factura.detalles.map((d: FacturaDetalleMock) => (
             <tr key={d.idFacturaDetalle} className="bg-white dark:bg-coal-500">
               <td className="px-4 py-3">
                 <span className="font-bold text-gray-900 dark:text-white">{d.concepto}</span>

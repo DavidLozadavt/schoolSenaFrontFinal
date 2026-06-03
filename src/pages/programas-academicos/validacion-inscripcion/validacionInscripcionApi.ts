@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { FacturaSolicitudMock } from './mockFacturaSolicitud';
+import { FacturaSolicitudMock } from './validacionSolicitudTypes';
 import {
   FiltroEstadoSolicitudInscripcion,
   SolicitudInscripcion,
