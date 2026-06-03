@@ -149,6 +149,9 @@ import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
 import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativo/AperturarProgramaPage';
+import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
+import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
+import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -908,6 +911,30 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <ProgramasEntryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/pagos/checkout"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CheckoutMetodosPagoAcademicoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <SolicitudesInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes/:idSolicitud/validar"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ValidacionSolicitudInscripcionPage />
               </ProtectedRoute>
             }
           />
