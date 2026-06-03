@@ -53,14 +53,10 @@ interface FormValues {
   idPrograma: number;
   idRegional: number;
   idTipoGrado: number | null;
-  estado: string;
   idSede: number;
-  idJornada: number;
-  idInfraestructura: number;
-  codigo: string;
   tipoCalificacion: string;
-  porcentajeEjecucion: number | null;
-  documento: File | null;
+  idInfraestructura: number;
+  cantidadGrupos: number;
 }
 
 const ESTADOS_APERTURA = [
@@ -76,7 +72,6 @@ const ESTADOS_APERTURA = [
 // ─── Validación ───────────────────────────────────────────────────────────────
 const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
-    observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
     idTipoGrado: Yup.number(),
 
     idAsignacion: Yup.number()
@@ -91,7 +86,9 @@ const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
 
     idInfraestructura: Yup.number().nullable(),
 
-    codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
+    cantidadGrupos: Yup.number()
+      .min(1, 'La cantidad de grupos debe ser al menos 1')
+      .required('La cantidad de grupos es obligatoria'),
 
     porcentajeEjecucion: Yup.number()
       .typeError('El porcentaje de ejecución debe ser un número')
@@ -127,7 +124,7 @@ const selectClassNames = {
 };
 
 // ─── Componente ───────────────────────────────────────────────────────────────
-const CrearEditarFicha: React.FC<Props> = ({
+const CrearGrupos: React.FC<Props> = ({
   idCentro,
   isModalOpen,
   setIsModalOpen,
@@ -181,13 +178,9 @@ const CrearEditarFicha: React.FC<Props> = ({
       idSede: 0,
       idTipoGrado: 0,
       idRegional: 0,
-      estado: '',
       idInfraestructura: 0,
-      idJornada: 0,
-      codigo: '',
-      tipoCalificacion: 'NUMERICO',
-      porcentajeEjecucion: isEditing ? null : 100,
-      documento: null
+      cantidadGrupos: 1,
+      tipoCalificacion: 'NUMERICO'
     },
     validationSchema: buildValidationSchema(isEditing, !!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
@@ -326,15 +319,11 @@ const CrearEditarFicha: React.FC<Props> = ({
           idAsignacion: Number(ficha.idAsignacion) || Number(currentApertura.id) || 0,
           idPrograma: Number(apertura.idPrograma) || 0,
           idRegional: Number(idRegional) || 0,
-          estado: apertura.estado || '',
           idTipoGrado: Number(ficha.idTipoGrado) || 0,
           idSede: Number(idSede) || 0,
-          idJornada: Number(ficha.idJornada) || 0,
-          codigo: ficha.codigo || '',
           idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
-          porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
-          documento: null
+          cantidadGrupos: Number(ficha.cantidadGrupos) || 1
         });
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Error al cargar la ficha';
@@ -454,9 +443,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                 <div>
                   <label className="text-sm font-medium text-gray-700">Grado</label>
                   <input
-                    type="text"
-                    name="codigo"
-                    value={formik.values.codigo}
+                    type="number"
+                    name="cantidadGrupos"
+                    value={formik.values.cantidadGrupos}
                     onChange={(e) => {
                       formik.handleChange(e);
                       if (!isEditing) setCodigo(e.target.value);
@@ -467,8 +456,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                   {!isEditing && codigoExist && (
                     <p className="text-red-500 text-xs">Este código ya está en uso</p>
                   )}
-                  {formik.touched.codigo && formik.errors.codigo && (
-                    <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
+                  {formik.touched.cantidadGrupos && formik.errors.cantidadGrupos && (
+                    <p className="text-red-500 text-xs">{formik.errors.cantidadGrupos}</p>
                   )}
                 </div>
 
@@ -665,42 +654,6 @@ const CrearEditarFicha: React.FC<Props> = ({
             )}
               </div>
 
-              {/* Documento PDF */}
-              <div className="md:col-span-2 mt-4">
-                <p className="text-xs font-bold mb-2 text-gray-800">
-                  Documento de la ficha <span className="text-gray-500">(PDF)</span>
-                </p>
-                <label
-                  htmlFor="documento"
-                  className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500"
-                >
-                  <div className="flex items-center gap-3">
-                    📄
-                    <span className="text-sm text-gray-700">
-                      {formik.values.documento
-                        ? formik.values.documento.name
-                        : 'Seleccionar archivo PDF'}
-                    </span>
-                  </div>
-                  <span className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">
-                    Examinar
-                  </span>
-                  <input
-                    id="documento"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) =>
-                      formik.setFieldValue('documento', e.currentTarget.files?.[0] || null)
-                    }
-                    className="hidden"
-                  />
-                </label>
-                <p className="text-xs text-gray-500 mt-1">Solo archivos PDF · Máx 5MB</p>
-                {formik.touched.documento && formik.errors.documento && (
-                  <p className="text-red-500 text-xs mt-1">{formik.errors.documento}</p>
-                )}
-              </div>
-
               {/* Botones */}
               <div className="flex justify-end gap-2 mt-6 border-t pt-4">
                 <button
@@ -755,4 +708,4 @@ const CrearEditarFicha: React.FC<Props> = ({
   );
 };
 
-export default CrearEditarFicha;
+export default CrearGrupos;
