@@ -5,3 +5,7 @@
 
 /* Demos */
 @import "demos/demo1";
+
+.lk-start-audio-button {
+  display: none !important;
+}

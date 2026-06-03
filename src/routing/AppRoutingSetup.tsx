@@ -141,6 +141,7 @@ import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
 import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativo/AperturarProgramaPage';
+import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -194,6 +195,16 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
 
       <Route element={<RequireAuth />}>
+
+        <Route
+          path="/videoconferencias/standalone"
+          element={
+            <ProtectedRoute requiredPermissions={['GESTION_VIDEOCONFERENCIAS', 'GESTION_HORAS_INSTRUCTOR']}>
+              <JitsiSalasPage standalone={true} />
+            </ProtectedRoute>
+          }
+        />
+
         <Route element={<Demo1Layout />}>
           <Route path="/" element={getActiveDashboard()} />
           <Route
@@ -1271,6 +1282,17 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
+
+
+          <Route
+            path="/videoconferencias"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <JitsiSalasPage />
+              </ProtectedRoute>
+            }
+          />
+
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />

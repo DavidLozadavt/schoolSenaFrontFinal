@@ -110,6 +110,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
+              {
+        title: 'Videoconferencias',
+        path: '/videoconferencias',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      }
     ]
   },
   {
