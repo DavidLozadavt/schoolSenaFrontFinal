@@ -61,7 +61,7 @@ export interface CatalogosData {
 }
 
 export interface MallaCurricularProps {
-  isOpen?: boolean;
+  isOpen: boolean;
   onClose?: () => void;
   program?: Program | any;
   ficha?: any;

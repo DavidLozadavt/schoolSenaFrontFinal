@@ -131,18 +131,18 @@ export const ProgramacionFichasPage = () => {
     if (!programId) return;
     try {
       const res = await axios.get('/programas');
-      if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
-        const p = res.data.data.find((prog: any) => Number(prog.id) === Number(programId));
-        if (p) {
-          setProgram({
-            id: Number(p.id),
-            name: p.nombrePrograma,
-            codigo: p.codigoPrograma,
-            nivel: p.nivel?.nombreNivel || 'N/A',
-            formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
-            status: p.estado?.nombre || 'ACTIVO'
-          });
-        }
+      const data = res.data?.data || res.data;
+      const list = Array.isArray(data) ? data : [];
+      const p = list.find((prog: any) => Number(prog.id) === Number(programId));
+      if (p) {
+        setProgram({
+          id: Number(p.id),
+          name: p.nombrePrograma,
+          codigo: p.codigoPrograma,
+          nivel: p.nivel?.nombreNivel || 'N/A',
+          formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
+          status: p.estado?.nombre || 'ACTIVO'
+        });
       }
     } catch (error) {
       console.error('Error al cargar programa:', error);
@@ -370,7 +370,6 @@ export const ProgramacionFichasPage = () => {
               idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
-              programaId={programId}
               onAction={() => {
                 const idsActuales = fichas.map((f) => f.id);
                 setFichasAntesDeCrear(idsActuales);

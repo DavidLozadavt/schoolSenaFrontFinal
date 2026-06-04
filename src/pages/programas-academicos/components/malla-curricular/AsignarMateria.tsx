@@ -6,7 +6,6 @@ import Toast from '../Toast';
 import { enqueueSnackbar } from 'notistack';
 
 interface AsignarMateriaProps {
-  idPrograma: number;
   isOpen: boolean;
   onClose: () => void;
   nivelId: number | null;
@@ -16,7 +15,6 @@ interface AsignarMateriaProps {
 }
 
 export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
-  idPrograma,
   isOpen,
   onClose,
   nivelId,
@@ -52,7 +50,6 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     try {
       const response = await axios.get(`materias-programa`, {
         params: {
-          idPrograma: idPrograma,
           idFicha: idFicha
         }
       });
@@ -202,7 +199,6 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
             <FormCompetencia
               isOpen={showForm}
               onClose={handleFormCancel}
-              programId={idPrograma ?? 0}
               competenciaId={editingCompetenciaId}
               onSuccess={handleFormSuccess}
             />

@@ -3,14 +3,11 @@ import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
 
-export const useTrimestres = (fichaId: number , programaId: number | undefined) => {
+export const useTrimestres = (fichaId: number | undefined) => {
   const [trimestres, setTrimestres] = useState<any[]>([]);
   const [nuevoTrimestre, setNuevoTrimestre] = useState<any | null>(null);
   const [guardandoTrimestre, setGuardandoTrimestre] = useState(false);
   const [loadingTrimestres, setLoadingTrimestres] = useState<boolean>(false);
-
-  // estado para toast
-  const [toast, setToast] = useState<boolean>(false);
 
   // Cargar trimestres
   const cargarTrimestres = async (fichaIdParam?: number) => {
@@ -42,7 +39,7 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
 
 
   const agregarNuevoTrimestre = (ficha: any) => {
-    if (!ficha || !programaId || nuevoTrimestre) return;
+    if (!ficha || nuevoTrimestre) return;
 
     // Calcular el siguiente número de trimestre basado en el máximo existente
     const maxGrado = trimestres.reduce((max, t) => {
@@ -54,7 +51,6 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
 
     const nuevo = {
       id: `temp-${Date.now()}`,
-      idPrograma: programaId,
       numeroGrado: siguienteGrado,
       fechaInicio: calcularFechaInicio(ficha),
       fechaFin: '',
@@ -146,11 +142,6 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
       return false;
     }
 
-    if (!Array.isArray(nuevoTrimestre.materias) || nuevoTrimestre.materias.length === 0) {
-      enqueueSnackbar('Debes asignar al menos una competencia', { variant: 'error' });
-      return false;
-    }
-
     const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: 'Al crear un nuevo trimestre se interrumpirán los horarios del trimestre actual.',
@@ -168,17 +159,16 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
     try {
       setGuardandoTrimestre(true);
       const payload = {
-        idPrograma: nuevoTrimestre.idPrograma || programaId,
         numeroGrado: nuevoTrimestre.numeroGrado,
         fechaInicio: nuevoTrimestre.fechaInicio || nuevoTrimestre.grado.fechaInicio,
         fechaFin: nuevoTrimestre.fechaFin || nuevoTrimestre.grado.fechaFin,
         idFicha: ficha.id,
-        materias: nuevoTrimestre.materias
+        materias: []
       };
       
       await axios.post('trimestres-ficha', payload);
       await cargarTrimestres(ficha.id);
-      setToast(true);
+      enqueueSnackbar('Operación realizada correctamente', { variant: 'success' });
 
       return true;
     } catch (error: any) {
@@ -209,7 +199,7 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
         idFicha: idFicha
       });
 
-      setToast(true);
+      enqueueSnackbar('Operación realizada correctamente', { variant: 'success' });
       return true;
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.message || 'Error al asignar competencias', { variant: 'error' });
@@ -232,9 +222,6 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
     actualizarMaterias,
     crearTrimestre,
     asignarCompetenciasTrimestre,
-    toast,
-    setToast,
     loadingTrimestres,
-    programaId
   };
 };

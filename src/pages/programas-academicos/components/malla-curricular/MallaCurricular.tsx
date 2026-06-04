@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MallaCurricularProps } from '../../types';
 import { BookOpen, Calendar, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@/components/modal';
 
 // Componentes separados
 import { CardTrimestre } from './CardTrimestre';
@@ -11,11 +12,10 @@ import { FormCompetencia } from './FormCompetencia';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
-import Toast from '../Toast';
 import { HorariosMateria } from './HorariosMateria';
 import { enqueueSnackbar } from 'notistack';
 
-export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurricularProps) => {
+export const MallaCurricular = ({ isOpen, onClose, ficha }: MallaCurricularProps) => {
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
@@ -51,10 +51,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     actualizarMaterias,
     crearTrimestre,
     asignarCompetenciasTrimestre,
-    toast,
-    setToast,
     loadingTrimestres
-  } = useTrimestres(ficha?.id, program?.id);
+  } = useTrimestres(ficha?.id);
 
   // Estados para modal de Horarios
   const [modalHorarios, setModalHorarios] = useState<{
@@ -82,7 +80,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     setIsMateriaModalOpen(true);
   };
 
-  const handleOpenMateriaFromNuevoTrimestre = () => {
+  const handleOpenConfiguracionMaterias = () => {
+    setSelectedNivelId(null);
     setIsMateriaModalOpen(true);
   };
 
@@ -135,59 +134,55 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     }
   };
 
-  if (!isOpen || !program) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-x-hidden bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+    <>
+      <Modal open={isOpen} onClose={onClose} zIndex={100} className="p-4 animate-fade-in">
+        <ModalContent className="w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+          <ModalHeader className="flex px-4 w-full justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-coal-600">
+            <div>
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight leading-none text-gray-600 dark:text-gray-300 drop-shadow-sm">
+                Malla Curricular
+              </h2>
+              <span className="text-xs font-bold uppercase mt-1">{ficha?.codigo}</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center w-9 h-9 text-gray-500 hover:text-danger transition-all border rounded-full top-4 right-4 bg-gray-50 hover:bg-red-50 dark:bg-coal-400 dark:hover:bg-danger/20 border-gray-200 dark:border-coal-300 hover:scale-110"
+              aria-label="Cerrar modal"
+            >
+              <i className="text-lg ki-outline ki-cross"></i>
+            </button>
+          </ModalHeader>
 
-        {/* Header con Banner */}
-        <div className="relative flex-shrink-0 w-full h-36 overflow-hidden">
-          <img
-            src={program.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600'}
-            className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
-            alt="Banner del programa"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-
-          <button
-            onClick={onClose}
-            className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
-            aria-label="Cerrar modal"
-          >
-            <i className="text-lg ki-outline ki-cross"></i>
-          </button>
-
-          <div className="absolute text-white bottom-5 left-6">
-            <span className="px-3 py-1 text-xs font-extrabold tracking-wider uppercase bg-primary rounded-md mb-2 inline-block shadow-lg">
-              {program.estado?.nombre || program.status || "SIN ESTADO"}
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
-              {program.name || "Programa sin nombre"}
-            </h2>
-            <p className="mt-1.5 font-semibold tracking-wide text-gray-300 dark:text-white/70 text-xs flex items-center gap-2">
-              <BookOpen size={14} />
-              Código: {program.codigo} • Malla Curricular
-            </p>
-          </div>
-        </div>
-
-        {/* Contenido Principal */}
-        <div className="flex-grow min-h-96 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+          {/* Contenido Principal */}
+          <ModalBody className="flex-grow min-h-96 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
 
           <div className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
               {/* Controles de Trimestres */}
               {ficha && (
                 <div className="flex w-full items-center gap-3 px-4 justify-between">
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleOpenConfiguracionMaterias}
+                    className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+                  >
+                    <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                      <i className="text-lg ki-filled ki-setting"></i>
+                    </div>
+                    <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                      Configuración de materias
+                    </span>
+                  </button>
                   <div className='flex items-center'>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Periodos:</span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
                     <button
                       onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                      className="ml-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 transition-colors text-gray-600 dark:text-gray-400 flex items-center gap-2 group"
+                      className="ml-4 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 transition-colors text-gray-600 dark:text-gray-400 flex items-center gap-2 group"
                       title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
                     >
                       {sortOrder === 'asc' ? (
@@ -200,14 +195,13 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       </span>
                     </button>
                   </div>
+                  </div>
+
+
                   <button
                     onClick={handleAgregarTrimestre}
                     disabled={
                       nuevoTrimestre !== null ||
-                      (trimestres.length > 0 && (
-                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 3) ||
-                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 7)
-                      )) ||
                       trimestres.length >= 9
                     }
                     className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -216,19 +210,16 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       <i className="text-lg ki-filled ki-plus"></i>
                     </div>
                     <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-                      {
-                        trimestres.length > 0 && (
-                          (program.nivel?.toUpperCase() === 'TECNICO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 3) ||
-                          (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 7)
-                        )
-                          ? 'Límite alcanzado'
-                          : 'Añadir Trimestre'
+                      {trimestres.length >= 9
+                        ? 'Límite alcanzado'
+                        : 'Añadir Periodo académico'
                       }
                     </span>
                   </button>
                 </div>
               )}
             </div>
+          </div>
 
             <>
               {!ficha && (
@@ -281,10 +272,10 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                           <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
                             <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
                             <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
-                              No hay trimestres configurados
+                              No hay periodos académicos configurados
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Utiliza los controles superiores para agregar trimestres
+                              Utiliza los controles superiores para agregar periodos académicos
                             </p>
                           </div>
                         )
@@ -293,17 +284,16 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
               }
             </>
 
-          </div>
-        </div>
+          </ModalBody>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-5 px-6 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
+          {/* Footer */}
+          <ModalFooter className="flex items-center justify-between p-5 px-6 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
           <div className="items-center hidden sm:flex gap-2">
             <i className="text-base ki-outline ki-information-2 text-primary"></i>
             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
               {ficha
-                ? `Ficha #${ficha?.codigo} seleccionada`
-                : 'Selecciona una ficha para comenzar'}
+                ? `Grupo ${ficha?.codigo} seleccionado`
+                : 'Selecciona una grupo para comenzar'}
             </p>
           </div>
           <button
@@ -312,8 +302,9 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           >
             Cerrar
           </button>
-        </div>
-      </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Modal FormNuevoTrimestre */}
       {nuevoTrimestre && (
@@ -321,11 +312,9 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           trimestres={trimestres}
           trimestre={nuevoTrimestre}
           guardando={guardandoTrimestre}
-          nivel={program.nivel}
           onActualizarFechaFin={actualizarFechaFin}
           onActualizarFechaInicio={actualizarFechaInicio}
           onActualizarNumeroGrado={actualizarNumeroGrado}
-          onAbrirMaterias={handleOpenMateriaFromNuevoTrimestre}
           onGuardar={handleGuardarTrimestre}
           onCancelar={cancelarNuevoTrimestre}
         />
@@ -333,7 +322,6 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
 
       {/* Modal AsignarMateria */}
       <AsignarMateria
-        idPrograma={program?.id}
         isOpen={isMateriaModalOpen}
         onClose={() => setIsMateriaModalOpen(false)}
         nivelId={selectedNivelId}
@@ -354,7 +342,6 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           idMateriaPadre={selectedCompetenciaId}
           nombreCompetencia={selectedCompetenciaNombre}
           idFicha={ficha?.id}
-          programId={program?.id}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
@@ -366,7 +353,6 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
       <FormCompetencia
         isOpen={isFormCompetenciaOpen}
         onClose={() => setIsFormCompetenciaOpen(false)}
-        programId={program?.id ?? 0}
         competenciaId={editingCompetenciaId}
         onSuccess={handleFormCompetenciaSuccess}
       />
@@ -390,9 +376,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           }}
         />
       }
-
-      <Toast message='Operación realizada correctamente' isOpen={toast} onClose={() => setToast(false)} />
-    </div>
+    </>
   );
 };
 

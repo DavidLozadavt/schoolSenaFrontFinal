@@ -14,7 +14,6 @@ interface ListaRapsProps {
   idFicha: number;
   nivelId?: number;
   porcentajeEjecucion?: number;
-  programId: number;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
 }
@@ -27,7 +26,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   idFicha,
   nivelId,
   porcentajeEjecucion,
-  programId,
   onEditCompetencia,
   onUpdate
 }) => {
@@ -271,7 +269,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         <FormCompetencia
           isOpen={agregarRap}
           onClose={() => setAgregarRap(false)}
-          programId={programId||0}
           idGradoPrograma={nivelId}
           idFicha={idFicha}
           idMateriaPadre={idMateriaPadre}

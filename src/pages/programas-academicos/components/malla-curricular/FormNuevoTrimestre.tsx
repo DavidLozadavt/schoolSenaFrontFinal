@@ -9,7 +9,6 @@ interface FormNuevoTrimestreProps {
   onActualizarFechaFin: (fecha: string) => void;
   onActualizarFechaInicio: (fecha: string) => void;
   onActualizarNumeroGrado: (numero: number) => void;
-  onAbrirMaterias: () => void;
   onGuardar: () => void;
   onCancelar: () => void;
   trimestres: any[];
@@ -25,7 +24,6 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   onActualizarFechaFin,
   onActualizarFechaInicio,
   onActualizarNumeroGrado,
-  onAbrirMaterias,
   onGuardar,
   onCancelar,
   trimestres,
@@ -183,52 +181,6 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                   <p className="text-xs text-danger mt-1">{formik.errors.fechaFin as string}</p>
                 )}
               </div>
-            </div>
-
-            {/* MATERIAS */}
-            <div>
-              <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-600 border-l-4 border-primary pl-3 mb-6">
-                Competencias Asignadas
-              </h4>
-
-              {trimestre.materias && trimestre.materias.length > 0 ? (
-                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                  {trimestre.materias.map((materia: any) => (
-                    <div
-                      key={materia.id}
-                      className="p-3 border rounded-lg bg-gray-50 dark:bg-coal-400 text-gray-800 dark:text-white font-semibold"
-                    >
-                      <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
-                                  {materia.codigo || 'S/C'}
-                                </span>
-                                <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
-                                  {materia.nombreMateria || 'Sin nombre'}
-                                </p>
-                              </div>
-                              <p className="text-2xs text-gray-500 font-bold uppercase truncate">
-                                {materia.descripcion || 'Sin descripción'}
-                              </p>
-                            </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                    No hay competencias asignadas
-                  </p>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={onAbrirMaterias}
-                className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
-              >
-                + Agregar Competencias
-              </button>
             </div>
           </div>
 
