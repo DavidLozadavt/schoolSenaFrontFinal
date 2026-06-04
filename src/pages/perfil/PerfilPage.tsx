@@ -25,6 +25,7 @@ const PerfilPage = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const firmaInputRef = useRef<HTMLInputElement>(null);
 
   const [tipoIdentificaciones, setTipoIdentificacion] = useState<TipoDocumentoInterface[]>([]);
   const [departamentos, setDepartamentos] = useState<any[]>([]);
@@ -319,7 +320,11 @@ const PerfilPage = () => {
     try {
       setSaving(true);
 
-      await axios.post(`update_person`, data);
+      await axios.post(`update_person`, data, {
+        headers: {
+          Authorization: `Bearer ${auth}`
+        }
+      });
       await getUserAuthenticated();
       if (tieneContratoActivoPerfil) {
         await cargarPerfilProfesionalDesdeContrato();
@@ -481,11 +486,11 @@ const PerfilPage = () => {
             ) : (
               <MisActividadesAvatarFallback variant="hero" />
             )}
-            <div className="text-lg leading-5 font-semibold text-gray-800">
+            <div className="text-lg leading-5 font-semibold text-gray-900 dark:text-gray-100">
               {persona?.nombre1} {persona?.nombre2} {persona?.apellido1} {persona?.apellido2}
             </div>
             <div className="flex flex-wrap justify-center gap-1 lg:gap-3 text-sm">
-              <a href={`mailto:${persona?.email}`} className="text-gray-600 hover:text-primary">
+              <a href={`mailto:${persona?.email}`} className="text-gray-600 dark:text-gray-400 hover:text-primary">
                 {persona?.email}
               </a>
             </div>
@@ -523,16 +528,16 @@ const PerfilPage = () => {
 
       {/* Formulario de Perfil */}
       <div
-        className={`rounded-xl shadow-lg p-6 ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`card ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="font-semibold text-lg">
+        <div className="card-header flex justify-between items-center py-5">
+          <h3 className="card-title text-gray-800 dark:text-gray-100 font-semibold text-lg">
             {needsPasswordUpdate
               ? step === 1
                 ? 'Paso 1: Editar Información Personal'
                 : 'Información Personal (Completada)'
               : 'Editar Información Personal'}
-          </h2>
+          </h3>
           <div className="flex gap-2">
             <button
               className="btn btn-secondary btn-sm"
@@ -556,18 +561,21 @@ const PerfilPage = () => {
             </button>
           </div>
         </div>
+        <div className="card-body">
 
         <form>
           <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
             <div className="flex-1 basis-[65%]">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Tipo Identificación *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tipo Identificación <span className="text-red-500">*</span>
+                  </label>
                   <select
                     name="idtipoIdentificacion"
                     value={formDataPersona.idtipoIdentificacion}
                     onChange={handleChangeFormPerson}
-                    className="input"
+                    className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                     disabled={step === 2}
                   >
                     <option value="">Seleccione una Opción</option>
@@ -582,41 +590,45 @@ const PerfilPage = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Identificación *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Identificación <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     name="identificacion"
                     value={formDataPersona.identificacion}
                     disabled
-                    className="input bg-gray-100"
+                    className="input bg-gray-100 dark:bg-coal-500/20 dark:text-gray-400 border-gray-200 dark:border-coal-100"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Primer Nombre <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     name="nombre1"
                     placeholder="Ingrese su primer nombre"
                     value={formDataPersona.nombre1}
                     onChange={handleChangeFormPerson}
-                    className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
+                    className={`input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100 ${errors.nombre1 ? 'border-red-500' : ''}`}
                     disabled={step === 2}
                   />
                   {errors.nombre1 && <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Segundo Nombre</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Segundo Nombre</label>
                   <input
                     type="text"
                     placeholder="Ingrese su segundo nombre"
                     name="nombre2"
                     value={formDataPersona.nombre2}
                     onChange={handleChangeFormPerson}
-                    className="input"
+                    className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                     disabled={step === 2}
                   />
                   {errors.nombre2 && <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>}
@@ -625,14 +637,16 @@ const PerfilPage = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Primer Apellido <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     name="apellido1"
                     placeholder="Ingrese su primer apellido"
                     value={formDataPersona.apellido1}
                     onChange={handleChangeFormPerson}
-                    className="input"
+                    className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                     disabled={step === 2}
                   />
                   {errors.apellido1 && (
@@ -640,14 +654,14 @@ const PerfilPage = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Segundo Apellido</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Segundo Apellido</label>
                   <input
                     type="text"
                     name="apellido2"
                     placeholder="Ingrese su segundo apellido"
                     value={formDataPersona.apellido2}
                     onChange={handleChangeFormPerson}
-                    className="input"
+                    className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                     disabled={step === 2}
                   />
                   {errors.apellido2 && (
@@ -658,7 +672,7 @@ const PerfilPage = () => {
             </div>
 
             <div className="basis-[35%] flex flex-col items-center justify-center gap-4">
-              <div className="w-48 h-48 border rounded-lg overflow-hidden shadow flex items-center justify-center bg-gray-50 dark:bg-coal-500/20">
+              <div className="w-48 h-48 border border-gray-200 dark:border-coal-100 rounded-lg overflow-hidden shadow flex items-center justify-center bg-gray-50 dark:bg-coal-500/20">
                 {previewSrc ? (
                   <UserProfileAvatar
                     srcOverride={previewSrc}
@@ -671,24 +685,40 @@ const PerfilPage = () => {
                 )}
               </div>
               <div className="w-48">
-                <label className="block text-sm font-medium mb-2">Foto</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Foto</label>
                 {!selectedFilePersona ? (
-                  <input
-                    type="file"
-                    name="rutaFoto"
-                    onChange={handleFilePersonaChange}
-                    className="file-input w-full"
-                    ref={fileInputRef}
-                    disabled={step === 2}
-                  />
+                  <>
+                    <input
+                      type="file"
+                      name="rutaFoto"
+                      onChange={handleFilePersonaChange}
+                      className="hidden"
+                      ref={fileInputRef}
+                      disabled={step === 2}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 dark:border-coal-100"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={step === 2}
+                    >
+                      <KeenIcon icon="upload" />
+                      Subir Foto
+                    </button>
+                  </>
                 ) : (
-                  <div className="flex items-center">
-                    <p className="text-sm input flex justify-between w-full items-center">
-                      {selectedFilePersona.name}
-                      <span onClick={handleFilePersonaDelete} className="ml-2 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm input flex justify-between w-full items-center bg-gray-50 dark:bg-coal-600/50 py-1.5 px-3 rounded-lg border border-gray-200 dark:border-coal-100">
+                      <span className="truncate max-w-[120px]">{selectedFilePersona.name}</span>
+                      <button
+                        type="button"
+                        onClick={handleFilePersonaDelete}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                        disabled={step === 2}
+                      >
                         <KeenIcon icon="trash" />
-                      </span>
-                    </p>
+                      </button>
+                    </div>
                   </div>
                 )}
                 {errors['rutaFoto'] && (
@@ -700,12 +730,14 @@ const PerfilPage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Sexo *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Sexo <span className="text-red-500">*</span>
+              </label>
               <select
                 name="sexo"
                 value={formDataPersona.sexo}
                 onChange={handleChangeFormPerson}
-                className="input"
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 disabled={step === 2}
               >
                 <option value="">Seleccione una Opción</option>
@@ -716,12 +748,14 @@ const PerfilPage = () => {
               {errors.sexo && <p className="text-red-500 text-sm mt-1">{errors.sexo}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Rh *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Rh <span className="text-red-500">*</span>
+              </label>
               <select
                 name="rh"
                 value={formDataPersona.rh}
                 onChange={handleChangeFormPerson}
-                className="input"
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 disabled={step === 2}
               >
                 <option value="">Seleccione una Opción</option>
@@ -737,13 +771,15 @@ const PerfilPage = () => {
               {errors.rh && <p className="text-red-500 text-sm mt-1">{errors.rh}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Fecha de Nacimiento *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Fecha de Nacimiento <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 name="fechaNac"
                 value={formDataPersona.fechaNac}
                 onChange={handleChangeFormPerson}
-                className="input"
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 max={new Date().toISOString().split('T')[0]}
                 disabled={step === 2}
               />
@@ -753,9 +789,9 @@ const PerfilPage = () => {
 
           {tieneContratoActivoPerfil && (
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Perfil profesional
-                <span className="text-gray-500 font-normal text-xs ml-2">
+                <span className="text-gray-500 dark:text-gray-400 font-normal text-xs ml-2">
                   (información de tu contrato laboral vigente)
                 </span>
               </label>
@@ -765,7 +801,7 @@ const PerfilPage = () => {
                 placeholder="Describe tu formación, experiencia y competencias relacionadas con tu cargo o contrato..."
                 value={formDataPersona.perfilProfesional ?? ''}
                 onChange={handleChangeFormPerson}
-                className={`input w-full min-h-[100px] py-2 ${errors.perfilProfesional ? 'border-red-500' : ''}`}
+                className={`input w-full min-h-[100px] py-2 bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100 ${errors.perfilProfesional ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
               {errors.perfilProfesional && (
@@ -776,12 +812,14 @@ const PerfilPage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Departamento de Ubicación *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Departamento de Ubicación <span className="text-red-500">*</span>
+              </label>
               <select
                 name="departamento"
                 value={formDataPersona.departamento}
                 onChange={handleChangeFormPerson}
-                className="input"
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 disabled={step === 2}
               >
                 <option value="">Seleccione un departamento</option>
@@ -797,12 +835,14 @@ const PerfilPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Ciudad de Ubicación *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Ciudad de Ubicación <span className="text-red-500">*</span>
+              </label>
               <select
                 name="idCiudadUbicacion"
                 value={formDataPersona.idCiudadUbicacion}
                 onChange={handleChangeFormPerson}
-                className="input"
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 disabled={step === 2}
               >
                 <option value="">Seleccione una ciudad</option>
@@ -817,14 +857,16 @@ const PerfilPage = () => {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Dirección *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Dirección <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="direccion"
                 placeholder="Ingrese la dirección"
                 value={formDataPersona.direccion}
                 onChange={handleChangeFormPerson}
-                className={`input ${errors.direccion ? 'border-red-500' : ''}`}
+                className={`input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100 ${errors.direccion ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
               {errors.direccion && <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>}
@@ -833,7 +875,9 @@ const PerfilPage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium mb-2">Correo Electrónico *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Correo Electrónico <span className="text-red-500">*</span>
+              </label>
               <input
                 type="email"
                 name="email"
@@ -841,42 +885,46 @@ const PerfilPage = () => {
                 value={formDataPersona.email}
                 onChange={handleChangeFormPerson}
                 data-no-uppercase
-                className={`input ${errors.email ? 'border-red-500' : ''}`}
+                className={`input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100 ${errors.email ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Celular *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Celular <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="celular"
                 placeholder="Ingrese el celular"
                 value={formDataPersona.celular}
                 onChange={handleChangeFormPerson}
-                className={`input ${errors.celular ? 'border-red-500' : ''}`}
+                className={`input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100 ${errors.celular ? 'border-red-500' : ''}`}
                 disabled={step === 2}
               />
               {errors.celular && <p className="text-red-500 text-sm mt-1">{errors.celular}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Teléfono Fijo</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Teléfono Fijo</label>
               <input
                 type="text"
                 name="telefonoFijo"
                 placeholder="Ingrese el teléfono"
                 value={formDataPersona.telefonoFijo}
                 onChange={handleChangeFormPerson}
-                className={`input ${errors.telefonoFijo ? 'border-red-500' : ''}`}
+                className="input bg-white dark:bg-coal-600 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-coal-100"
                 disabled={step === 2}
               />
             </div>
             {!(roles || []).includes('APRENDIZ') && !(roles || []).includes('ESTUDIANTEUP') && (
               <div>
-                <label className="block text-sm font-medium mb-2">Firma Digital (firma sin fondo)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Firma Digital (firma sin fondo)
+                </label>
 
                 {firmaPreview && (
-                  <div className="mb-2 border rounded p-1 w-32 h-16 flex items-center justify-center bg-gray-50">
+                  <div className="mb-2 border border-gray-200 dark:border-coal-100 rounded p-1 w-32 h-16 flex items-center justify-center bg-gray-50 dark:bg-coal-500/20">
                     <img src={firmaPreview} alt="firma" className="max-h-full max-w-full object-contain" />
                   </div>
                 )}
@@ -887,38 +935,67 @@ const PerfilPage = () => {
                       type="file"
                       accept="image/*"
                       onChange={handleFirmaChange}
-                      className="file-input w-full"
+                      className="hidden"
+                      ref={firmaInputRef}
                       disabled={step === 2}
                     />
-                    {firmaPreview && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 dark:border-coal-100"
+                      onClick={() => firmaInputRef.current?.click()}
+                      disabled={step === 2}
+                    >
+                      <KeenIcon icon="upload" />
+                      Subir Firma
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm input flex justify-between w-full items-center bg-gray-50 dark:bg-coal-600/50 py-1.5 px-3 rounded-lg border border-gray-200 dark:border-coal-100">
+                      <span className="truncate max-w-[120px]">{firmaFile.name}</span>
                       <button
                         type="button"
-                        className="btn btn-sm btn-light-danger"
                         onClick={handleFirmaDelete}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
                         disabled={step === 2}
                       >
                         <KeenIcon icon="trash" />
                       </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 truncate max-w-[140px]">{firmaFile.name}</span>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-light-danger"
-                      onClick={handleFirmaDelete}
-                      disabled={step === 2}
-                    >
-                      <KeenIcon icon="trash" />
-                    </button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
         </form>
+        </div>
       </div>
+
+      {/* Sección de Seguridad de Cuenta para usuarios normales */}
+      {!needsPasswordUpdate && (
+        <div className="card p-6 mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="card-title text-gray-800 dark:text-gray-100 font-semibold text-lg">
+              Seguridad de la Cuenta
+            </h3>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Mantén tu cuenta protegida actualizando tu contraseña regularmente.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-warning btn-sm flex items-center gap-2 self-start sm:self-center"
+              onClick={() => setShowPasswordModal(true)}
+            >
+              <KeenIcon icon="key" />
+              Cambiar Contraseña
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sección de Seguridad - Solo en paso 2 */}
       {needsPasswordUpdate && step === 2 && (
