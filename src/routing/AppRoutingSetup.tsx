@@ -152,6 +152,7 @@ import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativ
 import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
 import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
 import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
+import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-config/InscripcionConfigPage';
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
 // Componentes temporales para pruebas
@@ -947,6 +948,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
                 <ValidacionSolicitudInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/configuracion"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <InscripcionConfigPage />
               </ProtectedRoute>
             }
           />
