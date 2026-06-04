@@ -538,15 +538,13 @@ export const GestionProgramas = ({
                             )}
 
                             {!esInstructorSena && (
-                              <>
-                                <button
-                                  onClick={() => openDeleteConfirm(program)}
-                                  title="Eliminar"
-                                  className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
-                                >
-                                  <i className="text-sm ki-outline ki-trash"></i>
-                                </button>
-                              </>
+                              <button
+                                onClick={() => openDeleteConfirm(program)}
+                                title="Eliminar"
+                                className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
+                              >
+                                <i className="text-sm ki-outline ki-trash"></i>
+                              </button>
                             )}
 
                             <button

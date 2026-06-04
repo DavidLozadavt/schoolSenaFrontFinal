@@ -9,6 +9,7 @@ import { Container } from '@/components/container';
 import { useSnackbar } from 'notistack';
 import { RoleModel } from '../../roles/models/_Role';
 import Swal from 'sweetalert2';
+import icons from './icons';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Helper: build a tree from flat permission list
@@ -71,13 +72,13 @@ const PermissionsToggle = React.memo(() => {
     name: '',
     description: '',
     icon: '',
-    path: ''
+    path: '',
+    idPermissionPadre: null as number | null
   });
   const [modalMode, setModalMode] = useState<'edit' | 'create'>('edit');
 
   const { enqueueSnackbar } = useSnackbar();
   const [createSaving, setCreateSaving] = useState(false);
-
 
   /* ── Fetch data ──────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -291,9 +292,7 @@ const PermissionsToggle = React.memo(() => {
         description: string;
         icon?: string | null;
         path?: string | null;
-        menu_order?: number | null;
-        is_menu_item?: boolean;
-        menu_level?: number | null;
+        idPermissionPadre?: number | null;
       }
     ) => {
       setSavingDescriptionId(nodeId);
@@ -303,9 +302,7 @@ const PermissionsToggle = React.memo(() => {
         descripcion: fieldsToSave.description,
         icon: fieldsToSave.icon ?? null,
         path: fieldsToSave.path ?? null,
-        menu_order: fieldsToSave.menu_order ?? null,
-        is_menu_item: fieldsToSave.is_menu_item ?? false,
-        menu_level: fieldsToSave.menu_level ?? null
+        idPermissionPadre: fieldsToSave.idPermissionPadre ?? null
       };
       try {
         // Try PUT first. If the server rejects with 405, fallback to POST.
@@ -329,9 +326,7 @@ const PermissionsToggle = React.memo(() => {
                     description: fieldsToSave.description,
                     icon: fieldsToSave.icon ?? undefined,
                     path: fieldsToSave.path ?? undefined,
-                    menu_order: fieldsToSave.menu_order ?? undefined,
-                    is_menu_item: fieldsToSave.is_menu_item ?? false,
-                    menu_level: fieldsToSave.menu_level ?? undefined
+                    idPermissionPadre: fieldsToSave.idPermissionPadre ?? null
                   }
                 : p
             ) as PermissionModel[]
@@ -355,7 +350,8 @@ const PermissionsToggle = React.memo(() => {
         name: editFormData.name,
         description: editFormData.description,
         icon: editFormData.icon || null,
-        path: editFormData.path || null
+        path: editFormData.path || null,
+        idPermissionPadre: editFormData.idPermissionPadre
       };
 
       await saveDescription(editingNodeId, fieldsToSave);
@@ -372,7 +368,7 @@ const PermissionsToggle = React.memo(() => {
         const payload = {
           name: editFormData.name,
           description: editFormData.description || null,
-          idPermissionPadre: null,
+          idPermissionPadre: editFormData.idPermissionPadre,
           icon: editFormData.icon || null,
           path: editFormData.path || null
         };
@@ -383,14 +379,14 @@ const PermissionsToggle = React.memo(() => {
         setPermissions((prev) => [...prev, created] as PermissionModel[]);
         enqueueSnackbar('Permiso creado correctamente', { variant: 'success' });
         setIsEditModalOpen(false);
-        setEditFormData({ name: '', description: '', icon: '', path: '' });
+        setEditFormData({ name: '', description: '', icon: '', path: '', idPermissionPadre: null });
       } catch (err) {
         enqueueSnackbar('Error al crear el permiso', { variant: 'error' });
       } finally {
         setCreateSaving(false);
       }
     }
-  }, [editingNodeId, editFormData, saveDescription]);
+  }, [editingNodeId, editFormData, saveDescription, enqueueSnackbar]);
 
   const handleCloseEditModal = useCallback(() => {
     setIsEditModalOpen(false);
@@ -405,7 +401,8 @@ const PermissionsToggle = React.memo(() => {
         name: node?.name || '',
         description: node?.description || '',
         icon: node?.icon || '',
-        path: node?.path || ''
+        path: node?.path || '',
+        idPermissionPadre: node?.idPermissionPadre ?? null
       });
       setIsEditModalOpen(true);
     },
@@ -576,7 +573,7 @@ const PermissionsToggle = React.memo(() => {
 
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="flex items-center gap-1.5 leading-none font-medium text-sm text-gray-900">
-                  {node.name}
+                  {formatPagosDisplayLabel(node.name)}
                   {hasChildren && (
                     <span className="text-2xs text-gray-400 font-normal">
                       ({node.children!.length} sub-permisos)
@@ -584,7 +581,7 @@ const PermissionsToggle = React.memo(() => {
                   )}
                 </span>
                 <div className="text-2sm text-gray-700 truncate flex items-center gap-2">
-                  <span className="truncate">{node.description}</span>
+                  <span className="truncate">{formatPagosDisplayLabel(node.description)}</span>
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs"
@@ -596,7 +593,7 @@ const PermissionsToggle = React.memo(() => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 min-w-[320px]">
               {/* Parent selector */}
               <ParentSearchSelect
                 value={node.idPermissionPadre ?? null}
@@ -676,10 +673,16 @@ const PermissionsToggle = React.memo(() => {
             </select>
             <button
               type="button"
-              className="btn btn-outline btn-sm"
+              className="inline-flex items-center gap-2 px-2 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors cursor-pointer"
               onClick={() => {
                 setModalMode('create');
-                setEditFormData({ name: '', description: '', icon: '', path: '' });
+                setEditFormData({
+                  name: '',
+                  description: '',
+                  icon: '',
+                  path: '',
+                  idPermissionPadre: null
+                });
                 setIsEditModalOpen(true);
               }}
             >
@@ -756,13 +759,15 @@ const PermissionsToggle = React.memo(() => {
 
       {/* Edit Permission Modal */}
       <Modal open={isEditModalOpen} onClose={handleCloseEditModal}>
-        <ModalContent>
+        <ModalContent className="max-w-2xl min-w-[500px]">
           <ModalHeader>
             <ModalTitle>
               <div className="p-2">
                 {modalMode === 'create'
                   ? 'Crear Permiso'
-                  : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
+                  : `Editar Permiso: ${formatPagosDisplayLabel(
+                      permissions.find((p) => p.id === editingNodeId)?.name || ''
+                    )}`}
               </div>
             </ModalTitle>
           </ModalHeader>
@@ -784,7 +789,7 @@ const PermissionsToggle = React.memo(() => {
               {/* Descripción */}
               <div>
                 <label className="block font-semibold text-sm text-gray-900 mb-2">
-                  Descripción <span className="text-red-500">*</span>
+                  Descripción
                 </label>
                 <input
                   type="text"
@@ -797,23 +802,19 @@ const PermissionsToggle = React.memo(() => {
                   }
                 />
                 <p className="text-2xs text-gray-600 mt-1">
-                  Con esta descripción se visualizara en el sidebar
+                  Con esta descripción se visualizará en el sidebar
                 </p>
               </div>
 
               {/* Ícono */}
               <div>
                 <label className="block font-semibold text-sm text-gray-900 mb-2">Ícono</label>
-                <input
-                  type="text"
-                  className="input input-sm w-full"
-                  placeholder="Ej: shield, users, settings"
+                <IconPickerField
                   value={editFormData.icon}
-                  data-preserve-case
-                  onChange={(e) => setEditFormData({ ...editFormData, icon: e.target.value })}
+                  onChange={(v) => setEditFormData({ ...editFormData, icon: v })}
                 />
                 <p className="text-2xs text-gray-600 mt-1">
-                  🎨 Nombre del ícono (KeenIcon) para mostrar visualmente en la interfaz
+                  🎨 Nombre del ícono (KeenIcon) para mostrar visualmente
                 </p>
               </div>
 
@@ -831,7 +832,31 @@ const PermissionsToggle = React.memo(() => {
                   onChange={(e) => setEditFormData({ ...editFormData, path: e.target.value })}
                 />
                 <p className="text-2xs text-gray-600 mt-1">
-                  🔗 Ruta de navegación asociada a este permiso en la aplicación
+                  🔗 Ruta de navegación asociada a este permiso
+                </p>
+              </div>
+
+              {/* Padre */}
+              <div>
+                <label className="block font-semibold text-sm text-gray-900 mb-2">
+                  Permiso padre
+                </label>
+                <ParentSearchSelect
+                  value={editFormData.idPermissionPadre}
+                  options={
+                    modalMode === 'edit' && editingNodeId
+                      ? permissions.filter((p) => {
+                          const descendants = collectDescendantIds(editingNodeId, permissions);
+                          return p.id !== editingNodeId && !descendants.has(p.id);
+                        })
+                      : permissions
+                  }
+                  onChange={(newParentId) =>
+                    setEditFormData({ ...editFormData, idPermissionPadre: newParentId })
+                  }
+                />
+                <p className="text-2xs text-gray-600 mt-1">
+                  Deja en "Raíz (sin padre)" si es de nivel superior
                 </p>
               </div>
 
@@ -881,112 +906,215 @@ interface ParentSearchSelectProps {
   onChange: (value: number | null) => void;
 }
 
-const ParentSearchSelect = React.memo(({ value, options, disabled, onChange }: ParentSearchSelectProps) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
+const IconPickerField = React.memo(
+  ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const ref = useRef<HTMLDivElement>(null);
 
-  const selectedLabel = value
-    ? options.find((p) => p.id === value)?.name ?? 'Raíz (sin padre)'
-    : 'Raíz (sin padre)';
+    const filtered = useMemo(() => {
+      const q = query.toLowerCase();
+      return q ? icons.filter((ic) => ic.nombre.toLowerCase().includes(q)) : icons;
+    }, [query]);
 
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return q ? options.filter((p) => p.name.toLowerCase().includes(q)) : options;
-  }, [options, query]);
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) {
+          setOpen(false);
+          setQuery('');
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery('');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelect = (id: number | null) => {
-    onChange(id);
-    setOpen(false);
-    setQuery('');
-  };
-
-  return (
-    <div ref={containerRef} className="relative w-44">
-      <button
-        type="button"
-        disabled={disabled}
-        className="select select-sm w-full text-left flex items-center justify-between gap-1 truncate"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="truncate text-sm">{selectedLabel}</span>
-        <KeenIcon icon="down" className="text-xs text-gray-500 shrink-0" />
-      </button>
-
-      {open && (
-        <div
-          className="absolute z-50 mt-1 w-64 rounded-xl border shadow-dropdown overflow-hidden"
-          style={{
-            backgroundColor: 'var(--tw-light)',
-            borderColor: 'var(--tw-gray-200)',
-          }}
+    return (
+      <div ref={ref}>
+        {/* Trigger button */}
+        <button
+          type="button"
+          className="w-full select select-sm flex items-center justify-between gap-2 text-left"
+          onClick={() => setOpen((v) => !v)}
         >
-          {/* Search input */}
-          <div
-            className="p-2"
-            style={{ borderBottom: '1px solid var(--tw-gray-200)' }}
-          >
-            <input
-              autoFocus
-              type="text"
-              className="input input-sm w-full"
-              placeholder="Buscar permiso..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+          <span className={`flex items-center gap-2 ${!value ? 'text-gray-400' : ''}`}>
+            {value && <KeenIcon icon={value} className="text-base text-primary" />}
+            <span className="truncate">{value || 'Seleccionar ícono…'}</span>
+          </span>
+          <KeenIcon icon="down" className="text-xs text-gray-500 shrink-0" />
+        </button>
 
-          {/* Options list */}
-          <ul className="max-h-52 overflow-y-auto py-1">
-            <li>
+        {open && (
+          <div
+            className="absolute z-50 mt-1 w-full rounded-xl border shadow-dropdown overflow-hidden"
+            style={{ backgroundColor: 'var(--tw-light)', borderColor: 'var(--tw-gray-200)' }}
+          >
+            {/* Search */}
+            <div className="p-2 border-b" style={{ borderColor: 'var(--tw-gray-200)' }}>
+              <input
+                autoFocus
+                type="text"
+                className="input input-sm w-full"
+                placeholder="Buscar ícono..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            {/* Grid */}
+            <div className="max-h-48 overflow-y-auto p-2 grid grid-cols-6 gap-1">
+              {/* Opción vacía */}
               <button
                 type="button"
-                className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                  value === null
-                    ? 'text-primary font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-                onClick={() => handleSelect(null)}
+                title="Sin ícono"
+                className={`flex items-center justify-center h-9 rounded-lg border text-xs transition-colors
+                  ${!value ? 'border-primary bg-primary-light' : 'border-gray-300 hover:bg-gray-100'}`}
+                onClick={() => {
+                  onChange('');
+                  setOpen(false);
+                  setQuery('');
+                }}
               >
-                Raíz (sin padre)
+                <span className="text-gray-400">—</span>
               </button>
-            </li>
-
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-gray-500 text-center">
-                Sin resultados
-              </li>
-            ) : (
-              filtered.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                      value === p.id
-                        ? 'text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
+              {filtered.map((ic) => (
+                <button
+                  key={ic.id}
+                  type="button"
+                  title={ic.nombre}
+                  className={`flex items-center justify-center h-9 rounded-lg border transition-colors
+                    ${
+                      value === ic.nombre
+                        ? 'border-primary bg-primary-light'
+                        : 'border-gray-300 hover:bg-gray-100'
                     }`}
-                    onClick={() => handleSelect(p.id)}
-                  >
-                    {p.name}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-});
+                  onClick={() => {
+                    onChange(ic.nombre);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                >
+                  <KeenIcon icon={ic.nombre} className="text-lg" />
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <p className="col-span-6 text-center text-sm text-gray-400 py-3">Sin resultados</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Component: Searchable parent selector
+ * ──────────────────────────────────────────────────────────────────────────── */
+interface ParentSearchSelectProps {
+  value: number | null;
+  options: PermissionModel[];
+  disabled?: boolean;
+  onChange: (value: number | null) => void;
+}
+
+const ParentSearchSelect = React.memo(
+  ({ value, options, disabled, onChange }: ParentSearchSelectProps) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const selectedLabel = value
+      ? (options.find((p) => p.id === value)?.name ?? 'Raíz (sin padre)')
+      : 'Raíz (sin padre)';
+
+    const filtered = useMemo(() => {
+      const q = query.toLowerCase();
+      return q ? options.filter((p) => p.name.toLowerCase().includes(q)) : options;
+    }, [options, query]);
+
+    useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+          setOpen(false);
+          setQuery('');
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (id: number | null) => {
+      onChange(id);
+      setOpen(false);
+      setQuery('');
+    };
+
+    return (
+      <div ref={containerRef} className="relative w-full">
+        <button
+          type="button"
+          disabled={disabled}
+          className="select select-sm w-full text-left flex items-center justify-between gap-1 truncate"
+          onClick={() => !disabled && setOpen((v) => !v)}
+        >
+          <span className="truncate text-sm">{selectedLabel}</span>
+          <KeenIcon icon="down" className="text-xs text-gray-500 shrink-0" />
+        </button>
+
+        {open && (
+          <div
+            className="absolute z-50 mt-1 w-full rounded-xl border shadow-dropdown overflow-hidden"
+            style={{
+              backgroundColor: 'var(--tw-light)',
+              borderColor: 'var(--tw-gray-200)'
+            }}
+          >
+            {/* Search input */}
+            <div className="p-2" style={{ borderBottom: '1px solid var(--tw-gray-200)' }}>
+              <input
+                autoFocus
+                type="text"
+                className="input input-sm w-full"
+                placeholder="Buscar permiso..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Options list */}
+            <ul className="max-h-52 overflow-y-auto py-1">
+              <li>
+                <button
+                  type="button"
+                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors hover:bg-gray-100
+                    ${value === null ? 'text-primary font-medium bg-gray-50' : 'text-gray-700'}`}
+                  onClick={() => handleSelect(null)}
+                >
+                  Raíz (sin padre)
+                </button>
+              </li>
+
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-gray-500 text-center">Sin resultados</li>
+              ) : (
+                filtered.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-1.5 text-sm transition-colors hover:bg-gray-100
+                        ${
+                          value === p.id ? 'text-primary font-medium bg-gray-50' : 'text-gray-700'
+                        }`}
+                      onClick={() => handleSelect(p.id)}
+                    >
+                      {p.name}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+);

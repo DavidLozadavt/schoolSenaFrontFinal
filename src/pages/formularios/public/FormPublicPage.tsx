@@ -171,9 +171,21 @@ const FormPublicPage: React.FC = () => {
     const errors: number[] = [];
     form?.preguntas.forEach(q => {
       if (q.esObligatoria) {
-        const resp = respuestas.find(r => r.idPregunta === q.id);
-        if (!resp || !resp.valor || (Array.isArray(resp.valor) && resp.valor.length === 0)) {
-          errors.push(q.id as number);
+        const isTutorQ = q.titulo.toLowerCase().includes('tutor') || q.titulo.toLowerCase().includes('acudiente');
+        let shouldValidate = true;
+        if (isTutorQ) {
+          const menorEdadQ = form.preguntas.find(pq => pq.titulo.toLowerCase().includes('menor de edad') || pq.titulo.toLowerCase().includes('menor de 18'));
+          const menorEdadResp = menorEdadQ ? respuestas.find(r => r.idPregunta === menorEdadQ.id)?.valor : null;
+          if (menorEdadResp !== 'Sí' && menorEdadResp !== 'si' && menorEdadResp !== 'SI') {
+            shouldValidate = false;
+          }
+        }
+        
+        if (shouldValidate) {
+          const resp = respuestas.find(r => r.idPregunta === q.id);
+          if (!resp || !resp.valor || (Array.isArray(resp.valor) && resp.valor.length === 0)) {
+            errors.push(q.id as number);
+          }
         }
       }
     });
@@ -392,7 +404,7 @@ const FormPublicPage: React.FC = () => {
             
             {/* Dynamic Banner Header */}
             <div className={`flex items-center gap-4 p-6 rounded-[2rem] bg-gradient-to-br ${headerMeta.bg} border border-neutral-100/10 dark:border-white/5 mb-8 shadow-inner`}>
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center bg-white dark:bg-neutral-850 shadow-lg ${headerMeta.textColor}`}>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center bg-white dark:bg-coal-300 shadow-lg ${headerMeta.textColor}`}>
                 {headerMeta.icon}
               </div>
               <div>
@@ -428,6 +440,16 @@ const FormPublicPage: React.FC = () => {
 
           {/* Questions */}
           {form.preguntas.map((q, idx) => {
+            // Check if this is a tutor/acudiente question
+            const isTutorQ = q.titulo.toLowerCase().includes('tutor') || q.titulo.toLowerCase().includes('acudiente');
+            if (isTutorQ) {
+              const menorEdadQ = form.preguntas.find(pq => pq.titulo.toLowerCase().includes('menor de edad') || pq.titulo.toLowerCase().includes('menor de 18'));
+              const menorEdadResp = menorEdadQ ? respuestas.find(r => r.idPregunta === menorEdadQ.id)?.valor : null;
+              if (menorEdadResp !== 'Sí' && menorEdadResp !== 'si' && menorEdadResp !== 'SI') {
+                return null; // Skip rendering tutor questions if not a minor
+              }
+            }
+
             const resp = respuestas.find(r => r.idPregunta === q.id);
             const isError = validationErrors.includes(q.id as number);
             
@@ -455,7 +477,7 @@ const FormPublicPage: React.FC = () => {
                   {q.tipo === 'texto_corto' && (
                     <input 
                       type="text" 
-                      className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
+                      className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-250 dark:border-neutral-700 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
                       placeholder="Escribe tu respuesta corta..."
                       value={resp?.valor || ''}
                       onChange={(e) => handleChange(q.id!, e.target.value)}
@@ -473,7 +495,7 @@ const FormPublicPage: React.FC = () => {
                   {/* TEXT LARGO */}
                   {q.tipo === 'texto_largo' && (
                     <textarea 
-                      className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
+                      className="w-full bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-250 dark:border-neutral-700 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
                       rows={4} 
                       placeholder="Escribe tu respuesta detallada aquí..."
                       value={resp?.valor || ''}
@@ -554,7 +576,7 @@ const FormPublicPage: React.FC = () => {
                   {q.tipo === 'desplegable' && (
                     <div className="w-full max-w-xs">
                       <select 
-                        className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider outline-none transition-all cursor-pointer"
+                        className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider outline-none transition-all cursor-pointer text-neutral-700 dark:text-white"
                         value={resp?.valor || ''}
                         onChange={(e) => handleChange(q.id!, e.target.value)}
                         onFocus={(e) => {
@@ -576,7 +598,7 @@ const FormPublicPage: React.FC = () => {
 
                   {/* ESCALA LINEAL */}
                   {q.tipo === 'escala_lineal' && (
-                    <div className="flex flex-col gap-6 py-6 px-8 bg-neutral-50/50 dark:bg-neutral-850/10 rounded-[2.5rem] border border-neutral-100/50 dark:border-white/5 shadow-inner">
+                    <div className="flex flex-col gap-6 py-6 px-8 bg-neutral-50/50 dark:bg-coal-400 rounded-[2.5rem] border border-neutral-100/50 dark:border-white/5 shadow-inner">
                       <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-center">
                         {scaleArray.map(n => {
                           const isSelected = resp?.valor === String(n);
@@ -606,10 +628,9 @@ const FormPublicPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* FECHA */}
-                  {q.tipo === 'fecha' && (
+                           {q.tipo === 'fecha' && (
                     <div 
-                      className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800/20 px-5 py-4 rounded-2xl w-full max-w-xs border border-neutral-250 dark:border-neutral-800 transition-all"
+                      className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 px-5 py-4 rounded-2xl w-full max-w-xs border border-neutral-250 dark:border-coal-200 transition-all"
                       style={{ transition: 'all 0.3s' }}
                       onFocus={(e) => {
                         const target = e.currentTarget;
@@ -625,17 +646,17 @@ const FormPublicPage: React.FC = () => {
                       <Calendar className="w-4 h-4 text-neutral-400" />
                       <input 
                         type="date" 
-                        className="bg-transparent border-0 text-xs font-bold uppercase tracking-wider outline-none w-full text-neutral-750 dark:text-white" 
+                        className="bg-transparent border-0 text-xs font-bold uppercase tracking-wider outline-none w-full text-neutral-700 dark:text-white" 
                         value={resp?.valor || ''}
                         onChange={(e) => handleChange(q.id!, e.target.value)}
                       />
                     </div>
                   )}
-
+ 
                   {/* HORA */}
                   {q.tipo === 'hora' && (
                     <div 
-                      className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800/20 px-5 py-4 rounded-2xl w-full max-w-xs border border-neutral-250 dark:border-neutral-800 transition-all"
+                      className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 px-5 py-4 rounded-2xl w-full max-w-xs border border-neutral-250 dark:border-coal-200 transition-all"
                       style={{ transition: 'all 0.3s' }}
                       onFocus={(e) => {
                         const target = e.currentTarget;
@@ -651,7 +672,7 @@ const FormPublicPage: React.FC = () => {
                       <Clock className="w-4 h-4 text-neutral-400" />
                       <input 
                         type="time" 
-                        className="bg-transparent border-0 text-xs font-bold uppercase tracking-wider outline-none w-full text-neutral-750 dark:text-white" 
+                        className="bg-transparent border-0 text-xs font-bold uppercase tracking-wider outline-none w-full text-neutral-700 dark:text-white" 
                         value={resp?.valor || ''}
                         onChange={(e) => handleChange(q.id!, e.target.value)}
                       />
@@ -704,7 +725,7 @@ const FormPublicPage: React.FC = () => {
                               </div>
                             )}
 
-                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-neutral-300 dark:border-neutral-850 rounded-2xl cursor-pointer hover:border-indigo-500 transition-colors">
+                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-neutral-300 dark:border-coal-100 rounded-2xl cursor-pointer hover:border-indigo-500 transition-colors">
                               <input 
                                 type="file" 
                                 className="hidden" 

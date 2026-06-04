@@ -366,7 +366,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                                 {urls.map((url, uidx) => {
                                   const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(url);
                                   return (
-                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/20 border border-neutral-100/50 max-w-lg shadow-inner">
+                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-coal-400 border border-neutral-100/50 max-w-lg shadow-inner">
                                       <div 
                                         className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-neutral-200/20 bg-neutral-100 flex items-center justify-center ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                         onClick={() => isImage && setActiveLightboxUrl(url)}
