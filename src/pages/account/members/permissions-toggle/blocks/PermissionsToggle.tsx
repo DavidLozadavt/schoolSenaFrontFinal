@@ -573,7 +573,7 @@ const PermissionsToggle = React.memo(() => {
 
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="flex items-center gap-1.5 leading-none font-medium text-sm text-gray-900">
-                  {node.name}
+                  {formatPagosDisplayLabel(node.name)}
                   {hasChildren && (
                     <span className="text-2xs text-gray-400 font-normal">
                       ({node.children!.length} sub-permisos)
@@ -581,7 +581,7 @@ const PermissionsToggle = React.memo(() => {
                   )}
                 </span>
                 <div className="text-2sm text-gray-700 truncate flex items-center gap-2">
-                  <span className="truncate">{node.description}</span>
+                  <span className="truncate">{formatPagosDisplayLabel(node.description)}</span>
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs"
@@ -765,7 +765,9 @@ const PermissionsToggle = React.memo(() => {
               <div className="p-2">
                 {modalMode === 'create'
                   ? 'Crear Permiso'
-                  : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
+                  : `Editar Permiso: ${formatPagosDisplayLabel(
+                      permissions.find((p) => p.id === editingNodeId)?.name || ''
+                    )}`}
               </div>
             </ModalTitle>
           </ModalHeader>

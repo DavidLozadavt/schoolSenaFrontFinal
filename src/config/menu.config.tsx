@@ -23,6 +23,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_PLANEACION']
           },
           {
+            title: 'Solicitudes de inscripción',
+            path: '/gestion-academica/inscripciones/solicitudes',
+            requiredPermissions: ['GESTION_SOLICITUDES_INSCRIPCION', 'GESTION_ACADEMICA']
+          },
+          {
             title: 'Periodos',
             path: '/gestion-academica/configuracion/periodos',
             requiredPermissions: ['GESTION_PERIODOS'] //Cambiar por GESTION_PERIODOS
@@ -110,6 +115,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
+              {
+        title: 'Videoconferencias',
+        path: '/videoconferencias',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      }
     ]
   },
   {
@@ -313,8 +323,27 @@ export const MENU_SIDEBAR: TMenuConfig = [
           },
           {
             title: 'Medios de Pago',
-            path: '/pagos/medio-pagos',
-            requiredPermissions: ['GESTION_MEDIO_PAGO']
+            icon: 'wallet',
+            requiredPermissions: ['GESTION_MEDIO_PAGO'],
+            children: [
+              {
+                title: 'Medios de Pago',
+                path: '/pagos/medio-pagos',
+                requiredPermissions: ['GESTION_MEDIO_PAGO']
+              },
+              {
+                title: 'Valores económicos',
+                icon: 'wallet',
+                path: '/pagos/configuracion-valores-economicos',
+                requiredPermissions: ['GESTION_VALORES_ECONOMICOS']
+              },
+              {
+                title: 'Facturas',
+                icon: 'file-text',
+                path: '/pagos/facturas-academicas',
+                requiredPermissions: ['GESTION_FACTURAS_ACADEMICAS', 'GESTION_VALORES_ECONOMICOS']
+              }
+            ]
           },
           {
             title: 'Tipos de Pago',

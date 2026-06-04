@@ -74,6 +74,77 @@ export function validateAcademicFileSize(file: File): string | null {
   return null;
 }
 
+/** Evidencia de entrega del aprendiz (Mis Actividades / Responder actividad). */
+export const ENTREGA_EVIDENCIA_EXTENSIONS = [
+  'pdf',
+  'doc',
+  'docx',
+  'png',
+  'jpg',
+  'jpeg',
+  'zip',
+  'rar',
+  'sql',
+] as const;
+
+export const ENTREGA_EVIDENCIA_ACCEPT = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar,.sql';
+
+export const ENTREGA_EVIDENCIA_FORMATOS_LABEL =
+  'PDF, DOC, DOCX, PNG, JPG, JPEG, ZIP, RAR, SQL';
+
+export const ENTREGA_EVIDENCIA_SIZE_EXCEEDED_MESSAGE =
+  'El archivo supera el tamaño máximo permitido de 50 MB.';
+
+const ENTREGA_EVIDENCIA_EXTENSION_SET = new Set<string>(ENTREGA_EVIDENCIA_EXTENSIONS);
+
+const ENTREGA_EVIDENCIA_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/vnd.rar',
+  'application/x-rar-compressed',
+  'image/png',
+  'image/jpeg',
+  'text/plain',
+  'application/sql',
+  'application/x-sql',
+]);
+
+/** Valida evidencia de entrega del aprendiz; null si es válido. */
+export function validateEntregaEvidenciaFile(file: File): string | null {
+  const ext = extensionFromFileName(file.name);
+  const mime = String(file.type ?? '').trim().toLowerCase();
+
+  const isAllowedByExt = ext !== '' && ENTREGA_EVIDENCIA_EXTENSION_SET.has(ext);
+  const isAllowedByMime = mime !== '' && ENTREGA_EVIDENCIA_MIME_TYPES.has(mime);
+  const isGenericMime = mime === '' || mime === 'application/octet-stream';
+
+  if ((!isAllowedByExt && !isAllowedByMime) || (isGenericMime && !isAllowedByExt)) {
+    return `Tipo de archivo no permitido. Solo se permiten: ${ENTREGA_EVIDENCIA_FORMATOS_LABEL}.`;
+  }
+
+  if (ext === 'sql') {
+    const sqlMimes = new Set([
+      'text/plain',
+      'text/x-sql',
+      'application/sql',
+      'application/x-sql',
+      'application/octet-stream',
+    ]);
+    if (mime && !sqlMimes.has(mime)) {
+      return 'El archivo SQL no tiene un tipo válido.';
+    }
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return ENTREGA_EVIDENCIA_SIZE_EXCEEDED_MESSAGE;
+  }
+
+  return null;
+}
+
 /** Documento base de actividad (PDF, Word). */
 export function validateActividadDocumentoFile(file: File): string | null {
   const ext = extensionFromFileName(file.name);
