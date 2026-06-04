@@ -40,7 +40,7 @@ export interface MedioTipoPagoSeleccion {
 }
 
 export interface ValidacionSolicitudWizardState {
-  recibida: boolean;
+  informacionConfirmada: boolean;
   pagoRevisado: boolean;
   pagoRequerido: boolean;
   pagoRegistrado: boolean;
@@ -51,7 +51,7 @@ export interface ValidacionSolicitudWizardState {
 }
 
 export const initialWizardState: ValidacionSolicitudWizardState = {
-  recibida: false,
+  informacionConfirmada: false,
   pagoRevisado: false,
   pagoRequerido: false,
   pagoRegistrado: false,

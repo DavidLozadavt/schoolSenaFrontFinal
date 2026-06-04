@@ -153,8 +153,11 @@ import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
 import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
 import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
+import ValidacionSolicitudRecibidaPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudRecibidaPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
-// Componentes temporales para pruebas
+import SeguimientoInscripcionLandingPage from '@/pages/publico/seguimiento-inscripcion/SeguimientoInscripcionLandingPage';
+import SeguimientoInscripcionTokenPage from '@/pages/publico/seguimiento-inscripcion/SeguimientoInscripcionTokenPage';
+import ComprobantesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ComprobantesInscripcionPage';
 
 const InfraestructuraPage = () => (
   <div className="p-8">
@@ -205,6 +208,8 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+      <Route path="/seguimiento-inscripcion" element={<SeguimientoInscripcionLandingPage />} />
+      <Route path="/seguimiento-inscripcion/:token" element={<SeguimientoInscripcionTokenPage />} />
 
       <Route element={<RequireAuth />}>
 
@@ -943,10 +948,26 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/gestion-academica/inscripciones/recibidas/:idFormularioRespuesta/validar"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <ValidacionSolicitudRecibidaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/gestion-academica/inscripciones/solicitudes/:idSolicitud/validar"
             element={
               <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
                 <ValidacionSolicitudInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/comprobantes"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <ComprobantesInscripcionPage />
               </ProtectedRoute>
             }
           />

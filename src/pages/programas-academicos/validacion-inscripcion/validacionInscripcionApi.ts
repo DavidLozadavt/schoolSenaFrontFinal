@@ -2,8 +2,11 @@ import axios from 'axios';
 import { FacturaSolicitudMock } from './validacionSolicitudTypes';
 import {
   FiltroEstadoSolicitudInscripcion,
+  SeguimientoInscripcionAdmin,
   SolicitudInscripcion,
-  SolicitudInscripcionDetalleResponse
+  SolicitudInscripcionDetalleResponse,
+  SolicitudRecibida,
+  SolicitudRecibidaDetalle
 } from './solicitudInscripcionTypes';
 export interface FacturaAcademicaApi {
   id: number;
@@ -126,5 +129,75 @@ export async function aprobarValidacionSolicitudInscripcion(
     `solicitudes_inscripcion/${idFactura}/aprobar_validacion`,
     observaciones ? { observaciones } : {}
   );
+  return res.data;
+}
+
+export interface ConfirmarInformacionPayload {
+  correo: string;
+  fechaLimitePago?: string;
+  observaciones?: string;
+}
+
+export interface ConfirmarInformacionResponse {
+  message: string;
+  solicitud: SolicitudInscripcion;
+  seguimiento: SeguimientoInscripcionAdmin;
+}
+
+export async function confirmarInformacionEnviarCorreo(
+  idFactura: number,
+  payload: ConfirmarInformacionPayload
+): Promise<ConfirmarInformacionResponse> {
+  const res = await axios.post<ConfirmarInformacionResponse>(
+    `solicitudes_inscripcion/${idFactura}/confirmar_informacion`,
+    payload
+  );
+  return res.data;
+}
+
+export async function fetchSolicitudesRecibidas(): Promise<SolicitudRecibida[]> {
+  const res = await axios.get('solicitudes_recibidas');
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchSolicitudRecibidaDetalle(id: number): Promise<SolicitudRecibidaDetalle> {
+  const res = await axios.get(`solicitudes_recibidas/${id}`);
+  return res.data;
+}
+
+export async function confirmarInformacionSolicitudRecibida(
+  id: number,
+  payload: {
+    correo: string;
+    idProceso?: number;
+    fechaLimitePago?: string;
+    observaciones?: string;
+  }
+): Promise<{ message: string; idFactura: number; seguimiento?: SeguimientoInscripcionAdmin }> {
+  const res = await axios.post(`solicitudes_recibidas/${id}/confirmar_informacion`, payload);
+  return res.data;
+}
+
+export async function generarFacturaSolicitudRecibida(
+  id: number,
+  payload: { idProceso: number; correo: string; fechaLimitePago?: string }
+): Promise<{ message: string; idFactura: number }> {
+  const res = await axios.post(`solicitudes_recibidas/${id}/generar_factura`, payload);
+  return res.data;
+}
+
+export async function rechazarSolicitudRecibida(
+  id: number,
+  observacion: string
+): Promise<{ message: string }> {
+  const res = await axios.post(`solicitudes_recibidas/${id}/rechazar`, { observacion });
+  return res.data;
+}
+
+export async function solicitarCorreccionSolicitudRecibida(
+  id: number,
+  observacion: string
+): Promise<{ message: string }> {
+  const res = await axios.post(`solicitudes_recibidas/${id}/solicitar_correccion`, { observacion });
   return res.data;
 }

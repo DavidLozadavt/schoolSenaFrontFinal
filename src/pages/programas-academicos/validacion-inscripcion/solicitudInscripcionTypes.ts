@@ -24,6 +24,51 @@ export function esSolicitudPendienteValidacion(s: SolicitudInscripcion): boolean
   return !esSolicitudAprobada(s);
 }
 
+export interface DatosFormularioInscripcionEstudiante {
+  nombreCompleto?: string | null;
+  tipoDocumento?: string | null;
+  documento?: string | null;
+  fechaNacimiento?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  programaInteres?: string | null;
+  jornada?: string | null;
+}
+
+export interface DatosFormularioInscripcionTutor {
+  nombreCompleto?: string | null;
+  parentesco?: string | null;
+  documento?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+}
+
+export interface DatosFormularioInscripcionDocumento {
+  titulo: string;
+  url: string;
+}
+
+export interface DatosFormularioInscripcion {
+  idFormularioRespuesta: number;
+  fechaEnvio?: string | null;
+  estudiante: DatosFormularioInscripcionEstudiante;
+  tutor: DatosFormularioInscripcionTutor;
+  documentos: DatosFormularioInscripcionDocumento[];
+  respuestasCrudas?: Array<{ idPregunta: number; titulo?: string; valor: unknown }>;
+}
+
+export interface SeguimientoInscripcionAdmin {
+  id: number;
+  token: string;
+  estadoProceso: string;
+  estadoProcesoEtiqueta?: string;
+  fechaLimitePago?: string | null;
+  fechaCorreoEnviado?: string | null;
+  correoDestino?: string | null;
+  urlPortal?: string;
+  informacionConfirmada?: boolean;
+}
+
 export interface SolicitudInscripcion {
   idSolicitud: number;
   idFactura: number;
@@ -50,6 +95,8 @@ export interface SolicitudInscripcion {
   totalFactura?: number;
   idTransaccion?: number | null;
   requierePago: boolean;
+  seguimiento?: SeguimientoInscripcionAdmin | null;
+  idFormularioRespuesta?: number | null;
 }
 
 export interface EstudianteSolicitudInscripcion {
@@ -84,4 +131,40 @@ export interface SolicitudInscripcionDetalleResponse {
     }>;
   };
   estudiante: EstudianteSolicitudInscripcion | null;
+  datosFormulario?: DatosFormularioInscripcion | null;
+}
+
+export interface SolicitudRecibida {
+  id: number;
+  idFormularioRespuesta: number;
+  numeroSolicitud: string;
+  nombreEstudiante: string;
+  tipoDocumento?: string | null;
+  documento: string;
+  email?: string | null;
+  telefono?: string | null;
+  nombrePrograma?: string | null;
+  fechaSolicitud?: string | null;
+  estado: string;
+  estadoEtiqueta?: string;
+  observacionAdministrativa?: string | null;
+  idSeguimiento?: number | null;
+  tutor?: DatosFormularioInscripcionTutor | null;
+  documentos?: DatosFormularioInscripcionDocumento[];
+}
+
+export interface SolicitudRecibidaDetalle {
+  id: number;
+  idFormularioRespuesta: number;
+  numeroSolicitud: string;
+  fechaSolicitud?: string | null;
+  estado: string;
+  estadoEtiqueta?: string;
+  observacionAdministrativa?: string | null;
+  idTercero?: number | null;
+  idProceso?: number | null;
+  nombrePrograma?: string | null;
+  idSeguimiento?: number | null;
+  informacionConfirmada?: boolean;
+  datosFormulario: DatosFormularioInscripcion;
 }

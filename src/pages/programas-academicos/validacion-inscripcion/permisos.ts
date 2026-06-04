@@ -23,3 +23,12 @@ export const PERMISO_SOLICITUDES_INSCRIPCION_REGISTRO = {
   ruta: '/gestion-academica/inscripciones/solicitudes',
   padreSugerido: 'GESTION_ACADEMICA'
 } as const;
+
+/** Bandeja de comprobantes cargados desde el portal público. */
+export const PERMISO_COMPROBANTES_INSCRIPCION_REGISTRO = {
+  nombre: PERMISO_GESTION_SOLICITUDES_INSCRIPCION,
+  descripcion: 'Comprobantes de inscripción',
+  icono: 'file-up',
+  ruta: '/gestion-academica/inscripciones/comprobantes',
+  padreSugerido: 'GESTION_ACADEMICA'
+} as const;

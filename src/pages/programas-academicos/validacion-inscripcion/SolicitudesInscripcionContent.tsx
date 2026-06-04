@@ -10,6 +10,7 @@ import {
   SolicitudInscripcion
 } from './solicitudInscripcionTypes';
 import { fetchSolicitudesInscripcion } from './validacionInscripcionApi';
+import SolicitudesRecibidasContent from './SolicitudesRecibidasContent';
 
 const formatearEstadoFactura = (estado?: string) => {
   if (!estado) return '—';
@@ -31,11 +32,13 @@ const etiquetaEstadoSolicitud: Record<EstadoSolicitudInscripcion, string> = {
   RECHAZADA: 'Rechazada'
 };
 
-type TabListado = 'pendientes' | 'aprobadas';
+type TabListado = 'recibidas' | 'pendientes' | 'aprobadas';
 
 const SolicitudesInscripcionContent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabInicial = searchParams.get('tab') === 'aprobadas' ? 'aprobadas' : 'pendientes';
+  const tabParam = searchParams.get('tab');
+  const tabInicial: TabListado =
+    tabParam === 'aprobadas' ? 'aprobadas' : tabParam === 'recibidas' ? 'recibidas' : 'pendientes';
   const [tab, setTab] = useState<TabListado>(tabInicial);
   const [searchTerm, setSearchTerm] = useState('');
   const [todasLasSolicitudes, setTodasLasSolicitudes] = useState<SolicitudInscripcion[]>([]);
@@ -62,7 +65,10 @@ const SolicitudesInscripcionContent = () => {
   }, [cargarSolicitudes]);
 
   useEffect(() => {
-    setSearchParams(tab === 'aprobadas' ? { tab: 'aprobadas' } : {}, { replace: true });
+    const params: Record<string, string> = {};
+    if (tab === 'aprobadas') params.tab = 'aprobadas';
+    if (tab === 'recibidas') params.tab = 'recibidas';
+    setSearchParams(params, { replace: true });
   }, [tab, setSearchParams]);
 
   const solicitudesPorTab = useMemo(() => {
@@ -199,6 +205,13 @@ const SolicitudesInscripcionContent = () => {
         <div className="flex gap-2">
           <button
             type="button"
+            onClick={() => setTab('recibidas')}
+            className={`btn btn-sm ${tab === 'recibidas' ? 'btn-primary' : 'btn-light'}`}
+          >
+            Solicitudes recibidas
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('pendientes')}
             className={`btn btn-sm ${tab === 'pendientes' ? 'btn-primary' : 'btn-light'}`}
           >
@@ -211,6 +224,12 @@ const SolicitudesInscripcionContent = () => {
           >
             Aprobadas
           </button>
+          <Link
+            to="/gestion-academica/inscripciones/comprobantes"
+            className="btn btn-sm btn-light"
+          >
+            Comprobantes
+          </Link>
         </div>
         <input
           type="text"
@@ -219,16 +238,22 @@ const SolicitudesInscripcionContent = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="input input-sm max-w-xs"
         />
-        <button
-          type="button"
-          onClick={cargarSolicitudes}
-          className="btn btn-sm btn-light"
-          disabled={loading}
-        >
-          Actualizar
-        </button>
+        {tab !== 'recibidas' && (
+          <button
+            type="button"
+            onClick={cargarSolicitudes}
+            className="btn btn-sm btn-light"
+            disabled={loading}
+          >
+            Actualizar
+          </button>
+        )}
       </div>
 
+      {tab === 'recibidas' ? (
+        <SolicitudesRecibidasContent />
+      ) : (
+        <>
       {error && (
         <div className="px-5 pb-2">
           <p className="p-3 text-sm text-red-800 border border-red-200 rounded-lg bg-red-50 dark:bg-red-500/10 dark:text-red-300">
@@ -252,6 +277,8 @@ const SolicitudesInscripcionContent = () => {
         <div className="card-body">
           <DataGrid columns={columns} data={filtered} pagination={{ size: 10 }} />
         </div>
+      )}
+        </>
       )}
     </div>
   );
