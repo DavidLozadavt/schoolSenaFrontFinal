@@ -14,6 +14,7 @@ export interface Program {
   idEstadoPrograma?: number | string;
   idRed?:number;
   fichas_count?: number;
+  aperturas_count?: number;
   estado?: {
     id: number;
     nombre: string;

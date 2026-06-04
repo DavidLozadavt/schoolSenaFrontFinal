@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import AperturaCard from './components/AperturaCard';
 import AperturaCreateModal from './components/AperturaCreateModal';
+import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
 
 interface Program {
   id: number;
@@ -20,6 +21,7 @@ const AperturarProgramaPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [periodos, setPeriodos] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
+  const [jornadas, setJornadas] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [aperturas, setAperturas] = useState<any[]>([]);
@@ -35,14 +37,15 @@ const AperturarProgramaPage: React.FC = () => {
     const loadProgram = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`/aperturaPrograma/${idPrograma}`);
+        const res = await axios.get('/programas');
         const data = res.data.data || res.data;
-        const p = data && (Array.isArray(data) ? data[0] : data);
-        if (p && p.id) {
+        const list = Array.isArray(data) ? data : [];
+        const p = list.find((prog: any) => prog.id === Number(idPrograma));
+        if (p) {
           setProgram({
             id: Number(p.id),
-            name: p.nombrePrograma || p.name || '',
-            codigo: p.codigoPrograma || p.codigo || ''
+            name: p.nombrePrograma,
+            codigo: p.codigoPrograma
           });
         } else {
           setError('Programa no encontrado.');
@@ -71,10 +74,27 @@ const AperturarProgramaPage: React.FC = () => {
       setError(null);
       const [periodosRes, sedesRes] = await Promise.all([
         axios.get('/periodos'),
-        axios.get('/sedes')
+        axios.get('/sedesSena')
       ]);
+
       setPeriodos(periodosRes.data.data || periodosRes.data || []);
-      setSedes(sedesRes.data.data || sedesRes.data || []);
+      const sedesData = sedesRes.data.data || sedesRes.data || [];
+      setSedes(sedesData);
+
+      // Cargar jornadas si hay sedes disponibles
+      if (sedesData.length > 0 && sedesData[0]?.centro_formacion?.id) {
+        try {
+          const jornadasRes = await axios.get('/jornadas/agrupadas', {
+            params: { idCentroFormacion: sedesData[0].centro_formacion.id }
+          });
+          setJornadas(jornadasRes.data.data || jornadasRes.data || []);
+        } catch (err) {
+          console.error('Error cargando jornadas:', err);
+          setJornadas([]);
+        }
+      } else {
+        setJornadas([]);
+      }
     } catch (err) {
       console.error('Error cargando datos:', err);
       setError('No se pudieron cargar los datos necesarios');
@@ -87,13 +107,11 @@ const AperturarProgramaPage: React.FC = () => {
     if (!program) return;
     try {
       setLoadingAperturas(true);
-      const res = await axios.get('/aperturaPrograma');
-      console.log(res);
+      const res = await axios.get(`aperturarprograma/disponibles`, {
+        params: { idPrograma: idPrograma || program.id }
+      });
       const data = res.data.data || res.data;
-      const filtered = Array.isArray(data)
-        ? data.filter((a: any) => a.idPrograma === program.id || a.programa?.id === program.id)
-        : [];
-      setAperturas(filtered);
+      setAperturas(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error cargando aperturas:', err);
     } finally {
@@ -274,6 +292,7 @@ const AperturarProgramaPage: React.FC = () => {
           programId={program.id}
           periodos={periodos}
           sedes={sedes}
+          jornadas={jornadas}
           onSuccess={loadAperturas}
           aperturaToEdit={aperturaToEdit}
         />

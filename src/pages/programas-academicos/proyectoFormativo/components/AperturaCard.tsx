@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router';
 
 interface AperturaCardProps {
   apertura: any;
@@ -6,11 +7,8 @@ interface AperturaCardProps {
   onEdit?: (apertura: any) => void;
 }
 
-const AperturaCard: React.FC<AperturaCardProps> = ({
-  apertura,
-  onClick,
-  onEdit
-}) => {
+const AperturaCard: React.FC<AperturaCardProps> = ({ apertura, onClick, onEdit }) => {
+  const navigate = useNavigate();
   return (
     <div
       className={`bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full`}
@@ -50,7 +48,8 @@ const AperturaCard: React.FC<AperturaCardProps> = ({
         <div className="flex items-center gap-2">
           <i className="ki-outline ki-calendar text-gray-400 text-sm" />
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            Clases: {apertura.fechaInicialClases?.split('T')[0] || 'N/A'} al {apertura.fechaFinalClases?.split('T')[0] || 'N/A'}
+            Clases: {apertura.fechaInicialClases?.split('T')[0] || 'N/A'} al{' '}
+            {apertura.fechaFinalClases?.split('T')[0] || 'N/A'}
           </span>
         </div>
 
@@ -76,6 +75,15 @@ const AperturaCard: React.FC<AperturaCardProps> = ({
               <i className="ki-outline ki-notepad-edit" />
             </button>
           )}
+          <button
+            onClick={() => {
+              navigate(`/gestion-academica/configuracion/programas/${apertura.id}/fichas`);
+            }}
+            title="Ir a grupos"
+            className="flex items-center justify-center flex-1 py-1.5 transition-all border border-transparent rounded-lg text-white bg-blue-600 dark:bg-blue-500 hover:border-blue-500 hover:scale-105"
+          >
+            <i className="ki-outline ki-flag" />
+          </button>
         </div>
       </div>
     </div>
