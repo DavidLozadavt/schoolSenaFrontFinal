@@ -18,7 +18,8 @@ import {
 } from './validacionSolicitudTypes';
 import {
   EstudianteSolicitudInscripcion,
-  SolicitudInscripcion
+  SolicitudInscripcion,
+  RespuestasFormulario
 } from './solicitudInscripcionTypes';
 import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion } from './validacionInscripcionApi';
 import Paso1RecibirInscripcion from './steps/Paso1RecibirInscripcion';
@@ -45,6 +46,7 @@ const ValidacionSolicitudInscripcionPage = () => {
   const [error, setError] = useState('');
   const [solicitud, setSolicitud] = useState<SolicitudInscripcion | null>(null);
   const [estudiante, setEstudiante] = useState<EstudianteSolicitudInscripcion | null>(null);
+  const [respuestasFormulario, setRespuestasFormulario] = useState<RespuestasFormulario | null>(null);
   const [factura, setFactura] = useState<FacturaSolicitudMock | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [wizard, setWizard] = useState<ValidacionSolicitudWizardState>(initialWizardState);
@@ -69,6 +71,7 @@ const ValidacionSolicitudInscripcionPage = () => {
         setSolicitud(detalle.solicitud);
         setEstudiante(detalle.estudiante);
         setFactura(mapFacturaApiToMock(detalle.factura, detalle.solicitud.idSolicitud));
+        setRespuestasFormulario(detalle.respuestasFormulario);
       } catch (err) {
         console.error(err);
         if (!cancelado) {
@@ -76,6 +79,7 @@ const ValidacionSolicitudInscripcionPage = () => {
           setSolicitud(null);
           setEstudiante(null);
           setFactura(null);
+          setRespuestasFormulario(null);
         }
       } finally {
         if (!cancelado) setLoading(false);
@@ -285,6 +289,7 @@ const ValidacionSolicitudInscripcionPage = () => {
               <Paso3InformacionSolicitante
                 solicitud={solicitud}
                 estudiante={estudiante}
+                respuestasFormulario={respuestasFormulario}
                 revisada={wizard.informacionRevisada}
                 onRevisadaChange={(v) => setWizard((w) => ({ ...w, informacionRevisada: v }))}
               />

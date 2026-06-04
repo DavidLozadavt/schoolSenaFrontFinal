@@ -9,7 +9,7 @@ import {
   EstadoSolicitudInscripcion,
   SolicitudInscripcion
 } from './solicitudInscripcionTypes';
-import { fetchSolicitudesInscripcion } from './validacionInscripcionApi';
+import { fetchSolicitudesInscripcion, fetchSolicitudInscripcionDetalle } from './validacionInscripcionApi';
 
 const formatearEstadoFactura = (estado?: string) => {
   if (!estado) return '—';
@@ -41,6 +41,25 @@ const SolicitudesInscripcionContent = () => {
   const [todasLasSolicitudes, setTodasLasSolicitudes] = useState<SolicitudInscripcion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Modal states for form responses preview
+  const [selectedIdFactura, setSelectedIdFactura] = useState<number | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [respuestasData, setRespuestasData] = useState<any>(null);
+
+  const handleOpenRespuestasModal = async (idFactura: number) => {
+    setSelectedIdFactura(idFactura);
+    setModalLoading(true);
+    setRespuestasData(null);
+    try {
+      const detail = await fetchSolicitudInscripcionDetalle(idFactura);
+      setRespuestasData(detail.respuestasFormulario);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   const cargarSolicitudes = useCallback(async () => {
     setLoading(true);
@@ -170,22 +189,32 @@ const SolicitudesInscripcionContent = () => {
         id: 'accion',
         header: () => '',
         cell: ({ row }) => {
-          if (esSolicitudAprobada(row.original)) {
-            return (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase text-emerald-700">
-                <KeenIcon icon="check-circle" />
-                Validada
-              </span>
-            );
-          }
+          const aprobado = esSolicitudAprobada(row.original);
           return (
-            <Link
-              to={`/gestion-academica/inscripciones/solicitudes/${row.original.idSolicitud}/validar`}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white uppercase rounded-lg bg-primary hover:bg-primary-active"
-            >
-              <KeenIcon icon="check-circle" />
-              Validar solicitud
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenRespuestasModal(row.original.idFactura)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase rounded-lg border border-gray-200 dark:border-white/10 bg-white hover:bg-gray-50 dark:bg-coal-500 hover:text-primary dark:hover:text-primary"
+              >
+                <KeenIcon icon="document-text" />
+                Ver Respuestas
+              </button>
+              {aprobado ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase text-emerald-700">
+                  <KeenIcon icon="check-circle" />
+                  Validada
+                </span>
+              ) : (
+                <Link
+                  to={`/gestion-academica/inscripciones/solicitudes/${row.original.idSolicitud}/validar`}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white uppercase rounded-lg bg-primary hover:bg-primary-active"
+                >
+                  <KeenIcon icon="check-circle" />
+                  Validar solicitud
+                </Link>
+              )}
+            </div>
           );
         }
       }
@@ -251,6 +280,88 @@ const SolicitudesInscripcionContent = () => {
       ) : (
         <div className="card-body">
           <DataGrid columns={columns} data={filtered} pagination={{ size: 10 }} />
+        </div>
+      )}
+
+      {/* Modal for form responses details preview */}
+      {selectedIdFactura !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden bg-white rounded-2xl shadow-xl dark:bg-coal-600 flex flex-col max-h-[85vh] border border-gray-150 dark:border-white/10">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-white/10">
+              <h3 className="text-base font-black text-gray-900 dark:text-white uppercase flex items-center gap-2">
+                <KeenIcon icon="document-text" className="text-primary text-lg" />
+                Detalle de Inscripción
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedIdFactura(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl font-semibold leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="flex-1 p-6 overflow-y-auto min-h-[150px] space-y-4">
+              {modalLoading ? (
+                <div className="flex flex-col items-center py-10">
+                  <Spinner />
+                  <p className="mt-3 text-sm text-gray-500">Cargando respuestas del formulario...</p>
+                </div>
+              ) : respuestasData ? (
+                <div className="space-y-4">
+                  <div className="p-3 bg-primary/10 border border-primary/20 text-primary rounded-lg text-xs font-bold uppercase">
+                    Formulario: {respuestasData.formulario}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {respuestasData.respuestas.map((r: any, i: number) => {
+                      const respuestaStr = typeof r.respuesta === 'string' ? r.respuesta : (r.respuesta ? String(r.respuesta) : '');
+                      const esArchivo = respuestaStr && (
+                        respuestaStr.startsWith('http://') ||
+                        respuestaStr.startsWith('https://') ||
+                        respuestaStr.startsWith('/storage') ||
+                        respuestaStr.includes('/storage/') ||
+                        respuestaStr.includes('formulario_adjuntos')
+                      );
+                      return (
+                        <div key={i} className="p-3 border border-gray-200 rounded-lg bg-white dark:bg-coal-500 dark:border-white/10">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase block">{r.pregunta}</span>
+                          <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white break-words">
+                            {esArchivo ? (
+                              <a
+                                href={respuestaStr.startsWith('/') ? `${window.location.origin}${respuestaStr}` : respuestaStr}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-primary hover:underline font-bold text-xs uppercase"
+                              >
+                                <KeenIcon icon="document" />
+                                Ver adjunto / Descargar
+                              </a>
+                            ) : (
+                              respuestaStr || '—'
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-center text-gray-500 py-10">
+                  No se encontraron respuestas registradas en el formulario para esta solicitud.
+                </p>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-200 dark:border-white/10 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedIdFactura(null)}
+                className="btn btn-sm btn-light"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,11 +1,13 @@
 import {
   EstudianteSolicitudInscripcion,
-  SolicitudInscripcion
+  SolicitudInscripcion,
+  RespuestasFormulario
 } from '../solicitudInscripcionTypes';
 
 interface Props {
   solicitud: SolicitudInscripcion;
   estudiante: EstudianteSolicitudInscripcion | null;
+  respuestasFormulario: RespuestasFormulario | null;
   revisada: boolean;
   onRevisadaChange: (value: boolean) => void;
 }
@@ -13,6 +15,7 @@ interface Props {
 const Paso3InformacionSolicitante = ({
   solicitud,
   estudiante,
+  respuestasFormulario,
   revisada,
   onRevisadaChange
 }: Props) => (
@@ -78,6 +81,25 @@ const Paso3InformacionSolicitante = ({
         <p className="text-xs text-gray-500">{solicitud.codigoPrograma}</p>
       </div>
     </div>
+
+    {respuestasFormulario && (
+      <div className="p-5 border border-gray-200 rounded-xl bg-gray-50 dark:bg-coal-600 dark:border-white/5 space-y-4">
+        <h4 className="text-xs font-black uppercase text-gray-800 dark:text-white flex items-center gap-2">
+          <i className="ki-outline ki-document-text text-sm text-primary" />
+          Respuestas del Formulario: {respuestasFormulario.formulario}
+        </h4>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {respuestasFormulario.respuestas.map((r, i) => (
+            <div key={i} className="p-3 border border-gray-200 rounded-lg bg-white dark:bg-coal-500 dark:border-white/10">
+              <span className="text-[10px] font-bold text-gray-500 uppercase block">{r.pregunta}</span>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white break-words">
+                {r.respuesta || '—'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
 
     <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer bg-white dark:bg-coal-500 dark:border-white/10">
       <input
