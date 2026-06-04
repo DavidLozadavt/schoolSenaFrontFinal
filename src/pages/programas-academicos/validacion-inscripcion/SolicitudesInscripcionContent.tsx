@@ -113,13 +113,29 @@ const SolicitudesInscripcionContent = () => {
         id: 'numero',
         header: () => 'Solicitud',
         cell: (info) => (
-          <div>
-            <span className="font-medium text-gray-900 dark:text-white">
-              {info.row.original.numeroSolicitud}
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-900 dark:text-white">
+                {info.row.original.numeroSolicitud}
+              </span>
+              {info.row.original.editado && (
+                <span 
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                  title={`Editado el ${info.row.original.fechaEditado}`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Editado
+                </span>
+              )}
+            </div>
             {info.row.original.numeroFactura && (
               <span className="block text-xs text-gray-500">
                 Factura {info.row.original.numeroFactura}
+              </span>
+            )}
+            {info.row.original.editado && info.row.original.fechaEditado && (
+              <span className="text-[10px] text-amber-650 dark:text-amber-450 font-bold uppercase tracking-wider">
+                Modificado: {new Date(info.row.original.fechaEditado).toLocaleString()}
               </span>
             )}
           </div>

@@ -39,6 +39,8 @@ export interface SolicitudInscripcion {
   totalFactura?: number;
   idTransaccion?: number | null;
   requierePago: boolean;
+  editado?: boolean;
+  fechaEditado?: string | null;
 }
 
 export interface EstudianteSolicitudInscripcion {

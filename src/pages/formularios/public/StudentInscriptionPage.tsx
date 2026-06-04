@@ -54,6 +54,8 @@ const StudentInscriptionPage: React.FC = () => {
   const [filePreviews, setFilePreviews] = useState<{ [preguntaId: number]: { name: string; url: string }[] }>({});
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
 
+  const isEmbed = new URLSearchParams(window.location.search).get('embed') === 'true';
+
   const formSlug = 'inscripcion-estudiantes';
 
   useEffect(() => {
@@ -62,12 +64,30 @@ const StudentInscriptionPage: React.FC = () => {
         const { data } = await axios.get(`formulario-publico/${formSlug}`);
         setForm(data);
         
-        // Initialize responses
+        // Initialize responses, prefilled with previous response if available
+        const prevRespList = data.ultima_respuesta?.respuestas || [];
         const initialResp: { [preguntaId: number]: any } = {};
         data.preguntas.forEach((q: Pregunta) => {
-          initialResp[q.id] = q.tipo === 'casillas' ? [] : '';
+          const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
+          initialResp[q.id] = matched ? matched.valor : (q.tipo === 'casillas' ? [] : '');
         });
         setRespuestas(initialResp);
+
+        // Populate file previews if any files were previously uploaded
+        const initialFilePreviews: { [preguntaId: number]: { name: string; url: string }[] } = {};
+        data.preguntas.forEach((q: Pregunta) => {
+          if (q.tipo === 'archivo') {
+            const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
+            if (matched && matched.valor) {
+              const urls = typeof matched.valor === 'string' ? matched.valor.split(',').filter(Boolean) : [];
+              initialFilePreviews[q.id] = urls.map((url: string) => {
+                const name = url.split('/').pop() || 'archivo';
+                return { name, url };
+              });
+            }
+          }
+        });
+        setFilePreviews(initialFilePreviews);
       } catch (err: any) {
         setError(
           err.response?.data?.error || 
@@ -104,13 +124,15 @@ const StudentInscriptionPage: React.FC = () => {
           <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed max-w-md">
             Las inscripciones públicas para la institución se encuentran cerradas temporalmente en este momento. Por favor, comunícate con la coordinación académica o intenta más tarde.
           </p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 px-8 py-4 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-800 dark:text-white font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all flex items-center justify-center gap-2"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Volver a Inicio</span>
-          </button>
+          {!isEmbed && (
+            <button
+              onClick={() => navigate('/')}
+              className="mt-4 px-8 py-4 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-800 dark:text-white font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a Inicio</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -440,7 +462,7 @@ const StudentInscriptionPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-neutral-950 flex flex-col justify-between">
+    <div className="min-h-screen w-full bg-slate-50 dark:bg-neutral-950 flex flex-col justify-between" data-no-uppercase>
       
       {/* Header Banner */}
       <div className="w-full bg-white dark:bg-neutral-900 border-b border-neutral-200/50 dark:border-white/5 py-5 px-6 shadow-sm sticky top-0 z-40">
@@ -692,9 +714,16 @@ const StudentInscriptionPage: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <div className="w-full text-center py-6 border-t border-neutral-200/50 dark:border-white/5 opacity-55">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-neutral-600 mb-1">Creado con VirtualT</h4>
-        <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">Sistema avanzado de gestión educativa</p>
+      <div className="w-full text-center py-8 border-t border-neutral-200/50 dark:border-white/5 flex flex-col items-center gap-1.5 opacity-80 mt-12 bg-neutral-950/20">
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-yellow-500/15 to-amber-500/10 border border-amber-500/20 backdrop-blur-md shadow-[0_4px_12px_rgba(245,158,11,0.05)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <h4 className="text-[9px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-200 text-transparent bg-clip-text">
+            Creado con VirtualT
+          </h4>
+        </div>
+        <p className="text-[7.5px] font-black uppercase tracking-[0.25em] text-amber-500/50">
+          Sistema avanzado de gestión educativa
+        </p>
       </div>
 
       {/* Lightbox Modal */}
