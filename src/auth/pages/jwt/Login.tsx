@@ -8,6 +8,7 @@ import { toAbsoluteUrl } from '@/utils';
 import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
+import { useLayout } from '@/providers';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
@@ -33,6 +34,7 @@ const logoDarkSrc = toAbsoluteUrl('/media/app/logoweb-dark.png');
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login, roles, activacion } = useAuthContext();
+  const { currentLayout } = useLayout();
   const navigate = useNavigate();
   const location = useLocation();
   const [deviceToken, setDeviceToken] = useState<string>('');
@@ -230,7 +232,7 @@ const Login = () => {
 
           <div className="flex items-center justify-center">
             <Link
-              to="/auth/classic/reset-password"
+              to={currentLayout?.name === 'auth-branded' ? '/auth/reset-password' : '/auth/classic/reset-password'}
               className="text-xs text-gray-600 hover:text-[#1e6fd9] font-medium transition-colors"
             >
               ¿Olvidaste tu contraseña?

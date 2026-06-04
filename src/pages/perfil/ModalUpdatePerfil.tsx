@@ -23,7 +23,7 @@ const defaultImage = toAbsoluteUrl('/media/avatars/300-35.png');
 
 const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
   const authContext = useAuthContext();
-  const { persona, getUserAuthenticated } = authContext;
+  const { persona, getUserAuthenticated, auth } = authContext;
 
 
   const { enqueueSnackbar } = useSnackbar();
@@ -216,8 +216,12 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
     }
 
     try {
-      await axios.post(`update_person`, data);
-   await getUserAuthenticated();
+      await axios.post(`update_person`, data, {
+        headers: {
+          Authorization: `Bearer ${auth}`
+        }
+      });
+      await getUserAuthenticated();
       enqueueSnackbar('Datos actualizados con éxito.', { variant: 'success' });
       onClose();
     } catch (error) {
