@@ -85,10 +85,11 @@ const PerfilPage = () => {
       setNeedsPasswordUpdate(response.data.needs_password_update);
 
       if (response.data.needs_password_update) {
-        setStep(1);
-        enqueueSnackbar('Paso 1: Actualice su información personal', {
-          variant: 'info'
+        setStep(2);
+        enqueueSnackbar('Establezca su nueva contraseña para activar su cuenta', {
+          variant: 'warning'
         });
+        setShowPasswordModal(true);
       }
     } catch (error) {
       console.error('Error checking profile access:', error);
@@ -98,10 +99,11 @@ const PerfilPage = () => {
       setNeedsPasswordUpdate(needsUpdate);
 
       if (needsUpdate) {
-        setStep(1);
-        enqueueSnackbar('Paso 1: Actualice su información personal', {
-          variant: 'info'
+        setStep(2);
+        enqueueSnackbar('Establezca su nueva contraseña para activar su cuenta', {
+          variant: 'warning'
         });
+        setShowPasswordModal(true);
       }
     }
   };
@@ -426,31 +428,7 @@ const PerfilPage = () => {
   };
 
   const renderStepIndicator = () => {
-    if (!needsPasswordUpdate) return null;
-
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-center">
-          <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
-            >
-              1
-            </div>
-            <span className="ml-2 font-medium">Perfil</span>
-          </div>
-          <div className={`w-16 h-1 mx-4 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-          <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
-            >
-              2
-            </div>
-            <span className="ml-2 font-medium">Contraseña</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   };
 
   const fotoPerfilAlt =
@@ -503,33 +481,26 @@ const PerfilPage = () => {
 
       {/* Alerta si necesita actualizar contraseña */}
       {needsPasswordUpdate && (
-        <div
-          className={`p-4 mb-6 border-l-4 ${
-            step === 1 ? 'bg-blue-50 border-blue-400' : 'bg-yellow-50 border-yellow-400'
-          }`}
-        >
+        <div className="p-4 mb-6 border-l-4 bg-yellow-50 border-yellow-400">
           <div className="flex">
             <div className="flex-shrink-0">
               <KeenIcon
-                icon={step === 1 ? 'information' : 'warning'}
-                className={`h-5 w-5 ${step === 1 ? 'text-blue-400' : 'text-yellow-400'}`}
+                icon="warning"
+                className="h-5 w-5 text-yellow-400"
               />
             </div>
             <div className="ml-3">
-              <p className={`text-sm ${step === 1 ? 'text-blue-700' : 'text-yellow-700'}`}>
-                <strong>Proceso de activación en 2 pasos:</strong>
-                {step === 1 && ' Complete su información personal para continuar.'}
-                {step === 2 && ' Establezca su nueva contraseña para finalizar.'}
+              <p className="text-sm text-yellow-700">
+                <strong>Establecer Contraseña Obligatorio:</strong> Establezca su nueva contraseña para activar y poder utilizar su cuenta.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Formulario de Perfil */}
-      <div
-        className={`card ${step === 2 && profileUpdated ? 'opacity-50 pointer-events-none' : ''}`}
-      >
+      {/* Formulario de Perfil - Solo visible si no necesita cambiar contraseña */}
+      {!needsPasswordUpdate && (
+        <div className="card">
         <div className="card-header flex justify-between items-center py-5">
           <h3 className="card-title text-gray-800 dark:text-gray-100 font-semibold text-lg">
             {needsPasswordUpdate
@@ -970,6 +941,7 @@ const PerfilPage = () => {
         </form>
         </div>
       </div>
+      )}
 
       {/* Sección de Seguridad de Cuenta para usuarios normales */}
       {!needsPasswordUpdate && (
@@ -997,29 +969,28 @@ const PerfilPage = () => {
         </div>
       )}
 
-      {/* Sección de Seguridad - Solo en paso 2 */}
-      {needsPasswordUpdate && step === 2 && (
-        <div className="rounded-xl shadow-lg p-6 mt-6 bg-yellow-50">
-          <h2 className="font-semibold text-lg mb-4 text-yellow-800">
-            <KeenIcon icon="lock" className="mr-2" />
-            Paso 2: Establecer Contraseña
+      {/* Sección de Seguridad - Obligatorio cambiar contraseña */}
+      {needsPasswordUpdate && (
+        <div className="card p-6 mt-6 bg-yellow-50/20 border-l-4 border-warning">
+          <h2 className="font-semibold text-lg mb-4 text-yellow-800 flex items-center gap-2">
+            <KeenIcon icon="lock" className="text-warning fs-2" />
+            Establecer Contraseña Requerido
           </h2>
-          <div className="bg-yellow-100 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
               <div className="flex-shrink-0">
-                <KeenIcon icon="key" className="h-5 w-5 text-yellow-400" />
+                <KeenIcon icon="key" className="h-5 w-5 text-yellow-500" />
               </div>
               <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  <strong>Último paso:</strong> Establezca su contraseña para completar el proceso
-                  de activación.
+                <p className="text-sm text-yellow-800">
+                  Para activar completamente su cuenta y garantizar la seguridad, es obligatorio establecer una nueva contraseña en su primer inicio de sesión.
                 </p>
               </div>
             </div>
           </div>
-          <button className="btn btn-warning w-full" onClick={() => setShowPasswordModal(true)}>
-            <KeenIcon icon="key" className="mr-2" />
-            Establecer Contraseña (Finalizar)
+          <button className="btn btn-warning w-full flex items-center justify-center gap-2" onClick={() => setShowPasswordModal(true)}>
+            <KeenIcon icon="key" />
+            Establecer Contraseña (Activar Cuenta)
           </button>
         </div>
       )}

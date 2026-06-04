@@ -145,7 +145,8 @@ export const GestionProgramas = ({
         idTipoFormacion: Number(p.idTipoFormacion),
         idEstadoPrograma: Number(p.idEstadoPrograma),
         red: p.red,
-        fichas_count: p.fichas_activas_count ?? 0
+        fichas_count: p.fichas_activas_count ?? 0,
+        aperturas_count: p.aperturas_activas_count ?? 0
       };
     },
     [backUrl]
@@ -302,9 +303,6 @@ export const GestionProgramas = ({
     setIsInfoOpen(true);
   };
 
-  const handleOpenProgramacionFichas = (program: Program) => {
-    navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas`);
-  };
 
   const optionsRegional = regionales.map((val) => ({
     value: val.id,
@@ -443,7 +441,7 @@ export const GestionProgramas = ({
               <div className="flex-1 overflow-y-auto pb-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {paginatedPrograms.map((program) => {
-                    const fichasCount = program.fichas_count ?? 0;
+                    const fichasCount = program.aperturas_count ?? 0;
                     const hasFichas = fichasCount > 0;
                     return (
                       <div
@@ -456,7 +454,7 @@ export const GestionProgramas = ({
                               : 'border-gray-200 bg-gray-100 dark:bg-gray-700 opacity-70'
                           }
                         `}
-                        title={`Fichas asociadas al programa: ${fichasCount}`}
+                        title={`Aperturas activas del programa: ${fichasCount}`}
                       >
                         <div className="relative h-48 overflow-hidden">
                           <img
@@ -473,7 +471,7 @@ export const GestionProgramas = ({
                           <div className="absolute top-3 left-3">
                             <span className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-white/90 text-blue-700 rounded-full shadow">
                               <i className="ki-outline ki-book text-[11px]"></i>
-                              {program.fichas_count ?? 0}
+                              {program.aperturas_count ?? 0}
                             </span>
                           </div>
                           <div className="absolute bottom-3 left-3 right-3">
@@ -514,10 +512,10 @@ export const GestionProgramas = ({
                           </div>
 
                           <button
-                            onClick={() => handleOpenProgramacionFichas(program)}
+                            onClick={() => openAperturaModal(program)}
                             className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors mb-3"
                           >
-                            Ver Programación de Fichas →
+                            Aperturas →
                           </button>
 
                           <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
@@ -555,14 +553,6 @@ export const GestionProgramas = ({
                               className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
                             >
                               <i className="text-sm ki-outline ki-eye"></i>
-                            </button>
-
-                            <button
-                              title="Aperturar programa"
-                              onClick={() => openAperturaModal(program)}
-                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-600 hover:scale-105"
-                            >
-                              <i className="text-sm ki-outline ki-toggle-on-circle"></i>
                             </button>
 
                             {!esInstructorSena && (

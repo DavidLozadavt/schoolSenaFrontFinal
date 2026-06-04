@@ -8,6 +8,7 @@ import FormularioInfraestructura from '@/pages/gestion-infraestructura/Formulari
 import { ModalBody } from '@/components/modal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
+import { useParams } from 'react-router-dom';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -51,6 +52,7 @@ interface FormValues {
   idAsignacion: number;
   idPrograma: number;
   idRegional: number;
+  idTipoGrado: number | null;
   estado: string;
   idSede: number;
   idJornada: number;
@@ -75,34 +77,19 @@ const ESTADOS_APERTURA = [
 const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
+    idTipoGrado: Yup.number(),
 
     idAsignacion: Yup.number()
       .min(1, 'Debe seleccionar una apertura')
       .typeError('Debe seleccionar una apertura')
       .required('Debe seleccionar una apertura'),
 
-    // En edición el programa se puede cambiar; en creación viene por prop
-    idPrograma: isEditing
-      ? Yup.number()
-          .typeError('Debe seleccionar un programa')
-          .required('Debe seleccionar un programa')
-      : Yup.number().nullable(),
-
     idSede: Yup.number()
       .min(1, 'Debe seleccionar una sede')
       .typeError('Debe seleccionar una sede')
       .required('Debe seleccionar una sede'),
 
-    // Estado solo se valida en edición
-    estado: isEditing
-      ? Yup.string().required('Debe seleccionar un estado')
-      : Yup.string().nullable(),
-
     idInfraestructura: Yup.number().nullable(),
-
-    idJornada: Yup.number()
-      .typeError('Debe seleccionar una jornada')
-      .required('Debe seleccionar una jornada'),
 
     codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
@@ -174,6 +161,7 @@ const CrearEditarFicha: React.FC<Props> = ({
   const [codigoExist, setCodigoExist] = useState(false);
   const [codigo, setCodigo] = useState('');
   const [aperturaSelected, setAperturaSelected] = useState<any>(null);
+  const { programId } = useParams<{ programId: string }>();
 
   // Catálogos
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
@@ -182,14 +170,16 @@ const CrearEditarFicha: React.FC<Props> = ({
   const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
   const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
+  const [tiposGrado, setTiposGrado] = useState<{ value: number; label: string }[]>([]);
 
   // ── Formik ─────────────────────────────────────────────────────────────────
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
-      idAsignacion: 0,
+      idAsignacion: Number(programId) || 0,
       idPrograma: 0,
       idSede: 0,
+      idTipoGrado: 0,
       idRegional: 0,
       estado: '',
       idInfraestructura: 0,
@@ -252,12 +242,16 @@ const CrearEditarFicha: React.FC<Props> = ({
     if (isEditing) return; // en edición todo se carga dentro de loadFichaData
     const loadData = async () => {
       try {
-        const [jornadaRes, periodosRes] = await Promise.all([
+        const [jornadaRes, periodosRes, tiposGradoRes, aperturaRes] = await Promise.all([
           axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentro } }),
-          axios.get('regional')
+          axios.get('regional'),
+          axios.get('tipos-grado'),
+          axios.get(`aperturaPrograma/${Number(programId)}`)
         ]);
         setJornadas(jornadaRes.data.data);
         setPeriodos(periodosRes.data);
+        setTiposGrado(tiposGradoRes.data);
+        setAperturaSelected(aperturaRes.data);
       } catch (err) {
         console.error('Error cargando catálogos:', err);
       }
@@ -302,17 +296,18 @@ const CrearEditarFicha: React.FC<Props> = ({
         );
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
-        const [jornadaRes, aperturasRes, regionalesRes, programasRes, sedesRes, ambientesRes] =
+        const [jornadaRes, aperturasRes, regionalesRes, aperturaRes, sedesRes, ambientesRes] =
           await Promise.all([
             axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentroFromApi } }),
             axios.get('aperturarprograma/disponibles', { params: { idPrograma: Number(apertura.idPrograma) || 0, idSede } }),
             axios.get('regional'),
-            axios.get('programas'),
+            axios.get(`aperturaPrograma/${Number(apertura.id || Number(programId))}`),
             idRegional ? axios.get(`sedes/regional/${idRegional}`) : Promise.resolve(null),
             idSede ? axios.get(`sedes/${idSede}/infraestructuras`) : Promise.resolve(null)
           ]);
 
         setJornadas(jornadaRes.data.data);
+        setAperturaSelected(aperturaRes.data);
 
         // Asegurarnos de que la apertura actual esté en la lista aunque ya no esté "disponible"
         // ficha.asignacion trae las relaciones correctas (como periodo)
@@ -323,9 +318,7 @@ const CrearEditarFicha: React.FC<Props> = ({
           listaAperturas = [...listaAperturas, currentApertura];
         }
         setPeriodos(listaAperturas);
-        setAperturaSelected(currentApertura);
         setRegionales(regionalesRes.data);
-        setProgramas(programasRes.data.data);
         if (sedesRes) setSedes(sedesRes.data.data);
         if (ambientesRes) setAmbientes(ambientesRes.data.data);
 
@@ -334,6 +327,7 @@ const CrearEditarFicha: React.FC<Props> = ({
           idPrograma: Number(apertura.idPrograma) || 0,
           idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
+          idTipoGrado: Number(ficha.idTipoGrado) || 0,
           idSede: Number(idSede) || 0,
           idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
@@ -399,15 +393,6 @@ const CrearEditarFicha: React.FC<Props> = ({
       .catch(() => setAmbientes([]));
   }, [formik.values.idSede, eventoAmbiente]);
 
-  // ── Verificar duplicado de código (solo creación) ─────────────────────────
-  useEffect(() => {
-    if (isEditing || !codigo) return;
-    axios
-      .get(`ficha/validar-codigo/${codigo}`)
-      .then((res) => setCodigoExist(res.data.existe))
-      .catch(() => setCodigoExist(false));
-  }, [codigo]);
-
   const fechaFormateada = (fecha: any) => {
     const fechaDate = new Date(fecha);
     const dia = String(fechaDate.getDate()).padStart(2, '0');
@@ -465,9 +450,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </h3>
                 </div>
 
-                {/* Código */}
+                {/* Grado */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Código de la ficha</label>
+                  <label className="text-sm font-medium text-gray-700">Grado</label>
                   <input
                     type="text"
                     name="codigo"
@@ -477,7 +462,7 @@ const CrearEditarFicha: React.FC<Props> = ({
                       if (!isEditing) setCodigo(e.target.value);
                     }}
                     onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                    className="w-full input text-sm"
                   />
                   {!isEditing && codigoExist && (
                     <p className="text-red-500 text-xs">Este código ya está en uso</p>
@@ -487,69 +472,23 @@ const CrearEditarFicha: React.FC<Props> = ({
                   )}
                 </div>
 
-                {/* Porcentaje de ejecución */}
                 <div>
-                  <div className="md:col-span-2 mt-3">
-                    <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
-                  </div>
-                  <input
-                    type="number"
-                    name="porcentajeEjecucion"
-                    min={1}
-                    max={100}
-                    value={formik.values.porcentajeEjecucion ?? ''}
-                    onChange={(e) =>
-                      formik.setFieldValue(
-                        'porcentajeEjecucion',
-                        e.target.value === '' ? null : Number(e.target.value)
-                      )
-                    }
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                    placeholder="Ej: 75"
+                  <label className="text-sm font-medium text-gray-700">Tipo de Grado</label>
+                  <Select
+                    options={tiposGrado}
+                    placeholder="Seleccione el tipo de grado"
+                    isClearable
+                    value={tiposGrado.find((o) => o.value === formik.values.idTipoGrado)}
+                    onChange={(option) => {
+                      formik.setFieldValue('idTipoGrado', option?.value || 0);
+                    }}
+                    onBlur={() => formik.setFieldTouched('idTipoGrado', true)}
+                    classNames={selectClassNames}
                   />
-                  {formik.touched.porcentajeEjecucion && formik.errors.porcentajeEjecucion && (
-                    <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
+                  {formik.touched.idTipoGrado && formik.errors.idTipoGrado && (
+                    <p className="text-red-500 text-xs">{formik.errors.idTipoGrado}</p>
                   )}
                 </div>
-
-                {/* Programa (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Programa</label>
-                    <Select
-                      options={optionsProgramas}
-                      placeholder="Seleccione el programa"
-                      isClearable
-                      value={optionsProgramas.find((o) => o.value === formik.values.idPrograma)}
-                      onChange={(option) => formik.setFieldValue('idPrograma', option?.value || 0)}
-                      onBlur={() => formik.setFieldTouched('idPrograma', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.idPrograma && formik.errors.idPrograma && (
-                      <p className="text-red-500 text-xs">{formik.errors.idPrograma}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Estado (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Estado</label>
-                    <Select
-                      options={ESTADOS_APERTURA}
-                      placeholder="Seleccione el estado"
-                      isClearable
-                      value={ESTADOS_APERTURA.find((o) => o.value === formik.values.estado)}
-                      onChange={(option) => formik.setFieldValue('estado', option?.value || '')}
-                      onBlur={() => formik.setFieldTouched('estado', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.estado && formik.errors.estado && (
-                      <p className="text-red-500 text-xs">{formik.errors.estado}</p>
-                    )}
-                  </div>
-                )}
 
                 {/* ── Ubicación ────────────────────────────────────── */}
                 <div className="md:col-span-2 mt-4">
@@ -599,8 +538,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                     onChange={(option) => {
                       formik.setFieldValue('idSede', option?.value || 0);
                       formik.setFieldValue('idInfraestructura', 0);
-                      formik.setFieldValue('idAsignacion', 0);
-                      setAperturaSelected(null);
                     }}
                     onBlur={() => formik.setFieldTouched('idSede', true)}
                     classNames={selectClassNames}
@@ -648,64 +585,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </div>
                   {formik.touched.idInfraestructura && formik.errors.idInfraestructura && (
                     <p className="text-red-500 text-xs mt-1">{formik.errors.idInfraestructura}</p>
-                  )}
-                </div>
-
-                {/* Jornada */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Jornada</label>
-                  <Select
-                    options={optionsJornadas}
-                    placeholder="Seleccione la jornada"
-                    isClearable
-                    value={optionsJornadas.find((o) => o.value === formik.values.idJornada)}
-                    onChange={(option) => formik.setFieldValue('idJornada', option?.value || 0)}
-                    onBlur={() => formik.setFieldTouched('idJornada', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idJornada && formik.errors.idJornada && (
-                    <p className="text-red-500 text-xs">{formik.errors.idJornada}</p>
-                  )}
-                </div>
-
-                {/* Periodo / Apertura */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Apertura</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select
-                        options={optionsPeriodos}
-                        placeholder={
-                          !formik.values.idSede 
-                            ? 'Seleccione primero una sede' 
-                            : periodos.length === 0 
-                              ? 'No hay aperturas disponibles' 
-                              : 'Seleccione el periodo de apertura'
-                        }
-                        isDisabled={!formik.values.idSede || periodos.length === 0}
-                        isClearable
-                        value={optionsPeriodos.find((o) => o.value === formik.values.idAsignacion)}
-                        onChange={(option) => {
-                          formik.setFieldValue('idAsignacion', option?.value || 0);
-                          const selected = periodos.find((p) => p.id === option?.value);
-                          setAperturaSelected(selected || null);
-                        }}
-                        onBlur={() => formik.setFieldTouched('idAsignacion', true)}
-                        classNames={selectClassNames}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!formik.values.idSede}
-                      onClick={() => setOpenModal(true)}
-                      className="h-[38px] w-[38px] flex items-center justify-center border border-gray-300 rounded-md text-lg font-medium text-gray-600 bg-white hover:border-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition"
-                      title="Agregar apertura"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {formik.touched.idAsignacion && formik.errors.idAsignacion && (
-                    <p className="text-red-500 text-xs">{formik.errors.idAsignacion}</p>
                   )}
                 </div>
 
