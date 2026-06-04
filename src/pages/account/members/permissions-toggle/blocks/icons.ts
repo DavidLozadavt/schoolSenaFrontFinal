@@ -1,0 +1,91 @@
+interface Icon{
+    id:number;
+    nombre:string;
+}
+
+const icons:Icon[] = [
+    {
+        id:1,
+        nombre:"users"
+    },
+    {
+        id:2,
+        nombre:"home"
+    },
+    {
+        id:3,
+        nombre:"calendar-tick"
+    },
+    {
+        id:4,
+        nombre:"teacher"
+    },
+    {
+        id:5,
+        nombre:"devices"
+    },
+    {
+        id:6,
+        nombre:"teacher"
+    },
+    {
+        id:7,
+        nombre:"tablet-text-down"
+    },
+    {
+        id:8,
+        nombre:"chart-line"
+    },
+    {
+        id:9,
+        nombre:"setting"
+    },
+    {
+        id:10,
+        nombre:"shop"
+    },
+    {
+        id:11,
+        nombre:"car"
+    },
+    {
+        id:12,
+        nombre:"package"
+    },
+    {
+        id:13,
+        nombre:"archive"
+    },
+    {
+        id:14,
+        nombre:"lots-shopping"
+    },
+    {
+        id:15,
+        nombre:"wallet"
+    },
+    {
+        id:16,
+        nombre:"picture"
+    },
+    {
+        id:17,
+        nombre:"category"
+    },
+    {
+        id:18,
+        nombre:"arrow-down-refraction"
+    },
+    {
+        id:19,
+        nombre:"security-user"
+    },
+    {
+        id:20,
+        nombre:"profile-circle"
+    }
+    
+]
+
+
+export default icons;
