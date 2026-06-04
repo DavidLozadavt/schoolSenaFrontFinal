@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
-import { Save, X } from 'lucide-react';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
+import React, { useState } from 'react';
+import { Save, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface FormNuevoTrimestreProps {
   trimestre: any;
@@ -15,195 +13,155 @@ interface FormNuevoTrimestreProps {
   nivel?: string;
 }
 
-const formatearFecha = (fecha: string) =>
-  fecha ? new Date(fecha).toISOString().split('T')[0] : '';
-
 export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
-  trimestre,
-  guardando,
-  onActualizarFechaFin,
-  onActualizarFechaInicio,
-  onActualizarNumeroGrado,
-  onGuardar,
   onCancelar,
-  trimestres,
-  nivel
 }) => {
-  const persistedTrimestres = trimestres
-    .filter(t => !t.esNuevo)
-    .sort((a, b) => (a.grado?.numeroGrado || a.numeroGrado) - (b.grado?.numeroGrado || b.numeroGrado));
-  const isFirst = persistedTrimestres.length === 0;
+  const [periodos, setPeriodos] = useState([
+    { id: 1, nombre: 'Periodo 1', fechaInicio: '', fechaFin: '', porcentaje: 33.33 },
+    { id: 2, nombre: 'Periodo 2', fechaInicio: '', fechaFin: '', porcentaje: 33.33 },
+    { id: 3, nombre: 'Periodo 3', fechaInicio: '', fechaFin: '', porcentaje: 33.33 },
+  ]);
 
-  // Lógica de valores iniciales sugerida por el usuario
-  useEffect(() => {
-    if (isFirst) {
-      if (!trimestre.fechaInicio) {
-        const now = new Date().toISOString().split('T')[0];
-        onActualizarFechaInicio(now);
-      }
-      if (!trimestre.numeroGrado) {
-        onActualizarNumeroGrado(1);
-      }
-    } else {
-      const ultimo = persistedTrimestres[persistedTrimestres.length - 1];
-      if (!trimestre.fechaInicio) {
-        onActualizarFechaInicio(formatearFecha(ultimo.grado?.fechaFin || ultimo.fechaFin));
-      }
-      if (!trimestre.numeroGrado) {
-        onActualizarNumeroGrado((ultimo.grado?.numeroGrado || ultimo.numeroGrado) + 1);
-      }
-    }
-  }, [isFirst]);
+  const totalPorcentaje = Number(periodos.reduce((acc, curr) => acc + (Number(curr.porcentaje) || 0), 0).toFixed(2));
+  // Aceptamos 100 y 99.99 como válidos para permitir 33.33% en todos
+  const esValido = totalPorcentaje === 100 || totalPorcentaje === 99.99;
 
-  const formik = useFormik({
-    initialValues: {
-      numeroGrado: trimestre.numeroGrado || '',
-      fechaInicio: formatearFecha(trimestre.fechaInicio) || '',
-      fechaFin: trimestre.fechaFin || '',
-    },
-    enableReinitialize: true,
-    validationSchema: Yup.object({
-      numeroGrado: Yup.number()
-        .required('El número de trimestre es requerido')
-        .min(1, 'Debe ser al menos 1')
-        .test('max-trimestre', (value, context) => {
-          const { path, createError } = context;
-          if (nivel?.toUpperCase() === 'TECNICO' && (value || 0) > 3) {
-            return createError({ path, message: 'Para nivel Técnico el máximo son 3 trimestres' });
-          }
-          if (nivel?.toUpperCase() === 'TECNOLOGO' && (value || 0) > 7) {
-            return createError({ path, message: 'Para nivel Tecnólogo el máximo son 7 trimestres' });
-          }
-          return true;
-        }),
-      fechaInicio: Yup.date()
-        .required('La fecha de inicio es requerida'),
-      fechaFin: Yup.date()
-        .required('La fecha de fin es requerida')
-        .min(Yup.ref('fechaInicio'), 'La fecha de fin debe ser posterior a la de inicio'),
-    }),
-    onSubmit: () => {
-      onGuardar();
-    },
-  });
+  const handlePeriodoChange = (id: number, field: string, value: string | number) => {
+    setPeriodos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-
+        
         {/* HEADER */}
-        <div className="p-4 flex justify-between items-center border-b-2 border-gray-200 dark:border-gray-600">
-          <h3 className="text-2xl font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
-            <span className="text-primary">#{formik.values.numeroGrado}</span>
-            TRIMESTRE
-            <span className="text-xs bg-primary text-white px-2 py-1 rounded-full">
-              NUEVO
-            </span>
-          </h3>
-
+        <div className="p-6 flex justify-between items-center border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 flex items-center gap-3">
+              Configuración de periodos
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Configura las fechas y porcentajes. El total debe ser 100%.
+            </p>
+          </div>
           <button
             onClick={onCancelar}
-            className="absolute z-10 flex items-center justify-center w-9 h-9 transition-all border border-gray-400 rounded-full top-4 right-4 hover:bg-danger hover:text-white hover:scale-110"
+            className="flex items-center justify-center w-10 h-10 transition-all border border-gray-200 dark:border-gray-600 rounded-full hover:bg-danger hover:text-white hover:border-danger hover:scale-105"
             aria-label="Cerrar modal"
           >
-            <i className="text-lg ki-outline ki-cross"></i>
+            <X size={20} />
           </button>
         </div>
 
         {/* CONTENIDO */}
-        <form onSubmit={formik.handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto">
-
-            {/* NUMERO Y FECHAS */}
-            <div className={`grid grid-cols-1 ${isFirst ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
-              {isFirst && (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
-                    Número Trimestre
-                  </label>
-                  <input
-                    type="number"
-                    name="numeroGrado"
-                    value={formik.values.numeroGrado}
-                    onChange={(e) => {
-                      formik.handleChange(e);
-                      onActualizarNumeroGrado(Number(e.target.value));
-                    }}
-                    onBlur={formik.handleBlur}
-                    disabled={!isFirst}
-                    className={`w-full input px-4 py-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.numeroGrado && formik.errors.numeroGrado ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
-                      } ${!isFirst ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-coal-500' : ''}`}
-                  />
-                  {formik.touched.numeroGrado && formik.errors.numeroGrado && (
-                    <p className="text-xs text-danger mt-1">{formik.errors.numeroGrado as string}</p>
-                  )}
-                </div>
+        <div className="flex-1 overflow-y-auto px-6 bg-gray-50/50 dark:bg-coal-500/30">
+          
+          {/* AVISO DE PORCENTAJE */}
+          <div className={`p-4 rounded-xl flex items-center gap-4 transition-colors duration-300 ${esValido ? 'bg-success/5 border-success/20 text-success' : 'bg-warning/5 border-warning/30 text-warning-active'}`}>
+            <div className={`p-2 rounded-full ${esValido ? 'bg-success/20' : 'bg-warning/20'}`}>
+              {esValido ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-lg flex items-center gap-2">
+                Total acumulado: {Math.round(totalPorcentaje)}%
+                {esValido && <span className="text-sm font-normal opacity-80">(Correcto)</span>}
+              </p>
+              {!esValido && (
+                <p className="text-sm opacity-90 mt-1 font-medium">
+                  {totalPorcentaje > 100 
+                    ? `Te has pasado por ${(totalPorcentaje - 100).toFixed(2)}%. Ajusta los valores para que el total sea exactamente 100%.`
+                    : `Falta un ${(100 - totalPorcentaje).toFixed(2)}% para completar el 100%.`}
+                </p>
               )}
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
-                  Fecha de Inicio
-                </label>
-                <input
-                  type="date"
-                  name="fechaInicio"
-                  value={formik.values.fechaInicio}
-                  onChange={(e) => {
-                    formik.handleChange(e);
-                    onActualizarFechaInicio(e.target.value);
-                  }}
-                  onBlur={formik.handleBlur}
-                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaInicio && formik.errors.fechaInicio ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                />
-                {formik.touched.fechaInicio && formik.errors.fechaInicio && (
-                  <p className="text-xs text-danger mt-1">{formik.errors.fechaInicio as string}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
-                  Fecha de Fin
-                </label>
-                <input
-                  type="date"
-                  name="fechaFin"
-                  value={formik.values.fechaFin}
-                  onChange={(e) => {
-                    formik.handleChange(e);
-                    onActualizarFechaFin(e.target.value);
-                  }}
-                  onBlur={formik.handleBlur}
-                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaFin && formik.errors.fechaFin ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                />
-                {formik.touched.fechaFin && formik.errors.fechaFin && (
-                  <p className="text-xs text-danger mt-1">{formik.errors.fechaFin as string}</p>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* FOOTER */}
-          <div className="p-4 border-t-2 border-gray-200 dark:border-gray-600 flex gap-3">
-            <button
-              type="submit"
-              disabled={guardando || !formik.isValid}
-              className="flex-1 py-3 bg-primary text-white rounded-lg font-bold uppercase text-sm hover:bg-primary-active transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {guardando ? 'Guardando...' : <><Save size={16} /> Guardar</>}
-            </button>
+          {/* CARDS DE PERIODOS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {periodos.map((periodo) => (
+              <div key={periodo.id} className="bg-white dark:bg-coal-400 rounded-xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="flex items-center justify-between mb-5">
+                  <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-black">
+                      {periodo.id}
+                    </span>
+                    {periodo.nombre}
+                  </h4>
+                  <div className="text-2xl font-black text-gray-400 dark:text-gray-600 select-none">
+                    {periodo.porcentaje}%
+                  </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={onCancelar}
-              disabled={guardando}
-              className="py-3 px-4 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-bold uppercase text-sm hover:bg-gray-300 dark:hover:bg-gray-500 transition-all"
-            >
-              Cancelar
-            </button>
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+                      Fecha Inicio
+                    </label>
+                    <input
+                      type="date"
+                      value={periodo.fechaInicio}
+                      onChange={(e) => handlePeriodoChange(periodo.id, 'fechaInicio', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-coal-500/50 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all dark:text-gray-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+                      Fecha Fin
+                    </label>
+                    <input
+                      type="date"
+                      value={periodo.fechaFin}
+                      onChange={(e) => handlePeriodoChange(periodo.id, 'fechaFin', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-coal-500/50 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all dark:text-gray-200"
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+                      Porcentaje Asignado
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={periodo.porcentaje}
+                        onChange={(e) => handlePeriodoChange(periodo.id, 'porcentaje', e.target.value)}
+                        className={`w-full px-3 py-2.5 pr-8 text-sm rounded-lg border bg-white dark:bg-coal-500/50 focus:ring-2 outline-none transition-all dark:text-gray-200 font-bold ${
+                          esValido 
+                            ? 'border-gray-200 dark:border-gray-600 focus:ring-primary/20 focus:border-primary' 
+                            : 'border-warning/50 focus:ring-warning/20 focus:border-warning'
+                        }`}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </form>
+        </div>
+
+        {/* FOOTER */}
+        <div className="p-5 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-coal-500 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="px-6 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!esValido}
+            className="px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary-active transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-primary/20"
+          >
+            <Save size={18} /> 
+            {esValido ? 'Guardar' : 'Ajusta el 100%'}
+          </button>
+        </div>
       </div>
     </div>
   );
