@@ -45,15 +45,15 @@ const SolicitudesInscripcionContent = () => {
   // Modal states for form responses preview
   const [selectedIdFactura, setSelectedIdFactura] = useState<number | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [respuestasData, setRespuestasData] = useState<any>(null);
+  const [solicitudDetail, setSolicitudDetail] = useState<any>(null);
 
   const handleOpenRespuestasModal = async (idFactura: number) => {
     setSelectedIdFactura(idFactura);
     setModalLoading(true);
-    setRespuestasData(null);
+    setSolicitudDetail(null);
     try {
       const detail = await fetchSolicitudInscripcionDetalle(idFactura);
-      setRespuestasData(detail.respuestasFormulario);
+      setSolicitudDetail(detail);
     } catch (err) {
       console.error(err);
     } finally {
@@ -130,10 +130,29 @@ const SolicitudesInscripcionContent = () => {
         id: 'estudiante',
         header: () => 'Estudiante',
         cell: (info) => (
-          <div>
-            <span className="text-sm font-medium">{info.row.original.nombreEstudiante}</span>
-            <span className="block text-xs text-gray-500">{info.row.original.documento}</span>
-          </div>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+            {info.row.original.nombreEstudiante}
+          </span>
+        )
+      },
+      {
+        accessorFn: (row) => row.documento,
+        id: 'documento',
+        header: () => 'Documento estudiante',
+        cell: (info) => (
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {info.row.original.documento || '—'}
+          </span>
+        )
+      },
+      {
+        accessorFn: (row) => row.email,
+        id: 'email',
+        header: () => 'Correo estudiante',
+        cell: (info) => (
+          <span className="text-sm text-gray-700 dark:text-gray-300 break-all">
+            {info.row.original.email || '—'}
+          </span>
         )
       },
       {
@@ -307,43 +326,149 @@ const SolicitudesInscripcionContent = () => {
                   <Spinner />
                   <p className="mt-3 text-sm text-gray-500">Cargando respuestas del formulario...</p>
                 </div>
-              ) : respuestasData ? (
+              ) : solicitudDetail ? (
                 <div className="space-y-4">
-                  <div className="p-3 bg-primary/10 border border-primary/20 text-primary rounded-lg text-xs font-bold uppercase">
-                    Formulario: {respuestasData.formulario}
+                  {/* Datos del Aspirante */}
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 dark:bg-coal-500/50 dark:border-white/10 space-y-2">
+                    <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                      Datos del Aspirante
+                    </h4>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase block">Nombre Completo</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {(() => {
+                            let nameVal = solicitudDetail.estudiante?.nombreCompleto || '—';
+                            if (solicitudDetail.respuestasFormulario?.respuestas) {
+                              const respuestas = solicitudDetail.respuestasFormulario.respuestas;
+                              const namePreg = respuestas.find((r: any) => {
+                                const titleLower = (r.pregunta || '').toLowerCase();
+                                return (titleLower.includes('nombre') || titleLower.includes('nombres') || titleLower.includes('completo')) && 
+                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                              });
+                              if (namePreg && namePreg.respuesta) {
+                                nameVal = String(namePreg.respuesta);
+                              }
+                            }
+                            return nameVal;
+                          })()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase block">Documento de Identidad</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {(() => {
+                            let docVal = solicitudDetail.estudiante?.documento || '—';
+                            let tipoVal = solicitudDetail.estudiante?.tipoDocumento || 'CC';
+                            if (solicitudDetail.respuestasFormulario?.respuestas) {
+                              const respuestas = solicitudDetail.respuestasFormulario.respuestas;
+                              const docPreg = respuestas.find((r: any) => {
+                                const titleLower = (r.pregunta || '').toLowerCase();
+                                return (titleLower.includes('documento') || titleLower.includes('identificacion') || titleLower.includes('identificación') || titleLower.includes('número') || titleLower.includes('numero') || titleLower.includes('cc') || titleLower.includes('identidad')) && 
+                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                              });
+                              if (docPreg && docPreg.respuesta) {
+                                docVal = String(docPreg.respuesta);
+                              }
+                              const tipoPreg = respuestas.find((r: any) => {
+                                const titleLower = (r.pregunta || '').toLowerCase();
+                                return titleLower.includes('tipo') && titleLower.includes('documento') && 
+                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                              });
+                              if (tipoPreg && tipoPreg.respuesta) {
+                                tipoVal = String(tipoPreg.respuesta);
+                              }
+                            }
+                            return `${tipoVal} - ${docVal}`;
+                          })()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase block">Correo Electrónico</span>
+                        <span className="font-semibold text-gray-900 dark:text-white break-all">
+                          {(() => {
+                            let emailVal = solicitudDetail.estudiante?.email || '—';
+                            if (solicitudDetail.respuestasFormulario?.respuestas) {
+                              const respuestas = solicitudDetail.respuestasFormulario.respuestas;
+                              const emailPreg = respuestas.find((r: any) => {
+                                const titleLower = (r.pregunta || '').toLowerCase();
+                                return (titleLower.includes('correo') || titleLower.includes('email') || titleLower.includes('e-mail')) && 
+                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                              });
+                              if (emailPreg && emailPreg.respuesta) {
+                                emailVal = String(emailPreg.respuesta);
+                              }
+                            }
+                            return emailVal;
+                          })()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase block">Teléfono / Celular</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {(() => {
+                            let phoneVal = solicitudDetail.estudiante?.celular || solicitudDetail.estudiante?.telefono || '—';
+                            if (solicitudDetail.respuestasFormulario?.respuestas) {
+                              const respuestas = solicitudDetail.respuestasFormulario.respuestas;
+                              const phonePreg = respuestas.find((r: any) => {
+                                const titleLower = (r.pregunta || '').toLowerCase();
+                                return (titleLower.includes('teléfono') || titleLower.includes('telefono') || titleLower.includes('celular') || titleLower.includes('móvil') || titleLower.includes('movil')) && 
+                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                              });
+                              if (phonePreg && phonePreg.respuesta) {
+                                phoneVal = String(phonePreg.respuesta);
+                              }
+                            }
+                            return phoneVal;
+                          })()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {respuestasData.respuestas.map((r: any, i: number) => {
-                      const respuestaStr = typeof r.respuesta === 'string' ? r.respuesta : (r.respuesta ? String(r.respuesta) : '');
-                      const esArchivo = respuestaStr && (
-                        respuestaStr.startsWith('http://') ||
-                        respuestaStr.startsWith('https://') ||
-                        respuestaStr.startsWith('/storage') ||
-                        respuestaStr.includes('/storage/') ||
-                        respuestaStr.includes('formulario_adjuntos')
-                      );
-                      return (
-                        <div key={i} className="p-3 border border-gray-200 rounded-lg bg-white dark:bg-coal-500 dark:border-white/10">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase block">{r.pregunta}</span>
-                          <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white break-words">
-                            {esArchivo ? (
-                              <a
-                                href={respuestaStr.startsWith('/') ? `${window.location.origin}${respuestaStr}` : respuestaStr}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-primary hover:underline font-bold text-xs uppercase"
-                              >
-                                <KeenIcon icon="document" />
-                                Ver adjunto / Descargar
-                              </a>
-                            ) : (
-                              respuestaStr || '—'
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+
+                  {solicitudDetail.respuestasFormulario ? (
+                    <div className="space-y-4 pt-2">
+                      <div className="p-3 bg-primary/10 border border-primary/20 text-primary rounded-lg text-xs font-bold uppercase">
+                        Formulario: {solicitudDetail.respuestasFormulario.formulario}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {solicitudDetail.respuestasFormulario.respuestas.map((r: any, i: number) => {
+                          const respuestaStr = typeof r.respuesta === 'string' ? r.respuesta : (r.respuesta ? String(r.respuesta) : '');
+                          const esArchivo = respuestaStr && (
+                            respuestaStr.startsWith('http://') ||
+                            respuestaStr.startsWith('https://') ||
+                            respuestaStr.startsWith('/storage') ||
+                            respuestaStr.includes('/storage/') ||
+                            respuestaStr.includes('formulario_adjuntos')
+                          );
+                          return (
+                            <div key={i} className="p-3 border border-gray-200 rounded-lg bg-white dark:bg-coal-500 dark:border-white/10">
+                              <span className="text-[10px] font-bold text-gray-500 uppercase block">{r.pregunta}</span>
+                              <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white break-words">
+                                {esArchivo ? (
+                                  <a
+                                    href={respuestaStr.startsWith('/') ? `${window.location.origin}${respuestaStr}` : respuestaStr}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-primary hover:underline font-bold text-xs uppercase"
+                                  >
+                                    <KeenIcon icon="document" />
+                                    Ver adjunto / Descargar
+                                  </a>
+                                ) : (
+                                  respuestaStr || '—'
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-center text-gray-500 py-6">
+                      No se encontraron respuestas registradas en el formulario para esta solicitud.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-center text-gray-500 py-10">
