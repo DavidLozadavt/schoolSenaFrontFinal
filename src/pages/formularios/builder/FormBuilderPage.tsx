@@ -186,34 +186,53 @@ const FormBuilderPage: React.FC = () => {
             },
             { 
               id: `q-2`, 
+              tipo: 'desplegable', 
+              titulo: '🪪 Tipo de documento de identidad', 
+              descripcion: 'Selecciona tu tipo de documento.',
+              esObligatoria: true, 
+              orden: 2, 
+              opciones: [
+                { id: 'dt1', texto: 'Cédula de Ciudadanía (CC)', orden: 1 },
+                { id: 'dt2', texto: 'Tarjeta de Identidad (TI)', orden: 2 },
+                { id: 'dt3', texto: 'Registro Civil (RC)', orden: 3 },
+                { id: 'dt4', texto: 'Cédula de Extranjería (CE)', orden: 4 },
+                { id: 'dt5', texto: 'Permiso Especial de Permanencia (PEP)', orden: 5 }
+              ] 
+            },
+            { 
+              id: `q-3`, 
+              tipo: 'texto_corto', 
+              titulo: '🔢 Número de documento', 
+              descripcion: 'Escribe tu número de identificación sin puntos ni espacios.',
+              esObligatoria: true, 
+              orden: 3, 
+              opciones: [] 
+            },
+            { 
+              id: `q-4`, 
               tipo: 'texto_corto', 
               titulo: '📧 Correo electrónico institucional o personal de contacto', 
               descripcion: 'Aquí te enviaremos las credenciales de acceso a la sala virtual y memorias del evento.',
               esObligatoria: true, 
-              orden: 2, 
+              orden: 4, 
               opciones: [] 
             },
             { 
-              id: `q-3`, 
-              tipo: 'desplegable', 
-              titulo: '💼 ¿A qué perfil o área sectorial perteneces actualmente?', 
-              descripcion: 'Esto nos permite adaptar los enfoques prácticos de la sesión.',
+              id: `q-5`, 
+              tipo: 'texto_corto', 
+              titulo: '📞 Teléfono de contacto', 
+              descripcion: 'Escribe tu número telefónico o celular principal.',
               esObligatoria: true, 
-              orden: 3, 
-              opciones: [
-                { id: 'o1', texto: 'Estudiante en formación académica 🎓', orden: 1 }, 
-                { id: 'o2', texto: 'Docente / Instructor / Tutor educativo 🏫', orden: 2 }, 
-                { id: 'o3', texto: 'Profesional activo de la industria 🏢', orden: 3 }, 
-                { id: 'o4', texto: 'Emprendedor / Director / Consultor independiente 🚀', orden: 4 }
-              ] 
+              orden: 5, 
+              opciones: [] 
             },
             { 
-              id: `q-4`, 
+              id: `q-6`, 
               tipo: 'casillas', 
               titulo: '📢 ¿Cómo te enteraste de la convocatoria para este evento?', 
               descripcion: 'Nos ayuda a saber qué medios de comunicación son más efectivos.',
               esObligatoria: false, 
-              orden: 4, 
+              orden: 6, 
               opciones: [
                 { id: 'o5', texto: 'Publicación oficial en Redes Sociales (Facebook, Instagram, LinkedIn) 📱', orden: 1 }, 
                 { id: 'o6', texto: 'Boletín de novedades enviado por Correo Electrónico ✉️', orden: 2 }, 
@@ -222,12 +241,60 @@ const FormBuilderPage: React.FC = () => {
               ] 
             },
             { 
-              id: `q-5`, 
-              tipo: 'fecha', 
-              titulo: '📅 Fecha recomendada para tu sesión introductoria opcional', 
-              descripcion: 'Si deseas una sesión rápida de inducción técnica a la plataforma, elige la fecha ideal.',
-              esObligatoria: false, 
-              orden: 5, 
+              id: `q-7`, 
+              tipo: 'opcion_multiple', 
+              titulo: '🔞 ¿Eres menor de edad (menor de 18 años)?', 
+              descripcion: 'Si eres menor de edad, requerimos obligatoriamente la información de tu tutor.',
+              esObligatoria: true, 
+              orden: 7, 
+              opciones: [
+                { id: 'me1', texto: 'Sí', orden: 1 },
+                { id: 'me2', texto: 'No', orden: 2 }
+              ] 
+            },
+            { 
+              id: `q-8`, 
+              tipo: 'texto_corto', 
+              titulo: '👤 Nombre completo del tutor / acudiente', 
+              descripcion: 'Nombre completo de la persona adulta responsable.',
+              esObligatoria: true, 
+              orden: 8, 
+              opciones: [] 
+            },
+            { 
+              id: `q-9`, 
+              tipo: 'texto_corto', 
+              titulo: '🔢 Documento de identidad del tutor / acudiente', 
+              descripcion: 'Número de documento de identidad del acudiente.',
+              esObligatoria: true, 
+              orden: 9, 
+              opciones: [] 
+            },
+            { 
+              id: `q-10`, 
+              tipo: 'texto_corto', 
+              titulo: '📧 Correo electrónico del tutor / acudiente', 
+              descripcion: 'Dirección de correo electrónico de tu tutor o acudiente.',
+              esObligatoria: true, 
+              orden: 10, 
+              opciones: [] 
+            },
+            { 
+              id: `q-11`, 
+              tipo: 'texto_corto', 
+              titulo: '📞 Teléfono del tutor / acudiente', 
+              descripcion: 'Número celular o de contacto de tu acudiente.',
+              esObligatoria: true, 
+              orden: 11, 
+              opciones: [] 
+            },
+            { 
+              id: `q-12`, 
+              tipo: 'archivo', 
+              titulo: '📂 Cargar certificados de estudio', 
+              descripcion: 'Sube tu último certificado de estudios o documentos necesarios en formato PDF o Imagen.',
+              esObligatoria: true, 
+              orden: 12, 
               opciones: [] 
             }
           ]
@@ -591,14 +658,21 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
         const scaleConfig = q.configuracion || { min: 1, max: 5, minLabel: '', maxLabel: '' };
         const scaleArray = Array.from({ length: scaleConfig.max - scaleConfig.min + 1 }, (_, i) => scaleConfig.min + i);
 
+        const isTutorQ = q.titulo?.toLowerCase().includes('tutor') || q.titulo?.toLowerCase().includes('acudiente');
         return (
           <div 
             key={q.id || idx}
             className="bg-white dark:bg-neutral-900 p-8 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-lg"
             style={{ borderLeft: `6px solid ${data.colorTema}30` }}
           >
-            <h3 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed">
-              {q.titulo || 'Pregunta sin título'} {q.esObligatoria && <span className="text-rose-500 ml-1">*</span>}
+            <h3 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed flex items-center flex-wrap gap-2">
+              <span>{q.titulo || 'Pregunta sin título'}</span>
+              {q.esObligatoria && <span className="text-rose-500">*</span>}
+              {isTutorQ && (
+                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/10">
+                  Condicional Tutor
+                </span>
+              )}
             </h3>
             {q.descripcion && <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mb-4">{q.descripcion}</p>}
             
@@ -607,7 +681,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
                 <input 
                   type="text" 
                   disabled
-                  className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  className="w-full max-w-md bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 text-xs font-semibold rounded-2xl outline-none text-neutral-800 dark:text-white"
                   placeholder="Respuesta corta..."
                 />
               )}
@@ -615,7 +689,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'texto_largo' && (
                 <textarea 
                   disabled
-                  className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 text-xs font-semibold rounded-2xl outline-none text-neutral-800 dark:text-white"
                   rows={3}
                   placeholder="Respuesta larga..."
                 />
@@ -624,7 +698,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'opcion_multiple' && (
                 <div className="flex flex-col gap-2">
                   {(q.opciones || []).map(opt => (
-                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-coal-400 border border-neutral-100/50">
                       <input type="radio" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
                       <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
                     </div>
@@ -635,7 +709,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'casillas' && (
                 <div className="flex flex-col gap-2">
                   {(q.opciones || []).map(opt => (
-                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-coal-400 border border-neutral-100/50">
                       <input type="checkbox" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
                       <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
                     </div>
@@ -644,7 +718,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               )}
 
               {q.tipo === 'desplegable' && (
-                <select disabled className="w-full max-w-xs bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider">
+                <select disabled className="w-full max-w-xs bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider text-neutral-800 dark:text-white">
                   <option>Selecciona una opción...</option>
                   {(q.opciones || []).map(opt => (
                     <option key={opt.id}>{opt.texto}</option>
@@ -653,14 +727,14 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               )}
 
               {q.tipo === 'escala_lineal' && (
-                <div className="flex flex-col gap-4 py-4 px-6 bg-neutral-50/50 dark:bg-neutral-800/10 rounded-2xl border border-neutral-100/50">
+                <div className="flex flex-col gap-4 py-4 px-6 bg-neutral-50/50 dark:bg-coal-400 rounded-2xl border border-neutral-100/50 dark:border-white/5">
                   <div className="flex items-center gap-2 flex-wrap">
                     {scaleArray.map(n => (
                       <button
                         key={n}
                         type="button"
                         disabled
-                        className="w-10 h-10 rounded-full font-black text-xs flex items-center justify-center border border-neutral-200/50 bg-white dark:bg-neutral-800"
+                        className="w-10 h-10 rounded-full font-black text-xs flex items-center justify-center border border-neutral-200/50 bg-white dark:bg-coal-300 text-neutral-800 dark:text-white"
                       >
                         {n}
                       </button>
@@ -677,13 +751,13 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
                 <input 
                   type="date" 
                   disabled
-                  className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider"
+                  className="bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider text-neutral-800 dark:text-white"
                 />
               )}
 
               {q.tipo === 'archivo' && (
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-neutral-800 rounded-3xl cursor-not-allowed bg-neutral-50/20">
-                  <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-neutral-800/50 flex items-center justify-center mb-3">
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-coal-200 rounded-3xl cursor-not-allowed bg-neutral-50/20 dark:bg-coal-400/20">
+                  <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-coal-300 flex items-center justify-center mb-3">
                     <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
                   </div>
                   <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>

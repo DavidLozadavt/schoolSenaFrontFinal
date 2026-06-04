@@ -91,35 +91,8 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
   };
 
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
-
-    const newOtpCode = [...otpCode];
-    newOtpCode[index] = value.slice(0, 1);
-    setOtpCode(newOtpCode);
-
-
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-
-    if (newOtpCode.every(digit => digit.length === 1)) {
-      setTimeout(() => handleVerifyOtp(), 300);
-    }
-  };
-
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-input-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    const otp = otpCode.join('');
-    if (otp.length !== 6) {
+  const verifyCode = async (code: string) => {
+    if (code.length !== 6) {
       enqueueSnackbar('Por favor ingresa el código completo de 6 dígitos', { variant: 'error' });
       return;
     }
@@ -128,9 +101,8 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
     try {
       const response = await axios.post(`${VITE_APP_API_URL}password/verify-otp`, {
         email: emailForReset.trim().toLowerCase(),
-        otp: otp,
+        otp: code,
         identificacion: identification
-
       });
 
       let token = '';
@@ -141,7 +113,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
       } else if (response.data?.reset_token) {
         token = response.data.reset_token;
       } else {
-        token = otp;
+        token = code;
       }
 
       setVerifiedToken(token);
@@ -157,6 +129,55 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+
+    const newOtpCode = [...otpCode];
+    newOtpCode[index] = value.slice(0, 1);
+    setOtpCode(newOtpCode);
+
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-input-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+
+    if (newOtpCode.every(digit => digit.length === 1)) {
+      setTimeout(() => verifyCode(newOtpCode.join('')), 300);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pastedData) return;
+
+    const newOtpCode = [...otpCode];
+    for (let i = 0; i < 6; i++) {
+      newOtpCode[i] = pastedData[i] || '';
+    }
+    setOtpCode(newOtpCode);
+
+    const nextActiveIndex = Math.min(pastedData.length, 5);
+    const nextInput = document.getElementById(`otp-input-${nextActiveIndex}`);
+    if (nextInput) nextInput.focus();
+
+    if (pastedData.length === 6) {
+      setTimeout(() => verifyCode(pastedData), 300);
+    }
+  };
+
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-input-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handleVerifyOtp = () => {
+    verifyCode(otpCode.join(''));
   };
 
   const handleResendOtp = async () => {
@@ -309,6 +330,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
             value={otpCode[index]}
             onChange={(e) => handleOtpChange(index, e.target.value)}
             onKeyDown={(e) => handleOtpKeyDown(index, e)}
+            onPaste={handlePaste}
             className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl border-gray-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none"
           />
         ))}
