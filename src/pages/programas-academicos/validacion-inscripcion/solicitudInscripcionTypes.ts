@@ -82,4 +82,16 @@ export interface SolicitudInscripcionDetalleResponse {
   };
   estudiante: EstudianteSolicitudInscripcion | null;
   respuestasFormulario: RespuestasFormulario | null;
+  documentosPago?: Array<{
+    id: number;
+    idPago: number;
+    idEstado: number;
+    ruta: string;
+    fechaCarga?: string;
+    estado?: {
+      id: number;
+      estado: string;
+    };
+  }>;
 }
+
