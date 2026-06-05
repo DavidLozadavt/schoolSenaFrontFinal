@@ -18,6 +18,7 @@ import {
 } from '@/components/menu';
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
+import { userHasAnyPermission } from '@/utils/permissionUtils';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
@@ -40,9 +41,7 @@ const SidebarMenu = () => {
     }
 
     const safePermissions = userPermissions ?? [];
-    const isAllowedByPermission = requiredPermissions.some((perm) =>
-      safePermissions.includes(perm)
-    );
+    const isAllowedByPermission = userHasAnyPermission(requiredPermissions, safePermissions);
 
     const instructorSenaBypass =
       Array.isArray(userRoles) &&

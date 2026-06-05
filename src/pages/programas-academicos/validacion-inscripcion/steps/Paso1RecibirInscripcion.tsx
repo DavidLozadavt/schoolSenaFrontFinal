@@ -79,7 +79,7 @@ const Paso1RecibirInscripcion = ({
     '';
 
   const telefono =
-    findResp(['teléfono', 'telefono', 'celular', 'móvil', 'movil']) ||
+    findResp(['teléfono', 'telefono', 'celular', 'móvil', 'movil', 'tel']) ||
     estudiante?.celular ||
     estudiante?.telefono ||
     solicitud.telefono ||
