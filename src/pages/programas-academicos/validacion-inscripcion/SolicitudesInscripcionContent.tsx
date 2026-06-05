@@ -5,8 +5,8 @@ import { ColumnDef } from '@tanstack/react-table';
 import Spinner from '@/components/loaders/Spinner';
 import {
   esSolicitudAprobada,
-  esSolicitudPendienteValidacion,
   EstadoSolicitudInscripcion,
+  FiltroEstadoSolicitudInscripcion,
   SolicitudInscripcion
 } from './solicitudInscripcionTypes';
 import { fetchSolicitudesInscripcion, fetchSolicitudInscripcionDetalle } from './validacionInscripcionApi';
@@ -33,14 +33,27 @@ const etiquetaEstadoSolicitud: Record<EstadoSolicitudInscripcion, string> = {
 
 type TabListado = 'pendientes' | 'aprobadas';
 
+const filtroPorTab = (tab: TabListado): FiltroEstadoSolicitudInscripcion =>
+  tab === 'aprobadas' ? 'APROBADAS' : 'PENDIENTES';
+
 const SolicitudesInscripcionContent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabInicial = searchParams.get('tab') === 'aprobadas' ? 'aprobadas' : 'pendientes';
-  const [tab, setTab] = useState<TabListado>(tabInicial);
+  const tabDesdeUrl: TabListado =
+    searchParams.get('tab') === 'aprobadas' ? 'aprobadas' : 'pendientes';
+  const [tabActivo, setTabActivo] = useState<TabListado>(tabDesdeUrl);
   const [searchTerm, setSearchTerm] = useState('');
-  const [todasLasSolicitudes, setTodasLasSolicitudes] = useState<SolicitudInscripcion[]>([]);
+  const [solicitudes, setSolicitudes] = useState<SolicitudInscripcion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setTabActivo(tabDesdeUrl);
+  }, [tabDesdeUrl]);
+
+  const cambiarTab = (nuevoTab: TabListado) => {
+    setTabActivo(nuevoTab);
+    setSearchParams(nuevoTab === 'aprobadas' ? { tab: 'aprobadas' } : {}, { replace: true });
+  };
 
   // Modal states for form responses preview
   const [selectedIdFactura, setSelectedIdFactura] = useState<number | null>(null);
@@ -61,37 +74,27 @@ const SolicitudesInscripcionContent = () => {
     }
   };
 
-  const cargarSolicitudes = useCallback(async () => {
+  const cargarSolicitudes = useCallback(async (tab: TabListado = tabActivo) => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchSolicitudesInscripcion('TODOS');
-      setTodasLasSolicitudes(data);
+      const filtro = filtroPorTab(tab);
+      const data = await fetchSolicitudesInscripcion(filtro);
+      setSolicitudes(data);
     } catch (err) {
       console.error(err);
       setError('No se pudieron cargar las solicitudes. Verifique su sesión e intente de nuevo.');
-      setTodasLasSolicitudes([]);
+      setSolicitudes([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tabActivo]);
 
   useEffect(() => {
-    cargarSolicitudes();
-  }, [cargarSolicitudes]);
+    cargarSolicitudes(tabActivo);
+  }, [tabActivo, cargarSolicitudes]);
 
-  useEffect(() => {
-    setSearchParams(tab === 'aprobadas' ? { tab: 'aprobadas' } : {}, { replace: true });
-  }, [tab, setSearchParams]);
-
-  const solicitudesPorTab = useMemo(() => {
-    if (tab === 'aprobadas') {
-      return todasLasSolicitudes.filter(esSolicitudAprobada);
-    }
-    return todasLasSolicitudes.filter(
-      (s) => esSolicitudPendienteValidacion(s) && !esSolicitudAprobada(s)
-    );
-  }, [tab, todasLasSolicitudes]);
+  const solicitudesPorTab = solicitudes;
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -263,15 +266,15 @@ const SolicitudesInscripcionContent = () => {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setTab('pendientes')}
-            className={`btn btn-sm ${tab === 'pendientes' ? 'btn-primary' : 'btn-light'}`}
+            onClick={() => cambiarTab('pendientes')}
+            className={`btn btn-sm ${tabActivo === 'pendientes' ? 'btn-primary' : 'btn-light'}`}
           >
             Pendientes de validar
           </button>
           <button
             type="button"
-            onClick={() => setTab('aprobadas')}
-            className={`btn btn-sm ${tab === 'aprobadas' ? 'btn-primary' : 'btn-light'}`}
+            onClick={() => cambiarTab('aprobadas')}
+            className={`btn btn-sm ${tabActivo === 'aprobadas' ? 'btn-primary' : 'btn-light'}`}
           >
             Aprobadas
           </button>
@@ -285,7 +288,7 @@ const SolicitudesInscripcionContent = () => {
         />
         <button
           type="button"
-          onClick={cargarSolicitudes}
+          onClick={() => cargarSolicitudes(tabActivo)}
           className="btn btn-sm btn-light"
           disabled={loading}
         >
@@ -308,13 +311,18 @@ const SolicitudesInscripcionContent = () => {
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-10 text-sm text-center text-gray-500 card-body">
-          {tab === 'pendientes'
+          {tabActivo === 'pendientes'
             ? 'No hay solicitudes pendientes de validar. Las facturas con pago aprobado aparecen en Aprobadas.'
             : 'No hay solicitudes aprobadas. Aparecen aquí cuando la factura/transacción queda en estado aprobado.'}
         </div>
       ) : (
         <div className="card-body">
-          <DataGrid columns={columns} data={filtered} pagination={{ size: 10 }} />
+          <DataGrid
+            key={`solicitudes-inscripcion-${tabActivo}`}
+            columns={columns}
+            data={filtered}
+            pagination={{ size: 10 }}
+          />
         </div>
       )}
 

@@ -24,16 +24,14 @@ import {
 import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion, notificarRecepcionSolicitudInscripcion } from './validacionInscripcionApi';
 import Paso1RecibirInscripcion from './steps/Paso1RecibirInscripcion';
 import Paso2RevisionPago from './steps/Paso2RevisionPago';
-import Paso3InformacionSolicitante from './steps/Paso3InformacionSolicitante';
 import Paso4PagoMatricula from './steps/Paso4PagoMatricula';
 import Paso5ValidacionFinal from './steps/Paso5ValidacionFinal';
 
 const STEPS = [
   { number: 1, title: 'Información del aspirante', icon: 'ki-profile-user' },
   { number: 2, title: 'Revisión de pago', icon: 'ki-bill' },
-  { number: 3, title: 'Información solicitante', icon: 'ki-profile-user' },
-  { number: 4, title: 'Pago de matrícula', icon: 'ki-wallet' },
-  { number: 5, title: 'Resumen', icon: 'ki-check-circle' }
+  { number: 3, title: 'Pago de matrícula', icon: 'ki-wallet' },
+  { number: 4, title: 'Resumen', icon: 'ki-check-circle' }
 ];
 
 const ValidacionSolicitudInscripcionPage = () => {
@@ -121,11 +119,9 @@ const ValidacionSolicitudInscripcionPage = () => {
       case 1:
         return true;
       case 2:
-        return wizard.informacionRevisada;
-      case 3:
         if (!requiereRegistroPago) return true;
         return wizard.pagoRegistrado;
-      case 4:
+      case 3:
         return true;
       default:
         return false;
@@ -146,12 +142,12 @@ const ValidacionSolicitudInscripcionPage = () => {
       aplicarRevisionPagoAlSalirPaso2();
       return 2;
     }
-    if (from === 2 && omitirPasoPago) return 4;
+    if (from === 2 && omitirPasoPago) return 3;
     return Math.min(from + 1, STEPS.length - 1);
   };
 
   const getPrevStepIndex = (from: number): number => {
-    if (from === 4 && omitirPasoPago) return 2;
+    if (from === 3 && omitirPasoPago) return 1;
     return Math.max(from - 1, 0);
   };
 
@@ -270,7 +266,7 @@ const ValidacionSolicitudInscripcionPage = () => {
 
           <div className="flex flex-wrap gap-2">
             {STEPS.map((step, index) => {
-              const omitido = index === 3 && omitirPasoPago;
+              const omitido = index === 2 && omitirPasoPago;
               return (
                 <button
                   key={step.number}
@@ -306,15 +302,6 @@ const ValidacionSolicitudInscripcionPage = () => {
             )}
             {currentStep === 1 && <Paso2RevisionPago solicitud={solicitud} factura={factura} documentosPago={documentosPago} onAprobado={() => { setCurrentStep(2); }} onRechazado={() => { setCurrentStep(2); }} />}
             {currentStep === 2 && (
-              <Paso3InformacionSolicitante
-                solicitud={solicitud}
-                estudiante={estudiante}
-                respuestasFormulario={respuestasFormulario}
-                revisada={wizard.informacionRevisada}
-                onRevisadaChange={(v) => setWizard((w) => ({ ...w, informacionRevisada: v }))}
-              />
-            )}
-            {currentStep === 3 && (
               <Paso4PagoMatricula
                 factura={factura}
                 requiereRegistroPago={requiereRegistroPago}
@@ -327,7 +314,7 @@ const ValidacionSolicitudInscripcionPage = () => {
                 onFacturaActualizada={setFactura}
               />
             )}
-            {currentStep === 4 && (
+            {currentStep === 3 && (
               <Paso5ValidacionFinal
                 payload={payloadPreview}
                 observaciones={wizard.observacionesFinales}
