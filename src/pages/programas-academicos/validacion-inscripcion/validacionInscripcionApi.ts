@@ -128,3 +128,17 @@ export async function aprobarValidacionSolicitudInscripcion(
   );
   return res.data;
 }
+
+/**
+ * Envía correo de recepción al aspirante al finalizar la revisión del Paso 1.
+ * No modifica estados ni genera facturas — solo notifica al estudiante.
+ */
+export async function notificarRecepcionSolicitudInscripcion(
+  idFactura: number
+): Promise<{ message: string; correo_enviado: boolean; email?: string }> {
+  const res = await axios.post<{ message: string; correo_enviado: boolean; email?: string }>(
+    `solicitudes_inscripcion/${idFactura}/notificar_recepcion`,
+    {}
+  );
+  return res.data;
+}

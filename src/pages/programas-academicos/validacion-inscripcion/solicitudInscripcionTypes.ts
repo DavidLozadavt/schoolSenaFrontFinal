@@ -4,18 +4,7 @@ export type FiltroEstadoSolicitudInscripcion = 'PENDIENTES' | 'APROBADAS' | 'TOD
 
 /** Factura pagada / transacción aprobada → no va en "Pendientes de validar". */
 export function esSolicitudAprobada(s: SolicitudInscripcion): boolean {
-  if (s.estado === 'APROBADA' || s.validacionCompletada) return true;
-
-  const ef = (s.estadoFactura ?? '').toUpperCase();
-  const saldo = Number(s.saldoPendiente ?? 0);
-
-  if (['PAGADO', 'PAGADA', 'APROBADO'].includes(ef)) return true;
-
-  if (saldo <= 0 && ef !== 'PENDIENTE' && ef !== '') return true;
-
-  if (saldo <= 0 && !s.requierePago && Boolean(s.numeroFactura)) return true;
-
-  return false;
+  return s.estado === 'APROBADA' || Boolean(s.validacionCompletada);
 }
 
 /** Solo lo que aún requiere acción del administrador. */
@@ -50,6 +39,8 @@ export interface SolicitudInscripcion {
   totalFactura?: number;
   idTransaccion?: number | null;
   requierePago: boolean;
+  editado?: boolean;
+  fechaEditado?: string | null;
 }
 
 export interface EstudianteSolicitudInscripcion {
@@ -64,6 +55,14 @@ export interface EstudianteSolicitudInscripcion {
   fechaNacimiento?: string | null;
   direccion?: string | null;
   estadoMatricula?: string | null;
+}
+
+export interface RespuestasFormulario {
+  formulario: string;
+  respuestas: Array<{
+    pregunta: string;
+    respuesta: string;
+  }>;
 }
 
 export interface SolicitudInscripcionDetalleResponse {
@@ -84,4 +83,17 @@ export interface SolicitudInscripcionDetalleResponse {
     }>;
   };
   estudiante: EstudianteSolicitudInscripcion | null;
+  respuestasFormulario: RespuestasFormulario | null;
+  documentosPago?: Array<{
+    id: number;
+    idPago: number;
+    idEstado: number;
+    ruta: string;
+    fechaCarga?: string;
+    estado?: {
+      id: number;
+      estado: string;
+    };
+  }>;
 }
+

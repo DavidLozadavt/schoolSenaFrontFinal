@@ -28,6 +28,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_SOLICITUDES_INSCRIPCION', 'GESTION_ACADEMICA']
           },
           {
+            title: 'Configuración de inscripción',
+            path: '/gestion-academica/inscripciones/configuracion',
+            requiredPermissions: ['GESTION_ACADEMICA']
+          },
+          {
             title: 'Periodos',
             path: '/gestion-academica/configuracion/periodos',
             requiredPermissions: ['GESTION_PERIODOS'] //Cambiar por GESTION_PERIODOS
