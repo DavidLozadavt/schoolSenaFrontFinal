@@ -155,6 +155,7 @@ import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-
 import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-config/InscripcionConfigPage';
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
+import PortalAspirantePage from '@/pages/portal-aspirante/PortalAspirantePage';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -206,6 +207,8 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+      <Route path="/portal-aspirante/:token" element={<PortalAspirantePage />} />
+
 
       <Route element={<RequireAuth />}>
 

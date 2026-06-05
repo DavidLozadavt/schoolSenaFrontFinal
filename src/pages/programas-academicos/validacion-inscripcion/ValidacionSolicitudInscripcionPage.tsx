@@ -21,7 +21,7 @@ import {
   SolicitudInscripcion,
   RespuestasFormulario
 } from './solicitudInscripcionTypes';
-import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion } from './validacionInscripcionApi';
+import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion, notificarRecepcionSolicitudInscripcion } from './validacionInscripcionApi';
 import Paso1RecibirInscripcion from './steps/Paso1RecibirInscripcion';
 import Paso2RevisionPago from './steps/Paso2RevisionPago';
 import Paso3InformacionSolicitante from './steps/Paso3InformacionSolicitante';
@@ -29,7 +29,7 @@ import Paso4PagoMatricula from './steps/Paso4PagoMatricula';
 import Paso5ValidacionFinal from './steps/Paso5ValidacionFinal';
 
 const STEPS = [
-  { number: 1, title: 'Recibir inscripción', icon: 'ki-document' },
+  { number: 1, title: 'Información del aspirante', icon: 'ki-profile-user' },
   { number: 2, title: 'Revisión de pago', icon: 'ki-bill' },
   { number: 3, title: 'Información solicitante', icon: 'ki-profile-user' },
   { number: 4, title: 'Pago de matrícula', icon: 'ki-wallet' },
@@ -50,6 +50,7 @@ const ValidacionSolicitudInscripcionPage = () => {
   const [factura, setFactura] = useState<FacturaSolicitudMock | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [wizard, setWizard] = useState<ValidacionSolicitudWizardState>(initialWizardState);
+  const [documentosPago, setDocumentosPago] = useState<any[]>([]);
   const [finalizando, setFinalizando] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ const ValidacionSolicitudInscripcionPage = () => {
         setEstudiante(detalle.estudiante);
         setFactura(mapFacturaApiToMock(detalle.factura, detalle.solicitud.idSolicitud));
         setRespuestasFormulario(detalle.respuestasFormulario);
+        setDocumentosPago(detalle.documentosPago ?? []);
       } catch (err) {
         console.error(err);
         if (!cancelado) {
@@ -80,6 +82,7 @@ const ValidacionSolicitudInscripcionPage = () => {
           setEstudiante(null);
           setFactura(null);
           setRespuestasFormulario(null);
+          setDocumentosPago([]);
         }
       } finally {
         if (!cancelado) setLoading(false);
@@ -152,9 +155,16 @@ const ValidacionSolicitudInscripcionPage = () => {
     return Math.max(from - 1, 0);
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!puedeAvanzar()) return;
-    setCurrentStep(getNextStepIndex(currentStep));
+    const nextIdx = getNextStepIndex(currentStep);
+    // Paso 1 → enviar correo de recepción al aspirante (fire-and-forget, no bloquea)
+    if (currentStep === 0 && idFactura && !Number.isNaN(idFactura)) {
+      notificarRecepcionSolicitudInscripcion(idFactura).catch((err) =>
+        console.warn('No se pudo enviar correo de recepción:', err)
+      );
+    }
+    setCurrentStep(nextIdx);
   };
 
   const goPrev = () => {
@@ -163,6 +173,14 @@ const ValidacionSolicitudInscripcionPage = () => {
 
   const handleFinalizar = async () => {
     if (!idFactura || Number.isNaN(idFactura)) return;
+
+    // Bloquear si existe saldo pendiente o la factura no está pagada/aprobada
+    const saldo = factura?.saldoPendiente ?? solicitud?.saldoPendiente ?? 0;
+    const estadoFactRaw = (factura?.estadoFactura ?? solicitud?.estadoFactura ?? 'PENDIENTE').toUpperCase();
+    if (saldo > 0 || (estadoFactRaw !== 'PAGADA' && estadoFactRaw !== 'PAGADO')) {
+      setError('Debe aprobarse el pago antes de finalizar la inscripción.');
+      return;
+    }
 
     setFinalizando(true);
     setError('');
@@ -280,11 +298,13 @@ const ValidacionSolicitudInscripcionPage = () => {
             {currentStep === 0 && (
               <Paso1RecibirInscripcion
                 solicitud={solicitud}
+                estudiante={estudiante}
+                respuestasFormulario={respuestasFormulario}
                 recibida={wizard.recibida}
                 onRecibidaChange={(v) => setWizard((w) => ({ ...w, recibida: v }))}
               />
             )}
-            {currentStep === 1 && <Paso2RevisionPago solicitud={solicitud} factura={factura} />}
+            {currentStep === 1 && <Paso2RevisionPago solicitud={solicitud} factura={factura} documentosPago={documentosPago} onAprobado={() => { setCurrentStep(2); }} onRechazado={() => { setCurrentStep(2); }} />}
             {currentStep === 2 && (
               <Paso3InformacionSolicitante
                 solicitud={solicitud}
