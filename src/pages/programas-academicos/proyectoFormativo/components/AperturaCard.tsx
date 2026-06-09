@@ -17,7 +17,7 @@ const AperturaCard: React.FC<AperturaCardProps> = ({ apertura, onClick, onEdit }
       <div className="px-5 py-3 border-b border-gray-100 dark:border-coal-300 flex justify-between items-center bg-gray-50 dark:bg-coal-400/50 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-            {apertura.periodo?.nombrePeriodo || `ID ${apertura.id}`}
+            {apertura.nombre || `No se ha asignado nombre`}
           </span>
           {apertura.estado === 'CERRADO' && (
             <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-500/20 text-[9px] font-bold text-red-600 dark:text-red-400 rounded-full border border-red-200 dark:border-red-500/30 uppercase tracking-tight">
