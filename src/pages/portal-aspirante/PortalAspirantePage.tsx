@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { iniciarPagoPortalAspirante, MetodoPagoPortal } from './portalAspiranteApi';
+import { abrirCheckoutWompi } from './wompiCheckout';
 import {
   CheckCircle,
   Clock,
@@ -42,6 +44,12 @@ interface EstudiantePortal {
   telefono?: string;
 }
 
+interface PasarelaPagoPortal {
+  disponible?: boolean;
+  habilitarPSE?: boolean;
+  habilitarTarjetas?: boolean;
+}
+
 interface PortalData {
   solicitud: SolicitudPortal;
   factura: Record<string, unknown>;
@@ -51,6 +59,7 @@ interface PortalData {
   valorTotal?: number;
   numeroFactura?: string;
   pdfUrl?: string;
+  pasarelaPago?: PasarelaPagoPortal;
 }
 
 /* ─────────────────────────── helpers ─────────────────────────── */
@@ -69,11 +78,15 @@ const estadoBadge = (estado: string) => {
 /* ─────────────────────────── component ─────────────────────────── */
 const PortalAspirantePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
 
   // 1. Todos los Hooks de Estado al inicio
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [iniciandoPago, setIniciandoPago] = useState<MetodoPagoPortal | null>(null);
+  const [errorPago, setErrorPago] = useState<string | null>(null);
+  const [mensajeRetornoPago, setMensajeRetornoPago] = useState<string | null>(null);
 
   // Estados para validación de documento (Flujo de Seguridad)
   const [tipoDocumento, setTipoDocumento] = useState('CC');
@@ -86,27 +99,40 @@ const PortalAspirantePage: React.FC = () => {
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
   const [mensajeComprobante, setMensajeComprobante] = useState<{ tipo: 'success' | 'error', texto: string } | null>(null);
 
-  // 2. useEffect para cargar la información inicial usando el token
-  useEffect(() => {
+  const cargarPortal = useCallback(async (showLoader = true) => {
     if (!token) {
       setError('Enlace de acceso inválido.');
-      setLoading(false);
+      if (showLoader) setLoading(false);
       return;
     }
-    (async () => {
-      try {
-        const res = await axios.get<PortalData>(`portal-aspirante/${token}`);
-        setData(res.data);
-      } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-          'El enlace de acceso es inválido o ha expirado.';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (showLoader) setLoading(true);
+    try {
+      const res = await axios.get<PortalData>(`portal-aspirante/${token}`);
+      setData(res.data);
+      setError(null);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        'El enlace de acceso es inválido o ha expirado.';
+      setError(msg);
+    } finally {
+      if (showLoader) setLoading(false);
+    }
   }, [token]);
+
+  // 2. useEffect para cargar la información inicial usando el token
+  useEffect(() => {
+    cargarPortal();
+  }, [cargarPortal]);
+
+  useEffect(() => {
+    if (searchParams.get('pago') === 'retorno') {
+      setMensajeRetornoPago(
+        'Si completó el pago en Wompi, la confirmación puede tardar unos segundos. Actualizamos el estado de su inscripción.'
+      );
+      cargarPortal(false);
+    }
+  }, [searchParams, cargarPortal]);
 
   // 3. Manejadores de eventos
   const handleValidarIdentidad = (e: React.FormEvent) => {
@@ -119,6 +145,30 @@ const PortalAspirantePage: React.FC = () => {
       setErrorValidacion(null);
     } else {
       setErrorValidacion('El número de identificación no coincide con el registrado en la inscripción.');
+    }
+  };
+
+  const handleIniciarPagoWompi = async (metodo: MetodoPagoPortal) => {
+    if (!token || !data) return;
+    setIniciandoPago(metodo);
+    setErrorPago(null);
+
+    try {
+      const checkout = await iniciarPagoPortalAspirante(token, metodo);
+      await abrirCheckoutWompi(checkout, {
+        email: data.estudiante?.email ?? data.solicitud.email,
+        fullName: data.estudiante?.nombreCompleto ?? data.solicitud.nombreEstudiante,
+        phoneNumber: data.estudiante?.celular ?? data.estudiante?.telefono ?? data.solicitud.telefono
+      });
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        (err as Error)?.message ??
+        'No se pudo iniciar el pago en línea. Intente de nuevo o suba un comprobante manual.';
+      setErrorPago(msg);
+    } finally {
+      setIniciandoPago(null);
     }
   };
 
@@ -274,6 +324,11 @@ const PortalAspirantePage: React.FC = () => {
     estadoUpper === 'APROBADA' ||
     (pendiente <= 0 && total > 0);
 
+  const pasarela = data.pasarelaPago;
+  const mostrarPSE = pasarela?.habilitarPSE === true;
+  const mostrarTarjetas = pasarela?.habilitarTarjetas === true;
+  const hayPagoEnLinea = pasarela?.disponible && (mostrarPSE || mostrarTarjetas) && pendiente > 0;
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 flex flex-col">
       {/* Header */}
@@ -358,24 +413,48 @@ const PortalAspirantePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Botones de Pasarelas de Pago */}
-              <div className="border-t border-slate-100 pt-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Métodos de pago en línea</p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => alert('Integración de PSE próximamente.')}
-                    className="flex-1 min-w-[140px] bg-[#006699] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                  >
-                    [ Pagar con PSE ]
-                  </button>
-                  <button
-                    onClick={() => alert('Integración de Wompi próximamente.')}
-                    className="flex-1 min-w-[140px] bg-[#3B1C55] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                  >
-                    [ Pagar con Wompi ]
-                  </button>
+              {mensajeRetornoPago && (
+                <div className="p-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-100">
+                  {mensajeRetornoPago}
                 </div>
-              </div>
+              )}
+
+              {/* Botones de Pasarelas de Pago (WOMPI Web Checkout) */}
+              {hayPagoEnLinea && (
+                <div className="border-t border-slate-100 pt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Métodos de pago en línea</p>
+                  <div className="flex flex-wrap gap-3">
+                    {mostrarPSE && (
+                      <button
+                        type="button"
+                        onClick={() => handleIniciarPagoWompi('PSE')}
+                        disabled={iniciandoPago !== null}
+                        className="flex-1 min-w-[140px] bg-[#006699] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {iniciandoPago === 'PSE' ? 'Abriendo checkout…' : '[ Pagar con PSE ]'}
+                      </button>
+                    )}
+                    {mostrarTarjetas && (
+                      <button
+                        type="button"
+                        onClick={() => handleIniciarPagoWompi('CARD')}
+                        disabled={iniciandoPago !== null}
+                        className="flex-1 min-w-[140px] bg-[#3B1C55] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {iniciandoPago === 'CARD' ? 'Abriendo checkout…' : '[ Pagar con tarjeta ]'}
+                      </button>
+                    )}
+                  </div>
+                  {errorPago && (
+                    <div className="mt-3 p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-100">
+                      {errorPago}
+                    </div>
+                  )}
+                  <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">
+                    El pago se procesa de forma segura a través del checkout oficial de Wompi. No almacenamos datos de tarjeta.
+                  </p>
+                </div>
+              )}
 
               {/* Carga de Comprobante */}
               <div className="border-t border-slate-100 pt-5">

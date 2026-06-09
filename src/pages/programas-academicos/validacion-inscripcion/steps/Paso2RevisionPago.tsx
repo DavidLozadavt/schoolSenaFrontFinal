@@ -3,10 +3,21 @@ import axios from 'axios';
 import { FacturaSolicitudMock, EstadoFactura, FacturaDetalleMock, formatearPeso } from '../validacionSolicitudTypes';
 import { SolicitudInscripcion } from '../solicitudInscripcionTypes';
 
+interface PagoWompiInfo {
+  metodo: string;
+  referencia: string;
+  transactionId?: string | null;
+  fechaTransaccion?: string;
+  estado: string;
+  monto?: number;
+  currency?: string;
+}
+
 interface Props {
   solicitud: SolicitudInscripcion;
   factura: FacturaSolicitudMock | null;
   documentosPago?: any[];
+  pagoWompi?: PagoWompiInfo | null;
   onAprobado?: () => void;
   onRechazado?: () => void;
 }
@@ -28,7 +39,7 @@ const buildFileUrl = (ruta: string): string => {
   return `${base}/${rutaLimpia}`;
 };
 
-const Paso2RevisionPago = ({ solicitud, factura, documentosPago = [], onAprobado, onRechazado }: Props) => {
+const Paso2RevisionPago = ({ solicitud, factura, documentosPago = [], pagoWompi = null, onAprobado, onRechazado }: Props) => {
   const [aprobando, setAprobando] = useState(false);
   const [rechazando, setRechazando] = useState(false);
   const [observacionRechazo, setObservacionRechazo] = useState('');
@@ -37,12 +48,15 @@ const Paso2RevisionPago = ({ solicitud, factura, documentosPago = [], onAprobado
 
   const comprobantes = documentosPago;
 
-  // Los botones aparecen si hay comprobante y la factura sigue pendiente (no pagada)
   const estadoFactura = (factura?.estadoFactura ?? '').toUpperCase();
+  const facturaPagada = estadoFactura === 'PAGADA' || estadoFactura === 'PAGADO';
+  const pagoConciliadoWompi = Boolean(pagoWompi?.estado === 'APROBADO' || (facturaPagada && pagoWompi));
+
+  // Los botones solo si hay comprobante pendiente de revisión manual (no conciliado por WOMPI)
   const mostrarBotones =
     comprobantes.length > 0 &&
-    estadoFactura !== 'PAGADA' &&
-    estadoFactura !== 'PAGADO';
+    !facturaPagada &&
+    !pagoConciliadoWompi;
 
   const handleAprobarPago = async () => {
     if (!factura) return;
@@ -120,13 +134,49 @@ const Paso2RevisionPago = ({ solicitud, factura, documentosPago = [], onAprobado
         <span className="text-[10px] font-bold text-gray-400 uppercase">Paso 2 de 5</span>
       </div>
 
+      {/* PAGO EN LÍNEA WOMPI (conciliado automáticamente) */}
+      {pagoConciliadoWompi && pagoWompi && (
+        <div className="p-5 border border-emerald-200 rounded-xl bg-emerald-50/60 space-y-3">
+          <h4 className="text-xs font-black uppercase text-emerald-800 tracking-wider">Pago en línea confirmado (WOMPI)</h4>
+          <p className="text-xs text-emerald-700 leading-relaxed">
+            Este pago fue conciliado automáticamente por el webhook de Wompi. No requiere aprobación manual.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-[10px] font-bold uppercase text-emerald-600">Método de pago</p>
+              <p className="font-bold text-emerald-900">{pagoWompi.metodo}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-emerald-600">Referencia WOMPI</p>
+              <p className="font-bold text-emerald-900 break-all">{pagoWompi.referencia}</p>
+            </div>
+            {pagoWompi.transactionId && (
+              <div>
+                <p className="text-[10px] font-bold uppercase text-emerald-600">ID transacción</p>
+                <p className="font-bold text-emerald-900 break-all">{pagoWompi.transactionId}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-[10px] font-bold uppercase text-emerald-600">Fecha transacción</p>
+              <p className="font-bold text-emerald-900">{pagoWompi.fechaTransaccion ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-emerald-600">Estado</p>
+              <p className="font-bold text-emerald-900">{pagoWompi.estado}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ESTADO DEL COMPROBANTE */}
       <div className="p-5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-4">
         <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">Estado del comprobante de pago</h4>
 
         {comprobantes.length === 0 ? (
           <div className="p-4 border border-amber-200 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold leading-relaxed">
-            ⚠ No se ha recibido comprobante de pago. El aspirante aún no ha subido ningún archivo.
+            {pagoConciliadoWompi
+              ? 'No hay comprobante manual: el pago fue realizado y confirmado en línea vía WOMPI.'
+              : '⚠ No se ha recibido comprobante de pago. El aspirante aún no ha subido ningún archivo.'}
           </div>
         ) : (
           <div className="space-y-3">
