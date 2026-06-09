@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { iniciarPagoPortalAspirante, MetodoPagoPortal } from './portalAspiranteApi';
@@ -98,6 +98,7 @@ const PortalAspirantePage: React.FC = () => {
   const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
   const [mensajeComprobante, setMensajeComprobante] = useState<{ tipo: 'success' | 'error', texto: string } | null>(null);
+  const pagoEnCursoRef = useRef(false);
 
   const cargarPortal = useCallback(async (showLoader = true) => {
     if (!token) {
@@ -149,25 +150,32 @@ const PortalAspirantePage: React.FC = () => {
   };
 
   const handleIniciarPagoWompi = async (metodo: MetodoPagoPortal) => {
-    if (!token || !data) return;
+    if (!token || !data || pagoEnCursoRef.current) return;
+    pagoEnCursoRef.current = true;
     setIniciandoPago(metodo);
     setErrorPago(null);
 
     try {
       const checkout = await iniciarPagoPortalAspirante(token, metodo);
-      await abrirCheckoutWompi(checkout, {
+      abrirCheckoutWompi(checkout, {
         email: data.estudiante?.email ?? data.solicitud.email,
         fullName: data.estudiante?.nombreCompleto ?? data.solicitud.nombreEstudiante,
-        phoneNumber: data.estudiante?.celular ?? data.estudiante?.telefono ?? data.solicitud.telefono
+        phoneNumber: data.estudiante?.celular ?? data.estudiante?.telefono ?? data.solicitud.telefono,
+        legalId: data.estudiante?.documento ?? data.solicitud.documento,
+        legalIdType: (data.estudiante?.tipoDocumento ?? 'CC').toUpperCase()
       });
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        'No se pudo iniciar el pago en línea. Intente de nuevo o suba un comprobante manual.';
+      let msg = 'No se pudo iniciar el pago en línea. Intente de nuevo o suba un comprobante manual.';
+      if (typeof err === 'string') {
+        msg = err;
+      } else if (err instanceof Error && err.message) {
+        msg = err.message;
+      } else {
+        const axiosErr = err as { response?: { data?: { error?: string; message?: string } } };
+        msg = axiosErr.response?.data?.error ?? axiosErr.response?.data?.message ?? msg;
+      }
       setErrorPago(msg);
-    } finally {
+      pagoEnCursoRef.current = false;
       setIniciandoPago(null);
     }
   };
@@ -431,7 +439,7 @@ const PortalAspirantePage: React.FC = () => {
                         disabled={iniciandoPago !== null}
                         className="flex-1 min-w-[140px] bg-[#006699] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {iniciandoPago === 'PSE' ? 'Abriendo checkout…' : '[ Pagar con PSE ]'}
+                        {iniciandoPago === 'PSE' ? 'Redirigiendo a Wompi…' : '[ Pagar con PSE ]'}
                       </button>
                     )}
                     {mostrarTarjetas && (
@@ -441,7 +449,7 @@ const PortalAspirantePage: React.FC = () => {
                         disabled={iniciandoPago !== null}
                         className="flex-1 min-w-[140px] bg-[#3B1C55] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {iniciandoPago === 'CARD' ? 'Abriendo checkout…' : '[ Pagar con tarjeta ]'}
+                        {iniciandoPago === 'CARD' ? 'Redirigiendo a Wompi…' : '[ Pagar con tarjeta ]'}
                       </button>
                     )}
                   </div>
@@ -451,7 +459,7 @@ const PortalAspirantePage: React.FC = () => {
                     </div>
                   )}
                   <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">
-                    El pago se procesa de forma segura a través del checkout oficial de Wompi. No almacenamos datos de tarjeta.
+                    Será redirigido a la página segura de Wompi para ingresar los datos de pago. No almacenamos datos de tarjeta ni cuenta bancaria.
                   </p>
                 </div>
               )}
