@@ -18,7 +18,7 @@ interface Item {
 interface ModalFormProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newItem?: any) => void;
   itemEditar?: Item | null;
   defaultIdEvento?: number | null;
 }
@@ -124,14 +124,17 @@ export const ModalForm: React.FC<ModalFormProps> = ({
 
     try {
       setLoading(true);
+      let savedItem = null;
       if (esEdicion) {
         const { data } = await axios.put(`/items/${itemEditar!.id}`, payload);
         enqueueSnackbar(data.message ?? 'Actualizado correctamente', { variant: 'success' });
+        savedItem = data.data;
       } else {
         const { data } = await axios.post('/items', payload);
         enqueueSnackbar(data.message ?? 'Creado correctamente', { variant: 'success' });
+        savedItem = data.data;
       }
-      onSuccess();
+      onSuccess(savedItem);
       onClose();
     } catch (err: any) {
       enqueueSnackbar(err?.response?.data?.message ?? 'Error al guardar', { variant: 'error' });
