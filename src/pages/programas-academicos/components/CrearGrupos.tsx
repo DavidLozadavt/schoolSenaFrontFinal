@@ -24,7 +24,6 @@ interface Props {
 
 interface FormValues {
   idAsignacion: number;
-  idTipoGrado: number | null;
   cantidadGrados: number;
 }
 
@@ -64,7 +63,6 @@ const selectClassNames = {
 const CrearGrupos: React.FC<Props> = ({
   isModalOpen,
   setIsModalOpen,
-  programaId,
   onAction,
 }) => {
   const authContext = useContext(AuthContext);
@@ -92,7 +90,6 @@ const CrearGrupos: React.FC<Props> = ({
     enableReinitialize: true,
     initialValues: {
       idAsignacion: programId ? Number(programId) : 0,
-      idTipoGrado: null,
       cantidadGrados: 1,
     },
     validationSchema: buildValidationSchema(!!user?.idCentroFormacion),
@@ -100,20 +97,19 @@ const CrearGrupos: React.FC<Props> = ({
       try {
         const payload = {
           idAsignacion: values.idAsignacion,
-          cantidadGrados: values.cantidadGrados,
-          idTipoGrado: values.idTipoGrado,
+          cantidadGrados: values.cantidadGrados
         };
 
-        await axios.post('fichas/multiples', payload);
+        const response = await axios.post('fichas/multiples', payload);
 
         setTimeout(() => {
           resetForm();
           setIsModalOpen(false);
-          enqueueSnackbar('Grupos creados correctamente', { variant: 'success' });
+          enqueueSnackbar(response.data.message || 'Grupos creados correctamente', { variant: 'success' });
           onAction();
         }, 700);
       } catch (error: any) {
-        enqueueSnackbar('Error al crear los grupos', { variant: 'error' });
+        enqueueSnackbar(error.response.data.message || 'Error al crear los grupos', { variant: 'error' });
       } finally {
         setSubmitting(false);
       }
@@ -212,24 +208,6 @@ const CrearGrupos: React.FC<Props> = ({
                   />
                   {formik.touched.cantidadGrados && formik.errors.cantidadGrados && (
                     <p className="text-red-500 text-xs">{formik.errors.cantidadGrados}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Tipo de Grado</label>
-                  <Select
-                    options={tiposGrado}
-                    placeholder="Seleccione el tipo de grado"
-                    isClearable
-                    value={tiposGrado.find((o) => o.value === formik.values.idTipoGrado)}
-                    onChange={(option) => {
-                      formik.setFieldValue('idTipoGrado', option?.value ?? null);
-                    }}
-                    onBlur={() => formik.setFieldTouched('idTipoGrado', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idTipoGrado && formik.errors.idTipoGrado && (
-                    <p className="text-red-500 text-xs">{formik.errors.idTipoGrado}</p>
                   )}
                 </div>
 

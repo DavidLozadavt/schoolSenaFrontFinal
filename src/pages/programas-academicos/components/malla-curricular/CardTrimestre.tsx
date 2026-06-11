@@ -7,7 +7,7 @@ interface CardTrimestreProps {
   trimestre: any;
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
-  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string) => void;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onAsignacionSuccess?: () => void;
   setModalHorarios?: any;
@@ -114,7 +114,6 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
                 <CardRap
                   key={materia.id}
                   materia={materia}
-                  idTrimestre={trimestre.grado.idGradoPrograma}
                   onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
                   onEditCompetencia={onEditCompetencia}
                   onAsignacionSuccess={onAsignacionSuccess}
