@@ -303,6 +303,7 @@ const PerfilPage = () => {
     });
 
     if (Object.keys(validationErrors).length > 0) {
+      console.log('Errores de validación detectados:', validationErrors);
       setErrors(validationErrors);
       enqueueSnackbar('Por favor corrija los errores en el formulario', { variant: 'error' });
       return;

@@ -28,6 +28,7 @@ const FormPublicPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromEventId = location.state?.fromEventId;
+  const isEmbed = new URLSearchParams(window.location.search).get('embed') === 'true';
   const [form, setForm] = useState<FormData | null>(null);
   const [respuestas, setRespuestas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,12 +46,36 @@ const FormPublicPage: React.FC = () => {
         const { data } = await axios.get(`formulario-publico/${slug}`);
         setForm(data);
         
-        // Initialize respuestas array
-        const initialResp = data.preguntas.map((q: any) => ({
-          idPregunta: q.id,
-          valor: q.tipo === 'casillas' ? [] : ''
-        }));
+        // Initialize respuestas array, prefilled with previous response if available
+        const prevRespList = data.ultima_respuesta?.respuestas || [];
+        const initialResp = data.preguntas.map((q: any) => {
+          const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
+          let val = q.tipo === 'casillas' ? [] : '';
+          if (matched) {
+            val = matched.valor;
+          }
+          return {
+            idPregunta: q.id,
+            valor: val
+          };
+        });
         setRespuestas(initialResp);
+
+        // Populate file previews if any files were previously uploaded
+        const initialFilePreviews: { [preguntaId: number | string]: { name: string; url: string }[] } = {};
+        data.preguntas.forEach((q: any) => {
+          if (q.tipo === 'archivo') {
+            const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
+            if (matched && matched.valor) {
+              const urls = typeof matched.valor === 'string' ? matched.valor.split(',').filter(Boolean) : [];
+              initialFilePreviews[q.id] = urls.map((url: string) => {
+                const name = url.split('/').pop() || 'archivo';
+                return { name, url };
+              });
+            }
+          }
+        });
+        setFilePreviews(initialFilePreviews);
       } catch (err: any) {
         setError(err.response?.data?.error || 'No se pudo cargar el formulario. Es posible que el enlace no sea válido o el formulario ya no esté disponible.');
       } finally {
@@ -295,13 +320,15 @@ const FormPublicPage: React.FC = () => {
                   Enviar otra respuesta
                 </button>
               )}
-              <button
-                className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-                onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Volver al Dashboard</span>
-              </button>
+              {!isEmbed && (
+                <button
+                  className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Volver al Dashboard</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -359,7 +386,7 @@ const FormPublicPage: React.FC = () => {
   const headerMeta = getHeaderIconAndBg();
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-neutral-950">
+    <div className="min-h-screen w-full bg-slate-50 dark:bg-neutral-950" data-no-uppercase>
 
       {/* Progress Bar — full viewport width, sticky */}
       {totalRequired > 0 && (
@@ -383,16 +410,18 @@ const FormPublicPage: React.FC = () => {
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-28">
         
         {/* Back Button */}
-        <button
-          type="button"
-          onClick={() => {
-            navigate('/', { state: { openEventId: fromEventId } });
-          }}
-          className="group mb-6 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-fit cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
-          <span>Volver al Dashboard</span>
-        </button>
+        {!isEmbed && (
+          <button
+            type="button"
+            onClick={() => {
+              navigate('/', { state: { openEventId: fromEventId } });
+            }}
+            className="group mb-6 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-fit cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
+            <span>Volver al Dashboard</span>
+          </button>
+        )}
 
         <form onSubmit={handleSubmit}>
           {/* Main Title Card */}
@@ -805,9 +834,16 @@ const FormPublicPage: React.FC = () => {
         </form>
 
         {/* Footer Branding */}
-        <div className="text-center pb-12 opacity-40">
-           <h4 className="text-[10px] font-black uppercase tracking-widest text-neutral-550 mb-1">Creado con VirtualT</h4>
-           <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-500">Sistema avanzado de gestión educativa</p>
+        <div className="text-center pb-12 mt-8 flex flex-col items-center gap-1.5 opacity-80">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-yellow-500/15 to-amber-500/10 border border-amber-500/20 backdrop-blur-md shadow-[0_4px_12px_rgba(245,158,11,0.05)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-200 text-transparent bg-clip-text">
+              Creado con VirtualT
+            </h4>
+          </div>
+          <p className="text-[7.5px] font-black uppercase tracking-[0.25em] text-amber-500/50">
+            Sistema avanzado de gestión educativa
+          </p>
         </div>
       </div>
 

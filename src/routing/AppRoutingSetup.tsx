@@ -152,8 +152,10 @@ import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativ
 import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
 import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
 import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
+import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-config/InscripcionConfigPage';
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
+import PortalAspirantePage from '@/pages/portal-aspirante/PortalAspirantePage';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -205,6 +207,8 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+      <Route path="/portal-aspirante/:token" element={<PortalAspirantePage />} />
+
 
       <Route element={<RequireAuth />}>
 
@@ -389,7 +393,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/pagos/configuracion-valores-economicos"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+              <ProtectedRoute requiredPermissions={[PERMISO_GESTION_VALORES_ECONOMICOS]}>
                 <ConfiguracionValoresEconomicosPage />
               </ProtectedRoute>
             }
@@ -947,6 +951,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
                 <ValidacionSolicitudInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/configuracion"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <InscripcionConfigPage />
               </ProtectedRoute>
             }
           />

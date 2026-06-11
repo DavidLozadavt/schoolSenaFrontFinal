@@ -10,6 +10,7 @@ import { useSnackbar } from 'notistack';
 import { RoleModel } from '../../roles/models/_Role';
 import Swal from 'sweetalert2';
 import icons from './icons';
+import { formatPagosDisplayLabel } from '@/utils/pagosDisplayLabels';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Helper: build a tree from flat permission list
