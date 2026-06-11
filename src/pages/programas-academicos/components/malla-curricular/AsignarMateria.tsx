@@ -6,7 +6,6 @@ import Toast from '../Toast';
 import { enqueueSnackbar } from 'notistack';
 
 interface AsignarMateriaProps {
-  idPrograma: number;
   isOpen: boolean;
   onClose: () => void;
   nivelId: number | null;
@@ -16,7 +15,6 @@ interface AsignarMateriaProps {
 }
 
 export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
-  idPrograma,
   isOpen,
   onClose,
   nivelId,
@@ -50,12 +48,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const cargarMaterias = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`materias-programa`, {
-        params: {
-          idPrograma: idPrograma,
-          idFicha: idFicha
-        }
-      });
+      const response = await axios.get(`materias-programa`);
       setMateriasDisponibles(response.data || []);
     } catch (error) {
       setMateriasDisponibles([]);
@@ -65,7 +58,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   };
 
   const isAlreadyAssigned = (materia: any) => {
-    return (materiasActuales || []).some(m => (m.idMateria || m.id) === materia.id);
+    const lista = Array.isArray(materiasActuales) ? materiasActuales : [];
+    return lista.some(m => (m.idMateria || m.id) === materia.id);
   };
 
   const toggleMateria = (materia: any) => {
@@ -102,11 +96,20 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     setEditingCompetenciaId(undefined);
   };
 
-  const handleConfirmar = () => {
+  const handleConfirmar = async () => {
     if (onMateriasSeleccionadas) {
       // Filtrar para enviar SOLO las que son nuevas
       const nuevasMaterias = materiasSeleccionadas.filter(m => !isAlreadyAssigned(m));
       onMateriasSeleccionadas({ idGradoPrograma: nivelId ?? 0, materias: nuevasMaterias });
+      try {
+        const response = await axios.post('competencias/trimestre', {
+          materias: nuevasMaterias,
+          idFicha: idFicha
+        });
+        enqueueSnackbar(response.data.message || 'Materias asignadas correctamente', { variant: 'success' });
+      } catch (error: any) {
+        enqueueSnackbar(error.response?.data?.message || 'Error al asignar competencias', { variant: 'error' });
+      }
     }
     onClose();
   };
@@ -150,7 +153,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-hidden">
 
-      <div className="relative w-full max-w-4xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
 
         <Toast message='Competencia guardada correctamente' isOpen={toast} onClose={() => setToast(false)} />
 
@@ -186,23 +189,21 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                 />
               </div>
 
-              {/* <button
+              <button
                 onClick={() => {
                   setEditingCompetenciaId(undefined);
                   setShowForm(true);
                 }}
-                disabled={true}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-coal-600 text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg font-black text-[10px] uppercase tracking-widest cursor-not-allowed opacity-60"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white border border-gray-200 dark:border-gray-700 rounded-lg font-black text-[10px] uppercase"
               >
                 <Plus size={14} />
-                Crear Nueva
-              </button> */}
+                Crear Materia
+              </button>
             </div>
 
             <FormCompetencia
               isOpen={showForm}
               onClose={handleFormCancel}
-              programId={idPrograma ?? 0}
               competenciaId={editingCompetenciaId}
               onSuccess={handleFormSuccess}
             />
@@ -289,7 +290,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); cargarRaps(materia.id); }}
                               className={`p-1.5 rounded-lg transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 shadow-sm shrink-0 ${openRapsId === materia.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-white dark:hover:bg-coal-400 hover:text-primary'}`}
-                              title="Ver RAPs"
+                              title="Materias vinculadas"
                             >
                               <BookOpen size={14} />
                             </button>

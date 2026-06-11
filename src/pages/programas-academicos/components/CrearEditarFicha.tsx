@@ -15,8 +15,8 @@ interface Props {
   idCentro?: number;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
-  programaId?: string; // solo para CREAR
   fichaId?: number | null; // solo para EDITAR — si viene, entra en modo edición
+  fichaIdClonar?: number | null; // PARA CLONAR
   onAction: () => void;
   // callbacks opcionales que usaba EditarFicha (se mantienen por compatibilidad)
   setEvento?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -50,9 +50,7 @@ interface Ambientes {
 
 interface FormValues {
   idAsignacion: number;
-  idPrograma: number;
   idRegional: number;
-  idTipoGrado: number | null;
   estado: string;
   idSede: number;
   idJornada: number;
@@ -61,23 +59,13 @@ interface FormValues {
   tipoCalificacion: string;
   porcentajeEjecucion: number | null;
   documento: File | null;
+  idFicha: number | null;
 }
-
-const ESTADOS_APERTURA = [
-  { value: 'ACTIVO', label: 'ACTIVO' },
-  { value: 'INACTIVO', label: 'INACTIVO' },
-  { value: 'EN CURSO', label: 'EN CURSO' },
-  { value: 'CERRADO', label: 'CERRADO' },
-  { value: 'PENDIENTE', label: 'PENDIENTE' },
-  { value: 'APROBADO', label: 'APROBADO' },
-  { value: 'CANCELADO', label: 'CANCELADO' }
-];
 
 // ─── Validación ───────────────────────────────────────────────────────────────
 const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
-    idTipoGrado: Yup.number(),
 
     idAsignacion: Yup.number()
       .min(1, 'Debe seleccionar una apertura')
@@ -131,8 +119,8 @@ const CrearEditarFicha: React.FC<Props> = ({
   idCentro,
   isModalOpen,
   setIsModalOpen,
-  programaId,
   fichaId,
+  fichaIdClonar,
   onAction,
   setShowToast,
   setMessageToast
@@ -167,7 +155,6 @@ const CrearEditarFicha: React.FC<Props> = ({
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [periodos, setPeriodos] = useState<any[]>([]);
   const [sedes, setSedes] = useState<Sedes[]>([]);
-  const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
   const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
   const [tiposGrado, setTiposGrado] = useState<{ value: number; label: string }[]>([]);
@@ -177,9 +164,7 @@ const CrearEditarFicha: React.FC<Props> = ({
     enableReinitialize: true,
     initialValues: {
       idAsignacion: Number(programId) || 0,
-      idPrograma: 0,
       idSede: 0,
-      idTipoGrado: 0,
       idRegional: 0,
       estado: '',
       idInfraestructura: 0,
@@ -187,10 +172,17 @@ const CrearEditarFicha: React.FC<Props> = ({
       codigo: '',
       tipoCalificacion: 'NUMERICO',
       porcentajeEjecucion: isEditing ? null : 100,
-      documento: null
+      documento: null,
+      idFicha: fichaId || fichaIdClonar || null                  
     },
     validationSchema: buildValidationSchema(isEditing, !!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
+      if (!isEditing && codigoExist) {
+        enqueueSnackbar('El código ya está en uso', { variant: 'error' });
+        setSubmitting(false);
+        return;
+      }
+
       try {
         const formData = new FormData();
         Object.entries(values).forEach(([key, value]) => {
@@ -206,7 +198,6 @@ const CrearEditarFicha: React.FC<Props> = ({
           });
           enqueueSnackbar('Grado actualizado correctamente', { variant: 'success' });
         } else {
-          formData.append('idPrograma', String(programaId));
           const fichaRes = await axios.post('fichas', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
@@ -237,6 +228,30 @@ const CrearEditarFicha: React.FC<Props> = ({
     }
   });
 
+  // ── Validar código de ficha (solo CREAR) ────────────────────────────────────
+  useEffect(() => {
+    if (isEditing || !codigo || !formik.values.idAsignacion) {
+      setCodigoExist(false);
+      return;
+    }
+    const checkCodigo = async () => {
+      try {
+        const res = await axios.get('ficha/validar-codigo', {
+          params: {
+            codigo,
+            idAsignacion: formik.values.idAsignacion
+          }
+        });
+        setCodigoExist(res.data.existe);
+      } catch (err) {
+        console.error('Error validando código:', err);
+      }
+    };
+
+    const debounceTimer = setTimeout(checkCodigo, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [codigo, formik.values.idAsignacion, isEditing]);
+
   // ── Cargar catálogos generales (solo CREAR) ───────────────────────────────
   useEffect(() => {
     if (isEditing) return; // en edición todo se carga dentro de loadFichaData
@@ -260,23 +275,9 @@ const CrearEditarFicha: React.FC<Props> = ({
   }, [reload]);
 
   useEffect(() => {
-    const currentProgramaId = isEditing ? formik.values.idPrograma : programaId;
-    if (!isModalOpen || !currentProgramaId || !formik.values.idSede) return;
     if (isEditing && isLoading) return;
 
-    const loadPeriodosDisponibles = async () => {
-      try {
-        const res = await axios.get('aperturarprograma/disponibles', { 
-          params: { idPrograma: currentProgramaId, idSede: formik.values.idSede } 
-        });
-        setPeriodos(res.data);
-      } catch (error) {
-        enqueueSnackbar('Error al cargar periodos de apertura disponibles', { variant: 'error' });
-      }
-    };
-
-    loadPeriodosDisponibles();
-  }, [isModalOpen, isEditing, programaId, formik.values.idPrograma, formik.values.idSede, reload, isLoading]);
+  }, [isModalOpen, isEditing, formik.values.idSede, reload, isLoading]);
 
   // ── Cargar datos de la ficha + todos los catálogos (solo EDITAR) ──────────
   useEffect(() => {
@@ -296,10 +297,9 @@ const CrearEditarFicha: React.FC<Props> = ({
         );
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
-        const [jornadaRes, aperturasRes, regionalesRes, aperturaRes, sedesRes, ambientesRes] =
+        const [jornadaRes, regionalesRes, aperturaRes, sedesRes, ambientesRes] =
           await Promise.all([
             axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentroFromApi } }),
-            axios.get('aperturarprograma/disponibles', { params: { idPrograma: Number(apertura.idPrograma) || 0, idSede } }),
             axios.get('regional'),
             axios.get(`aperturaPrograma/${Number(apertura.id || Number(programId))}`),
             idRegional ? axios.get(`sedes/regional/${idRegional}`) : Promise.resolve(null),
@@ -309,32 +309,22 @@ const CrearEditarFicha: React.FC<Props> = ({
         setJornadas(jornadaRes.data.data);
         setAperturaSelected(aperturaRes.data);
 
-        // Asegurarnos de que la apertura actual esté en la lista aunque ya no esté "disponible"
-        // ficha.asignacion trae las relaciones correctas (como periodo)
-        const currentApertura = ficha.asignacion || apertura;
-        
-        let listaAperturas = aperturasRes.data || [];
-        if (currentApertura && !listaAperturas.some((a: any) => a.id === currentApertura.id)) {
-          listaAperturas = [...listaAperturas, currentApertura];
-        }
-        setPeriodos(listaAperturas);
         setRegionales(regionalesRes.data);
         if (sedesRes) setSedes(sedesRes.data.data);
         if (ambientesRes) setAmbientes(ambientesRes.data.data);
 
         formik.setValues({
-          idAsignacion: Number(ficha.idAsignacion) || Number(currentApertura.id) || 0,
-          idPrograma: Number(apertura.idPrograma) || 0,
+          idAsignacion: Number(ficha.idAsignacion) || 0,
           idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
-          idTipoGrado: Number(ficha.idTipoGrado) || 0,
           idSede: Number(idSede) || 0,
           idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
           idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
           porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
-          documento: null
+          documento: null,
+          idFicha: fichaId || null
         });
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Error al cargar la ficha';
@@ -401,16 +391,9 @@ const CrearEditarFicha: React.FC<Props> = ({
     return `${dia}/${mes}/${anio}`;
   }
 
-  // ── Opciones para react-select ────────────────────────────────────────────
-  const optionsJornadas = jornadas.map((v) => ({ value: v.id, label: v.nombreJornada }));
-  const optionsPeriodos = periodos.map((v) => ({
-    value: v.id,
-    label: `${v.periodo?.nombrePeriodo} fecha inicio: ${fechaFormateada(v.fechaInicialClases)} fecha fin: ${fechaFormateada(v.fechaFinalClases)}`
-  }));
   const optionsSedes = sedes.map((v) => ({ value: v.id, label: v.nombre }));
   const optionsRegionales = regionales.map((v) => ({ value: v.id, label: v.razonSocial }));
   const optionsAmbientes = ambientes.map((v) => ({ value: v.id, label: v.nombreInfraestructura }));
-  const optionsProgramas = programas.map((v) => ({ value: v.id, label: v.nombrePrograma }));
 
   if (!isModalOpen) return null;
 
@@ -433,6 +416,11 @@ const CrearEditarFicha: React.FC<Props> = ({
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
           {isEditing ? 'Editar Grado' : 'Crear Grado'}
+          {!isEditing && (
+          <p className="text-sm opacity-50 mt-1">
+            Desde esta opción se generará el nuevo grupo con las mismas materias asignadas que el anterior.
+          </p>
+        )}
         </h2>
 
         {isLoading ? (
@@ -469,24 +457,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                   )}
                   {formik.touched.codigo && formik.errors.codigo && (
                     <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Tipo de Grado</label>
-                  <Select
-                    options={tiposGrado}
-                    placeholder="Seleccione el tipo de grado"
-                    isClearable
-                    value={tiposGrado.find((o) => o.value === formik.values.idTipoGrado)}
-                    onChange={(option) => {
-                      formik.setFieldValue('idTipoGrado', option?.value || 0);
-                    }}
-                    onBlur={() => formik.setFieldTouched('idTipoGrado', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idTipoGrado && formik.errors.idTipoGrado && (
-                    <p className="text-red-500 text-xs">{formik.errors.idTipoGrado}</p>
                   )}
                 </div>
 

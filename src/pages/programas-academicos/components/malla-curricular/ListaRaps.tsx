@@ -12,9 +12,6 @@ interface ListaRapsProps {
   idMateriaPadre: number;
   nombreCompetencia?: string;
   idFicha: number;
-  nivelId?: number;
-  porcentajeEjecucion?: number;
-  programId: number;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
 }
@@ -25,9 +22,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   idMateriaPadre,
   nombreCompetencia = "Competencia",
   idFicha,
-  nivelId,
-  porcentajeEjecucion,
-  programId,
   onEditCompetencia,
   onUpdate
 }) => {
@@ -37,14 +31,14 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   const [agregarRap, setAgregarRap] = useState<boolean>(false);
   const [modalHorarios, setModalHorarios] = useState<{
     open: boolean;
-    idGradoMateria?: number;
+    idMateria?: number;
     idFicha?: number;
     totalHoras?: number;
     horasActuales?: number;
     horasFaltantes?: number;
   }>({
     open: false,
-    idGradoMateria: undefined,
+    idMateria: undefined,
     idFicha: undefined,
     totalHoras: 0,
     horasActuales: 0,
@@ -62,8 +56,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         params:
         {
           idFicha: idFicha,
-          idMateriaPadre: idMateriaPadre,
-          idGradoPrograma: nivelId
+          idMateriaPadre: idMateriaPadre
         }
       });
 
@@ -110,23 +103,14 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                 </div>
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tight">
-                    Resultados de Aprendizaje (RAPs)
+                    Materias derivadas.
                   </h2>
                   <span className="text-sm font-bold text-gray-300">
-                    Total: {raps.length} -
-                    Pendientes:{raps.filter((rap: any) => rap.estado === 'PENDIENTE').length} -
-                    Finalizados:{raps.filter((rap: any) => rap.estado === 'FINALIZADO').length} -
-                    {nombreCompetencia}
+                    Total: {raps.length} - {nombreCompetencia}
                   </span>
                 </div>
               </div>
             </div>
-
-            <span className="text-md font-bold text-gray-300 mr-12">
-              Porcentaje de Ejecución
-              <p className="text-center text-lg font-bold">{porcentajeEjecucion}%</p>
-            </span>
-
             <button
               onClick={onClose}
               className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
@@ -173,16 +157,12 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   // Transformar el RAP al formato que espera CardRap
                   const materiaTransformada = {
                     id: rap.id,
-                    nombre: rap.nombre,
+                    nombre: rap.nombre || rap.nombreMateria,
                     estado: rap.estado,
                     idMateria: rap.idMateria,
                     fechaFinalRap: rap.fechaFinalRap,
-                    idGradoMateria: rap.idGradoMateria,
                     idMateriaPadre: rap.idMateriaPadre,
                     codigo: rap.codigo,
-                    horasTotales: rap.horas,
-                    horasActuales: rap.horasActuales || 0,
-                    horasFaltantes: rap.horasFaltantes || 0,
                     porcentajeAvance: rap.porcentajeAvance || 0,
                     descripcion: rap.descripcion,
                     horarios: rap.horarios || []
@@ -192,7 +172,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     <div key={rap.id} className="rounded-xl p-1">
                       <CardRap
                         materia={materiaTransformada}
-                        idTrimestre={nivelId}
                         idFicha={idFicha}
                         setModalHorarios={setModalHorarios}
                         cargarRaps={cargarRaps}
@@ -234,7 +213,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         <div className="flex-shrink-0 flex items-center justify-between p-5 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={()=> setAgregarRap(true)} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
-              <Plus size={14} />Agregar RAP
+              <Plus size={14} />Agregar Materia
             </button>
           </div>
           <button
@@ -252,14 +231,10 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           open={modalHorarios.open}
           onClose={() => setModalHorarios({
             open: false,
-            idGradoMateria: undefined
+            idMateria: undefined
           })}
-          idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+          idMateria={modalHorarios.idMateria ?? 0}
           idFicha={modalHorarios.idFicha || idFicha || 0}
-          totalHoras={modalHorarios.totalHoras}
-          horasActuales={modalHorarios.horasActuales}
-          horasFaltantes={modalHorarios.horasFaltantes}
-          porcentajeEjecucion={porcentajeEjecucion ?? 0}
           onGuardado={() => {
             cargarRaps();
             if (onUpdate) onUpdate();
@@ -271,8 +246,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         <FormCompetencia
           isOpen={agregarRap}
           onClose={() => setAgregarRap(false)}
-          programId={programId||0}
-          idGradoPrograma={nivelId}
           idFicha={idFicha}
           idMateriaPadre={idMateriaPadre}
           onSuccess={() => {
