@@ -1,15 +1,16 @@
-import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause } from 'lucide-react';
+import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { useSnackbar } from 'notistack';
 import { Calendario } from './Calendario';
+import { ProfesorSelect } from './ProfesorSelect';
 import Swal from 'sweetalert2';
+import ListaRaps from './ListaRaps';
 
 interface CardRapProps {
   materia: any;
-  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
-  idTrimestre?: number;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string) => void;
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
@@ -21,7 +22,6 @@ interface CardRapProps {
 export const CardRap = ({
   materia,
   onVerRaps,
-  idTrimestre,
   setModalHorarios,
   idFicha,
   onAsignacionSuccess,
@@ -39,6 +39,8 @@ export const CardRap = ({
   const [showInstructorsModal, setShowInstructorsModal] = useState(false);
   const [asignando, setAsignando] = useState(false);
   const [isCalendarioOpen, setIsCalendarioOpen] = useState(false);
+  const [showAsignacionModal, setShowAsignacionModal] = useState(false);
+  const [tipoAsignacion, setTipoAsignacion] = useState<'principal' | 'compartida'>('principal');
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -153,10 +155,6 @@ export const CardRap = ({
         return;
       }
 
-      // Llamamos a un nuevo endpoint o actualizamos la asignacionSesion
-      // Como no tenemos un endpoint de "update-bulk-sesiones", usaremos el store de AsignacionSesion
-      // Pero el usuario ya tiene la asignacion creada con contrato nulo.
-      
       // Enviamos la petición para actualizar esos registros.
       await axios.put('horario/asignar-compartido', {
         idContrato: instructor.id,
@@ -241,10 +239,8 @@ export const CardRap = ({
     const color = isDarkMode ? 'white' : '#4B5675';
 
     const result = await Swal.fire({
-      title: materia.idMateriaPadre ? '¿Eliminar RAP?' : '¿Eliminar competencia?',
-      text: materiasLength && materiasLength == 1 ?
-        `Si eliminas esta competencia, se eliminará tambien el trimestre. El trimestre debe tener al menos una competencia.` :
-        `¿Estás seguro de que deseas eliminar "${materia.nombre || materia.nombreMateria}" de este trimestre?`,
+      title: 'Eliminar materia',
+      text: 'Si eliminas la materia se eliminarán las materias derivadas.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -261,8 +257,7 @@ export const CardRap = ({
       try {
         await axios.delete(`grado-materia`, {
           params: {
-            id: materia.idGradoMateria,
-            eliminarTrimestre: materiasLength && materiasLength == 1 ? true : false,
+            idMateria: materia.id,
             idFicha: idFicha
           }
         });
@@ -354,7 +349,7 @@ export const CardRap = ({
 
 
   return (
-    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 hover:border-primary/50 transition-all duration-300 ${materia.estado === 'FINALIZADO' ? 'bg-black/10 dark:bg-white/10' : 'bg-white dark:bg-coal-400'}`}>
+    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 hover:border-primary/50 transition-all duration-300 'bg-white dark:bg-coal-600'}`}>
       {/* Contenido principal */}
       <div className="flex-1">
         {/* Título del RAP */}
@@ -364,16 +359,12 @@ export const CardRap = ({
           </span>}
         <div className="flex justify-between items-center">
           <h3 className="font-medium text-gray-900 dark:text-white px-2">
-            {materia.nombre || materia.nombreMateria}
+              {materia.nombreMateria || materia.nombre}
             <p className='text-gray-500 font-normal text-xs'>
-              {materia.descripcion ? materia.descripcion : ''}
+              {materia.descripcion}
             </p>
           </h3>
           <div className='flex flex-col items-center'>
-            <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
-              ${materia.estado === 'FINALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
-              {materia.estado || 'Sin estado'}
-            </span>
             <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
             <p className="text-lg text-center text-blue-500 font-semibold">
               {materia.porcentajeAvance > 100 ? 100 : materia.porcentajeAvance || 0}%
@@ -393,8 +384,7 @@ export const CardRap = ({
             : (horariosData?.sinAsignar?.length > 0);
 
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg pt-2 text-center">
-              <div className="flex flex-col items-center justify-center gap-2 text-center relative col-span-1 md:col-span-1 min-h-[60px]">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-center min-h-[40px] px-6">
                 {!hasAsignados && !hasSinAsignar ? (
                   <div className="flex-1 text-center py-2">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -402,7 +392,7 @@ export const CardRap = ({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3">
                     {/* Avatars de Instructores Asignados */}
                     {instructoresAsignados.length > 0 && (
                       <div
@@ -450,169 +440,63 @@ export const CardRap = ({
                       )}
                     </div>
 
+                    {hasSinAsignar && (
+                      <div className="col-span-full dark:border-gray-600">
+                        <button
+                          onClick={() => {
+                            setTipoAsignacion('principal');
+                            setShowAsignacionModal(true);
+                          }}
+                          className="flex items-center justify-center gap-4 text-2xs bg-primary/10 text-primary font-bold p-3 rounded-lg hover:bg-primary/20 transition-all uppercase w-full"
+                        >
+                          <div
+                            className="h-8 w-8 rounded-full bg-primary/10 border border-dashed border-primary flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all"
+                            title="Asignar instructor"
+                          >
+                            <User className="text-primary" size={14} />
+                          </div>
+                          Asignar instructor
+                        </button>
+                      </div>
+                    )}
+
                     {/* Botón para asignar 2º Profe (Solo si es compartido, falta el secundario y ES UN RAP, no la competencia padre) */}
                     {materia.idMateriaPadre != null && instructoresAsignados.length > 0 && 
                      horarios.some(h => h.asignacionSesion?.some((as: any) => as.tipoAsignacion === 'HORARIO COMPARTIDO' && as.idContrato === null)) && (
                       <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
-                        <div className="relative">
-                          <button
-                            onClick={() => {
-                              setMostrarSelectorSecundario(!mostrarSelectorSecundario);
-                              cargarInstructores();
-                            }}
-                            className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 transition-all"
-                          >
-                            <User size={12} />
-                            <span className="text-[10px] font-bold uppercase">Asignar 2º Profe</span>
-                          </button>
-
-                          {mostrarSelectorSecundario && (
-                            <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-coal-300 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-[110] max-h-48 overflow-y-auto">
-                              {cargandoInstructores || asignando ? (
-                                <div className="p-3 text-center">
-                                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                </div>
-                              ) : (
-                                <div className="p-1">
-                                  {instructores
-                                    .filter((inst) => {
-                                      // Evitar el instructor principal del horario
-                                      if (horarios.some(h => 
-                                        h.idContrato == inst.id ||
-                                        h.contrato?.id == inst.id ||
-                                        h.instructor?.id == inst.persona?.id
-                                      )) return false;
-                                      return true;
-                                    })
-                                    .map((inst) => (
-                                      <button
-                                        key={inst.id}
-                                        onClick={() => handleAsignarSegundoInstructor(inst)}
-                                        className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
-                                      >
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
-                                          {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
-                                        </div>
-                                        <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
-                                          {inst.persona?.nombre1} {inst.persona?.apellido1}
-                                        </p>
-                                      </button>
-                                    ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => {
+                            setTipoAsignacion('compartida');
+                            setShowAsignacionModal(true);
+                          }}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 transition-all"
+                        >
+                          <User size={12} />
+                          <span className="text-[10px] font-bold uppercase">Asignar 2º Profe</span>
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
               </div>
-
-              {/* Horas */}
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Total de horas</p>
-                <p className="text-lg font-semibold text-gray-800 dark:text-white">
-                  {materia.horasTotales || materia.horas || 0}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Horas acumuladas</p>
-                <p className="text-lg font-semibold text-green-600">
-                  {materia.horasActuales || 0}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Horas restantes</p>
-                <p className="text-lg font-semibold text-orange-500">
-                  {materia.horasFaltantes || 0}
-                </p>
-              </div>
-
-              {/* Botón para asignar (solo si hay horarios sin asignar) */}
-              {hasSinAsignar && materia.estado == 'PENDIENTE' && (
-                <div className="col-span-full border-t border-gray-200 dark:border-gray-600 relative">
-                  <button
-                    onClick={() => {
-                      setMostrarSelector(!mostrarSelector);
-                      cargarInstructores();
-                    }}
-                    className="flex items-center justify-center gap-4 text-2xs bg-primary/10 text-primary font-bold p-3 rounded-lg hover:bg-primary/20 transition-all uppercase w-full"
-                  >
-                    <div
-                      className="h-8 w-8 rounded-full bg-primary/10 border border-dashed border-primary flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all"
-                      title="Asignar instructor"
-                    >
-                      <User className="text-primary" size={14} />
-                    </div>
-                    Asignar instructor
-                    <ChevronDown size={14} className={`transition-transform ${mostrarSelector ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {/* Dropdown de cada RAP/Materia */}
-                  {mostrarSelector && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-full max-w-sm bg-white dark:bg-coal-300 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-600 z-[100] max-h-60 overflow-y-auto">
-                      {cargandoInstructores || asignando ? (
-                        <div className="p-4 text-center">
-                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                          {asignando && <p className="text-[10px] mt-2 font-bold text-primary animate-pulse">ASIGNANDO...</p>}
-                        </div>
-                      ) : (
-                        <div className="p-1">
-                          {instructores.length > 0 ? (
-                            instructores.map((inst) => (
-                              <button
-                                key={inst.id}
-                                onClick={() => handleAsignarInstructor(inst)}
-                                className="w-full p-2 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
-                              >
-                                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-                                  {inst.persona?.rutaFotoUrl ? (
-                                    <img src={inst.persona.rutaFotoUrl} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <User size={14} className="m-1.5 text-gray-500" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
-                                    {inst.persona ? `${inst.persona.nombre1} ${inst.persona.apellido1}` : 'Sin nombre'}
-                                  </p>
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <p className="p-4 text-xs text-gray-500 text-center uppercase">
-                              No hay instructores disponibles
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           );
         })()}
       </div>
 
       {/* Acciones */}
-      {materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? <div></div> :
         <div className="flex flex-col items-center justify-between py-2 gap-1">
           {onVerRaps && (
             <button
-              onClick={() => onVerRaps(materia.id, materia.nombre || materia.nombreMateria, idTrimestre ?? 0)}
+              onClick={() => onVerRaps(materia.id, materia.nombre || materia.nombreMateria)}
               className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition"
-              title="RAPs"
+              title="Materias derivadas"
             >
               <FolderPlus size={18} />
             </button>
           )}
 
           <button
-            onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }}
+            onClick={() => onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }
             className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
             title="Editar"
           >
@@ -636,9 +520,7 @@ export const CardRap = ({
           </button>}
 
           <button
-            onClick={materia.idMateriaPadre == null ? () => setIsCalendarioOpen(true) // si es competencia abrimos el calendario normalmente
-              : materia.idMateriaPadre != null && parseFloat(materia.horasTotales) > 0 ? () => setIsCalendarioOpen(true) // si es rap pero tiene horas configuradas abrimos el calendario normalmente
-                : () => enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} // si es rap pero no tiene horas, mostrar alerta
+            onClick={() => setIsCalendarioOpen(true)}
             className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
             title="Horarios"
           >
@@ -652,7 +534,7 @@ export const CardRap = ({
           >
             <Trash2 size={18} />
           </button>
-        </div>}
+        </div>
 
       {/* Modal de Lista de Instructores */}
       {showInstructorsModal && (
@@ -694,13 +576,13 @@ export const CardRap = ({
                       </p>
                     </div>
 
-                    {materia.estado != 'FINALIZADO' && (inst.esPrincipal || materia.idMateriaPadre != null) ? <button
+                    <button
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button> : materia.estado == 'FINALIZADO' ? <p className="text-xs text-gray-500 dark:text-gray-400">RAP finalizado</p> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -728,13 +610,33 @@ export const CardRap = ({
           onAddSchedule={() => {
             setModalHorarios({
               open: true,
-              idGradoMateria: materia.idGradoMateria,
-              idFicha: idFicha || undefined,
-              totalHoras: materia.horasTotales ?? 0,
-              horasActuales: materia.horasActuales ?? 0,
-              horasFaltantes: materia.horasFaltantes ?? 0
+              idMateria: materia.id,
+              idFicha: idFicha ?? 0,
             });
           }}
+        />
+      )}
+
+      {/* Modal de Asignación de Profesor */}
+      {showAsignacionModal && (
+        <ProfesorSelect
+          onClose={() => setShowAsignacionModal(false)}
+          idMateria={materia.idMateria || materia.id}
+          onSelect={async (profesor) => {
+            if (tipoAsignacion === 'principal') {
+              await handleAsignarInstructor(profesor.data);
+            } else {
+              await handleAsignarSegundoInstructor(profesor.data);
+            }
+            setShowAsignacionModal(false);
+          }}
+          excludeIds={tipoAsignacion === 'compartida' ? 
+            horarios.map(h => h.idContrato).filter(Boolean) 
+            : []
+          }
+          placeholder={tipoAsignacion === 'principal' 
+            ? 'Selecciona un profesor'
+            : 'Selecciona un profesor para compartir'}
         />
       )}
     </div>

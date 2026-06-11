@@ -22,6 +22,7 @@ const AperturarProgramaPage: React.FC = () => {
   const [periodos, setPeriodos] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
   const [jornadas, setJornadas] = useState<any[]>([]);
+  const [grado, setGrado] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [aperturas, setAperturas] = useState<any[]>([]);
@@ -72,14 +73,16 @@ const AperturarProgramaPage: React.FC = () => {
     try {
       setLoadingData(true);
       setError(null);
-      const [periodosRes, sedesRes] = await Promise.all([
+      const [periodosRes, sedesRes, tipoGrado] = await Promise.all([
         axios.get('/periodos'),
-        axios.get('/sedesSena')
+        axios.get('/sedesSena'),
+        axios.get('/aperturaPrograma/grados')
       ]);
 
       setPeriodos(periodosRes.data.data || periodosRes.data || []);
       const sedesData = sedesRes.data.data || sedesRes.data || [];
       setSedes(sedesData);
+      setGrado(tipoGrado.data.data || tipoGrado.data || [])
 
       // Cargar jornadas si hay sedes disponibles
       if (sedesData.length > 0 && sedesData[0]?.centro_formacion?.id) {
@@ -293,6 +296,7 @@ const AperturarProgramaPage: React.FC = () => {
           periodos={periodos}
           sedes={sedes}
           jornadas={jornadas}
+          grado={grado}
           onSuccess={loadAperturas}
           aperturaToEdit={aperturaToEdit}
         />

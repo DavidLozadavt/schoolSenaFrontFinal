@@ -12,6 +12,7 @@ import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
 import AsignacionSesionModal from './AsignacionSesionModal';
+import { ProfesorSelect } from './ProfesorSelect';
 
 // FullCalendar imports
 import FullCalendar from '@fullcalendar/react';
@@ -25,7 +26,7 @@ import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
 interface CalendarioProps {
   isOpen: boolean;
   onClose: () => void;
-  materia: any;
+  materia?: any;
   idFicha: number;
   onAddSchedule: () => void;
   cargarRaps?: () => void;
@@ -224,6 +225,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [showProfesorModal, setShowProfesorModal] = useState(false);
+  const [horarioParaAsignar, setHorarioParaAsignar] = useState<any>(null);
 
   // Carrusel
   useEffect(() => {
@@ -241,12 +244,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
       if (!isOpen) return;
       setLoading(true);
       try {
-        if (materia?.horarios && !Array.isArray(materia.horarios)) {
-          const horariosCombinados = [
-            ...(materia.horarios.asignados || []),
-            ...(materia.horarios.sinAsignar || [])
-          ];
-          if (isMounted) setHorariosFicha(horariosCombinados);
+        if (materia?.id && idFicha) {
+          const response = await axios.get(`horarios/materia`, {params: {idFicha, idMateria:materia.id}});
+          if (isMounted) setHorariosFicha(response.data || []);
         } else {
           const response = await axios.get(`horario/ficha/${idFicha}`);
           if (isMounted) setHorariosFicha(response.data.data || []);
@@ -326,13 +326,10 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return getColombianHolidayMap(minYear, maxYear);
   }, [asignados, sinAsignar]);
 
-  const horarioIncluyeFestivos = (h: any): boolean =>
-    h.festivos === true || h.festivos === 1 || h.festivos === '1';
-
   // ── Convertir horarios recurrentes en eventos de FullCalendar ──────────────
   const fcEvents = useMemo(() => {
     const events: any[] = [];
-    const materiaFallback = materia.nombre || materia.nombreMateria;
+    const materiaFallback = materia?.nombre || materia?.nombreMateria || '';
 
     const processHorario = (h: any, type: 'asignados' | 'sinAsignar') => {
       const fInicio = h.fechaInicial || h.fechaInicio;
@@ -358,8 +355,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
       while (cursor <= endNorm) {
         if (cursor.getDay() === jsDay) {
-          const omitirPorFestivo =
-            !horarioIncluyeFestivos(h) && isColombianHoliday(cursor, holidayDates);
+          const omitirPorFestivo = isColombianHoliday(cursor, holidayDates);
 
           if (!omitirPorFestivo) {
             const dateStr = toLocalDateKey(cursor);
@@ -467,6 +463,21 @@ const renderEventContent = (arg: EventContentArg) => {
       {/* Botones de acción - SOLO para eventos normales */}
       {!modoRmi && (
         <div className="flex justify-center items-center gap-1 mt-0.5">
+          {ev.estado === 'PENDIENTE' && (
+            <button
+              onMouseEnter={() => setTooltip(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setHorarioParaAsignar(ev);
+                setShowProfesorModal(true);
+              }}
+              className="rounded-full bg-green-500/10 w-5 h-5 flex items-center justify-center text-green-700 hover:text-green-800 transition"
+              title="Asignar profesor"
+            >
+              <User size={11} />
+            </button>
+          )}
+
           {!ev.isSharedSlot && ev.estado === 'ASIGNADO' && (
             <button
               onMouseEnter={() => setTooltip(null)}
@@ -540,7 +551,7 @@ const renderEventContent = (arg: EventContentArg) => {
               <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
               <div className="min-w-0 text-left">
                 <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
-                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia?.nombre || materia?.nombreMateria || ''}</p>
               </div>
             </div>
             <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
@@ -571,7 +582,7 @@ const renderEventContent = (arg: EventContentArg) => {
               <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
               <div className="min-w-0 text-left">
                 <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
-                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia?.nombre || materia?.nombreMateria || ''}</p>
               </div>
             </div>
             <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
@@ -694,24 +705,14 @@ const renderEventContent = (arg: EventContentArg) => {
 
           {!modoRmi && (
             <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
-              {materia.idMateriaPadre != null && (
+              
                 <button
-                  onClick={() => {
-                    if (materia?.horasTotales > 0) {
-                      if (materia?.estado === 'FINALIZADO') {
-                        enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
-                      } else {
-                        onAddSchedule();
-                      }
-                    } else {
-                      enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
-                    }
-                  }}
+                  onClick={onAddSchedule}
                   className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md"
                 >
                   <Plus size={14} />Programar Horario
                 </button>
-              )}
+              
             </div>
           )}
         </ModalContent>
@@ -724,9 +725,34 @@ const renderEventContent = (arg: EventContentArg) => {
               setRefreshTrigger(prev => prev + 1);
               cargarRaps?.();
             }}
-            idMateria={materia.idMateria || materia.id}
+            idMateria={materia?.id}
             horario={horarioAsignacionSesion}
             fechaSeleccionada={fechaSeleccionada}
+          />
+        )}
+
+        {/* Modal de Asignación de Profesor Principal */}
+        {showProfesorModal && horarioParaAsignar && (
+          <ProfesorSelect
+            onClose={() => setShowProfesorModal(false)}
+            idMateria={materia?.idMateria || materia?.id}
+            onSelect={async (profesor) => {
+              try {
+                // Asignar el profesor al horario
+                await axios.put('asignar/instructor', {
+                  idContrato: profesor.value,
+                  horarios: [horarioParaAsignar]
+                });
+                enqueueSnackbar('Profesor asignado correctamente', { variant: 'success' });
+                setShowProfesorModal(false);
+                // Recargar los horarios
+                setRefreshTrigger(prev => prev + 1);
+                cargarRaps?.();
+              } catch (error: any) {
+                enqueueSnackbar(error.response?.data?.message || 'Error al asignar profesor', { variant: 'error' });
+              }
+            }}
+            placeholder="Selecciona un profesor"
           />
         )}
       </div>
