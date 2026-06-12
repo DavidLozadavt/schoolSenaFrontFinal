@@ -110,6 +110,7 @@ export const ProgramacionFichasPage = () => {
   const [idGrado, setIdGrado] = useState<number | undefined>(0);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [fichaIdToClone, setFichaIdToClone] = useState<number | null>(null);
 
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
@@ -324,7 +325,7 @@ export const ProgramacionFichasPage = () => {
           idGrado={idGrado}
         />
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start md:justify-between px-6 py-2 shadow-sm">
+      <div className="flex flex-col md:flex-row md:justify-between px-6 py-2 shadow-sm">
         <div>
           <div className="flex items-center gap-3">
             <button
@@ -343,22 +344,13 @@ export const ProgramacionFichasPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center">
           <button
             onClick={() => setCrearGrupoModal(true)}
             className="h-11 px-4 gap-2 flex items-center rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
           >
             <i className="ki-outline ki-plus text-base"></i>
             Crear Grados
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="h-11 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition flex items-center gap-2 shadow-sm"
-          >
-            <i className="ki-outline ki-plus text-base"></i>
-            Crear Grado
           </button>
         </div>
       </div>
@@ -370,6 +362,7 @@ export const ProgramacionFichasPage = () => {
               idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
+              fichaIdClonar={fichaIdToClone}
               onAction={() => {
                 const idsActuales = fichas.map((f) => f.id);
                 setFichasAntesDeCrear(idsActuales);
@@ -693,7 +686,7 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           )}
 
-                          <div className="grid grid-cols-3 md:grid-cols-5 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
+                          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -717,6 +710,17 @@ export const ProgramacionFichasPage = () => {
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-calendar text-base"></i>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFichaIdToClone(ficha.id);
+                                setIsModalOpen(true);
+                              }}
+                              title="Generar clone de grupo"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-copy text-base"></i>
                             </button>
                             <button
                               type="button"
@@ -885,7 +889,6 @@ export const ProgramacionFichasPage = () => {
         <Calendario
           isOpen={!!verHorariosFicha}
           onClose={() => setVerHorariosFicha(null)}
-          materia={{ nombre: `Ficha ${verHorariosFicha?.codigo}` }}
           idFicha={verHorariosFicha?.id || 0}
           onAddSchedule={() => {}}
         />

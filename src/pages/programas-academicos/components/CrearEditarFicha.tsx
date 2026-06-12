@@ -16,6 +16,7 @@ interface Props {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
   fichaId?: number | null; // solo para EDITAR — si viene, entra en modo edición
+  fichaIdClonar?: number | null; // PARA CLONAR
   onAction: () => void;
   // callbacks opcionales que usaba EditarFicha (se mantienen por compatibilidad)
   setEvento?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -50,7 +51,6 @@ interface Ambientes {
 interface FormValues {
   idAsignacion: number;
   idRegional: number;
-  idTipoGrado: number | null;
   estado: string;
   idSede: number;
   idJornada: number;
@@ -59,23 +59,13 @@ interface FormValues {
   tipoCalificacion: string;
   porcentajeEjecucion: number | null;
   documento: File | null;
+  idFicha: number | null;
 }
-
-const ESTADOS_APERTURA = [
-  { value: 'ACTIVO', label: 'ACTIVO' },
-  { value: 'INACTIVO', label: 'INACTIVO' },
-  { value: 'EN CURSO', label: 'EN CURSO' },
-  { value: 'CERRADO', label: 'CERRADO' },
-  { value: 'PENDIENTE', label: 'PENDIENTE' },
-  { value: 'APROBADO', label: 'APROBADO' },
-  { value: 'CANCELADO', label: 'CANCELADO' }
-];
 
 // ─── Validación ───────────────────────────────────────────────────────────────
 const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
-    idTipoGrado: Yup.number(),
 
     idAsignacion: Yup.number()
       .min(1, 'Debe seleccionar una apertura')
@@ -130,6 +120,7 @@ const CrearEditarFicha: React.FC<Props> = ({
   isModalOpen,
   setIsModalOpen,
   fichaId,
+  fichaIdClonar,
   onAction,
   setShowToast,
   setMessageToast
@@ -174,7 +165,6 @@ const CrearEditarFicha: React.FC<Props> = ({
     initialValues: {
       idAsignacion: Number(programId) || 0,
       idSede: 0,
-      idTipoGrado: 0,
       idRegional: 0,
       estado: '',
       idInfraestructura: 0,
@@ -182,7 +172,8 @@ const CrearEditarFicha: React.FC<Props> = ({
       codigo: '',
       tipoCalificacion: 'NUMERICO',
       porcentajeEjecucion: isEditing ? null : 100,
-      documento: null
+      documento: null,
+      idFicha: fichaId || fichaIdClonar || null                  
     },
     validationSchema: buildValidationSchema(isEditing, !!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
@@ -326,14 +317,14 @@ const CrearEditarFicha: React.FC<Props> = ({
           idAsignacion: Number(ficha.idAsignacion) || 0,
           idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
-          idTipoGrado: Number(ficha.idTipoGrado) || 0,
           idSede: Number(idSede) || 0,
           idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
           idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
           porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
-          documento: null
+          documento: null,
+          idFicha: fichaId || null
         });
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Error al cargar la ficha';
@@ -400,12 +391,6 @@ const CrearEditarFicha: React.FC<Props> = ({
     return `${dia}/${mes}/${anio}`;
   }
 
-  // ── Opciones para react-select ────────────────────────────────────────────
-  const optionsJornadas = jornadas.map((v) => ({ value: v.id, label: v.nombreJornada }));
-  const optionsPeriodos = periodos.map((v) => ({
-    value: v.id,
-    label: `${v.periodo?.nombrePeriodo} fecha inicio: ${fechaFormateada(v.fechaInicialClases)} fecha fin: ${fechaFormateada(v.fechaFinalClases)}`
-  }));
   const optionsSedes = sedes.map((v) => ({ value: v.id, label: v.nombre }));
   const optionsRegionales = regionales.map((v) => ({ value: v.id, label: v.razonSocial }));
   const optionsAmbientes = ambientes.map((v) => ({ value: v.id, label: v.nombreInfraestructura }));
@@ -431,6 +416,11 @@ const CrearEditarFicha: React.FC<Props> = ({
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
           {isEditing ? 'Editar Grado' : 'Crear Grado'}
+          {!isEditing && (
+          <p className="text-sm opacity-50 mt-1">
+            Desde esta opción se generará el nuevo grupo con las mismas materias asignadas que el anterior.
+          </p>
+        )}
         </h2>
 
         {isLoading ? (
@@ -467,24 +457,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                   )}
                   {formik.touched.codigo && formik.errors.codigo && (
                     <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Tipo de Grado</label>
-                  <Select
-                    options={tiposGrado}
-                    placeholder="Seleccione el tipo de grado"
-                    isClearable
-                    value={tiposGrado.find((o) => o.value === formik.values.idTipoGrado)}
-                    onChange={(option) => {
-                      formik.setFieldValue('idTipoGrado', option?.value || 0);
-                    }}
-                    onBlur={() => formik.setFieldTouched('idTipoGrado', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idTipoGrado && formik.errors.idTipoGrado && (
-                    <p className="text-red-500 text-xs">{formik.errors.idTipoGrado}</p>
                   )}
                 </div>
 

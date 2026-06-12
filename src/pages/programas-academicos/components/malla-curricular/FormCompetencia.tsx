@@ -47,12 +47,10 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     idAreaConocimiento: Yup.number()
       .nullable(),
     descripcion: Yup.string().nullable(),
-    horas: Yup.number()
-      .when('idMateriaPadre', {
-        is: (val: any) => val !== null && val !== undefined,
-        then: (schema) => schema.required('Las horas son requeridas').positive('Debe ser un número positivo'),
-        otherwise: (schema) => schema.notRequired().nullable()
-      })
+    credito: Yup.number()
+      .positive('Debe ser un número positivo')
+      .nullable(),
+    codigo: Yup.string().nullable()
   });
 
   // Configuración de Formik
@@ -62,8 +60,10 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
       idAreaConocimiento: null as number | null,
       descripcion: '',
       idCompany: empresa?.id,
-      horas: 0,
-      idMateriaPadre: idMateriaPadre || null
+      creditos: 0,
+      codigo: '',
+      idMateriaPadre: idMateriaPadre || null,
+      idFicha: idFicha || null
     },
     enableReinitialize: true,
     validationSchema,
@@ -87,9 +87,9 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   const getAreas = async () => {
     try {
       const res = await axios.get(
-        `areas-conocimiento/programa/${programId}`
+        `areas-conocimiento`
       );
-      setAreasConocimientos(res.data.data ?? []);
+      setAreasConocimientos(res.data ?? []);
     } catch (error) {
       setAreasConocimientos([]);
     }
@@ -98,16 +98,18 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   const getCompetencia = async () => {
     setLoadingData(true);
     try {
-      const res = await axios.get(`materias/${competenciaId}`, {params: {idPrograma: programId}});
+      const res = await axios.get(`materias/${competenciaId}`);
       const data = res.data.data;
 
       formik.setValues({
         nombreMateria: data.nombreMateria || '',
         idAreaConocimiento: data.idAreaConocimiento || null,
         descripcion: data.descripcion || '',
+        creditos: data.creditos || 0,
         idCompany: empresa.id,
-        horas: data.horas || 0,
-        idMateriaPadre: data.idMateriaPadre || null
+        idMateriaPadre: data.idMateriaPadre || null,
+        codigo: data.codigo || '',
+        idFicha: data.idFicha || null
       });
     } catch (error) {
       enqueueSnackbar("Error al cargar la competencia", { variant: "error" });
@@ -126,11 +128,11 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         idAreaConocimiento: values.idAreaConocimiento,
         descripcion: values.descripcion ? values.descripcion.toLocaleUpperCase() : '',
         idCompany: empresa.id,
-        horas: values.horas,
         idFicha: idFicha,
         idGradoPrograma: idGradoPrograma,
-        creditos: values.horas ? values.horas / 48 : 0,
+        creditos: values.creditos,
         idMateriaPadre: values.idMateriaPadre,
+        codigo: values.codigo,
         idPrograma: programId,
         ...(!competenciaId && { idPrograma: programId })
       };
@@ -171,11 +173,6 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
     o => o.value === formik.values.idAreaConocimiento
   ) ?? null;
 
-  // Cálculo de créditos
-  const calcularCreditos = (horas: number) => {
-    return (horas / 48).toFixed(2);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -185,7 +182,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         {/* Header */}
         <div className='p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-coal-400'>
           <h3 className='text-sm font-black uppercase text-gray-800 dark:text-white tracking-widest'>
-            {competenciaId ? (formik.values.idMateriaPadre ? 'Editar RAP' : 'Editar Competencia') : (idMateriaPadre ? 'Crear Nuevo RAP' : 'Crear Nueva Competencia')}
+            {competenciaId ? 'Editar Materia' : 'Nueva Materia'}
           </h3>
           <button
             onClick={onClose}
@@ -232,38 +229,44 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                    Horas {(formik.values.idMateriaPadre || idMateriaPadre) && <span className="text-red-500">*</span>}
+                    Código
                   </label>
                   <input
-                    type="number"
-                    name="horas"
-                    disabled={!(formik.values.idMateriaPadre || idMateriaPadre)}
-                    value={formik.values.horas}
+                    type="text"
+                    name="codigo"
+                    value={formik.values.codigo}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
-                    className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all ${formik.touched.horas && formik.errors.horas
-                      ? 'border-red-500 focus:ring-red-500/20'
-                      : 'border-gray-300 dark:border-gray-600 focus:ring-primary/20 focus:border-primary'
-                      }`}
-                    placeholder="0"
+                    className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all`}
+                    placeholder="0A987FB"
                   />
-                  {formik.touched.horas && formik.errors.horas && (
+                  {formik.touched.codigo && formik.errors.codigo && (
                     <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
-                      {formik.errors.horas}
+                      {formik.errors.codigo}
                     </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                    Créditos (Equiv.)
+                    Creditos
                   </label>
-                  <div className="w-full bg-gray-100 dark:bg-coal-300 border border-gray-200 dark:border-gray-600 rounded-lg p-2 font-bold text-primary flex items-center justify-between">
-                    <span>{calcularCreditos(formik.values.horas || 0)}</span>
-                    <span className="text-[10px] text-gray-400">1 CR = 48H</span>
-                  </div>
+                  <input
+                    type="text"
+                    name="creditos"
+                    value={formik.values.creditos}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    className={`w-full bg-gray-50 dark:bg-coal-400 input rounded-lg p-3.5 uppercase outline-none transition-all`}
+                    placeholder="0A987FB"
+                  />
+                  {formik.touched.creditos && formik.errors.creditos && (
+                    <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
+                      {formik.errors.creditos}
+                    </p>
+                  )}
                 </div>
+                
               </div>
-
 
             {/* Área de conocimiento */}
             {!idMateriaPadre && !idFicha && !idGradoPrograma && 
