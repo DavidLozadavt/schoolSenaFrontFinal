@@ -384,6 +384,11 @@ export function minutosFranjaHorarioClase(c: FilaFranjaHoraria): { start: number
   const esTardeONoche =
     jornada.includes('tarde') || jornada.includes('noche') || jornada.includes('nocturna');
 
+  // Detectar si las horas ya vienen en formato 24h: si horaFinal >= 12, no se ajusta.
+  const tFin = extraerHoraHHMM(String(c.horaFinal ?? ''));
+  const hhFinRaw = tFin ? parseInt(tFin.split(':')[0]!, 10) : 0;
+  const yaEs24h = hhFinRaw >= 12;
+
   const aMinutos = (h: string): number | null => {
     const t = extraerHoraHHMM(h);
     if (!t) return null;
@@ -391,7 +396,7 @@ export function minutosFranjaHorarioClase(c: FilaFranjaHoraria): { start: number
     let hh = parseInt(parts[0]!, 10);
     const mm = parseInt(parts[1]!, 10) || 0;
     if (Number.isNaN(hh)) return null;
-    if (esTardeONoche && hh < 12) hh += 12;
+    if (esTardeONoche && !yaEs24h && hh < 12) hh += 12;
     return hh * 60 + mm;
   };
 
@@ -668,8 +673,10 @@ function finVentanaFranjaCalendario(
   });
   const esTardeONoche =
     lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  if (esTardeONoche && hIni < 12) hIni += 12;
-  if (esTardeONoche && hFin < 12) hFin += 12;
+  // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
+  const yaEs24h = hFin >= 12;
+  if (esTardeONoche && !yaEs24h && hIni < 12) hIni += 12;
+  if (esTardeONoche && !yaEs24h && hFin < 12) hFin += 12;
   const hi = new Date(diaCalendario);
   hi.setHours(hIni, mIni || 0, 0, 0);
   const hf = new Date(diaCalendario);
@@ -800,8 +807,10 @@ export function etiquetaEstadoBloqueCalendarioInstructor(
   });
   const esTardeONoche =
     lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  if (esTardeONoche && hIni < 12) hIni += 12;
-  if (esTardeONoche && hFin < 12) hFin += 12;
+  // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
+  const yaEs24hEtq = hFin >= 12;
+  if (esTardeONoche && !yaEs24hEtq && hIni < 12) hIni += 12;
+  if (esTardeONoche && !yaEs24hEtq && hFin < 12) hFin += 12;
   const hi = new Date(ahora);
   hi.setHours(hIni, mIni || 0, 0, 0);
   const hf = new Date(ahora);
