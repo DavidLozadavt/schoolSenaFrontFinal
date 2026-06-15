@@ -44,8 +44,10 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return pregunta?.titulo || `Pregunta ${idPregunta}`;
   };
 
-  /** Resolve full name from user object — handles accessor, flat name, or nested persona */
-  const getUserName = (usuario: any): string => {
+  const getUserName = (usuario: any, respuesta?: any): string => {
+    if (!usuario && (respuesta?.nexiEmail || respuesta?.usuario?.email)) {
+      return respuesta?.nexiEmail || respuesta?.usuario?.email;
+    }
     if (!usuario) return 'Anónimo';
     // Backend may already compute name via accessor or map()
     if (usuario.name && usuario.name.trim()) return usuario.name.trim();
@@ -59,9 +61,10 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return usuario.email?.split('@')[0] || 'Anónimo';
   };
 
-  const getUserInitials = (usuario: any): string => {
-    const name = getUserName(usuario);
+  const getUserInitials = (usuario: any, respuesta?: any): string => {
+    const name = getUserName(usuario, respuesta);
     if (name === 'Anónimo') return '?';
+    if (usuario?.isNexiUser || respuesta?.nexiEmail) return name.split('@')[0].slice(0, 2).toUpperCase();
     const words = name.trim().split(' ');
     return words.length >= 2
       ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
@@ -210,13 +213,16 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ backgroundColor: accentColor }}
+                            style={{ backgroundColor: r.nexiEmail ? '#f59e0b' : accentColor }}
                           >
-                            {getUserInitials(r.usuario)}
+                            {getUserInitials(r.usuario, r)}
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario)}</span>
-                            {r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>}
+                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario, r)}</span>
+                            {(r.usuario?.isNexiUser || r.nexiEmail)
+                              ? <span className="text-[9px] font-black uppercase tracking-wider text-amber-500">NexiService</span>
+                              : r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>
+                            }
                           </div>
                         </div>
                       </td>

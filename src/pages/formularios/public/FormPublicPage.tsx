@@ -28,7 +28,9 @@ const FormPublicPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromEventId = location.state?.fromEventId;
-  const isEmbed = new URLSearchParams(window.location.search).get('embed') === 'true';
+  const searchParams = new URLSearchParams(window.location.search);
+  const isEmbed = searchParams.get('embed') === 'true';
+  const emailParam = searchParams.get('email') || '';
   const [form, setForm] = useState<FormData | null>(null);
   const [respuestas, setRespuestas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,8 @@ const FormPublicPage: React.FC = () => {
   const [registradoEn, setRegistradoEn] = useState<string | null>(null);
   const [editadoEn, setEditadoEn] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [alertMsg, setAlertMsg] = useState<{ text: string; tipo: 'error' | 'info' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ text: string; onConfirm: () => void } | null>(null);
 
   const buildEmptyRespuestas = (preguntas: any[]) =>
     preguntas.map((q: any) => ({ idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' }));
@@ -66,7 +70,10 @@ const FormPublicPage: React.FC = () => {
   useEffect(() => {
     const fetchForm = async () => {
       try {
-        const { data } = await axios.get(`formulario-publico/${slug}`);
+        const params: Record<string, string> = {};
+        if (isEmbed) params.embed = 'true';
+        if (emailParam) params.email = emailParam;
+        const { data } = await axios.get(`formulario-publico/${slug}`, { params });
         setForm(data);
         setRespuestas(buildEmptyRespuestas(data.preguntas));
         setFilePreviews({});
@@ -157,7 +164,7 @@ const FormPublicPage: React.FC = () => {
           setFilePreviews(prev => ({ ...prev, [preguntaId]: accumulated }));
         }
       } catch (err: any) {
-        alert(`Error al subir el archivo "${file.name}".`);
+        setAlertMsg({ text: `Error al subir el archivo "${file.name}".`, tipo: 'error' });
       } finally {
         setUploadingFileId(null);
       }
@@ -197,14 +204,17 @@ const FormPublicPage: React.FC = () => {
   };
 
   const handleClearForm = () => {
-    if (window.confirm('¿Estás seguro de que quieres borrar todas tus respuestas?')) {
-      const clearedResp = form?.preguntas.map((q: any) => ({
-        idPregunta: q.id,
-        valor: q.tipo === 'casillas' ? [] : ''
-      })) || [];
-      setRespuestas(clearedResp);
-      setValidationErrors([]);
-    }
+    setConfirmDialog({
+      text: '¿Estás seguro de que quieres borrar todas tus respuestas?',
+      onConfirm: () => {
+        const clearedResp = form?.preguntas.map((q: any) => ({
+          idPregunta: q.id,
+          valor: q.tipo === 'casillas' ? [] : ''
+        })) || [];
+        setRespuestas(clearedResp);
+        setValidationErrors([]);
+      },
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -248,10 +258,20 @@ const FormPublicPage: React.FC = () => {
     }
 
     try {
-      await axios.post(`formulario-publico/${slug}/responder`, {
-        respuestas,
-        ...(modoEdicion ? { forzar_actualizacion: true } : {}),
-      });
+      // Email en body Y en query params — doble vía para garantizar que nexiEmail se guarde
+      const postParams: Record<string, string> = {};
+      if (isEmbed) { postParams.embed = 'true'; if (emailParam) postParams.email = emailParam; }
+
+      await axios.post(
+        `formulario-publico/${slug}/responder`,
+        {
+          respuestas,
+          ...(isEmbed ? { embed: true } : {}),
+          ...(isEmbed && emailParam ? { nexiEmail: emailParam } : {}),
+          ...(modoEdicion ? { forzar_actualizacion: true } : {}),
+        },
+        { params: postParams },
+      );
 
       // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
       if (fromEventId) {
@@ -271,14 +291,20 @@ const FormPublicPage: React.FC = () => {
     } catch (err: any) {
       if (err.response?.status === 409 && err.response?.data?.ya_inscrito) {
         const d = err.response.data;
-        if (d.respuesta_anterior) setRespuestaAnterior(d.respuesta_anterior);
-        if (d.registrado_en) setRegistradoEn(d.registrado_en);
-        if (d.editado_en) setEditadoEn(d.editado_en);
-        setYaInscrito(true);
+        if (d.mismo_login && d.respuesta_anterior) {
+          // Mismo login: mostrar sus datos con opción de editar
+          setRespuestaAnterior(d.respuesta_anterior);
+          setRegistradoEn(d.registrado_en || null);
+          setEditadoEn(d.editado_en || null);
+          setYaInscrito(true);
+        } else {
+          // Otro login: bloquear sin mostrar datos ajenos
+          setAlertMsg({ text: d.mensaje || 'Estos datos ya están registrados por otra persona.', tipo: 'info' });
+        }
         setEnviando(false);
         return;
       }
-      alert(err.response?.data?.error || 'Error al enviar formulario. Por favor, inténtalo de nuevo.');
+      setAlertMsg({ text: err.response?.data?.error || 'Error al enviar formulario. Por favor, inténtalo de nuevo.', tipo: 'error' });
     } finally {
       setEnviando(false);
     }
@@ -413,7 +439,7 @@ const FormPublicPage: React.FC = () => {
             <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed">Tu respuesta ha sido registrada y guardada con éxito en nuestra plataforma educativa.</p>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full mt-4 justify-center">
-              {!form.requiereAutenticacion && (
+              {!form.requiereAutenticacion && !isEmbed && (
                 <button
                   className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
                   style={{ backgroundColor: form.colorTema, boxShadow: `0 10px 15px -3px ${form.colorTema}35` }}
@@ -578,7 +604,7 @@ const FormPublicPage: React.FC = () => {
           </div>
 
           {/* Questions */}
-          {form.preguntas.map((q, idx) => {
+          {form.preguntas.map((q) => {
             // Check if this is a tutor/acudiente question
             const isTutorQ = q.titulo.toLowerCase().includes('tutor') || q.titulo.toLowerCase().includes('acudiente');
             if (isTutorQ) {
@@ -941,7 +967,7 @@ const FormPublicPage: React.FC = () => {
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    <span>Enviar Formulario</span>
+                    <span>{modoEdicion ? 'Actualizar Inscripción' : 'Enviar Formulario'}</span>
                   </>
                 )}
               </button>
@@ -976,6 +1002,86 @@ const FormPublicPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Confirm dialog estilizado — reemplaza window.confirm() */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div
+            className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-[2rem] shadow-2xl border border-neutral-100 dark:border-white/5 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-1.5 w-full bg-rose-500" />
+            <div className="p-8 flex flex-col items-center gap-5 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-rose-500/10 text-rose-500">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <p className="text-sm font-bold text-neutral-800 dark:text-white leading-relaxed">
+                {confirmDialog.text}
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="flex-1 py-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-white font-black uppercase tracking-widest text-[10px] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                  className="flex-1 py-3 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-500/30 hover:scale-105 active:scale-95 transition-all"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alert estilizado — reemplaza alert() nativo */}
+      {alertMsg && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div
+            className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-[2rem] shadow-2xl border overflow-hidden"
+            style={{ borderColor: alertMsg.tipo === 'error' ? '#ef444430' : `${form?.colorTema}30` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Franja superior de color */}
+            <div
+              className="h-1.5 w-full"
+              style={{ backgroundColor: alertMsg.tipo === 'error' ? '#ef4444' : (form?.colorTema ?? '#6366f1') }}
+            />
+            <div className="p-8 flex flex-col items-center gap-5 text-center">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{
+                  backgroundColor: alertMsg.tipo === 'error' ? '#ef444415' : `${form?.colorTema}15`,
+                  color: alertMsg.tipo === 'error' ? '#ef4444' : (form?.colorTema ?? '#6366f1'),
+                }}
+              >
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1">
+                  {alertMsg.tipo === 'error' ? 'Error' : 'Aviso'}
+                </p>
+                <p className="text-sm font-bold text-neutral-800 dark:text-white leading-relaxed">
+                  {alertMsg.text}
+                </p>
+              </div>
+              <button
+                onClick={() => setAlertMsg(null)}
+                className="mt-1 px-8 py-3 rounded-2xl text-white font-black uppercase tracking-widest text-[10px] shadow-lg hover:scale-105 active:scale-95 transition-all"
+                style={{
+                  backgroundColor: alertMsg.tipo === 'error' ? '#ef4444' : (form?.colorTema ?? '#6366f1'),
+                  boxShadow: `0 8px 20px ${alertMsg.tipo === 'error' ? '#ef444440' : `${form?.colorTema ?? '#6366f1'}40`}`,
+                }}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox Modal */}
       {activeLightboxUrl && (
