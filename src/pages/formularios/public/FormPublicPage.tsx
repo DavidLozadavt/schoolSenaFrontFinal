@@ -39,43 +39,44 @@ const FormPublicPage: React.FC = () => {
   const [uploadingFileId, setUploadingFileId] = useState<number | string | null>(null);
   const [filePreviews, setFilePreviews] = useState<{ [preguntaId: number | string]: { name: string; url: string }[] }>({});
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
+  const [yaInscrito, setYaInscrito] = useState(false);
+  const [respuestaAnterior, setRespuestaAnterior] = useState<any[]>([]);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [registradoEn, setRegistradoEn] = useState<string | null>(null);
+  const [editadoEn, setEditadoEn] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const buildEmptyRespuestas = (preguntas: any[]) =>
+    preguntas.map((q: any) => ({ idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' }));
+
+  const buildFilePreviews = (preguntas: any[], prevRespList: any[]) => {
+    const previews: { [preguntaId: number | string]: { name: string; url: string }[] } = {};
+    preguntas.forEach((q: any) => {
+      if (q.tipo === 'archivo') {
+        const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
+        if (matched?.valor) {
+          const urls = typeof matched.valor === 'string' ? matched.valor.split(',').filter(Boolean) : [];
+          previews[q.id] = urls.map((url: string) => ({ name: url.split('/').pop() || 'archivo', url }));
+        }
+      }
+    });
+    return previews;
+  };
 
   useEffect(() => {
     const fetchForm = async () => {
       try {
         const { data } = await axios.get(`formulario-publico/${slug}`);
         setForm(data);
-        
-        // Initialize respuestas array, prefilled with previous response if available
-        const prevRespList = data.ultima_respuesta?.respuestas || [];
-        const initialResp = data.preguntas.map((q: any) => {
-          const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
-          let val = q.tipo === 'casillas' ? [] : '';
-          if (matched) {
-            val = matched.valor;
-          }
-          return {
-            idPregunta: q.id,
-            valor: val
-          };
-        });
-        setRespuestas(initialResp);
+        setRespuestas(buildEmptyRespuestas(data.preguntas));
+        setFilePreviews({});
 
-        // Populate file previews if any files were previously uploaded
-        const initialFilePreviews: { [preguntaId: number | string]: { name: string; url: string }[] } = {};
-        data.preguntas.forEach((q: any) => {
-          if (q.tipo === 'archivo') {
-            const matched = prevRespList.find((r: any) => r.idPregunta === q.id);
-            if (matched && matched.valor) {
-              const urls = typeof matched.valor === 'string' ? matched.valor.split(',').filter(Boolean) : [];
-              initialFilePreviews[q.id] = urls.map((url: string) => {
-                const name = url.split('/').pop() || 'archivo';
-                return { name, url };
-              });
-            }
-          }
-        });
-        setFilePreviews(initialFilePreviews);
+        if (data.ultima_respuesta?.respuestas) {
+          setRespuestaAnterior(data.ultima_respuesta.respuestas);
+          setRegistradoEn(data.ultima_respuesta.created_at || null);
+          setEditadoEn(data.ultima_respuesta.updated_at || null);
+          setYaInscrito(true);
+        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'No se pudo cargar el formulario. Es posible que el enlace no sea válido o el formulario ya no esté disponible.');
       } finally {
@@ -84,6 +85,27 @@ const FormPublicPage: React.FC = () => {
     };
     fetchForm();
   }, [slug]);
+
+  const entrarModoEdicion = () => {
+    if (!form) return;
+    const prefilled = form.preguntas.map((q: any) => {
+      const matched = respuestaAnterior.find((r: any) => r.idPregunta === q.id);
+      return { idPregunta: q.id, valor: matched ? matched.valor : (q.tipo === 'casillas' ? [] : '') };
+    });
+    setRespuestas(prefilled);
+    setFilePreviews(buildFilePreviews(form.preguntas, respuestaAnterior));
+    setYaInscrito(false);
+    setModoEdicion(true);
+  };
+
+  const isIdentificationField = (titulo: string): boolean => {
+    const t = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const isDoc = (t.includes('numero') || (t.includes('documento') && !t.includes('tipo')) || t.includes('identificacion'))
+      && !t.includes('tutor') && !t.includes('acudiente');
+    const isEmail = (t.includes('correo') || t.includes('email') || t.includes('e-mail'))
+      && !t.includes('tutor') && !t.includes('acudiente');
+    return isDoc || isEmail;
+  };
 
   const handleChange = (idPregunta: number | string, valor: any) => {
     setRespuestas(prev => prev.map(r => r.idPregunta === idPregunta ? { ...r, valor } : r));
@@ -96,22 +118,26 @@ const FormPublicPage: React.FC = () => {
   // Handle public multiple files upload
   const handleMultipleFilesUpload = async (preguntaId: number | string, filesList: FileList) => {
     const files = Array.from(filesList);
+    let accumulated = filePreviews[preguntaId] || [];
+
     for (const file of files) {
       const allowedTypes = [
-        'application/pdf', 
-        'image/jpeg', 
-        'image/png', 
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
         'image/jpg',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ];
       if (!allowedTypes.includes(file.type)) {
-        alert(`El archivo "${file.name}" no es válido. Solo se permiten PDF, Word o imágenes (JPG, PNG).`);
+        setFileError(`El archivo "${file.name}" no es válido. Solo se permiten PDF, Word o imágenes (JPG, PNG).`);
+        setTimeout(() => setFileError(null), 5000);
         continue;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`El archivo "${file.name}" supera el tamaño máximo permitido de 5MB.`);
+      if (file.size > 20 * 1024 * 1024) {
+        setFileError(`El archivo "${file.name}" supera el tamaño máximo permitido de 20MB.`);
+        setTimeout(() => setFileError(null), 5000);
         continue;
       }
 
@@ -125,16 +151,10 @@ const FormPublicPage: React.FC = () => {
         });
 
         if (data.success) {
-          setFilePreviews(prev => {
-            const current = prev[preguntaId] || [];
-            const updated = [...current, { name: file.name, url: data.url }];
-            const urlsStr = updated.map(f => f.url).join(',');
-            handleChange(preguntaId, urlsStr);
-            return {
-              ...prev,
-              [preguntaId]: updated
-            };
-          });
+          accumulated = [...accumulated, { name: file.name, url: data.url }];
+          const urlsStr = accumulated.map(f => f.url).join(',');
+          handleChange(preguntaId, urlsStr);
+          setFilePreviews(prev => ({ ...prev, [preguntaId]: accumulated }));
         }
       } catch (err: any) {
         alert(`Error al subir el archivo "${file.name}".`);
@@ -145,12 +165,11 @@ const FormPublicPage: React.FC = () => {
   };
 
   const handleRemoveFile = (preguntaId: number | string, index: number) => {
+    const current = filePreviews[preguntaId] || [];
+    const updated = current.filter((_, idx) => idx !== index);
+    const urlsStr = updated.map(f => f.url).join(',');
+    handleChange(preguntaId, urlsStr);
     setFilePreviews(prev => {
-      const current = prev[preguntaId] || [];
-      const updated = current.filter((_, idx) => idx !== index);
-      const urlsStr = updated.map(f => f.url).join(',');
-      handleChange(preguntaId, urlsStr);
-      
       const next = { ...prev };
       if (updated.length === 0) {
         delete next[preguntaId];
@@ -229,8 +248,11 @@ const FormPublicPage: React.FC = () => {
     }
 
     try {
-      await axios.post(`formulario-publico/${slug}/responder`, { respuestas });
-      
+      await axios.post(`formulario-publico/${slug}/responder`, {
+        respuestas,
+        ...(modoEdicion ? { forzar_actualizacion: true } : {}),
+      });
+
       // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
       if (fromEventId) {
         try {
@@ -240,9 +262,22 @@ const FormPublicPage: React.FC = () => {
         }
       }
 
+      setModoEdicion(false);
       setEnviado(true);
       window.scrollTo(0, 0);
+      if (isEmbed) {
+        window.parent.postMessage({ type: 'nexiservice:form-submitted' }, '*');
+      }
     } catch (err: any) {
+      if (err.response?.status === 409 && err.response?.data?.ya_inscrito) {
+        const d = err.response.data;
+        if (d.respuesta_anterior) setRespuestaAnterior(d.respuesta_anterior);
+        if (d.registrado_en) setRegistradoEn(d.registrado_en);
+        if (d.editado_en) setEditadoEn(d.editado_en);
+        setYaInscrito(true);
+        setEnviando(false);
+        return;
+      }
       alert(err.response?.data?.error || 'Error al enviar formulario. Por favor, inténtalo de nuevo.');
     } finally {
       setEnviando(false);
@@ -291,6 +326,73 @@ const FormPublicPage: React.FC = () => {
   }
 
   if (!form) return null;
+
+  if (yaInscrito) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
+        <div
+          className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-2xl border border-neutral-100 dark:border-white/5 w-full max-w-lg text-center overflow-hidden"
+          style={{ borderTop: `10px solid ${form.colorTema}` }}
+        >
+          <div className="p-10 md:p-14 flex flex-col items-center gap-5">
+            <div
+              className="w-20 h-20 rounded-[2rem] flex items-center justify-center mb-1 shadow-lg shadow-black/5"
+              style={{ backgroundColor: `${form.colorTema}10`, color: form.colorTema }}
+            >
+              <ClipboardCheck className="w-10 h-10" />
+            </div>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white text-center">{form.titulo}</h1>
+            <h2 className="text-sm font-black uppercase tracking-wider" style={{ color: form.colorTema }}>
+              Ya estás inscrito
+            </h2>
+            <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed text-center">
+              Tu inscripción está registrada. Si necesitas actualizar tus datos puedes editar tu inscripción — el documento y el correo no se pueden modificar.
+            </p>
+
+            {/* Timestamps */}
+            <div className="w-full flex flex-col sm:flex-row gap-3 mt-1">
+              {registradoEn && (
+                <div className="flex-1 flex flex-col gap-1 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl px-4 py-3 border border-neutral-100 dark:border-white/5">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Inscrito el</span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250">
+                    {new Date(registradoEn).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })}
+                  </span>
+                </div>
+              )}
+              {editadoEn && editadoEn !== registradoEn && (
+                <div className="flex-1 flex flex-col gap-1 bg-amber-50 dark:bg-amber-900/20 rounded-2xl px-4 py-3 border border-amber-200/60 dark:border-amber-700/30">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Última edición</span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250">
+                    {new Date(editadoEn).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full mt-2 justify-center">
+              <button
+                className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                style={{ backgroundColor: form.colorTema }}
+                onClick={entrarModoEdicion}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Editar inscripción
+              </button>
+              {!isEmbed && (
+                <button
+                  className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Volver
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (enviado) {
     return (
@@ -444,6 +546,14 @@ const FormPublicPage: React.FC = () => {
               </div>
             </div>
 
+            {modoEdicion && (
+              <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl bg-amber-500/8 border border-amber-500/20">
+                <RotateCcw className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                  Editando respuesta anterior — los cambios reemplazarán tu registro previo
+                </span>
+              </div>
+            )}
             <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-4">{form.titulo}</h1>
             {form.descripcion && (
               <p className="text-xs text-neutral-400 dark:text-neutral-500 font-semibold leading-relaxed mb-6" style={{ whiteSpace: 'pre-wrap' }}>
@@ -481,55 +591,69 @@ const FormPublicPage: React.FC = () => {
 
             const resp = respuestas.find(r => r.idPregunta === q.id);
             const isError = validationErrors.includes(q.id as number);
-            
+            const isLocked = modoEdicion && isIdentificationField(q.titulo);
+
             const scaleConfig = q.configuracion || { min: 1, max: 5, minLabel: '', maxLabel: '' };
             const scaleArray = Array.from({ length: scaleConfig.max - scaleConfig.min + 1 }, (_, i) => scaleConfig.min + i);
 
             return (
-              <div 
-                key={q.id} 
+              <div
+                key={q.id}
                 id={`question-${q.id}`}
                 className={`bg-white dark:bg-neutral-900 p-8 md:p-10 rounded-[2.5rem] border mb-6 transition-all duration-300 shadow-xl ${
-                  isError 
-                    ? 'border-red-500/40 shadow-red-500/[0.02]' 
+                  isError
+                    ? 'border-red-500/40 shadow-red-500/[0.02]'
+                    : isLocked
+                    ? 'border-neutral-200 dark:border-white/10 opacity-70'
                     : 'border-neutral-100 dark:border-white/5 hover:shadow-2xl'
                 }`}
-                style={{ borderLeft: `6px solid ${form.colorTema}30` }}
+                style={{ borderLeft: `6px solid ${isLocked ? '#9ca3af' : form.colorTema + '30'}` }}
               >
-                <h3 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed">
+                <h3 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed flex items-center gap-2">
                   {q.titulo} {q.esObligatoria && <span className="text-rose-500 ml-1">*</span>}
+                  {isLocked && (
+                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 ml-1">
+                      No editable
+                    </span>
+                  )}
                 </h3>
                 {q.descripcion && <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mb-6">{q.descripcion}</p>}
                 
                 <div className="mt-6">
                   {/* TEXT CORTO */}
                   {q.tipo === 'texto_corto' && (
-                    <input 
-                      type="text" 
-                      className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-250 dark:border-neutral-700 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
+                    <input
+                      type="text"
+                      className={`w-full max-w-md border px-5 py-4 text-xs font-semibold rounded-2xl outline-none transition-all ${
+                        isLocked
+                          ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                          : 'bg-neutral-50 dark:bg-neutral-800/40 border-neutral-250 dark:border-neutral-700 text-neutral-700 dark:text-white'
+                      }`}
                       placeholder="Escribe tu respuesta corta..."
                       value={resp?.valor || ''}
-                      onChange={(e) => handleChange(q.id!, e.target.value)}
+                      readOnly={isLocked}
+                      onChange={(e) => !isLocked && handleChange(q.id!, e.target.value)}
                       onFocus={(e) => {
-                        e.target.style.borderColor = form.colorTema;
-                        e.target.style.boxShadow = `0 0 0 4px ${form.colorTema}20`;
+                        if (!isLocked) { e.target.style.borderColor = form.colorTema; e.target.style.boxShadow = `0 0 0 4px ${form.colorTema}20`; }
                       }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '';
-                        e.target.style.boxShadow = '';
-                      }}
+                      onBlur={(e) => { e.target.style.borderColor = ''; e.target.style.boxShadow = ''; }}
                     />
                   )}
                   
                   {/* TEXT LARGO */}
                   {q.tipo === 'texto_largo' && (
-                    <textarea 
-                      className="w-full bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-250 dark:border-neutral-700 px-5 py-4 text-xs font-semibold text-neutral-700 dark:text-white rounded-2xl outline-none transition-all"
-                      rows={4} 
+                    <textarea
+                      className={`w-full border px-5 py-4 text-xs font-semibold rounded-2xl outline-none transition-all ${
+                        isLocked
+                          ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                          : 'bg-neutral-50 dark:bg-neutral-800/40 border-neutral-250 dark:border-neutral-700 text-neutral-700 dark:text-white'
+                      }`}
+                      rows={4}
                       placeholder="Escribe tu respuesta detallada aquí..."
                       value={resp?.valor || ''}
-                      onChange={(e) => handleChange(q.id!, e.target.value)}
-                      style={{ resize: 'vertical' }}
+                      readOnly={isLocked}
+                      onChange={(e) => !isLocked && handleChange(q.id!, e.target.value)}
+                      style={{ resize: isLocked ? 'none' : 'vertical' }}
                       onFocus={(e) => {
                         e.target.style.borderColor = form.colorTema;
                         e.target.style.boxShadow = `0 0 0 4px ${form.colorTema}20`;
@@ -771,8 +895,14 @@ const FormPublicPage: React.FC = () => {
                                 )}
                               </div>
                               <span className="text-xs font-bold text-neutral-850 dark:text-neutral-250">Seleccionar archivos</span>
-                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">PDF, Word o Imagen (Máx 5MB)</span>
+                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">PDF, Word o Imagen (Máx 20MB)</span>
                             </label>
+                            {fileError && (
+                              <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <span>{fileError}</span>
+                              </div>
+                            )}
                           </>
                         );
                       })()}

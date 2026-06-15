@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
@@ -30,12 +30,13 @@ export const EventForm = () => {
   const [fetching, setFetching] = useState(!!id);
   const [areas, setAreas] = useState<any[]>([]);
   const [formulariosInternos, setFormulariosInternos] = useState<any[]>([]);
-  const [actividades, setActividades] = useState<any[]>([]);
   const [availableActividades, setAvailableActividades] = useState<any[]>([]);
   const [selectedActividadesIds, setSelectedActividadesIds] = useState<number[]>([]);
   const [activitySearchQuery, setActivitySearchQuery] = useState('');
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityToEdit, setActivityToEdit] = useState<any | null>(null);
+  const [activityPage, setActivityPage] = useState(1);
+  const ACTIVITY_PAGE_SIZE = 3;
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -56,6 +57,8 @@ export const EventForm = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [startDatetime, setStartDatetime] = useState('');
   const [endDatetime, setEndDatetime] = useState('');
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
 
   // States for Music Selection
   const [selectedSong, setSelectedSong] = useState<any | null>(null);
@@ -173,7 +176,6 @@ export const EventForm = () => {
         ];
         
         setAvailableActividades(mergedList);
-        setActividades(conEventoList);
         setSelectedActividadesIds(conEventoList.map((a: any) => a.id));
       } else {
         const resSin = await axios.get('/items');
@@ -202,6 +204,10 @@ export const EventForm = () => {
       fetchActividades();
     }
   }, [id]);
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [activitySearchQuery]);
 
   useEffect(() => {
     const fetchEvento = async () => {
@@ -432,13 +438,22 @@ export const EventForm = () => {
                         <Clock className="w-6 h-6" />
                       </div>
                       <input
+                        ref={startInputRef}
                         type="datetime-local"
                         required
-                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-2 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-16 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
                         style={{ colorScheme: 'light dark' }}
                         value={startDatetime}
                         onChange={(e) => handleStartDatetimeChange(e.target.value)}
                       />
+                      <button
+                        type="button"
+                        onClick={() => startInputRef.current?.showPicker()}
+                        className="absolute right-4 z-10 w-10 h-10 flex items-center justify-center rounded-2xl bg-orange-500/10 hover:bg-orange-500 text-orange-500 hover:text-white transition-all duration-200"
+                        title="Abrir calendario"
+                      >
+                        <Calendar className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -454,12 +469,21 @@ export const EventForm = () => {
                         <Clock className="w-6 h-6" />
                       </div>
                       <input
+                        ref={endInputRef}
                         type="datetime-local"
-                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-2 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                        className="w-full bg-white/50 dark:bg-white/5 backdrop-blur-md border border-neutral-200 dark:border-white/10 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10 rounded-3xl h-20 pl-14 pr-16 text-sm md:text-base font-bold text-neutral-800 dark:text-white transition-all duration-300 outline-none hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
                         style={{ colorScheme: 'light dark' }}
                         value={endDatetime}
                         onChange={(e) => handleEndDatetimeChange(e.target.value)}
                       />
+                      <button
+                        type="button"
+                        onClick={() => endInputRef.current?.showPicker()}
+                        className="absolute right-4 z-10 w-10 h-10 flex items-center justify-center rounded-2xl bg-orange-500/10 hover:bg-orange-500 text-orange-500 hover:text-white transition-all duration-200"
+                        title="Abrir calendario"
+                      >
+                        <Calendar className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -807,112 +831,158 @@ export const EventForm = () => {
                   <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest">Sin actividades disponibles</p>
                   <p className="text-[10px] text-neutral-400 mt-1">Crea una actividad nueva para empezar a asociarla a tu evento.</p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {availableActividades
-                    .filter((act) => {
-                      if (!activitySearchQuery.trim()) return true;
-                      const q = activitySearchQuery.toLowerCase();
-                      return (
-                        act.nombreItem.toLowerCase().includes(q) ||
-                        (act.descripcion && act.descripcion.toLowerCase().includes(q))
-                      );
-                    })
-                    .map((act, index) => {
-                      const isSelected = selectedActividadesIds.includes(act.id);
-                      const isLinkedToThisEvent = id && String(act.idEvento) === String(id);
-                      
-                      const dur = act.hora_inicio && act.hora_fin
-                        ? Math.max(0, Math.round((new Date(act.hora_fin).getTime() - new Date(act.hora_inicio).getTime()) / 60000))
-                        : 0;
-                        
-                      return (
-                        <div 
-                          key={act.id} 
-                          className={`p-5 rounded-3xl border transition-all duration-350 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-lg ${
-                            isSelected 
-                              ? 'bg-orange-500/[0.03] border-orange-500/30' 
-                              : 'bg-white dark:bg-neutral-900 border-neutral-100 dark:border-white/5'
-                          }`}
-                        >
-                          <div className="flex items-start gap-4 flex-1 min-w-0">
-                            {/* Checkbox / Selector */}
-                            <div className="pt-1">
-                              <input
-                                type="checkbox"
-                                className="w-5 h-5 rounded-lg border-neutral-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
-                                checked={isSelected}
-                                onChange={() => {
-                                  setSelectedActividadesIds((prev) =>
-                                    prev.includes(act.id)
-                                      ? prev.filter((item) => item !== act.id)
-                                      : [...prev, act.id]
-                                  );
-                                }}
-                              />
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
-                                  isSelected 
-                                    ? 'bg-orange-500/10 text-orange-600' 
-                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
-                                }`}>
-                                  {isSelected ? 'Seleccionada' : 'Disponible'}
-                                </span>
-                                
-                                {isLinkedToThisEvent && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-green-500/10 text-green-600 text-[8px] font-black uppercase tracking-wider">
-                                    Asociada a este evento
+              ) : (() => {
+                const actFiltradas = availableActividades.filter((act) => {
+                  if (!activitySearchQuery.trim()) return true;
+                  const q = activitySearchQuery.toLowerCase();
+                  return (
+                    act.nombreItem.toLowerCase().includes(q) ||
+                    (act.descripcion && act.descripcion.toLowerCase().includes(q))
+                  );
+                });
+                const actTotalPages = Math.max(1, Math.ceil(actFiltradas.length / ACTIVITY_PAGE_SIZE));
+                const actPaginadas = actFiltradas.slice(
+                  (activityPage - 1) * ACTIVITY_PAGE_SIZE,
+                  activityPage * ACTIVITY_PAGE_SIZE
+                );
+
+                return (
+                  <>
+                    <div className="space-y-4">
+                      {actPaginadas.map((act) => {
+                        const isSelected = selectedActividadesIds.includes(act.id);
+                        const isLinkedToThisEvent = id && String(act.idEvento) === String(id);
+                        const dur = act.hora_inicio && act.hora_fin
+                          ? Math.max(0, Math.round((new Date(act.hora_fin).getTime() - new Date(act.hora_inicio).getTime()) / 60000))
+                          : 0;
+
+                        return (
+                          <div
+                            key={act.id}
+                            className={`p-5 rounded-3xl border transition-all duration-350 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-lg ${
+                              isSelected
+                                ? 'bg-orange-500/[0.03] border-orange-500/30'
+                                : 'bg-white dark:bg-neutral-900 border-neutral-100 dark:border-white/5'
+                            }`}
+                          >
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <div className="pt-1">
+                                <input
+                                  type="checkbox"
+                                  className="w-5 h-5 rounded-lg border-neutral-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setSelectedActividadesIds((prev) =>
+                                      prev.includes(act.id)
+                                        ? prev.filter((item) => item !== act.id)
+                                        : [...prev, act.id]
+                                    );
+                                  }}
+                                />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
+                                    isSelected
+                                      ? 'bg-orange-500/10 text-orange-600'
+                                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
+                                  }`}>
+                                    {isSelected ? 'Seleccionada' : 'Disponible'}
                                   </span>
-                                )}
-                                
-                                {act.hora_inicio && (
-                                  <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
-                                    {new Date(act.hora_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                                    {act.hora_fin && ` - ${new Date(act.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`}
-                                    {dur > 0 && ` (${dur} min)`}
-                                  </span>
+
+                                  {isLinkedToThisEvent && (
+                                    <span className="px-2 py-0.5 rounded-lg bg-green-500/10 text-green-600 text-[8px] font-black uppercase tracking-wider">
+                                      Asociada a este evento
+                                    </span>
+                                  )}
+
+                                  {act.hora_inicio && (
+                                    <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
+                                      {new Date(act.hora_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                      {act.hora_fin && ` - ${new Date(act.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`}
+                                      {dur > 0 && ` (${dur} min)`}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-black text-neutral-800 dark:text-white uppercase tracking-tight truncate">
+                                  {act.nombreItem}
+                                </h4>
+                                {act.descripcion && (
+                                  <p className="text-xs text-neutral-400 mt-1 italic line-clamp-2 leading-relaxed">
+                                    {act.descripcion}
+                                  </p>
                                 )}
                               </div>
-                              <h4 className="text-sm font-black text-neutral-800 dark:text-white uppercase tracking-tight truncate">
-                                {act.nombreItem}
-                              </h4>
-                              {act.descripcion && (
-                                <p className="text-xs text-neutral-400 mt-1 italic line-clamp-2 leading-relaxed">
-                                  {act.descripcion}
-                                </p>
-                              )}
+                            </div>
+
+                            <div className="flex gap-2 self-end sm:self-auto shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => { setActivityToEdit(act); setActivityModalOpen(true); }}
+                                className="w-10 h-10 bg-neutral-100 dark:bg-neutral-850 hover:bg-orange-500 hover:text-white text-neutral-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                                title="Editar actividad"
+                              >
+                                <KeenIcon icon="pencil" className="text-base" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteActivity(act.id)}
+                                className="w-10 h-10 bg-rose-55 dark:bg-rose-950/20 hover:bg-rose-500 hover:text-white text-rose-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                                title="Eliminar actividad"
+                              >
+                                <KeenIcon icon="trash" className="text-base" />
+                              </button>
                             </div>
                           </div>
-                          
-                          <div className="flex gap-2 self-end sm:self-auto shrink-0">
+                        );
+                      })}
+                    </div>
+
+                    {actTotalPages > 1 && (
+                      <div className="flex flex-col items-center gap-3 pt-2">
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                          {(activityPage - 1) * ACTIVITY_PAGE_SIZE + 1}–{Math.min(activityPage * ACTIVITY_PAGE_SIZE, actFiltradas.length)} de {actFiltradas.length}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                            disabled={activityPage === 1}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500 hover:text-white hover:border-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                          >
+                            <KeenIcon icon="arrow-left" className="text-sm" />
+                          </button>
+
+                          {Array.from({ length: actTotalPages }, (_, i) => i + 1).map((page) => (
                             <button
+                              key={page}
                               type="button"
-                              onClick={() => {
-                                setActivityToEdit(act);
-                                setActivityModalOpen(true);
-                              }}
-                              className="w-10 h-10 bg-neutral-100 dark:bg-neutral-850 hover:bg-orange-500 hover:text-white text-neutral-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
-                              title="Editar actividad"
+                              onClick={() => setActivityPage(page)}
+                              className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black transition-all duration-200 ${
+                                page === activityPage
+                                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                                  : 'border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30'
+                              }`}
                             >
-                              <KeenIcon icon="pencil" className="text-base" />
+                              {page}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteActivity(act.id)}
-                              className="w-10 h-10 bg-rose-55 dark:bg-rose-950/20 hover:bg-rose-500 hover:text-white text-rose-500 rounded-xl flex items-center justify-center transition-all shadow-sm"
-                              title="Eliminar actividad"
-                            >
-                              <KeenIcon icon="trash" className="text-base" />
-                            </button>
-                          </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => setActivityPage((p) => Math.min(actTotalPages, p + 1))}
+                            disabled={activityPage === actTotalPages}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500 hover:text-white hover:border-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                          >
+                            <KeenIcon icon="arrow-right" className="text-sm" />
+                          </button>
                         </div>
-                      );
-                    })}
-                </div>
-              )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Modal Formulario Actividad */}
