@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DataGrid, KeenIcon } from '@/components';
 import { ColumnDef } from '@tanstack/react-table';
@@ -463,7 +464,7 @@ const SolicitudesInscripcionContent = () => {
       )}
 
       {/* Modal for form responses details preview */}
-      {selectedIdFactura !== null && (
+      {selectedIdFactura !== null && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-2xl overflow-hidden bg-white rounded-2xl shadow-xl dark:bg-coal-600 flex flex-col max-h-[85vh] border border-gray-150 dark:border-white/10">
             <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-white/10">
@@ -524,8 +525,11 @@ const SolicitudesInscripcionContent = () => {
                               const respuestas = solicitudDetail.respuestasFormulario.respuestas;
                               const docPreg = respuestas.find((r: any) => {
                                 const titleLower = (r.pregunta || '').toLowerCase();
-                                return (titleLower.includes('documento') || titleLower.includes('identificacion') || titleLower.includes('identificación') || titleLower.includes('número') || titleLower.includes('numero') || titleLower.includes('cc') || titleLower.includes('identidad')) && 
-                                       !titleLower.includes('tutor') && !titleLower.includes('acudiente');
+                                return (
+                                  titleLower.includes('número') ||
+                                  titleLower.includes('numero') ||
+                                  ((titleLower.includes('documento') || titleLower.includes('identificacion') || titleLower.includes('identificación') || titleLower.includes('identidad') || titleLower.includes('cc')) && !titleLower.includes('tipo'))
+                                ) && !titleLower.includes('tutor') && !titleLower.includes('acudiente');
                               });
                               if (docPreg && docPreg.respuesta) {
                                 docVal = String(docPreg.respuesta);
@@ -661,11 +665,12 @@ const SolicitudesInscripcionContent = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de confirmación de eliminación */}
-      {confirmDelete && (
+      {confirmDelete && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-white dark:bg-coal-600 rounded-2xl shadow-2xl border border-gray-150 dark:border-white/10 overflow-hidden">
             <div className="flex items-center gap-3 p-5 border-b border-gray-200 dark:border-white/10">
@@ -700,21 +705,24 @@ const SolicitudesInscripcionContent = () => {
                 disabled={deleting}
                 className="btn btn-sm btn-danger"
               >
-                {deleting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Eliminando…
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5">
-                    <KeenIcon icon="trash" />
-                    Sí, eliminar
-                  </span>
-                )}
+                <span className="flex items-center gap-1.5">
+                  {deleting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      {'Eliminando…'}
+                    </>
+                  ) : (
+                    <>
+                      <KeenIcon icon="trash" />
+                      {'Sí, eliminar'}
+                    </>
+                  )}
+                </span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
