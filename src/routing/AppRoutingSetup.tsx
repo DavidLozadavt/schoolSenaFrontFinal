@@ -135,7 +135,9 @@ import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
 import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
 import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
 import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoEntry';
+import ProyectoFormativoDetalle from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoDetalle';
 import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
+import CompetenciasProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/CompetenciasProyectoEntry';
 import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGeneral';
 import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
@@ -882,10 +884,26 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/detalle/:idProyecto"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProyectoFormativoDetalle />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <ActividadProyectoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase/competencias"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CompetenciasProyectoEntry />
               </ProtectedRoute>
             }
           />

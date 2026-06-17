@@ -3,13 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
-import FaseProyectoRapModal from './FaseProyectoRapModal';
-
-interface FaseProyecto {
-  id: number;
-  descripcionFase: string;
-  idProyectoFormativo: number;
-}
 
 interface Programa {
   id: number;
@@ -36,7 +29,6 @@ const EMPTY_PROYECTO_FORM = {
   version: '',
   estado: 'ACTIVO' as ProyectoFormativo['estado']
 };
-const EMPTY_FASE_FORM = { descripcionFase: '' };
 
 const ProyectoFormativoEntry: React.FC = () => {
   const { idPrograma, idRed } = useParams<{ idPrograma: string; idRed: string }>();
@@ -53,24 +45,9 @@ const ProyectoFormativoEntry: React.FC = () => {
   const [proyectoForm, setProyectoForm] = useState(EMPTY_PROYECTO_FORM);
   const [deleteProyecto, setDeleteProyecto] = useState<ProyectoFormativo | null>(null);
   const [documentoFile, setDocumentoFile] = useState<File | null>(null);
-  // Modal fases
-  const [fasesProyecto, setFasesProyecto] = useState<ProyectoFormativo | null>(null);
-  const [fases, setFases] = useState<FaseProyecto[]>([]);
-  const [loadingFases, setLoadingFases] = useState(false);
-
-  // Modal crear/editar fase
-  const [faseModalOpen, setFaseModalOpen] = useState(false);
-  const [editFase, setEditFase] = useState<FaseProyecto | null>(null);
-  const [faseForm, setFaseForm] = useState(EMPTY_FASE_FORM);
-  const [savingFase, setSavingFase] = useState(false);
-  const [deleteFase, setDeleteFase] = useState<FaseProyecto | null>(null);
-  const [deletingFase, setDeletingFase] = useState<number | null>(null);
 
   //Programa:
   const [programa, setPrograma] = useState<Programa | null>(null);
-
-  //Asignacion de Raps a las fases del proyecto:
-  const [rapModalFase, setRapModalFase] = useState<FaseProyecto | null>(null);
 
   const navigate = useNavigate();
 
@@ -167,90 +144,7 @@ const ProyectoFormativoEntry: React.FC = () => {
     }
   };
 
-  // ── Fases handlers ──
-  const openFasesModal = async (proyecto: ProyectoFormativo) => {
-    setFasesProyecto(proyecto);
-    setLoadingFases(true);
-    try {
-      const res = await axios.get('fases-proyecto', {
-        params: { idProyectoFormativo: proyecto.id }
-      });
-      setFases(res.data);
-    } catch {
-      enqueueSnackbar('Error al cargar las fases.', { variant: 'error' });
-    } finally {
-      setLoadingFases(false);
-    }
-  };
-
-  const closeFasesModal = () => {
-    setFasesProyecto(null);
-    setFases([]);
-  };
-
-  const openCreateFase = () => {
-    setEditFase(null);
-    setFaseForm(EMPTY_FASE_FORM);
-    setFaseModalOpen(true);
-  };
-
-  const openEditFase = (fase: FaseProyecto) => {
-    setEditFase(fase);
-    setFaseForm({ descripcionFase: fase.descripcionFase });
-    setFaseModalOpen(true);
-  };
-
-  const closeFaseModal = () => {
-    setFaseModalOpen(false);
-    setEditFase(null);
-    setFaseForm(EMPTY_FASE_FORM);
-  };
-
-  const handleSaveFase = async () => {
-    if (!faseForm.descripcionFase.trim()) {
-      enqueueSnackbar('La descripción es obligatoria.', { variant: 'warning' });
-      return;
-    }
-    setSavingFase(true);
-    try {
-      if (editFase) {
-        const res = await axios.put(`fases-proyecto/${editFase.id}`, faseForm);
-        setFases((prev) => prev.map((f) => (f.id === editFase.id ? res.data : f)));
-        enqueueSnackbar('Fase actualizada.', { variant: 'success' });
-      } else {
-        const res = await axios.post('fases-proyecto', {
-          ...faseForm,
-          idProyectoFormativo: fasesProyecto!.id
-        });
-        setFases((prev) => [...prev, res.data]);
-        enqueueSnackbar('Fase creada.', { variant: 'success' });
-      }
-      closeFaseModal();
-    } catch (error: any) {
-      enqueueSnackbar(error.response?.data?.message || 'Error al guardar la fase.', {
-        variant: 'error'
-      });
-    } finally {
-      setSavingFase(false);
-    }
-  };
-
-  const handleDeleteFase = async () => {
-    if (!deleteFase) return;
-    setDeletingFase(deleteFase.id);
-    try {
-      await axios.delete(`fases-proyecto/${deleteFase.id}`);
-      setFases((prev) => prev.filter((f) => f.id !== deleteFase.id));
-      enqueueSnackbar('Fase eliminada.', { variant: 'success' });
-      setDeleteFase(null);
-    } catch (error: any) {
-      enqueueSnackbar(error.response?.data?.message || 'Error al eliminar la fase.', {
-        variant: 'error'
-      });
-    } finally {
-      setDeletingFase(null);
-    }
-  };
+  // ── Fases handlers removed, now handled in Detalle page ──
 
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
@@ -312,7 +206,7 @@ const ProyectoFormativoEntry: React.FC = () => {
             >
               {/* Card body */}
               <button
-                onClick={() => openFasesModal(proyecto)}
+                onClick={() => navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${idPrograma}/detalle/${proyecto.id}`)}
                 className="flex-1 p-5 text-left hover:bg-gray-50/50 dark:hover:bg-coal-400/30 transition-colors rounded-t-xl"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
@@ -337,7 +231,7 @@ const ProyectoFormativoEntry: React.FC = () => {
                 </p>
                 <p className="text-xs text-blue-500 dark:text-blue-400 mt-3 flex items-center gap-1">
                   <i className="ki-outline ki-eye text-xs" />
-                  Ver fases
+                  Ver detalles
                 </p>
                 {proyecto.rutaDocumentoUrl && (
                   <a
@@ -576,214 +470,7 @@ const ProyectoFormativoEntry: React.FC = () => {
         </Modal>
       )}
 
-      {/* ── Modal Fases de los raps de las fases ── */}
-
-      {rapModalFase && (
-        <FaseProyectoRapModal
-          idFaseProyecto={rapModalFase.id}
-          descripcionFase={rapModalFase.descripcionFase}
-          idPrograma={programa?.id}
-          onClose={() => setRapModalFase(null)}
-        />
-      )}
-
-      {/* ── Modal Fases del Proyecto ── */}
-      {fasesProyecto && (
-        <Modal open onClose={closeFasesModal} className="mx-4 sm:mx-auto max-w-2xl w-full">
-          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
-            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
-              <div>
-                <ModalTitle>Fases del proyecto</ModalTitle>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  {fasesProyecto.nombreProyecto} — v{fasesProyecto.version}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={openCreateFase}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-semibold text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all"
-                >
-                  <i className="ki-outline ki-plus text-sm" /> Nueva fase
-                </button>
-                <button
-                  onClick={closeFasesModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  <i className="ki-outline ki-cross text-lg" />
-                </button>
-              </div>
-            </ModalHeader>
-            <ModalBody className="p-5">
-              {loadingFases ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : fases.length === 0 ? (
-                <div className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
-                  <i className="ki-outline ki-abstract-26 text-3xl mb-2 block" />
-                  No hay fases registradas para este proyecto.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {fases.map((fase, index) => (
-                    <div
-                      key={fase.id}
-                      className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-coal-400 rounded-lg border border-gray-100 dark:border-coal-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center shrink-0">
-                          {index + 1}
-                        </span>
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                          {fase.descripcionFase}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 ml-3 shrink-0">
-                        <button
-                          onClick={() =>
-                            navigate(
-                              `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${idPrograma}/fase/${fase.id}`
-                            )
-                          }
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-purple-50 hover:bg-purple-100 font-semibold text-purple-700 dark:text-purple-400 dark:bg-purple-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-list text-xs" /> Actividades
-                        </button>
-                        <button
-                          onClick={() => openEditFase(fase)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-50 hover:bg-blue-100 font-semibold text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-pencil text-xs" /> Editar
-                        </button>
-                        <button
-                          onClick={() => setDeleteFase(fase)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-50 hover:bg-red-100 font-semibold text-red-700 dark:text-red-400 dark:bg-red-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-trash text-xs" /> Eliminar
-                        </button>
-                        {/** Botón dentro del listado de fases */}
-                        <button
-                          onClick={() => setRapModalFase(fase)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-purple-50 hover:bg-purple-100 font-semibold text-purple-700 dark:text-purple-400 dark:bg-purple-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-book text-xs" /> RAPs
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      )}
-
-      {/* ── Modal Crear/Editar Fase ── */}
-      {faseModalOpen && (
-        <Modal open onClose={closeFaseModal} className="mx-4 sm:mx-auto max-w-md w-full">
-          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
-            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
-              <ModalTitle>{editFase ? 'Editar fase' : 'Nueva fase'}</ModalTitle>
-              <button
-                onClick={closeFaseModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                <i className="ki-outline ki-cross text-lg" />
-              </button>
-            </ModalHeader>
-            <ModalBody className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
-                  Descripción de la fase <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={faseForm.descripcionFase}
-                  onChange={(e) => setFaseForm({ descripcionFase: e.target.value.toUpperCase() })}
-                  placeholder="DESCRIPCIÓN DE LA FASE"
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-coal-300">
-                <button
-                  onClick={closeFaseModal}
-                  disabled={savingFase}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white dark:bg-coal-400 hover:bg-gray-100 dark:hover:bg-coal-300 font-semibold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-coal-300 rounded-lg transition-all disabled:opacity-50"
-                >
-                  <i className="ki-outline ki-cross-circle text-sm" /> Cancelar
-                </button>
-                <button
-                  onClick={handleSaveFase}
-                  disabled={savingFase}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-50 hover:bg-green-100 font-semibold text-green-700 dark:text-green-400 dark:bg-green-500/10 rounded-lg transition-all disabled:opacity-50"
-                >
-                  {savingFase ? (
-                    <div className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <i className="ki-outline ki-check-circle text-sm" />
-                  )}
-                  {savingFase ? 'Guardando...' : editFase ? 'Guardar cambios' : 'Crear fase'}
-                </button>
-              </div>
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      )}
-
-      {/* ── Modal Confirmar Eliminar Fase ── */}
-      {deleteFase && (
-        <Modal open onClose={() => setDeleteFase(null)} className="mx-4 sm:mx-auto max-w-sm w-full">
-          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
-            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
-              <ModalTitle>Confirmar eliminación</ModalTitle>
-              <button
-                onClick={() => setDeleteFase(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                <i className="ki-outline ki-cross text-lg" />
-              </button>
-            </ModalHeader>
-            <ModalBody className="p-5 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center shrink-0">
-                  <i className="ki-outline ki-trash text-red-600 dark:text-red-400 text-base" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                    ¿Eliminar esta fase?
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {deleteFase.descripcionFase}
-                  </p>
-                  <p className="text-xs text-red-500 dark:text-red-400 mt-2">
-                    Esta acción no se puede deshacer.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-coal-300">
-                <button
-                  onClick={() => setDeleteFase(null)}
-                  disabled={!!deletingFase}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDeleteFase}
-                  disabled={!!deletingFase}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all disabled:opacity-50"
-                >
-                  {deletingFase ? (
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <i className="ki-outline ki-trash text-sm" />
-                  )}
-                  {deletingFase ? 'Eliminando...' : 'Sí, eliminar'}
-                </button>
-              </div>
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      )}
+      {/* Fases modals removed */}
     </div>
   );
 };
