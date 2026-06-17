@@ -14,6 +14,7 @@ import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
 import { User } from 'lucide-react';
 import SolicitudInstructorForm from '../solicitud-instructor/SolicitudInstructorForm';
+import ProyectoFormativo from './components/malla-curricular/ProyectoFormativo';
 
 interface Ficha {
   id: number;
@@ -22,6 +23,7 @@ interface Ficha {
   idInstructorLider?: number | null;
   documento?: string | null;
   rutaDocumentoUrl: string | null;
+  idProyectoFormativo?: number | null;
 
   jornada?: {
     id: number;
@@ -95,6 +97,7 @@ export const ProgramacionFichasPage = () => {
   const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
   const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
   const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
+  const [verProyectoFormativo, setVerProyectoFormativo] = useState<boolean>(false);
   const [fichaSelected, setFichaSelected] = useState<any | null>(null);
   const [solicitud, setSolicitud] = useState<boolean>(false);
 
@@ -758,18 +761,31 @@ export const ProgramacionFichasPage = () => {
                             >
                               <i className="ki-outline ki-book-square text-base"></i>
                             </button>
-
-                            {esInstructorSena && <button
-                              type='button'
+                            <button
+                              type="button"
                               onClick={() => {
-                                setSolicitud(true);
+                                setVerProyectoFormativo(true);
                                 setFichaSelected(ficha);
                               }}
-                              title="Solicitud de instructor"
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg transition-all"
+                              title="Proyecto formativo"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-user text-base"></i>
-                            </button>}
+                              <i className="ki-outline ki-note-2 text-base"></i>
+                            </button>
+
+                            {esInstructorSena && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSolicitud(true);
+                                  setFichaSelected(ficha);
+                                }}
+                                title="Solicitud de instructor"
+                                className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg transition-all"
+                              >
+                                <i className="ki-outline ki-user text-base"></i>
+                              </button>
+                            )}
 
                             {puedeEditarEliminar(ficha) && (
                               <button
@@ -846,13 +862,15 @@ export const ProgramacionFichasPage = () => {
         </div>
       </div>
 
-      {solicitud && <SolicitudInstructorForm
-        open={solicitud}
-        onClose={() => setSolicitud(false)}
-        onSave={() => setSolicitud(false)}
-        ficha={fichaSelected}
-        programa={program?.name}
-      />}
+      {solicitud && (
+        <SolicitudInstructorForm
+          open={solicitud}
+          onClose={() => setSolicitud(false)}
+          onSave={() => setSolicitud(false)}
+          ficha={fichaSelected}
+          programa={program?.name}
+        />
+      )}
 
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
@@ -896,6 +914,14 @@ export const ProgramacionFichasPage = () => {
         <MallaCurricular
           isOpen={verMallaCurricular}
           onClose={() => setVerMallaCurricular(false)}
+          program={program}
+          ficha={fichaSelected}
+        />
+      )}
+      {verProyectoFormativo && (
+        <ProyectoFormativo
+          isOpen={verProyectoFormativo}
+          onClose={() => setVerProyectoFormativo(false)}
           program={program}
           ficha={fichaSelected}
         />
