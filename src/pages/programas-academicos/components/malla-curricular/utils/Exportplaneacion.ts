@@ -4,17 +4,26 @@ import axios from 'axios';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+interface Instructor {
+  id: number;
+  nombre: string;
+  email?: string | null;
+  rutaFoto?: string | null;
+}
+
 interface Materia {
   id: number;
   nombre: string | null;
   idMateriaPadre: number | null;
-  hijas?: { id: number; nombre: string | null }[];
+  instructores?: Instructor[];
+  hijas?: { id: number; nombre: string | null; instructores?: Instructor[] }[];
 }
 
 interface FaseProyectoRap {
   id: number;
   materia: Materia;
   idMateriaPadre: number | null;
+  instructores?: Instructor[];
 }
 
 interface Actividad {
@@ -122,6 +131,12 @@ function setCell(
   }
 }
 
+/** Une los nombres de instructores en un solo texto separado por coma. */
+function formatInstructores(instructores?: Instructor[]): string {
+  if (!instructores || instructores.length === 0) return '';
+  return instructores.map((i) => i.nombre).join(', ');
+}
+
 // ─── Exportación principal ────────────────────────────────────────────────────
 
 export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
@@ -220,8 +235,9 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
     // Además, si una materia padre tiene hijas, se expande una fila por cada hija.
     const rapRows: Array<{
       actividadDesc: string | null;
-      competencia: string | null;        // col 3 – materia padre
+      competencia: string | null; // col 3 – materia padre
       resultadoAprendizaje: string | null; // col 4 – materia hija
+      instructor: string; // col 11 – instructor(es) del RAP
       isFirst: boolean;
     }> = [];
 
@@ -242,6 +258,7 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
               actividadDesc,
               competencia: hijaIdx === 0 ? (mat.nombre ?? null) : null,
               resultadoAprendizaje: hija.nombre ?? null,
+              instructor: formatInstructores(hija.instructores),
               isFirst: isFirstOfActivity && hijaIdx === 0
             });
           });
@@ -251,6 +268,7 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
             actividadDesc,
             competencia: mat.nombre ?? null,
             resultadoAprendizaje: null,
+            instructor: formatInstructores(mat.instructores ?? rap.instructores),
             isFirst: isFirstOfActivity
           });
         }
@@ -260,19 +278,32 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
           actividadDesc,
           competencia: null,
           resultadoAprendizaje: mat.nombre ?? null,
+          instructor: formatInstructores(mat.instructores ?? rap.instructores),
           isFirst: isFirstOfActivity
         });
       }
     }
 
     if (fase.actividades.length === 0 && fase.rapsGenerales.length === 0) {
-      rapRows.push({ actividadDesc: null, competencia: null, resultadoAprendizaje: null, isFirst: true });
+      rapRows.push({
+        actividadDesc: null,
+        competencia: null,
+        resultadoAprendizaje: null,
+        instructor: '',
+        isFirst: true
+      });
     }
 
     // Procesar actividades
     for (const act of fase.actividades) {
       if (act.faseProyectoRap.length === 0) {
-        rapRows.push({ actividadDesc: act.descripcionActividad, competencia: null, resultadoAprendizaje: null, isFirst: true });
+        rapRows.push({
+          actividadDesc: act.descripcionActividad,
+          competencia: null,
+          resultadoAprendizaje: null,
+          instructor: '',
+          isFirst: true
+        });
       } else {
         act.faseProyectoRap.forEach((rap, idx) => {
           rapToRows(rap, act.descripcionActividad, idx === 0);
@@ -359,10 +390,19 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
         wrapText: true
       });
 
-      // Cols 5-13: vacías (se completan manualmente)
+      // Cols 5-13: vacías (se completan manualmente), excepto col 11 (INSTRUCTOR)
       for (let c = 5; c <= 13; c++) {
+        if (c === 11) continue;
         setCell(ws, absRow, c, '', { size: 8 });
       }
+
+      // Col 11: INSTRUCTOR (A)
+      setCell(ws, absRow, 11, r.instructor, {
+        size: 8,
+        hAlign: 'left',
+        vAlign: 'middle',
+        wrapText: true
+      });
 
       // Col 14: ESTADO con fondo verde
       setCell(ws, absRow, 14, '', { size: 8, bgColor: COLOR.estadoBg });
