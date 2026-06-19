@@ -922,6 +922,7 @@ export const ProgramacionFichasPage = () => {
         <ProyectoFormativo
           isOpen={verProyectoFormativo}
           onClose={() => setVerProyectoFormativo(false)}
+          onUpdated={() => setEvento((prev) => !prev)}
           program={program}
           ficha={fichaSelected}
         />

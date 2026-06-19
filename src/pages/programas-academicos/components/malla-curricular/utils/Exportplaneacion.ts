@@ -16,7 +16,23 @@ interface Materia {
   nombre: string | null;
   idMateriaPadre: number | null;
   instructores?: Instructor[];
-  hijas?: { id: number; nombre: string | null; instructores?: Instructor[] }[];
+  hijas?: { 
+    id: number; 
+    nombre: string | null; 
+    instructores?: Instructor[];
+    trimestre?: string | null;
+    horas?: number;
+    numeroSesiones?: number;
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
+    estado?: string;
+  }[];
+  trimestre?: string | null;
+  horas?: number;
+  numeroSesiones?: number;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  estado?: string;
 }
 
 interface FaseProyectoRap {
@@ -24,6 +40,12 @@ interface FaseProyectoRap {
   materia: Materia;
   idMateriaPadre: number | null;
   instructores?: Instructor[];
+  trimestre?: string | null;
+  horas?: number;
+  numeroSesiones?: number;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  estado?: string;
 }
 
 interface Actividad {
@@ -239,6 +261,12 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
       resultadoAprendizaje: string | null; // col 4 – materia hija
       instructor: string; // col 11 – instructor(es) del RAP
       isFirst: boolean;
+      trimestre: string | null;
+      horas: number;
+      numeroSesiones: number;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+      estado: string;
     }> = [];
 
     /** Convierte un RAP del backend en una o varias filas */
@@ -259,7 +287,13 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
               competencia: hijaIdx === 0 ? (mat.nombre ?? null) : null,
               resultadoAprendizaje: hija.nombre ?? null,
               instructor: formatInstructores(hija.instructores),
-              isFirst: isFirstOfActivity && hijaIdx === 0
+              isFirst: isFirstOfActivity && hijaIdx === 0,
+              trimestre: hija.trimestre ?? null,
+              horas: hija.horas ?? 0,
+              numeroSesiones: hija.numeroSesiones ?? 0,
+              fechaInicio: hija.fechaInicio ?? null,
+              fechaFin: hija.fechaFin ?? null,
+              estado: hija.estado ?? 'PENDIENTE'
             });
           });
         } else {
@@ -269,7 +303,13 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
             competencia: mat.nombre ?? null,
             resultadoAprendizaje: null,
             instructor: formatInstructores(mat.instructores ?? rap.instructores),
-            isFirst: isFirstOfActivity
+            isFirst: isFirstOfActivity,
+            trimestre: mat.trimestre ?? rap.trimestre ?? null,
+            horas: mat.horas ?? rap.horas ?? 0,
+            numeroSesiones: mat.numeroSesiones ?? rap.numeroSesiones ?? 0,
+            fechaInicio: mat.fechaInicio ?? rap.fechaInicio ?? null,
+            fechaFin: mat.fechaFin ?? rap.fechaFin ?? null,
+            estado: mat.estado ?? rap.estado ?? 'PENDIENTE'
           });
         }
       } else {
@@ -279,7 +319,13 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
           competencia: null,
           resultadoAprendizaje: mat.nombre ?? null,
           instructor: formatInstructores(mat.instructores ?? rap.instructores),
-          isFirst: isFirstOfActivity
+          isFirst: isFirstOfActivity,
+          trimestre: mat.trimestre ?? rap.trimestre ?? null,
+          horas: mat.horas ?? rap.horas ?? 0,
+          numeroSesiones: mat.numeroSesiones ?? rap.numeroSesiones ?? 0,
+          fechaInicio: mat.fechaInicio ?? rap.fechaInicio ?? null,
+          fechaFin: mat.fechaFin ?? rap.fechaFin ?? null,
+          estado: mat.estado ?? rap.estado ?? 'PENDIENTE'
         });
       }
     }
@@ -290,7 +336,13 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
         competencia: null,
         resultadoAprendizaje: null,
         instructor: '',
-        isFirst: true
+        isFirst: true,
+        trimestre: null,
+        horas: 0,
+        numeroSesiones: 0,
+        fechaInicio: null,
+        fechaFin: null,
+        estado: ''
       });
     }
 
@@ -302,7 +354,13 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
           competencia: null,
           resultadoAprendizaje: null,
           instructor: '',
-          isFirst: true
+          isFirst: true,
+          trimestre: null,
+          horas: 0,
+          numeroSesiones: 0,
+          fechaInicio: null,
+          fechaFin: null,
+          estado: ''
         });
       } else {
         act.faseProyectoRap.forEach((rap, idx) => {
@@ -390,11 +448,23 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
         wrapText: true
       });
 
-      // Cols 5-13: vacías (se completan manualmente), excepto col 11 (INSTRUCTOR)
-      for (let c = 5; c <= 13; c++) {
-        if (c === 11) continue;
-        setCell(ws, absRow, c, '', { size: 8 });
-      }
+      // Col 5: TRIMESTRE
+      setCell(ws, absRow, 5, r.trimestre ?? '', { size: 8 });
+
+      // Col 6: HORAS
+      setCell(ws, absRow, 6, r.horas > 0 ? r.horas : '', { size: 8 });
+
+      // Col 7: NÚMERO DE SESIONES
+      setCell(ws, absRow, 7, r.numeroSesiones > 0 ? r.numeroSesiones : '', { size: 8 });
+
+      // Col 8: ACTIVIDAD DE APRENDIZAJE
+      setCell(ws, absRow, 8, '', { size: 8 });
+
+      // Col 9: TOTAL HORAS AL 100%
+      setCell(ws, absRow, 9, r.horas > 0 ? r.horas : '', { size: 8 });
+
+      // Col 10: TOTAL HORAS AL 80%
+      setCell(ws, absRow, 10, r.horas > 0 ? r.horas * 0.8 : '', { size: 8 });
 
       // Col 11: INSTRUCTOR (A)
       setCell(ws, absRow, 11, r.instructor, {
@@ -404,8 +474,17 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
         wrapText: true
       });
 
-      // Col 14: ESTADO con fondo verde
-      setCell(ws, absRow, 14, '', { size: 8, bgColor: COLOR.estadoBg });
+      // Col 12: FECHA DE INICIO
+      setCell(ws, absRow, 12, r.fechaInicio ?? '', { size: 8 });
+
+      // Col 13: FECHA FIN
+      setCell(ws, absRow, 13, r.fechaFin ?? '', { size: 8 });
+
+      // Col 14: ESTADO con fondo verde si finalizado
+      setCell(ws, absRow, 14, r.estado ?? '', { 
+        size: 8, 
+        bgColor: r.estado === 'FINALIZADO' ? COLOR.estadoBg : undefined 
+      });
     });
 
     // Aplicar bordes a todo el bloque de la fase

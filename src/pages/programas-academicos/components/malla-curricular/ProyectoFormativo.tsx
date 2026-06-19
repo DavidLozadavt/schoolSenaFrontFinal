@@ -6,6 +6,7 @@ import { exportarPlaneacionExcel } from './utils/Exportplaneacion';
 const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
   isOpen,
   onClose,
+  onUpdated,
   program,
   ficha
 }) => {
@@ -64,6 +65,7 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
         idProyectoFormativo
       });
       setSuccess(true);
+      onUpdated?.();
       setTimeout(() => {
         onClose?.();
       }, 1200);
