@@ -30,7 +30,7 @@ const ActasInstructorGeneral = () => {
   // Estados para creación/edición
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [actaToEdit, setActaToEdit] = useState<Acta | null>(null);
-  
+
   // Estado para modal de asistencias
   const [isAsistenciasModalOpen, setIsAsistenciasModalOpen] = useState(false);
   const [actaForAsistencias, setActaForAsistencias] = useState<Acta | null>(null);
@@ -99,9 +99,27 @@ const ActasInstructorGeneral = () => {
   };
 
   const handleDownloadPDF = async (idActa: number, shouldDownload = true): Promise<Blob | null> => {
+    // ─── DEBUG ───────────────────────────────────────────────
+    const DEBUG = false; // cambiar a false para producción
+
+    if (DEBUG) {
+      try {
+        const debugResponse = await axios.get(`actas/generar-pdf/${idActa}?debug=true`);
+        console.log('🔍 DEBUG acta payload:', debugResponse.data);
+        console.log('📋 Instructores:', debugResponse.data.instructoresConColor);
+        console.log('📅 Calendario:', debugResponse.data.calendario);
+        console.log('✅ En formación:', debugResponse.data.enFormacion);
+        console.log('⚠️ Con novedad:', debugResponse.data.conNovedad);
+        console.log('📊 Meta:', debugResponse.data.meta);
+      } catch (debugError) {
+        console.error('❌ Error en debug:', debugError);
+      }
+    }
+    // ─────────────────────────────────────────────────────────
+
     try {
       const response = await axios.get(`actas/generar-pdf/${idActa}`, {
-        responseType: 'blob',
+        responseType: 'blob'
       });
 
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -196,8 +214,8 @@ const ActasInstructorGeneral = () => {
     try {
       await axios.post(`actas/${idActa}/documento`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+          'Content-Type': 'multipart/form-data'
+        }
       });
       alert('Documento subido correctamente');
       loadActas();
@@ -231,12 +249,10 @@ const ActasInstructorGeneral = () => {
         acta.tipoActa,
         acta.lugar,
         acta.ficha?.codigo,
-        acta.ciudad?.descripcion,
+        acta.ciudad?.descripcion
       ];
 
-      return searchableValues.some((value) =>
-        (value || '').toLowerCase().includes(normalizedTerm)
-      );
+      return searchableValues.some((value) => (value || '').toLowerCase().includes(normalizedTerm));
     });
   };
 
@@ -250,10 +266,7 @@ const ActasInstructorGeneral = () => {
     [actasAsistente, searchAsistente]
   );
 
-  const totalPagesCreadas = Math.max(
-    1,
-    Math.ceil(filteredActasCreadas.length / ITEMS_PER_PAGE)
-  );
+  const totalPagesCreadas = Math.max(1, Math.ceil(filteredActasCreadas.length / ITEMS_PER_PAGE));
   const totalPagesAsistente = Math.max(
     1,
     Math.ceil(filteredActasAsistente.length / ITEMS_PER_PAGE)
@@ -326,9 +339,7 @@ const ActasInstructorGeneral = () => {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-bold text-gray-800 dark:text-white">Actas</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Gestión de actas y asistencias
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Gestión de actas y asistencias</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -362,8 +373,8 @@ const ActasInstructorGeneral = () => {
         </button>
       </div>
 
-      {activeTab === 'creadas' && (
-        loading ? (
+      {activeTab === 'creadas' &&
+        (loading ? (
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
@@ -404,19 +415,14 @@ const ActasInstructorGeneral = () => {
                     />
                   ))}
                 </div>
-                {renderPagination(
-                  currentPageCreada,
-                  totalPagesCreadas,
-                  setCurrentPageCreada
-                )}
+                {renderPagination(currentPageCreada, totalPagesCreadas, setCurrentPageCreada)}
               </>
             )}
           </>
-        )
-      )}
+        ))}
 
-      {activeTab === 'asistente' && (
-        loadingAsistente ? (
+      {activeTab === 'asistente' &&
+        (loadingAsistente ? (
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
@@ -464,14 +470,10 @@ const ActasInstructorGeneral = () => {
               </>
             )}
           </>
-        )
-      )}
+        ))}
 
       {/* Modal Detalles Acta */}
-      <ActaDetailModal
-        acta={selectedActa}
-        onClose={() => setSelectedActa(null)}
-      />
+      <ActaDetailModal acta={selectedActa} onClose={() => setSelectedActa(null)} />
 
       <ActaCreateModal
         isOpen={isCreateModalOpen}
@@ -545,10 +547,13 @@ const ActasInstructorGeneral = () => {
                     <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
                       <i className="ki-outline ki-file-down text-blue-600 dark:text-blue-400" />
                     </div>
-                    <span className="text-sm font-bold text-gray-800 dark:text-white">¿Qué desea hacer?</span>
+                    <span className="text-sm font-bold text-gray-800 dark:text-white">
+                      ¿Qué desea hacer?
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Puede generar el PDF solo para descargar o guardarlo directamente en el sistema como el documento oficial del acta.
+                    Puede generar el PDF solo para descargar o guardarlo directamente en el sistema
+                    como el documento oficial del acta.
                   </p>
                 </div>
 
@@ -564,7 +569,7 @@ const ActasInstructorGeneral = () => {
                     <i className="ki-outline ki-file-down text-lg" />
                     Solo Descargar PDF
                   </button>
-                  
+
                   <button
                     onClick={handleSaveAndDownloadActa}
                     disabled={isProcessingDownload}

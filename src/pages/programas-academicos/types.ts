@@ -68,6 +68,7 @@ export interface MallaCurricularProps {
 export interface ProyectoFormativoProps {
   isOpen?: boolean;
   onClose?: () => void;
+  onUpdated?: () => void;
   program?: Program | any;
   ficha?: any;
 }

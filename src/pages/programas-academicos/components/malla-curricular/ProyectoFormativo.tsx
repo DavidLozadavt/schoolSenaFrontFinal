@@ -6,6 +6,7 @@ import { exportarPlaneacionExcel } from './utils/Exportplaneacion';
 const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
   isOpen,
   onClose,
+  onUpdated,
   program,
   ficha
 }) => {
@@ -45,10 +46,7 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
     const loadProyectoDetalle = async () => {
       try {
         const response = await axios.get(`/fichapry/${ficha.id}/proyecto-formativo`);
-        console.log('Proyecto formativo de la ficha:', response.data);
-      } catch (err) {
-        console.error('Error al cargar el proyecto de la ficha:', err);
-      }
+      } catch (err) {}
     };
 
     loadProyectoDetalle();
@@ -67,6 +65,7 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
         idProyectoFormativo
       });
       setSuccess(true);
+      onUpdated?.();
       setTimeout(() => {
         onClose?.();
       }, 1200);
@@ -82,8 +81,10 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
       await exportarPlaneacionExcel({
         id: ficha.id,
         codigo: ficha.codigo,
-        instructorLider: 'JUAN PABLO CHAMIZO VEGA',
-        jornada: 'TARDE',
+        instructorLider:
+          `${ficha.instructorLider?.persona?.nombre1} ${ficha.instructorLider?.persona?.apellido1}` ||
+          '',
+        jornada: ficha.jornada.nombreJornada || '',
         programa: program.nombre
       });
     } catch (error) {
@@ -171,7 +172,7 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
 
           {/* Preview del seleccionado */}
           {proyectoSeleccionado && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/20 justify-center items-center">
               <i className="ki-outline ki-check-circle text-primary mt-0.5 text-base flex-shrink-0"></i>
               <p className="text-xs text-primary font-medium leading-snug">
                 {proyectoSeleccionado.nombreProyecto}
@@ -219,13 +220,15 @@ const ProyectoFormativo: React.FC<ProyectoFormativoProps> = ({
                 </>
               )}
             </button>
-            <button
-              onClick={handleExportExcel}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-success text-white hover:bg-success/90 flex items-center gap-2"
-            >
-              <i className="ki-outline ki-file-down text-sm"></i>
-              Exportar Excel
-            </button>
+            {idProyectoFormativo && (
+              <button
+                onClick={handleExportExcel}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-success text-white hover:bg-success/90 flex items-center gap-2"
+              >
+                <i className="ki-outline ki-file-down text-sm"></i>
+                Exportar Excel
+              </button>
+            )}
           </div>
         </div>
       </div>
