@@ -16,9 +16,9 @@ interface Materia {
   nombre: string | null;
   idMateriaPadre: number | null;
   instructores?: Instructor[];
-  hijas?: { 
-    id: number; 
-    nombre: string | null; 
+  hijas?: {
+    id: number;
+    nombre: string | null;
     instructores?: Instructor[];
     trimestre?: string | null;
     horas?: number;
@@ -427,18 +427,46 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
       });
     }
 
-    // ─── Escribir filas RAP ────────────────────────────────────────────────
+    //Para mergear filas iguales
+    interface CompGroup {
+      competencia: string | null;
+      startRow: number;
+      endRow: number;
+    }
+    const compGroups: CompGroup[] = [];
+    let compStart = faseStartRow;
+    let lastComp: string | null | undefined = undefined;
+
     rapRows.forEach((r, i) => {
       const absRow = faseStartRow + i;
-      ws.getRow(absRow).height = 28;
+      if (r.competencia !== null) {
+        if (lastComp !== undefined) {
+          compGroups.push({ competencia: lastComp, startRow: compStart, endRow: absRow - 1 });
+        }
+        lastComp = r.competencia;
+        compStart = absRow;
+      }
+      if (i === rapRows.length - 1) {
+        compGroups.push({ competencia: lastComp ?? null, startRow: compStart, endRow: absRow });
+      }
+    });
 
-      // Col 3: COMPETENCIA (materia padre)
-      setCell(ws, absRow, 3, r.competencia ?? '', {
+    for (const cg of compGroups) {
+      if (cg.endRow > cg.startRow) {
+        ws.mergeCells(cg.startRow, 3, cg.endRow, 3);
+      }
+      setCell(ws, cg.startRow, 3, cg.competencia ?? '', {
         size: 8,
         hAlign: 'left',
         vAlign: 'middle',
         wrapText: true
       });
+    }
+
+    // ─── Escribir filas RAP ────────────────────────────────────────────────
+    rapRows.forEach((r, i) => {
+      const absRow = faseStartRow + i;
+      ws.getRow(absRow).height = 28;
 
       // Col 4: RESULTADOS DE APRENDIZAJE (materia hija)
       setCell(ws, absRow, 4, r.resultadoAprendizaje ?? '', {
@@ -481,9 +509,9 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
       setCell(ws, absRow, 13, r.fechaFin ?? '', { size: 8 });
 
       // Col 14: ESTADO con fondo verde si finalizado
-      setCell(ws, absRow, 14, r.estado ?? '', { 
-        size: 8, 
-        bgColor: r.estado === 'FINALIZADO' ? COLOR.estadoBg : undefined 
+      setCell(ws, absRow, 14, r.estado ?? '', {
+        size: 8,
+        bgColor: r.estado === 'FINALIZADO' ? COLOR.estadoBg : undefined
       });
     });
 
