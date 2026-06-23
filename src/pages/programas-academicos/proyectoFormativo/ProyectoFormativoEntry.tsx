@@ -890,7 +890,7 @@ const ProyectoFormativoEntry: React.FC = () => {
                                                   className="flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-50 hover:bg-blue-100 font-semibold text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-md transition-all"
                                                 >
                                                   <i className="ki-outline ki-plus text-[9px]" />{' '}
-                                                  Asignar materia
+                                                  Asignar competencia
                                                 </button>
                                               </div>
 
@@ -1404,7 +1404,7 @@ const ProyectoFormativoEntry: React.FC = () => {
         <Modal open onClose={closeRapModal} className="mx-4 sm:mx-auto max-w-lg w-full">
           <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
             <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
-              <ModalTitle>Asignar materias</ModalTitle>
+              <ModalTitle>Asignar competencias</ModalTitle>
               <button
                 onClick={closeRapModal}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -1450,7 +1450,7 @@ const ProyectoFormativoEntry: React.FC = () => {
               {/* Buscador de materias */}
               <div>
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
-                  Buscar materias disponibles
+                  Buscar competencias disponibles
                 </label>
                 <div className="relative">
                   <i className="ki-outline ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
