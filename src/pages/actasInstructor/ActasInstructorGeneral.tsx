@@ -21,12 +21,16 @@ const ActasInstructorGeneral = () => {
   const [actasAsistente, setActasAsistente] = useState<Acta[]>([]);
   const [loadingAsistente, setLoadingAsistente] = useState(false);
   const [selectedActa, setSelectedActa] = useState<Acta | null>(null);
-  const [activeTab, setActiveTab] = useState<'creadas' | 'asistente'>('creadas');
+  const [activeTab, setActiveTab] = useState<'creadas' | 'por_aprobar' | 'historial'>('creadas');
   const [searchCreada, setSearchCreada] = useState('');
-  const [searchAsistente, setSearchAsistente] = useState('');
+  const [searchPorAprobar, setSearchPorAprobar] = useState('');
+  const [searchHistorial, setSearchHistorial] = useState('');
   const [currentPageCreada, setCurrentPageCreada] = useState(1);
-  const [currentPageAsistente, setCurrentPageAsistente] = useState(1);
+  const [currentPagePorAprobar, setCurrentPagePorAprobar] = useState(1);
+  const [currentPageHistorial, setCurrentPageHistorial] = useState(1);
 
+  //Evitar el guardar y descargar por personas que no crearon el acta
+  const [canSaveActa, setCanSaveActa] = useState(false);
   // Estados para creación/edición
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [actaToEdit, setActaToEdit] = useState<Acta | null>(null);
@@ -100,7 +104,7 @@ const ActasInstructorGeneral = () => {
 
   const handleDownloadPDF = async (idActa: number, shouldDownload = true): Promise<Blob | null> => {
     // ─── DEBUG ───────────────────────────────────────────────
-    const DEBUG = false; // cambiar a false para producción
+    const DEBUG = true; // cambiar a false para producción
 
     if (DEBUG) {
       try {
@@ -143,8 +147,9 @@ const ActasInstructorGeneral = () => {
     }
   };
 
-  const handleOpenDownloadOptions = (acta: Acta) => {
+  const handleOpenDownloadOptions = (acta: Acta, allowSave = false) => {
     setActaForDownloadOptions(acta);
+    setCanSaveActa(allowSave);
     setDownloadOptionsModalOpen(true);
   };
 
@@ -256,20 +261,44 @@ const ActasInstructorGeneral = () => {
     });
   };
 
+  // Divide actas asistente into Por Aprobar and Historial (Aprobadas/Rechazadas)
+  const actasPorAprobar = useMemo(() => {
+    return actasAsistente.filter((acta) => {
+      if (!acta.asistencias || acta.asistencias.length === 0) return true;
+      return !acta.asistencias.every((a) => a.aprueba === 'SI');
+    });
+  }, [actasAsistente]);
+
+  const actasHistorial = useMemo(() => {
+    return actasAsistente.filter((acta) => {
+      if (!acta.asistencias || acta.asistencias.length === 0) return false;
+      return acta.asistencias.every((a) => a.aprueba === 'SI');
+    });
+  }, [actasAsistente]);
+
   const filteredActasCreadas = useMemo(
     () => filterActasByTerm(actas, searchCreada),
     [actas, searchCreada]
   );
 
-  const filteredActasAsistente = useMemo(
-    () => filterActasByTerm(actasAsistente, searchAsistente),
-    [actasAsistente, searchAsistente]
+  const filteredActasPorAprobar = useMemo(
+    () => filterActasByTerm(actasPorAprobar, searchPorAprobar),
+    [actasPorAprobar, searchPorAprobar]
+  );
+
+  const filteredActasHistorial = useMemo(
+    () => filterActasByTerm(actasHistorial, searchHistorial),
+    [actasHistorial, searchHistorial]
   );
 
   const totalPagesCreadas = Math.max(1, Math.ceil(filteredActasCreadas.length / ITEMS_PER_PAGE));
-  const totalPagesAsistente = Math.max(
+  const totalPagesPorAprobar = Math.max(
     1,
-    Math.ceil(filteredActasAsistente.length / ITEMS_PER_PAGE)
+    Math.ceil(filteredActasPorAprobar.length / ITEMS_PER_PAGE)
+  );
+  const totalPagesHistorial = Math.max(
+    1,
+    Math.ceil(filteredActasHistorial.length / ITEMS_PER_PAGE)
   );
 
   const paginatedActasCreadas = useMemo(() => {
@@ -277,10 +306,15 @@ const ActasInstructorGeneral = () => {
     return filteredActasCreadas.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredActasCreadas, currentPageCreada]);
 
-  const paginatedActasAsistente = useMemo(() => {
-    const start = (currentPageAsistente - 1) * ITEMS_PER_PAGE;
-    return filteredActasAsistente.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredActasAsistente, currentPageAsistente]);
+  const paginatedActasPorAprobar = useMemo(() => {
+    const start = (currentPagePorAprobar - 1) * ITEMS_PER_PAGE;
+    return filteredActasPorAprobar.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredActasPorAprobar, currentPagePorAprobar]);
+
+  const paginatedActasHistorial = useMemo(() => {
+    const start = (currentPageHistorial - 1) * ITEMS_PER_PAGE;
+    return filteredActasHistorial.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredActasHistorial, currentPageHistorial]);
 
   useEffect(() => {
     setCurrentPageCreada(1);
@@ -293,14 +327,24 @@ const ActasInstructorGeneral = () => {
   }, [currentPageCreada, totalPagesCreadas]);
 
   useEffect(() => {
-    setCurrentPageAsistente(1);
-  }, [searchAsistente]);
+    setCurrentPagePorAprobar(1);
+  }, [searchPorAprobar]);
 
   useEffect(() => {
-    if (currentPageAsistente > totalPagesAsistente) {
-      setCurrentPageAsistente(totalPagesAsistente);
+    if (currentPagePorAprobar > totalPagesPorAprobar) {
+      setCurrentPagePorAprobar(totalPagesPorAprobar);
     }
-  }, [currentPageAsistente, totalPagesAsistente]);
+  }, [currentPagePorAprobar, totalPagesPorAprobar]);
+
+  useEffect(() => {
+    setCurrentPageHistorial(1);
+  }, [searchHistorial]);
+
+  useEffect(() => {
+    if (currentPageHistorial > totalPagesHistorial) {
+      setCurrentPageHistorial(totalPagesHistorial);
+    }
+  }, [currentPageHistorial, totalPagesHistorial]);
 
   const renderPagination = (
     currentPage: number,
@@ -359,17 +403,27 @@ const ActasInstructorGeneral = () => {
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
-          Mis Actas (Creadas)
+          Mis Actas Creadas ({actas.length})
         </button>
         <button
-          onClick={() => setActiveTab('asistente')}
+          onClick={() => setActiveTab('por_aprobar')}
           className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'asistente'
+            activeTab === 'por_aprobar'
               ? 'border-blue-500 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
-          Actas por Aprobar (Asistente)
+          Actas por Aprobar ({actasPorAprobar.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('historial')}
+          className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'historial'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          Historial ({actasHistorial.length})
         </button>
       </div>
 
@@ -407,7 +461,7 @@ const ActasInstructorGeneral = () => {
                       key={acta.id}
                       acta={acta}
                       onClick={setSelectedActa}
-                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta, true)}
                       onEdit={handleEdit}
                       onAsistencias={handleOpenAsistencias}
                       onAnexos={handleOpenAnexos}
@@ -421,7 +475,7 @@ const ActasInstructorGeneral = () => {
           </>
         ))}
 
-      {activeTab === 'asistente' &&
+      {activeTab === 'por_aprobar' &&
         (loadingAsistente ? (
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -433,29 +487,29 @@ const ActasInstructorGeneral = () => {
                 <i className="ki-outline ki-magnifier text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm" />
                 <input
                   type="text"
-                  value={searchAsistente}
-                  onChange={(e) => setSearchAsistente(e.target.value)}
+                  value={searchPorAprobar}
+                  onChange={(e) => setSearchPorAprobar(e.target.value)}
                   placeholder="Buscar por nombre, tipo, ficha, ciudad, lugar o ID..."
                   className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-coal-500 border border-gray-200 dark:border-coal-300 rounded-xl text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
 
-            {filteredActasAsistente.length === 0 ? (
+            {filteredActasPorAprobar.length === 0 ? (
               <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
-                {actasAsistente.length === 0
-                  ? 'No eres asistente en ninguna acta actualmente.'
+                {actasPorAprobar.length === 0
+                  ? 'No tienes actas pendientes por aprobar.'
                   : 'No se encontraron actas con esa búsqueda.'}
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {paginatedActasAsistente.map((acta) => (
+                  {paginatedActasPorAprobar.map((acta) => (
                     <ActaCard
                       key={acta.id}
                       acta={acta}
                       onClick={setSelectedActa}
-                      onDownloadPDF={handleDownloadPDF}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
                       onAprobar={handleOpenAprobar}
                       onAnexos={handleOpenAnexos}
                       onUploadDocumento={handleUploadDocumento}
@@ -463,9 +517,59 @@ const ActasInstructorGeneral = () => {
                   ))}
                 </div>
                 {renderPagination(
-                  currentPageAsistente,
-                  totalPagesAsistente,
-                  setCurrentPageAsistente
+                  currentPagePorAprobar,
+                  totalPagesPorAprobar,
+                  setCurrentPagePorAprobar
+                )}
+              </>
+            )}
+          </>
+        ))}
+
+      {activeTab === 'historial' &&
+        (loadingAsistente ? (
+          <div className="flex justify-center py-10">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="mb-4">
+              <div className="relative w-full md:max-w-md">
+                <i className="ki-outline ki-magnifier text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 text-sm" />
+                <input
+                  type="text"
+                  value={searchHistorial}
+                  onChange={(e) => setSearchHistorial(e.target.value)}
+                  placeholder="Buscar por nombre, tipo, ficha, ciudad, lugar o ID..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-coal-500 border border-gray-200 dark:border-coal-300 rounded-xl text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {filteredActasHistorial.length === 0 ? (
+              <div className="bg-white dark:bg-coal-500 rounded-xl shadow-sm border border-gray-200 dark:border-coal-300 p-10 text-center text-gray-400 dark:text-gray-500 text-sm">
+                {actasHistorial.length === 0
+                  ? 'No hay actas en el historial.'
+                  : 'No se encontraron actas con esa búsqueda.'}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedActasHistorial.map((acta) => (
+                    <ActaCard
+                      key={acta.id}
+                      acta={acta}
+                      onClick={setSelectedActa}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
+                      onAnexos={handleOpenAnexos}
+                      onUploadDocumento={handleUploadDocumento}
+                    />
+                  ))}
+                </div>
+                {renderPagination(
+                  currentPageHistorial,
+                  totalPagesHistorial,
+                  setCurrentPageHistorial
                 )}
               </>
             )}
@@ -559,6 +663,22 @@ const ActasInstructorGeneral = () => {
 
                 <div className="flex flex-col gap-2 pt-2">
                   <button
+                    onClick={async () => {
+                      const pdfBlob = await handleDownloadPDF(actaForDownloadOptions.id, false);
+                      if (pdfBlob) {
+                        const url = window.URL.createObjectURL(pdfBlob);
+                        window.open(url, '_blank');
+                      }
+                      setDownloadOptionsModalOpen(false);
+                    }}
+                    disabled={isProcessingDownload}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-xl transition-all text-sm font-bold border border-transparent disabled:opacity-50"
+                  >
+                    <i className="ki-outline ki-eye text-lg" />
+                    Solo Ver PDF
+                  </button>
+
+                  <button
                     onClick={() => {
                       handleDownloadPDF(actaForDownloadOptions.id);
                       setDownloadOptionsModalOpen(false);
@@ -570,18 +690,20 @@ const ActasInstructorGeneral = () => {
                     Solo Descargar PDF
                   </button>
 
-                  <button
-                    onClick={handleSaveAndDownloadActa}
-                    disabled={isProcessingDownload}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-green-500/20 disabled:opacity-50"
-                  >
-                    {isProcessingDownload ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <i className="ki-outline ki-document text-lg" />
-                    )}
-                    {isProcessingDownload ? 'Procesando...' : 'Guardar y Descargar'}
-                  </button>
+                  {canSaveActa && (
+                    <button
+                      onClick={handleSaveAndDownloadActa}
+                      disabled={isProcessingDownload}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-green-500/20 disabled:opacity-50"
+                    >
+                      {isProcessingDownload ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <i className="ki-outline ki-document text-lg" />
+                      )}
+                      {isProcessingDownload ? 'Procesando...' : 'Guardar y Descargar'}
+                    </button>
+                  )}
                 </div>
               </div>
 

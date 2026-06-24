@@ -42,6 +42,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   const getInitialFormState = () => ({
     nombre: '',
     fecha: new Date().toISOString().split('T')[0],
+    fechaInicialFormacion: '',
+    fechaFinalFormacion: '',
     horaInicio: '07:00',
     horaFin: '12:00',
     tipoActa: 'NORMAL',
@@ -91,6 +93,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         setFormData({
           nombre: actaToEdit.nombre || '',
           fecha: fechaFormateada,
+          fechaInicialFormacion: actaToEdit.fechaInicialFormacion
+            ? actaToEdit.fechaInicialFormacion.split('T')[0]
+            : '',
+          fechaFinalFormacion: actaToEdit.fechaFinalFormacion
+            ? actaToEdit.fechaFinalFormacion.split('T')[0]
+            : '',
           horaInicio: actaToEdit.horaInicio ? actaToEdit.horaInicio.substring(0, 5) : '07:00',
           horaFin: actaToEdit.horaFin ? actaToEdit.horaFin.substring(0, 5) : '12:00',
           tipoActa: actaToEdit.tipoActa || 'NORMAL',
@@ -640,6 +648,40 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                       required
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                       value={formData.horaFin}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2 mt-2">
+                  <i className="ki-outline ki-calendar text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                    Periodo de Formación
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                      Fecha Inicial de Formación
+                    </label>
+                    <input
+                      name="fechaInicialFormacion"
+                      type="date"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={formData.fechaInicialFormacion}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                      Fecha Final de Formación
+                    </label>
+                    <input
+                      name="fechaFinalFormacion"
+                      type="date"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={formData.fechaFinalFormacion}
                       onChange={handleInputChange}
                     />
                   </div>
