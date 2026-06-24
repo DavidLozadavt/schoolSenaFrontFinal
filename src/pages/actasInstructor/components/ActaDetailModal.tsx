@@ -11,11 +11,7 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
   if (!acta) return null;
 
   return (
-    <Modal
-      open={true}
-      onClose={onClose}
-      className="mx-4 sm:mx-auto max-w-2xl w-full"
-    >
+    <Modal open={true} onClose={onClose} className="mx-4 sm:mx-auto max-w-2xl w-full">
       <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full overflow-hidden shadow-2xl border-none">
         <ModalHeader className="bg-gray-50 dark:bg-coal-400/50 border-b border-gray-100 dark:border-coal-300 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -49,28 +45,72 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{new Date(acta.fecha).toLocaleDateString()}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Fecha
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {new Date(acta.fecha).toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Horario</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{acta.horaInicio} - {acta.horaFin}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Horario
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.horaInicio} - {acta.horaFin}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ficha</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{acta.ficha?.codigo || 'N/A'}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Ficha
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.ficha?.codigo || 'N/A'}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Lugar</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{acta.lugar || 'N/A'}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Lugar
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.lugar || 'N/A'}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ciudad</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{acta.ciudad?.descripcion || 'N/A'}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Ciudad
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.ciudad?.descripcion || 'N/A'}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dirección</label>
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{acta.direccion || 'N/A'}</p>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Dirección
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.direccion || 'N/A'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Inicio Formación
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.fechaInicialFormacion
+                      ? new Date(acta.fechaInicialFormacion).toLocaleDateString()
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Fin Formación
+                  </label>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {acta.fechaFinalFormacion
+                      ? new Date(acta.fechaFinalFormacion).toLocaleDateString()
+                      : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -79,7 +119,9 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-list text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Agenda del Día</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Agenda del Día
+                </h3>
               </div>
               {acta.agenda && acta.agenda.length > 0 ? (
                 <div className="space-y-2 pl-4 border-l-2 border-blue-500/20">
@@ -101,19 +143,26 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-target text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Objetivos de la Reunión</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Objetivos de la Reunión
+                </h3>
               </div>
               {acta.objetivos && acta.objetivos.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2">
                   {acta.objetivos.map((obj, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-gray-50 dark:bg-coal-400/30 p-3 rounded-xl border border-gray-100 dark:border-coal-300">
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-gray-50 dark:bg-coal-400/30 p-3 rounded-xl border border-gray-100 dark:border-coal-300"
+                    >
                       <i className="ki-outline ki-check-circle text-green-500 text-sm" />
                       <p className="text-sm text-gray-600 dark:text-gray-300">{obj.objetivo}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">No se registraron objetivos específicos.</p>
+                <p className="text-xs text-gray-400 italic">
+                  No se registraron objetivos específicos.
+                </p>
               )}
             </div>
 
@@ -121,12 +170,17 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-check-square text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Conclusiones</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Conclusiones
+                </h3>
               </div>
               {acta.conclusiones && acta.conclusiones.length > 0 ? (
                 <div className="space-y-3">
                   {acta.conclusiones.map((concl, idx) => (
-                    <div key={idx} className="bg-gray-50 dark:bg-coal-400/30 p-4 rounded-xl border border-gray-100 dark:border-coal-300">
+                    <div
+                      key={idx}
+                      className="bg-gray-50 dark:bg-coal-400/30 p-4 rounded-xl border border-gray-100 dark:border-coal-300"
+                    >
                       <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed italic">
                         "{concl.conclusion}"
                       </p>
@@ -142,18 +196,25 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-calendar-tick text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Compromisos</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Compromisos
+                </h3>
               </div>
               {acta.compromisos && acta.compromisos.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4">
                   {acta.compromisos.map((comp, idx) => (
-                    <div key={idx} className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-coal-300 rounded-2xl p-4 shadow-sm">
+                    <div
+                      key={idx}
+                      className="bg-white dark:bg-coal-400 border border-gray-100 dark:border-coal-300 rounded-2xl p-4 shadow-sm"
+                    >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
                             <i className="ki-outline ki-flag text-orange-500" />
                           </div>
-                          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200">Actividad: {comp.actividad}</h4>
+                          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                            Actividad: {comp.actividad}
+                          </h4>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-1 bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-md">
                           Fecha: {new Date(comp.fecha).toLocaleDateString()}
@@ -161,7 +222,12 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
                       </div>
                       <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50 dark:border-coal-300">
                         <i className="ki-outline ki-profile-circle text-gray-400" />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">Responsable: <span className="font-semibold text-gray-700 dark:text-gray-200">{comp.responsable}</span></span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Responsable:{' '}
+                          <span className="font-semibold text-gray-700 dark:text-gray-200">
+                            {comp.responsable}
+                          </span>
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -175,7 +241,9 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-message-text-2 text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Observaciones Generales</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Observaciones Generales
+                </h3>
               </div>
               <div className="bg-gray-50 dark:bg-coal-400/30 rounded-2xl p-5 border border-gray-100 dark:border-coal-300">
                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -184,12 +252,13 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
               </div>
             </div>
 
-
             {/* Asistencias */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <i className="ki-outline ki-users text-blue-500" />
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">Asistentes Registrados</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                  Asistentes Registrados
+                </h3>
               </div>
 
               {acta.asistencias && acta.asistencias.length > 0 ? (
@@ -209,13 +278,17 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
                               {asistencia.contrato?.persona?.nombre1}{' '}
                               {asistencia.contrato?.persona?.apellido1}
                             </span>
-                            <span className="text-[10px] text-gray-400 font-medium">{asistencia.dependencia}</span>
+                            <span className="text-[10px] text-gray-400 font-medium">
+                              {asistencia.dependencia}
+                            </span>
                           </div>
                         </div>
                         <div>
-                           <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${asistencia.aprueba === 'SI' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}`}>
-                             Aprueba: {asistencia.aprueba}
-                           </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-1 rounded-md ${asistencia.aprueba === 'SI' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'}`}
+                          >
+                            Aprueba: {asistencia.aprueba}
+                          </span>
                         </div>
                       </div>
                       {asistencia.observacion && (
@@ -227,7 +300,9 @@ const ActaDetailModal: React.FC<ActaDetailModalProps> = ({ acta, onClose }) => {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">No hay asistentes registrados para este acta.</p>
+                <p className="text-xs text-gray-400 italic">
+                  No hay asistentes registrados para este acta.
+                </p>
               )}
             </div>
           </div>
