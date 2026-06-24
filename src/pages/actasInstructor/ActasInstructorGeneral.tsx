@@ -29,6 +29,8 @@ const ActasInstructorGeneral = () => {
   const [currentPagePorAprobar, setCurrentPagePorAprobar] = useState(1);
   const [currentPageHistorial, setCurrentPageHistorial] = useState(1);
 
+  //Evitar el guardar y descargar por personas que no crearon el acta
+  const [canSaveActa, setCanSaveActa] = useState(false);
   // Estados para creación/edición
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [actaToEdit, setActaToEdit] = useState<Acta | null>(null);
@@ -145,8 +147,9 @@ const ActasInstructorGeneral = () => {
     }
   };
 
-  const handleOpenDownloadOptions = (acta: Acta) => {
+  const handleOpenDownloadOptions = (acta: Acta, allowSave = false) => {
     setActaForDownloadOptions(acta);
+    setCanSaveActa(allowSave);
     setDownloadOptionsModalOpen(true);
   };
 
@@ -458,7 +461,7 @@ const ActasInstructorGeneral = () => {
                       key={acta.id}
                       acta={acta}
                       onClick={setSelectedActa}
-                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta, true)}
                       onEdit={handleEdit}
                       onAsistencias={handleOpenAsistencias}
                       onAnexos={handleOpenAnexos}
@@ -506,7 +509,7 @@ const ActasInstructorGeneral = () => {
                       key={acta.id}
                       acta={acta}
                       onClick={setSelectedActa}
-                      onDownloadPDF={handleDownloadPDF}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
                       onAprobar={handleOpenAprobar}
                       onAnexos={handleOpenAnexos}
                       onUploadDocumento={handleUploadDocumento}
@@ -557,7 +560,7 @@ const ActasInstructorGeneral = () => {
                       key={acta.id}
                       acta={acta}
                       onClick={setSelectedActa}
-                      onDownloadPDF={handleDownloadPDF}
+                      onDownloadPDF={() => handleOpenDownloadOptions(acta)}
                       onAnexos={handleOpenAnexos}
                       onUploadDocumento={handleUploadDocumento}
                     />
@@ -660,6 +663,22 @@ const ActasInstructorGeneral = () => {
 
                 <div className="flex flex-col gap-2 pt-2">
                   <button
+                    onClick={async () => {
+                      const pdfBlob = await handleDownloadPDF(actaForDownloadOptions.id, false);
+                      if (pdfBlob) {
+                        const url = window.URL.createObjectURL(pdfBlob);
+                        window.open(url, '_blank');
+                      }
+                      setDownloadOptionsModalOpen(false);
+                    }}
+                    disabled={isProcessingDownload}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-xl transition-all text-sm font-bold border border-transparent disabled:opacity-50"
+                  >
+                    <i className="ki-outline ki-eye text-lg" />
+                    Solo Ver PDF
+                  </button>
+
+                  <button
                     onClick={() => {
                       handleDownloadPDF(actaForDownloadOptions.id);
                       setDownloadOptionsModalOpen(false);
@@ -671,18 +690,20 @@ const ActasInstructorGeneral = () => {
                     Solo Descargar PDF
                   </button>
 
-                  <button
-                    onClick={handleSaveAndDownloadActa}
-                    disabled={isProcessingDownload}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-green-500/20 disabled:opacity-50"
-                  >
-                    {isProcessingDownload ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <i className="ki-outline ki-document text-lg" />
-                    )}
-                    {isProcessingDownload ? 'Procesando...' : 'Guardar y Descargar'}
-                  </button>
+                  {canSaveActa && (
+                    <button
+                      onClick={handleSaveAndDownloadActa}
+                      disabled={isProcessingDownload}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-green-500/20 disabled:opacity-50"
+                    >
+                      {isProcessingDownload ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <i className="ki-outline ki-document text-lg" />
+                      )}
+                      {isProcessingDownload ? 'Procesando...' : 'Guardar y Descargar'}
+                    </button>
+                  )}
                 </div>
               </div>
 
