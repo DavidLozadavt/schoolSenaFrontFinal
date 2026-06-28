@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
@@ -36,40 +36,35 @@ const Login = () => {
   const { login, roles, activacion } = useAuthContext();
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [deviceToken, setDeviceToken] = useState<string>('');
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { VITE_APP_VAPID_KEY } = import.meta.env;
 
-
-
-
-  const requestPermission = useCallback(async () => {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
+  const resolveDeviceToken = useCallback(async (): Promise<string> => {
+    if (typeof Notification === 'undefined' || !VITE_APP_VAPID_KEY) {
+      return '';
+    }
+    if (Notification.permission !== 'granted') {
+      return '';
+    }
+    try {
       const token = await getToken(messaging, { vapidKey: VITE_APP_VAPID_KEY });
-      setDeviceToken(token);
-    } else if (permission === 'denied') {
-      alert('Has denegado las notificaciones.');
+      return token || '';
+    } catch {
+      return '';
     }
   }, [VITE_APP_VAPID_KEY]);
 
   useEffect(() => {
-    requestPermission();
-
     onMessage(messaging, (payload) => {
       console.log('Mensaje recibido: ', payload);
     });
-  }, [requestPermission]);
+  }, []);
 
-  // Redirect after login once roles and activacion are loaded
   useEffect(() => {
     if (!shouldRedirect) return;
-    // Wait until roles have been populated from the server
     if (roles.length === 0) return;
-    
-    // We only depend on activacion now for the redirect logic
+
     const isAllowed = activacion?.state_id == 18;
     if (isAllowed) {
       navigate('/perfil');
@@ -78,21 +73,20 @@ const Login = () => {
     }
   }, [shouldRedirect, roles, activacion, navigate]);
 
-
-
   const formik = useFormik({
     initialValues,
     validationSchema: loginSchema,
     onSubmit: async (values, { setStatus, setSubmitting }) => {
       setLoading(true);
-
+      setStatus(undefined);
 
       try {
         if (!login) {
           throw new Error('JWTProvider is required for this form.');
         }
 
-        await login(values.email, values.password, deviceToken);
+        const token = await resolveDeviceToken();
+        await login(values.email, values.password, token);
 
         if (values.remember) {
           localStorage.setItem('email', values.email);
@@ -104,8 +98,8 @@ const Login = () => {
       } catch {
         setStatus('Los datos de inicio de sesión son incorrectos.');
         setSubmitting(false);
+        setLoading(false);
       }
-      setLoading(false);
     }
   });
 
@@ -117,17 +111,12 @@ const Login = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center px-4">
       <div
-        className="w-full max-w-md rounded-2xl  shadow-xl border border-gray-200"
+        className="w-full max-w-md rounded-2xl shadow-xl border border-gray-200"
         style={{ border: '1px solid #e5e7eb' }}
       >
-        <form
-          className="flex flex-col gap-6 px-6 py-10 sm:px-10"
-          onSubmit={formik.handleSubmit}
-          noValidate
-        >
-
-          <div className="text-center flex flex-col items-center gap-3">
-            <div className={clsx(loading && 'animate-pulse')}>
+        {loading ? (
+          <div className="flex flex-col items-center gap-4 px-6 py-16 sm:px-10">
+            <div className="animate-pulse">
               <img
                 src={logoLightSrc}
                 alt="School"
@@ -139,112 +128,127 @@ const Login = () => {
                 className="hidden h-20 sm:h-24 w-auto max-w-[min(100%,360px)] object-contain dark:block"
               />
             </div>
-            <h3 className="text-2xl font-semibold text-gray-900">
-              Iniciar sesión
-            </h3>
-            <p className="text-sm text-gray-500">
-              Ingresa tus credenciales para continuar
-            </p>
+            <p className="text-sm text-gray-500">Iniciando sesión, por favor espera…</p>
           </div>
+        ) : (
+          <form
+            className="flex flex-col gap-6 px-6 py-10 sm:px-10"
+            onSubmit={formik.handleSubmit}
+            noValidate
+            autoComplete="off"
+          >
+            <div className="text-center flex flex-col items-center gap-3">
+              <div>
+                <img
+                  src={logoLightSrc}
+                  alt="School"
+                  className="h-20 sm:h-24 w-auto max-w-[min(100%,360px)] object-contain dark:hidden"
+                />
+                <img
+                  src={logoDarkSrc}
+                  alt="School"
+                  className="hidden h-20 sm:h-24 w-auto max-w-[min(100%,360px)] object-contain dark:block"
+                />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900">Iniciar sesión</h3>
+              <p className="text-sm text-gray-500">Ingresa tus credenciales para continuar</p>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">
-              Correo electrónico o número de documento
-            </label>
-            <input
-              placeholder="correo@ejemplo.com o número de documento"
-              autoComplete="off"
-              type="text"
-              {...formik.getFieldProps('email')}
-              data-preserve-case
-              data-no-uppercase
-              className={clsx(
-                'w-full rounded-xl border px-4 py-3 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
-                'focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25',
-                'hover:border-gray-400',
-                {
-                  'border-red-500 focus:border-red-500 focus:ring-red-500/20':
-                    formik.touched.email && formik.errors.email
-                }
-              )}
-            />
-            {formik.touched.email && formik.errors.email && (
-              <span className="text-xs text-red-500">
-                {formik.errors.email}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">
-              Contraseña
-            </label>
-            <div className="relative">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">
+                Correo electrónico o número de documento
+              </label>
               <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+                placeholder="correo@ejemplo.com o número de documento"
                 autoComplete="off"
-                {...formik.getFieldProps('password')}
+                name="school-login-identifier"
+                type="text"
+                {...formik.getFieldProps('email')}
+                data-preserve-case
                 data-no-uppercase
                 className={clsx(
-                  'w-full rounded-xl border px-4 py-3 pr-12 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
+                  'w-full rounded-xl border px-4 py-3 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
                   'focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25',
                   'hover:border-gray-400',
                   {
                     'border-red-500 focus:border-red-500 focus:ring-red-500/20':
-                      formik.touched.password && formik.errors.password
+                      formik.touched.email && formik.errors.email
                   }
                 )}
               />
-              <button
-                onClick={togglePassword}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
-              >
-                <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
-                <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
-              </button>
+              {formik.touched.email && formik.errors.email && (
+                <span className="text-xs text-red-500">{formik.errors.email}</span>
+              )}
             </div>
-            {formik.touched.password && formik.errors.password && (
-              <span className="text-xs text-red-500">
-                {formik.errors.password}
-              </span>
-            )}
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading || formik.isSubmitting}
-            className={clsx(
-              'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all shadow-sm',
-              'bg-[#1e6fd9] hover:bg-[#155ebf] active:bg-[#1256b0]',
-              'focus:outline-none focus:ring-4 focus:ring-[#1e6fd9]/35',
-              'disabled:opacity-60 disabled:cursor-not-allowed'
-            )}
-          >
-            {loading ? 'Por favor espera…' : 'Iniciar sesión'}
-          </button>
-
-          {formik.status && (
-            <div className="text-center text-xs text-red-500">
-              {formik.status}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Contraseña</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  name="school-login-password"
+                  {...formik.getFieldProps('password')}
+                  data-no-uppercase
+                  className={clsx(
+                    'w-full rounded-xl border px-4 py-3 pr-12 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 outline-none transition-all',
+                    'focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25',
+                    'hover:border-gray-400',
+                    {
+                      'border-red-500 focus:border-red-500 focus:ring-red-500/20':
+                        formik.touched.password && formik.errors.password
+                    }
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={togglePassword}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
+                >
+                  <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
+                  <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
+                </button>
+              </div>
+              {formik.touched.password && formik.errors.password && (
+                <span className="text-xs text-red-500">{formik.errors.password}</span>
+              )}
             </div>
-          )}
 
-          <div className="flex items-center justify-center">
-            <Link
-              to={currentLayout?.name === 'auth-branded' ? '/auth/reset-password' : '/auth/classic/reset-password'}
-              className="text-xs text-gray-600 hover:text-[#1e6fd9] font-medium transition-colors"
+            <button
+              type="submit"
+              disabled={formik.isSubmitting}
+              className={clsx(
+                'mt-2 h-12 rounded-xl text-sm font-medium text-white transition-all shadow-sm',
+                'bg-[#1e6fd9] hover:bg-[#155ebf] active:bg-[#1256b0]',
+                'focus:outline-none focus:ring-4 focus:ring-[#1e6fd9]/35',
+                'disabled:opacity-60 disabled:cursor-not-allowed'
+              )}
             >
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
-        </form>
+              Iniciar sesión
+            </button>
+
+            {formik.status && (
+              <div className="text-center text-xs text-red-500">{formik.status}</div>
+            )}
+
+            <div className="flex items-center justify-center">
+              <Link
+                to={
+                  currentLayout?.name === 'auth-branded'
+                    ? '/auth/reset-password'
+                    : '/auth/classic/reset-password'
+                }
+                className="text-xs text-gray-600 hover:text-[#1e6fd9] font-medium transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
-
-
 };
 
 export { Login };
-

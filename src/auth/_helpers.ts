@@ -1,4 +1,5 @@
 import { getData, setData } from '@/utils';
+
 const AUTH_LOCAL_STORAGE_KEY = 'auth_token';
 const API_URL = import.meta.env.VITE_APP_API_URL;
 
@@ -44,6 +45,11 @@ export function setupAxios(axios: any) {
       return config;
     },
     async (err: any) => await Promise.reject(err)
+  );
+
+  axios.interceptors.response.use(
+    (response: any) => response,
+    (error: any) => Promise.reject(error)
   );
 }
 

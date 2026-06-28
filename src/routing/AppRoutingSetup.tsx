@@ -52,6 +52,7 @@ import { PosPage } from '@/pages/Pos/components/PosPage';
 import { ConfiguracionEmpresaPage } from '@/pages/configuracion-empresa/ConfiguracionEmpresaPage';
 import MigracionDatosPage from '@/pages/migracion-datos/MigracionDatosPage';
 import { UsuariosPage } from '@/pages/usuarios/UsuariosPage';
+import { EduExcePanelPage } from '@/pages/icfes/EduExcePanelPage';
 import { PerfilPage } from '@/pages/perfil/PerfilPage';
 import { TipoContratoPage } from '@/pages/tipo-contrato/TipoContratoPage';
 import { EntidadesSeguridadSocialPage } from '@/pages/entidades-seguridad-social/EntidadesSeguridadSocialPage';
@@ -228,6 +229,15 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
                 <UsuariosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="icfes"
+            element={
+              <ProtectedRoute requiredPermissions={['MODULO_ICFES']}>
+                <EduExcePanelPage />
               </ProtectedRoute>
             }
           />

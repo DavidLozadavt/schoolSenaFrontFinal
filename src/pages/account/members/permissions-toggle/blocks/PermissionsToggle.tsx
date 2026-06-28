@@ -188,15 +188,14 @@ const PermissionsToggle = React.memo(() => {
 
   /* ── Toggle permission ───────────────────────────────────────────────── */
   const handlePermissionChange = useCallback(
-    (permissionName: string) => {
+    async (permissionName: string) => {
       const permission = permissions.find((p) => p.name === permissionName);
       if (!permission) return;
-      // Collect descendant information
+
       const descendantIds = collectDescendantIds(permission.id, permissions);
       const hasChildren = descendantIds.size > 0;
       const descendantNames = permissions.filter((p) => descendantIds.has(p.id)).map((p) => p.name);
 
-      // Collect ancestors (parents chain) to auto-select them when selecting a child
       const collectAncestorIds = (node: PermissionModel, flat: PermissionModel[]) => {
         const ids: number[] = [];
         let parentId = node.idPermissionPadre ?? null;
@@ -214,68 +213,54 @@ const PermissionsToggle = React.memo(() => {
         .filter((p) => ancestorIds.includes(p.id))
         .map((p) => p.name);
 
-      // If selecting (not unchecking) and ancestors are not selected, auto-select them and notify
-      if (!activePermissions.includes(permissionName) && ancestorNames.length > 0) {
+      const allNames = [permissionName, ...descendantNames];
+
+      if (activePermissions.includes(permissionName)) {
+        setActivePermissions((prevState) => prevState.filter((n) => !allNames.includes(n)));
+        return;
+      }
+
+      const applySelection = (names: string[]) => {
+        setActivePermissions((current) => {
+          const next = new Set(current);
+          names.forEach((n) => next.add(n));
+          return Array.from(next);
+        });
+      };
+
+      if (ancestorNames.length > 0) {
         const ancestorsToAdd = ancestorNames.filter((n) => !activePermissions.includes(n));
         if (ancestorsToAdd.length > 0) {
-          setActivePermissions((current) => {
-            const next = new Set(current);
-            ancestorsToAdd.forEach((n) => next.add(n));
-            next.add(permissionName);
-            return Array.from(next);
-          });
+          applySelection([...ancestorsToAdd, permissionName]);
           enqueueSnackbar(
-            `Se seleccionará también el/los padre(s) ${ancestorsToAdd.join(', ')} para que se pueda ver el sidebar`,
+            `Se seleccionó también el/los padre(s) ${ancestorsToAdd.join(', ')} para que se pueda ver en el sidebar`,
             { variant: 'info' }
           );
           return;
         }
       }
 
-      const allNames = [permissionName, ...descendantNames];
+      if (hasChildren) {
+        const result = await Swal.fire({
+          title: '¿Incluir permisos secundarios?',
+          html: `<p>Este permiso tiene ${descendantNames.length} permiso(s) secundario(s).</p><p>¿Deseas asignar también todos los permisos secundarios?</p>`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, incluir todos',
+          cancelButtonText: 'No, solo este',
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#6c757d'
+        });
 
-      setActivePermissions((prevState) => {
-        // If already checked, just uncheck everything
-        if (prevState.includes(permissionName)) {
-          return prevState.filter((n) => !allNames.includes(n));
+        if (result.isConfirmed) {
+          applySelection(allNames);
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+          applySelection([permissionName]);
         }
+        return;
+      }
 
-        // If it's a parent permission and not yet checked, ask user
-        if (hasChildren) {
-          Swal.fire({
-            title: '¿Incluir permisos secundarios?',
-            html: `<p>Este permiso tiene ${descendantNames.length} permiso(s) secundario(s).</p><p>¿Deseas asignar también todos los permisos secundarios?</p>`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, incluir todos',
-            cancelButtonText: 'No, solo este',
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#6c757d'
-          }).then((result) => {
-            if (result.isConfirmed) {
-              // Add parent + all children
-              setActivePermissions((current) => {
-                const next = new Set(current);
-                allNames.forEach((n) => next.add(n));
-                return Array.from(next);
-              });
-            } else if (result.dismiss === Swal.DismissReason.cancel) {
-              // Add only parent
-              setActivePermissions((current) => {
-                const next = new Set(current);
-                next.add(permissionName);
-                return Array.from(next);
-              });
-            }
-          });
-          return prevState;
-        } else {
-          // No children, just add the permission
-          const next = new Set(prevState);
-          next.add(permissionName);
-          return Array.from(next);
-        }
-      });
+      applySelection([permissionName]);
     },
     [permissions, activePermissions, enqueueSnackbar]
   );
@@ -412,7 +397,10 @@ const PermissionsToggle = React.memo(() => {
 
   /* ── Save role permissions ───────────────────────────────────────────── */
   const assignPermissions = useCallback(async () => {
-    if (selectedRole === null) return;
+    if (selectedRole === null) {
+      enqueueSnackbar('Selecciona un rol antes de guardar los permisos', { variant: 'warning' });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -425,14 +413,28 @@ const PermissionsToggle = React.memo(() => {
         funciones: permissionIds
       };
 
-      await axios.put('asignar_rol_permiso', payload);
-      enqueueSnackbar('Permisos asignados correctamente', {
-        variant: 'success'
-      });
-    } catch (err) {
-      enqueueSnackbar('Hubo un error al asignar los permisos', {
-        variant: 'error'
-      });
+      try {
+        await axios.put('asignar_rol_permiso', payload);
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.status === 405) {
+          await axios.post('asignar_rol_permiso', payload);
+        } else {
+          throw err;
+        }
+      }
+
+      enqueueSnackbar(
+        'Permisos guardados. Si el cambio es para tu propio usuario, cierra sesión y vuelve a entrar para ver el menú actualizado.',
+        { variant: 'success' }
+      );
+    } catch (err: unknown) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? String(err.response.data.message)
+          : axios.isAxiosError(err) && err.response?.data?.error
+            ? String(err.response.data.error)
+            : 'Hubo un error al asignar los permisos';
+      enqueueSnackbar(message, { variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -745,12 +747,15 @@ const PermissionsToggle = React.memo(() => {
             </div>
           )}
 
-          <div className="flex justify-end items-center pt-4">
+          <div className="flex justify-end items-center gap-3 pt-4">
+            {selectedRole === null && (
+              <span className="text-sm text-warning">Selecciona un rol para guardar</span>
+            )}
             <button
               type="button"
               className="btn btn-primary btn-sm"
               onClick={assignPermissions}
-              disabled={saving}
+              disabled={saving || selectedRole === null}
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>

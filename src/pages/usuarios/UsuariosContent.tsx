@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useMemo, useContext } from 'react';
+import { Fragment, useEffect, useState, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
 import { KeenIcon, DataGrid } from '@/components';
@@ -12,7 +12,6 @@ import { useConfirm } from '@/hooks';
 import { enqueueSnackbar } from 'notistack';
 import { RoleModel } from '../account/members/roles/models/_Role';
 import clsx from 'clsx';
-import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface IAvatar {
   className: string;
@@ -35,8 +34,6 @@ interface usuariosContentTypeProps {
 }
 
 const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
-  const authContext = useContext(AuthContext);
-
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [roles, setRoles] = useState<RoleModel[]>([]);
   const [activation, setActivation] = useState<ActivationCompanyUser | null>(null);

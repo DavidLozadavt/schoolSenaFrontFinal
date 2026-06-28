@@ -1,7 +1,11 @@
 import React, { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthContext } from '@/auth';
-import { userHasAnyPermission } from '@/utils/permissionUtils';
+import {
+  canAccessModuloIcfes,
+  requiresIcfesInstitutionAccess,
+  userHasAnyPermission
+} from '@/utils/permissionUtils';
 
 interface ProtectedRouteProps {
   /** Si hay varios permisos, basta con tener uno (OR), igual que en el menú lateral. */
@@ -10,7 +14,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, children }) => {
-  const { auth, permissions, roles } = useAuthContext();
+  const { auth, permissions, roles, user, centroF } = useAuthContext();
   const safePermissions = permissions ?? [];
 
   if (!auth) {
@@ -27,8 +31,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, ch
     roles.includes('INSTRUCTOR SENA') &&
     requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
 
-  const allowed =
+  let allowed =
     userHasAnyPermission(requiredPermissions, safePermissions) || instructorSenaBypass;
+
+  if (allowed && requiresIcfesInstitutionAccess(requiredPermissions)) {
+    allowed = canAccessModuloIcfes(safePermissions, roles, user, centroF);
+  }
 
   if (!allowed) {
     return <Navigate to="/" replace />;

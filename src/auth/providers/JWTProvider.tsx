@@ -86,7 +86,7 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
       // axios.post('refesh_token_factus').catch(err => console.warn('Error refresh_token_factus', err));
       await getUserAuthenticated();
     } catch (error) {
-      throw new Error(`Login error: ${error}`);
+      throw error;
     }
   };
 

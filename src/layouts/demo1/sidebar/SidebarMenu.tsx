@@ -18,11 +18,15 @@ import {
 } from '@/components/menu';
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
-import { userHasAnyPermission } from '@/utils/permissionUtils';
+import {
+  canAccessModuloIcfes,
+  requiresIcfesInstitutionAccess,
+  userHasAnyPermission
+} from '@/utils/permissionUtils';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
-  const { permissions, activacion, roles } = useAuthContext();
+  const { permissions, activacion, roles, user, centroF } = useAuthContext();
   const [searchText, setSearchText] = useState('');
   const { getMenuConfig } = useMenus();
 
@@ -48,7 +52,13 @@ const SidebarMenu = () => {
       userRoles.includes('INSTRUCTOR SENA') &&
       requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
 
-    return isAllowedByPermission || instructorSenaBypass;
+    const allowed = isAllowedByPermission || instructorSenaBypass;
+
+    if (allowed && requiresIcfesInstitutionAccess(requiredPermissions)) {
+      return canAccessModuloIcfes(safePermissions, userRoles, user, centroF);
+    }
+
+    return allowed;
   };
 
   const linkPl = 'ps-[10px]';
