@@ -8,7 +8,8 @@ import { PersonaInterface } from '../contratacion/model/PersonaInterface';
 
 import { toAbsoluteUrl } from '@/utils';
 import { useAuthContext } from '@/auth';
-import { validationFieldPerson } from './utils/validationFieldPerson';
+import { validationFieldPerson, normalizePersonNameField } from './utils/validationFieldPerson';
+import { isPersonNameField } from '@/utils/personNameValidation';
 
 interface ModalProps {
   open: boolean;
@@ -180,7 +181,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
     const isEdit = Boolean(formDataPersona.id);
 
     Object.entries(formDataPersona).forEach(([name, value]) => {
-      const error = validationFieldPerson(name, value);
+      const error = validationFieldPerson(name, String(value ?? ''), { final: true });
       if (error) {
         validationErrors[name] = error;
       }
@@ -207,7 +208,10 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
     Object.entries(propietario).forEach(([key, value]) => {
       if (key === 'foto') return;
       if (value !== undefined && value !== null) {
-        data.append(key, String(value));
+        const strValue = isPersonNameField(key)
+          ? normalizePersonNameField(String(value))
+          : String(value);
+        data.append(key, strValue);
       }
     });
 
@@ -298,7 +302,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2" data-no-uppercase>
                   <div>
                     <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
                     <input
@@ -309,6 +313,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                       value={formDataPersona.nombre1}
                       onChange={handleChangeFormPerson}
                       className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
+                      data-no-uppercase
                     />
                     {errors.nombre1 && (
                       <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>
@@ -325,6 +330,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                       value={formDataPersona.nombre2}
                       onChange={handleChangeFormPerson}
                       className="input"
+                      data-no-uppercase
                     />
                     {errors.nombre2 && (
                       <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>
@@ -332,7 +338,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 gap-6 mb-2" data-no-uppercase>
                   <div>
                     <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
                     <input
@@ -343,6 +349,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                       value={formDataPersona.apellido1}
                       onChange={handleChangeFormPerson}
                       className="input"
+                      data-no-uppercase
                     />{' '}
                     {errors.apellido1 && (
                       <p className="text-red-500 text-sm mt-1">{errors.apellido1}</p>
@@ -358,6 +365,7 @@ const ModalUpdatePerfil = ({ open, onClose }: ModalProps) => {
                       disabled
                       onChange={handleChangeFormPerson}
                       className="input"
+                      data-no-uppercase
                     />
                     {errors.apellido2 && (
                       <p className="text-red-500 text-sm mt-1">{errors.apellido2}</p>

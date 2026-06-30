@@ -8,7 +8,8 @@ import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { TipoDocumentoInterface } from '../contratacion/model/TipoDocumentoInterface';
 import { PersonaInterface } from '../contratacion/model/PersonaInterface';
-import { validationFieldPerson } from './utils/validationFieldPerson';
+import { validationFieldPerson, normalizePersonNameField } from './utils/validationFieldPerson';
+import { isPersonNameField } from '@/utils/personNameValidation';
 import { Link } from 'react-router-dom';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
@@ -295,7 +296,7 @@ const PerfilPage = () => {
   const handleSubmitPropietarios = async () => {
     let validationErrors: Partial<any> = {};
     Object.entries(formDataPersona).forEach(([name, value]) => {
-      const error = validationFieldPerson(name, value);
+      const error = validationFieldPerson(name, String(value ?? ''), { final: true });
       if (error) validationErrors[name] = error;
     });
 
@@ -309,7 +310,11 @@ const PerfilPage = () => {
     const data = new FormData();
     Object.entries(formDataPersona).forEach(([key, value]) => {
       if (key === 'perfilProfesional' && !tieneContratoActivoPerfil) return;
-      if (value !== undefined && value !== null) data.append(key, String(value));
+      if (value === undefined || value === null) return;
+      const strValue = isPersonNameField(key)
+        ? normalizePersonNameField(String(value))
+        : String(value);
+      data.append(key, strValue);
     });
     if (selectedFilePersona instanceof File) data.append('rutaFotoFile', selectedFilePersona);
     if (firmaFile instanceof File) {
@@ -593,7 +598,7 @@ const PerfilPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4" data-no-uppercase>
                 <div>
                   <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
                   <input
@@ -604,6 +609,7 @@ const PerfilPage = () => {
                     onChange={handleChangeFormPerson}
                     className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
                     disabled={step === 2}
+                    data-no-uppercase
                   />
                   {errors.nombre1 && <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>}
                 </div>
@@ -618,12 +624,13 @@ const PerfilPage = () => {
                     onChange={handleChangeFormPerson}
                     className="input"
                     disabled={step === 2}
+                    data-no-uppercase
                   />
                   {errors.nombre2 && <p className="text-red-500 text-sm mt-1">{errors.nombre2}</p>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-4" data-no-uppercase>
                 <div>
                   <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
                   <input
@@ -634,6 +641,7 @@ const PerfilPage = () => {
                     onChange={handleChangeFormPerson}
                     className="input"
                     disabled={step === 2}
+                    data-no-uppercase
                   />
                   {errors.apellido1 && (
                     <p className="text-red-500 text-sm mt-1">{errors.apellido1}</p>
@@ -649,6 +657,7 @@ const PerfilPage = () => {
                     onChange={handleChangeFormPerson}
                     className="input"
                     disabled={step === 2}
+                    data-no-uppercase
                   />
                   {errors.apellido2 && (
                     <p className="text-red-500 text-sm mt-1">{errors.apellido2}</p>
