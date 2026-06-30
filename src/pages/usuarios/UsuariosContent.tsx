@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useMemo, useContext } from 'react';
+import { Fragment, useEffect, useState, useMemo, useContext, useCallback, useRef } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
 import { KeenIcon, DataGrid } from '@/components';
@@ -55,7 +55,7 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(15);
   const [total, setTotal] = useState(0);
 
   const fetchRoles = async () => {
@@ -69,30 +69,36 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
     }
   };
 
-  const fetchUsers = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await axios.get('lista_usuarios_paginado', {
-        params: {
-          search: search,
-          per_page: perPage,
-          page: page,
-          state_id: statusFilter,
-          sort_order: sortOrder,
-          role_id: roleFilter
-        }
-      });
+  const fetchUsers = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const response = await axios.get('lista_usuarios_paginado', {
+          params: {
+            search: search || undefined,
+            per_page: perPage,
+            page,
+            state_id: statusFilter || undefined,
+            sort_order: sortOrder,
+            role_id: roleFilter || undefined
+          }
+        });
 
-      setUsers(response.data.data);
-      setCurrentPage(response.data.current_page);
-      setTotalPages(response.data.last_page);
-      setTotal(response.data.total);
-    } catch (err) {
-      setError('Hubo un error al obtener los usuarios');
-    } finally {
-      setLoading(false);
-    }
-  };
+        setUsers(response.data.data);
+        setCurrentPage(response.data.current_page);
+        setTotalPages(response.data.last_page);
+        setTotal(response.data.total);
+      } catch (err) {
+        setError('Hubo un error al obtener los usuarios');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, perPage, statusFilter, sortOrder, roleFilter]
+  );
+
+  const fetchUsersRef = useRef(fetchUsers);
+  fetchUsersRef.current = fetchUsers;
 
   const handleOpenRoles = (activation: ActivationCompanyUser) => {
     setRolesModalOpen(true);
@@ -168,13 +174,13 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   }, []);
 
   useEffect(() => {
-    fetchUsers(currentPage);
+    fetchUsersRef.current(currentPage);
   }, [reload]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
-      fetchUsers(1);
+      fetchUsersRef.current(1);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -331,6 +337,8 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
             <option value="">Todos los estados</option>
             <option value="1">Activos</option>
             <option value="2">Inactivos</option>
+            <option value="4">Pendientes</option>
+            <option value="18">Por actualizar</option>
           </select>
 
           <select
@@ -372,10 +380,10 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
       <div className="card card-grid min-w-full">
         <div className="card-body">
           <DataGrid
-            key={JSON.stringify(users)}
             columns={columns}
             data={users}
             nativePagination={false}
+            pagination={{ page: 0, size: perPage }}
           />
         </div>
       </div>
@@ -391,12 +399,10 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
               setCurrentPage(1);
             }}
           >
-            <option value="10">10</option>
-            <option value="20">20</option>
+            <option value="15">15</option>
             <option value="50">50</option>
             <option value="100">100</option>
             <option value="200">200</option>
-            <option value="500">500</option>
           </select>
           Por página
         </div>
