@@ -527,7 +527,7 @@ export const CardRap = ({
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Horas restantes</p>
                 <p className="text-lg font-semibold text-orange-500">
-                  {materia.horasFaltantes || 0}
+                  {materia.horasFaltantes?.toFixed(2) || 0}
                 </p>
               </div>
 

@@ -245,20 +245,18 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
 
                   return itemsFiltered.map((materia) => {
                     const seleccionada = estaSeleccionada(materia);
-
                     const yaAsignada = isAlreadyAssigned(materia);
+                    const estadoClase = materia.isCompleta
+                      ? 'bg-green-50/80 border-green-500 ring-1 ring-green-500/15 dark:bg-green-900/20 dark:border-green-500 dark:ring-green-500/20'
+                      : (seleccionada || yaAsignada
+                        ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
+                        : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300');
 
                     return (
                       <div
                         key={materia.id}
                         onClick={() => !materia.isCompleta && !yaAsignada && toggleMateria(materia)}
-                        className={`group flex flex-col p-3 border rounded-xl transition-all duration-200 
-                          ${(seleccionada || yaAsignada)
-                            ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
-                            : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'
-                          } 
-                          ${materia.isCompleta ? 'border-green-500 dark:border-green-500' : ''} 
-                          ${yaAsignada ? 'cursor-default' : 'cursor-pointer'}`}
+                        className={`group flex flex-col p-3 border rounded-xl transition-all duration-200 ${estadoClase} ${yaAsignada ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -271,12 +269,9 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
-                                  {materia.codigo || 'S/C'}
-                                </span>
-                                <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
+                                {materia.isCompleta && <span className="text-xs text-green-500 opacity-70">Finalizado</span>}
+                                <p title={materia.nombreMateria} className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
                                   {materia.nombreMateria || 'Sin nombre'} 
-                                  {materia.isCompleta && <span className="text-xs text-green-500 opacity-70"> - Finalizado</span>}
                                 </p>
                               </div>
                               <p className="text-2xs text-gray-500 font-bold uppercase truncate">
