@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth/useAuthContext';
 import {
@@ -344,6 +345,11 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const [currentTime, setCurrentTime] = useState(new Date());
   const franjasRefrescadasRef = useRef<Set<string>>(new Set());
 
+  /** Map de ficha_id → { docFichaUrl, docProgramaUrl } */
+  const [docsPorFicha, setDocsPorFicha] = useState<
+    Record<number, { docFichaUrl: string | null; docProgramaUrl: string | null }>
+  >({});
+
   const queryBusquedaDisplay = useMemo(() => busquedaLista.trim(), [busquedaLista]);
   const termBusquedaFolded = useMemo(
     () => foldBusqueda(queryBusquedaDisplay),
@@ -487,6 +493,41 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   useEffect(() => {
     setClases(clasesApi.map((raw) => normalizarClase(raw as Record<string, unknown>)) as Clase[]);
   }, [clasesApi]);
+
+  // Cargar documentos de fichas y programas cuando cambian las clases
+  useEffect(() => {
+    if (clases.length === 0) return;
+    const backUrl = import.meta.env.VITE_APP_BACKEND_URL ?? '';
+    // Fichas únicas presentes
+    const fichaIdsUnicos = [...new Set(clases.map((c) => c.ficha_id).filter((id) => id > 0))];
+    if (fichaIdsUnicos.length === 0) return;
+
+    const fetchDocs = async () => {
+      const nuevoMap: Record<number, { docFichaUrl: string | null; docProgramaUrl: string | null }> = {};
+      await Promise.all(
+        fichaIdsUnicos.map(async (fichaId) => {
+          try {
+            const res = await axios.get(`fichas/${fichaId}`);
+            const fichaRaw = res.data?.data?.ficha ?? res.data?.data ?? res.data;
+            const docFicha = fichaRaw?.documento ?? null;
+            const docPrograma =
+              fichaRaw?.asignacion?.programa?.documento ??
+              res.data?.data?.apertura?.programa?.documento ??
+              null;
+            nuevoMap[fichaId] = {
+              docFichaUrl: docFicha ? `${backUrl}${docFicha}` : null,
+              docProgramaUrl: docPrograma ? `${backUrl}${docPrograma}` : null
+            };
+          } catch {
+            nuevoMap[fichaId] = { docFichaUrl: null, docProgramaUrl: null };
+          }
+        })
+      );
+      setDocsPorFicha(nuevoMap);
+    };
+
+    fetchDocs();
+  }, [clases]);
 
   useEffect(() => {
     setLoading(loadingApi);
@@ -1488,8 +1529,44 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         onClick={() => handleNavigateToClase(clase)}
       >
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-200 dark:border-green-600 flex items-center justify-center">
-            <i className="ki-outline ki-check-circle text-lg text-green-600 dark:text-green-400"></i>
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-200 dark:border-green-600 flex items-center justify-center">
+              <i className="ki-outline ki-check-circle text-lg text-green-600 dark:text-green-400"></i>
+            </div>
+            {/* Botones documento debajo del ícono */}
+            {(() => {
+              const docs = docsPorFicha[clase.ficha_id];
+              return (
+                <>
+                  <button
+                    type="button"
+                    disabled={!docs?.docProgramaUrl}
+                    onClick={(e) => { e.stopPropagation(); if (docs?.docProgramaUrl) window.open(docs.docProgramaUrl, '_blank'); }}
+                    title={docs?.docProgramaUrl ? 'Ver doc. del programa' : 'Sin doc. de programa'}
+                    className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+                      docs?.docProgramaUrl
+                        ? 'border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer'
+                        : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <i className="ki-outline ki-book text-xs"></i>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!docs?.docFichaUrl}
+                    onClick={(e) => { e.stopPropagation(); if (docs?.docFichaUrl) window.open(docs.docFichaUrl, '_blank'); }}
+                    title={docs?.docFichaUrl ? 'Ver doc. de la ficha' : 'Sin doc. de ficha'}
+                    className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+                      docs?.docFichaUrl
+                        ? 'border-rose-300 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer'
+                        : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <i className="ki-outline ki-file-down text-xs"></i>
+                  </button>
+                </>
+              );
+            })()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="mb-2 space-y-1">
@@ -1575,13 +1652,51 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         : getProximaClasePendiente(clase)
       : null;
     const { competencia: tituloCompetencia, rap: tituloRap } = titulosCompetenciaYRapUi(clase);
-    const iconoTarjeta = status === 'EN CURSO' ? (
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-300 dark:border-green-600 flex items-center justify-center">
-        <i className="ki-outline ki-time text-lg text-green-600 dark:text-green-400"></i>
-      </div>
-    ) : (
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
-        <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
+    const iconoTarjeta = (
+      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+        {status === 'EN CURSO' ? (
+          <div className="w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-green-300 dark:border-green-600 flex items-center justify-center">
+            <i className="ki-outline ki-time text-lg text-green-600 dark:text-green-400"></i>
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-transparent dark:bg-transparent border border-blue-200 dark:border-blue-600 flex items-center justify-center">
+            <i className="ki-outline ki-book text-lg text-blue-600 dark:text-blue-400"></i>
+          </div>
+        )}
+        {/* Botones documento debajo del ícono */}
+        {(() => {
+          const docs = docsPorFicha[clase.ficha_id];
+          return (
+            <>
+              <button
+                type="button"
+                disabled={!docs?.docProgramaUrl}
+                onClick={(e) => { e.stopPropagation(); if (docs?.docProgramaUrl) window.open(docs.docProgramaUrl, '_blank'); }}
+                title={docs?.docProgramaUrl ? 'Ver doc. del programa' : 'Sin doc. de programa'}
+                className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+                  docs?.docProgramaUrl
+                    ? 'border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer'
+                    : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <i className="ki-outline ki-book text-xs"></i>
+              </button>
+              <button
+                type="button"
+                disabled={!docs?.docFichaUrl}
+                onClick={(e) => { e.stopPropagation(); if (docs?.docFichaUrl) window.open(docs.docFichaUrl, '_blank'); }}
+                title={docs?.docFichaUrl ? 'Ver doc. de la ficha' : 'Sin doc. de ficha'}
+                className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+                  docs?.docFichaUrl
+                    ? 'border-rose-300 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer'
+                    : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <i className="ki-outline ki-file-down text-xs"></i>
+              </button>
+            </>
+          );
+        })()}
       </div>
     );
 
