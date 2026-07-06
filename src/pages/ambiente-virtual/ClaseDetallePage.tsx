@@ -1401,6 +1401,10 @@ interface Ficha {
   id: number;
   codigo: string;
   idSede?: number;
+  /** Ruta relativa del documento de la ficha (desde el backend). */
+  documento?: string | null;
+  /** URL completa para visualizar el documento de la ficha. */
+  rutaDocumentoUrl?: string | null;
   jornada?: {
     id: number;
     nombreJornada: string;
@@ -1414,6 +1418,8 @@ interface Ficha {
     programa?: {
       id: number;
       nombrePrograma: string;
+      /** URL completa del documento del programa. */
+      documentoUrl?: string | null;
     };
   };
   instructorLider?: {
@@ -1862,6 +1868,36 @@ const ClaseDetallePage: React.FC = () => {
         const claseData = response.data?.data?.clase;
 
         if (fichaData) {
+          const backUrl = import.meta.env.VITE_APP_BACKEND_URL ?? '';
+          // Construir URL del documento de la ficha desde el endpoint principal
+          if (fichaData.documento) {
+            fichaData.rutaDocumentoUrl = `${backUrl}${fichaData.documento}`;
+          }
+          // Construir URL del documento del programa desde el endpoint principal
+          if (fichaData.asignacion?.programa?.documento) {
+            fichaData.asignacion.programa.documentoUrl =
+              `${backUrl}${fichaData.asignacion.programa.documento}`;
+          }
+
+          // Si no vienen documentos en el endpoint principal, hacer fetch adicional a fichas/{id}
+          if (!fichaData.documento && fichaData.id) {
+            try {
+              const fichaDetalle = await axios.get(`fichas/${fichaData.id}`);
+              const fichaRaw = fichaDetalle.data?.data?.ficha ?? fichaDetalle.data?.data ?? fichaDetalle.data;
+              if (fichaRaw?.documento) {
+                fichaData.documento = fichaRaw.documento;
+                fichaData.rutaDocumentoUrl = `${backUrl}${fichaRaw.documento}`;
+              }
+              // Documento del programa desde detalle de ficha
+              const progDoc = fichaRaw?.asignacion?.programa?.documento ?? fichaDetalle.data?.data?.apertura?.programa?.documento;
+              if (progDoc && fichaData.asignacion?.programa && !fichaData.asignacion.programa.documentoUrl) {
+                fichaData.asignacion.programa.documentoUrl = `${backUrl}${progDoc}`;
+              }
+            } catch {
+              // silencioso: si falla el fetch adicional, se mantiene sin documento
+            }
+          }
+
           setFicha(fichaData);
           if (claseData) {
             const norm = normalizarClaseDetalleApi(claseData);
@@ -2522,6 +2558,64 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Documento del Programa */}
+            <DefaultTooltip
+              title={
+                ficha.asignacion?.programa?.documentoUrl
+                  ? 'Ver documento del programa'
+                  : 'Sin documento de programa'
+              }
+              placement="top"
+            >
+              <button
+                type="button"
+                id="btn-doc-programa-clase"
+                disabled={!ficha.asignacion?.programa?.documentoUrl}
+                onClick={() => {
+                  if (ficha.asignacion?.programa?.documentoUrl) {
+                    window.open(ficha.asignacion.programa.documentoUrl, '_blank');
+                  }
+                }}
+                className={`p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  ficha.asignacion?.programa?.documentoUrl
+                    ? 'border-purple-200 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 cursor-pointer'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title={ficha.asignacion?.programa?.documentoUrl ? 'Ver documento del programa' : 'Sin documento de programa'}
+              >
+                <i className="ki-outline ki-book text-sm" />
+              </button>
+            </DefaultTooltip>
+
+            {/* Documento de la Ficha */}
+            <DefaultTooltip
+              title={
+                ficha.rutaDocumentoUrl
+                  ? 'Ver documento de la ficha'
+                  : 'Sin documento de ficha'
+              }
+              placement="top"
+            >
+              <button
+                type="button"
+                id="btn-doc-ficha-clase"
+                disabled={!ficha.rutaDocumentoUrl}
+                onClick={() => {
+                  if (ficha.rutaDocumentoUrl) {
+                    window.open(ficha.rutaDocumentoUrl, '_blank');
+                  }
+                }}
+                className={`p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  ficha.rutaDocumentoUrl
+                    ? 'border-rose-200 dark:border-rose-600 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 cursor-pointer'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title={ficha.rutaDocumentoUrl ? 'Ver documento de la ficha' : 'Sin documento de ficha'}
+              >
+                <i className="ki-outline ki-file-down text-sm" />
+              </button>
+            </DefaultTooltip>
           </div>
         </div>
       </div>
