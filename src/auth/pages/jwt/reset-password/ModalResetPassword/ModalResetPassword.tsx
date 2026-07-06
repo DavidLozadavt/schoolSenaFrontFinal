@@ -268,7 +268,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
       </div>
 
       <p className="text-sm text-gray-600 mb-4">
-        Ingresa tu correo para recibir un código de verificación
+        Se enviará un código de verificación al correo registrado en tu cuenta
       </p>
 
       <div className="mb-6">
@@ -276,9 +276,10 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
         <input
           type="email"
           value={emailForReset}
-          onChange={(e) => setEmailForReset(e.target.value)}
+          readOnly
+          disabled
           placeholder="correo@ejemplo.com"
-          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
+          className="w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-3 text-sm outline-none text-gray-600 cursor-not-allowed"
         />
       </div>
 
