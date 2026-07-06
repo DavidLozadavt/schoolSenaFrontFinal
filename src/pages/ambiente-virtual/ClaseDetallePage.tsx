@@ -36,6 +36,13 @@ import {
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { useResponsive } from '@/hooks';
+import { useAuthContext } from '@/auth/useAuthContext';
+import {
+  descargarPlaneacionFicha,
+  FichaPlaneacionMeta,
+  obtenerIdContratoActivo,
+  puedeDescargarPlaneacion
+} from './utils/descargarPlaneacionFicha';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
@@ -1401,6 +1408,8 @@ interface Ficha {
   id: number;
   codigo: string;
   idSede?: number;
+  idInstructorLider?: number | null;
+  idProyectoFormativo?: number | null;
   /** Ruta relativa del documento de la ficha (desde el backend). */
   documento?: string | null;
   /** URL completa para visualizar el documento de la ficha. */
@@ -1466,6 +1475,8 @@ const ClaseDetallePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const authContext = useAuthContext();
+  const [exportandoPlaneacion, setExportandoPlaneacion] = useState(false);
   const locationState = location.state as {
     returnTo?: string;
     activeMenu?: MenuOption;
@@ -1494,6 +1505,45 @@ const ClaseDetallePage: React.FC = () => {
   const [sesionesCompletadasPorHorario, setSesionesCompletadasPorHorario] =
     useState<SesionesPorHorarioMap>({});
   const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
+
+  const idContratoUsuario = useMemo(
+    () => obtenerIdContratoActivo(authContext?.user?.persona?.contrato),
+    [authContext?.user?.persona?.contrato]
+  );
+
+  const metaPlaneacionFicha = useMemo<FichaPlaneacionMeta | undefined>(() => {
+    if (!ficha) return undefined;
+    const persona = ficha.instructorLider?.persona;
+    return {
+      id: ficha.id,
+      codigo: ficha.codigo,
+      idInstructorLider: ficha.idInstructorLider ?? null,
+      idProyectoFormativo: ficha.idProyectoFormativo ?? null,
+      instructorLiderNombre: persona
+        ? `${persona.nombre1} ${persona.apellido1}`.trim()
+        : '',
+      jornada: ficha.jornada?.nombreJornada ?? '',
+      programa: ficha.asignacion?.programa?.nombrePrograma ?? ''
+    };
+  }, [ficha]);
+
+  const mostrarDescargaPlaneacion = puedeDescargarPlaneacion(
+    metaPlaneacionFicha,
+    idContratoUsuario
+  );
+
+  const handleDescargarPlaneacion = useCallback(async () => {
+    if (!metaPlaneacionFicha) return;
+    try {
+      setExportandoPlaneacion(true);
+      await descargarPlaneacionFicha(metaPlaneacionFicha);
+    } catch (err) {
+      console.error('Error al exportar planeación:', err);
+      alert('No se pudo exportar la planeación. Intenta de nuevo.');
+    } finally {
+      setExportandoPlaneacion(false);
+    }
+  }, [metaPlaneacionFicha]);
 
   useEffect(() => {
     if (modoCalendario !== 'instructor') {
@@ -1879,22 +1929,35 @@ const ClaseDetallePage: React.FC = () => {
               `${backUrl}${fichaData.asignacion.programa.documento}`;
           }
 
-          // Si no vienen documentos en el endpoint principal, hacer fetch adicional a fichas/{id}
-          if (!fichaData.documento && fichaData.id) {
+          // Complementar documentos y datos de planeación desde fichas/{id}
+          if (fichaData.id) {
             try {
               const fichaDetalle = await axios.get(`fichas/${fichaData.id}`);
               const fichaRaw = fichaDetalle.data?.data?.ficha ?? fichaDetalle.data?.data ?? fichaDetalle.data;
-              if (fichaRaw?.documento) {
+              if (fichaRaw?.documento && !fichaData.documento) {
                 fichaData.documento = fichaRaw.documento;
                 fichaData.rutaDocumentoUrl = `${backUrl}${fichaRaw.documento}`;
               }
-              // Documento del programa desde detalle de ficha
-              const progDoc = fichaRaw?.asignacion?.programa?.documento ?? fichaDetalle.data?.data?.apertura?.programa?.documento;
+              const progDoc =
+                fichaRaw?.asignacion?.programa?.documento ??
+                fichaDetalle.data?.data?.apertura?.programa?.documento;
               if (progDoc && fichaData.asignacion?.programa && !fichaData.asignacion.programa.documentoUrl) {
                 fichaData.asignacion.programa.documentoUrl = `${backUrl}${progDoc}`;
               }
+              if (fichaRaw?.idInstructorLider != null) {
+                fichaData.idInstructorLider = Number(fichaRaw.idInstructorLider);
+              }
+              if (fichaRaw?.idProyectoFormativo != null) {
+                fichaData.idProyectoFormativo = Number(fichaRaw.idProyectoFormativo);
+              }
+              if (fichaRaw?.instructorLider && !fichaData.instructorLider) {
+                fichaData.instructorLider = fichaRaw.instructorLider;
+              }
+              if (fichaRaw?.jornada && !fichaData.jornada) {
+                fichaData.jornada = fichaRaw.jornada;
+              }
             } catch {
-              // silencioso: si falla el fetch adicional, se mantiene sin documento
+              // silencioso: si falla el fetch adicional, se mantiene sin datos extra
             }
           }
 
@@ -2616,6 +2679,25 @@ const ClaseDetallePage: React.FC = () => {
                 <i className="ki-outline ki-file-down text-sm" />
               </button>
             </DefaultTooltip>
+
+            {mostrarDescargaPlaneacion ? (
+              <DefaultTooltip title="Descargar planeación (Excel)" placement="top">
+                <button
+                  type="button"
+                  id="btn-planeacion-ficha-clase"
+                  disabled={exportandoPlaneacion}
+                  onClick={handleDescargarPlaneacion}
+                  className="p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors border-orange-200 dark:border-orange-600 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                  title="Descargar planeación (Excel)"
+                >
+                  {exportandoPlaneacion ? (
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                  ) : (
+                    <i className="ki-outline ki-note-2 text-sm" />
+                  )}
+                </button>
+              </DefaultTooltip>
+            ) : null}
           </div>
         </div>
       </div>

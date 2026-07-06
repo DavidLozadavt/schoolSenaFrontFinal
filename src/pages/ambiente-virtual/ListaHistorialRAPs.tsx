@@ -25,6 +25,13 @@ import {
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { fetchHistorialSesionesInstructor, ymdFromFechaSesion } from '@/utils/clasesAsignadasLogica';
+import {
+  descargarPlaneacionFicha,
+  FichaPlaneacionMeta,
+  metaPlaneacionDesdeFichaRaw,
+  obtenerIdContratoActivo,
+  puedeDescargarPlaneacion
+} from './utils/descargarPlaneacionFicha';
 interface Props {
   evento: boolean;
   setEvento: (value: boolean) => void;
@@ -345,10 +352,34 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
   const [currentTime, setCurrentTime] = useState(new Date());
   const franjasRefrescadasRef = useRef<Set<string>>(new Set());
 
-  /** Map de ficha_id → { docFichaUrl, docProgramaUrl } */
-  const [docsPorFicha, setDocsPorFicha] = useState<
-    Record<number, { docFichaUrl: string | null; docProgramaUrl: string | null }>
-  >({});
+  /** Map de ficha_id → metadata (documentos + planeación) */
+  const [metaPorFicha, setMetaPorFicha] = useState<Record<number, FichaPlaneacionMeta>>({});
+  const [exportandoPlaneacionFichaId, setExportandoPlaneacionFichaId] = useState<number | null>(
+    null
+  );
+
+  const idContratoUsuario = useMemo(
+    () => obtenerIdContratoActivo(authContext?.user?.persona?.contrato),
+    [authContext?.user?.persona?.contrato]
+  );
+
+  const handleDescargarPlaneacion = useCallback(
+    async (fichaId: number, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      const meta = metaPorFicha[fichaId];
+      if (!meta || !puedeDescargarPlaneacion(meta, idContratoUsuario)) return;
+      try {
+        setExportandoPlaneacionFichaId(fichaId);
+        await descargarPlaneacionFicha(meta);
+      } catch (err) {
+        console.error('Error al exportar planeación:', err);
+        alert('No se pudo exportar la planeación. Intenta de nuevo.');
+      } finally {
+        setExportandoPlaneacionFichaId(null);
+      }
+    },
+    [metaPorFicha, idContratoUsuario]
+  );
 
   const queryBusquedaDisplay = useMemo(() => busquedaLista.trim(), [busquedaLista]);
   const termBusquedaFolded = useMemo(
@@ -503,27 +534,46 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     if (fichaIdsUnicos.length === 0) return;
 
     const fetchDocs = async () => {
-      const nuevoMap: Record<number, { docFichaUrl: string | null; docProgramaUrl: string | null }> = {};
+      const nuevoMap: Record<number, FichaPlaneacionMeta> = {};
       await Promise.all(
         fichaIdsUnicos.map(async (fichaId) => {
           try {
             const res = await axios.get(`fichas/${fichaId}`);
-            const fichaRaw = res.data?.data?.ficha ?? res.data?.data ?? res.data;
-            const docFicha = fichaRaw?.documento ?? null;
-            const docPrograma =
-              fichaRaw?.asignacion?.programa?.documento ??
-              res.data?.data?.apertura?.programa?.documento ??
-              null;
-            nuevoMap[fichaId] = {
-              docFichaUrl: docFicha ? `${backUrl}${docFicha}` : null,
-              docProgramaUrl: docPrograma ? `${backUrl}${docPrograma}` : null
-            };
+            const fichaRaw = (res.data?.data?.ficha ?? res.data?.data ?? res.data) as Record<
+              string,
+              unknown
+            >;
+            const docProgramaFallback =
+              (res.data?.data as { apertura?: { programa?: { documento?: string } } } | undefined)
+                ?.apertura?.programa?.documento ?? null;
+            if (docProgramaFallback && fichaRaw.asignacion == null) {
+              fichaRaw.asignacion = {
+                programa: { documento: docProgramaFallback }
+              };
+            } else if (
+              docProgramaFallback &&
+              typeof fichaRaw.asignacion === 'object' &&
+              fichaRaw.asignacion != null
+            ) {
+              const asig = fichaRaw.asignacion as { programa?: { documento?: string } };
+              if (!asig.programa?.documento) {
+                asig.programa = { ...asig.programa, documento: docProgramaFallback };
+              }
+            }
+            nuevoMap[fichaId] = metaPlaneacionDesdeFichaRaw(fichaRaw, fichaId, backUrl);
           } catch {
-            nuevoMap[fichaId] = { docFichaUrl: null, docProgramaUrl: null };
+            nuevoMap[fichaId] = {
+              id: fichaId,
+              codigo: '',
+              docFichaUrl: null,
+              docProgramaUrl: null,
+              idInstructorLider: null,
+              idProyectoFormativo: null
+            };
           }
         })
       );
-      setDocsPorFicha(nuevoMap);
+      setMetaPorFicha(nuevoMap);
     };
 
     fetchDocs();
@@ -1473,6 +1523,64 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
     }
   };
 
+  const renderIconosDocumentosFicha = (fichaId: number) => {
+    const meta = metaPorFicha[fichaId];
+    const puedePlaneacion = puedeDescargarPlaneacion(meta, idContratoUsuario);
+    const exportando = exportandoPlaneacionFichaId === fichaId;
+
+    return (
+      <>
+        <button
+          type="button"
+          disabled={!meta?.docProgramaUrl}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (meta?.docProgramaUrl) window.open(meta.docProgramaUrl, '_blank');
+          }}
+          title={meta?.docProgramaUrl ? 'Ver doc. del programa' : 'Sin doc. de programa'}
+          className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+            meta?.docProgramaUrl
+              ? 'border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer'
+              : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          <i className="ki-outline ki-book text-xs"></i>
+        </button>
+        <button
+          type="button"
+          disabled={!meta?.docFichaUrl}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (meta?.docFichaUrl) window.open(meta.docFichaUrl, '_blank');
+          }}
+          title={meta?.docFichaUrl ? 'Ver doc. de la ficha' : 'Sin doc. de ficha'}
+          className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
+            meta?.docFichaUrl
+              ? 'border-rose-300 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer'
+              : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          <i className="ki-outline ki-file-down text-xs"></i>
+        </button>
+        {puedePlaneacion ? (
+          <button
+            type="button"
+            disabled={exportando}
+            onClick={(e) => handleDescargarPlaneacion(fichaId, e)}
+            title="Descargar planeación (Excel)"
+            className="w-9 h-7 rounded flex items-center justify-center border border-orange-300 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-wait"
+          >
+            {exportando ? (
+              <span className="inline-block w-3 h-3 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+            ) : (
+              <i className="ki-outline ki-note-2 text-xs"></i>
+            )}
+          </button>
+        ) : null}
+      </>
+    );
+  };
+
   /**
    * Componente para renderizar una tarjeta de sesión completada
    * Cada sesión tiene su propia tarjeta independiente
@@ -1534,39 +1642,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
               <i className="ki-outline ki-check-circle text-lg text-green-600 dark:text-green-400"></i>
             </div>
             {/* Botones documento debajo del ícono */}
-            {(() => {
-              const docs = docsPorFicha[clase.ficha_id];
-              return (
-                <>
-                  <button
-                    type="button"
-                    disabled={!docs?.docProgramaUrl}
-                    onClick={(e) => { e.stopPropagation(); if (docs?.docProgramaUrl) window.open(docs.docProgramaUrl, '_blank'); }}
-                    title={docs?.docProgramaUrl ? 'Ver doc. del programa' : 'Sin doc. de programa'}
-                    className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
-                      docs?.docProgramaUrl
-                        ? 'border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer'
-                        : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <i className="ki-outline ki-book text-xs"></i>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!docs?.docFichaUrl}
-                    onClick={(e) => { e.stopPropagation(); if (docs?.docFichaUrl) window.open(docs.docFichaUrl, '_blank'); }}
-                    title={docs?.docFichaUrl ? 'Ver doc. de la ficha' : 'Sin doc. de ficha'}
-                    className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
-                      docs?.docFichaUrl
-                        ? 'border-rose-300 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer'
-                        : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <i className="ki-outline ki-file-down text-xs"></i>
-                  </button>
-                </>
-              );
-            })()}
+            {renderIconosDocumentosFicha(clase.ficha_id)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="mb-2 space-y-1">
@@ -1664,39 +1740,7 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
           </div>
         )}
         {/* Botones documento debajo del ícono */}
-        {(() => {
-          const docs = docsPorFicha[clase.ficha_id];
-          return (
-            <>
-              <button
-                type="button"
-                disabled={!docs?.docProgramaUrl}
-                onClick={(e) => { e.stopPropagation(); if (docs?.docProgramaUrl) window.open(docs.docProgramaUrl, '_blank'); }}
-                title={docs?.docProgramaUrl ? 'Ver doc. del programa' : 'Sin doc. de programa'}
-                className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
-                  docs?.docProgramaUrl
-                    ? 'border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer'
-                    : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                <i className="ki-outline ki-book text-xs"></i>
-              </button>
-              <button
-                type="button"
-                disabled={!docs?.docFichaUrl}
-                onClick={(e) => { e.stopPropagation(); if (docs?.docFichaUrl) window.open(docs.docFichaUrl, '_blank'); }}
-                title={docs?.docFichaUrl ? 'Ver doc. de la ficha' : 'Sin doc. de ficha'}
-                className={`w-9 h-7 rounded flex items-center justify-center border transition-colors ${
-                  docs?.docFichaUrl
-                    ? 'border-rose-300 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer'
-                    : 'border-gray-200 text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                <i className="ki-outline ki-file-down text-xs"></i>
-              </button>
-            </>
-          );
-        })()}
+        {renderIconosDocumentosFicha(clase.ficha_id)}
       </div>
     );
 

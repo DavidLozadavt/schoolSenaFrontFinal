@@ -163,11 +163,12 @@ function formatInstructores(instructores?: Instructor[]): string {
 
 export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
   // 1. Fetch datos
-  const { data }: { data: ProyectoFormativoData } = await axios.get(
+  const response = await axios.get(
     `/fichapry/${ficha.id}/proyecto-formativo`
   );
 
-  const { proyectoFormativo, fasesProyecto } = data;
+  const rawData = response.data?.data ?? response.data;
+  const { proyectoFormativo, fasesProyecto = [] } = (rawData ?? {}) as ProyectoFormativoData;
 
   // 2. Workbook
   const wb = new ExcelJS.Workbook();
@@ -210,7 +211,7 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
   setCell(ws, 2, 1, `JORNADA ${ficha.jornada ?? ''}`, { bold: true, size: 9 });
 
   ws.mergeCells('I2:N2');
-  setCell(ws, 2, 9, `FICHA ${ficha.codigo}  ${ficha.programa ?? proyectoFormativo.nombre ?? ''}`, {
+  setCell(ws, 2, 9, `FICHA ${ficha.codigo}  ${ficha.programa ?? proyectoFormativo?.nombre ?? ''}`, {
     bold: true,
     size: 11,
     color: COLOR.titleRed,
