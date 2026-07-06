@@ -60,11 +60,9 @@ const RmiGeneral: React.FC = () => {
   useEffect(() => {
     if (authContext?.roles?.includes('ADMINISTRADOR VT')) {
       setLoadingRegionales(true);
-      // Cancelar petición anterior si existe
       if (regionalAbortController.current) {
         regionalAbortController.current.abort();
       }
-
       regionalAbortController.current = new AbortController();
 
       axios
@@ -86,9 +84,10 @@ const RmiGeneral: React.FC = () => {
         }
       };
     } else if (authContext?.roles?.includes('ADMIN REGIONAL')) {
-      setIdRegional(authContext?.empresa.id || 0);
-    } else if (authContext?.roles?.includes('ADMIN CENTRO')) {
-      setIdRegional(authContext?.empresa.id || 0);
+      setIdRegional(authContext?.empresa?.id || 0);
+    } else {
+      // Cualquier otro rol (incluye ADMIN CENTRO y todos los demás)
+      setIdRegional(authContext?.empresa?.id || 0);
       setIdCentroFormacion(authContext?.user?.idCentroFormacion || 0);
     }
   }, [authContext?.roles, authContext?.empresa?.id, authContext?.user?.idCentroFormacion]);
@@ -115,7 +114,7 @@ const RmiGeneral: React.FC = () => {
       })
       .then((r) => {
         setCentroFormacion(r.data.data || []);
-        if (!authContext?.roles?.includes('ADMIN CENTRO')) {
+        if (authContext?.roles?.includes('ADMINISTRADOR VT')) {
           setIdCentroFormacion(0);
         }
         setLoadingCentros(false);
@@ -179,20 +178,20 @@ const RmiGeneral: React.FC = () => {
 
   // Instructores según modo (pendientes vs historial) y filtro de estado
   const instructors = useMemo(() => {
-  let base = rawInstructors;
+    let base = rawInstructors;
 
-  if (!mostrarHistorial) {
-    // Solo pendientes en modo normal
-    base = base.filter((i) => i.estado === 'PENDIENTE' || i.estado === 'RECHAZADO');
-  }
-  // En historial muestra todos sin filtrar por estado base
-  // el filtro adicional del Select ya lo maneja abajo
-  if (mostrarHistorial && estado) {
-    base = base.filter((i) => i.estado === estado);
-  }
+    if (!mostrarHistorial) {
+      // Solo pendientes en modo normal
+      base = base.filter((i) => i.estado === 'PENDIENTE' || i.estado === 'RECHAZADO');
+    }
+    // En historial muestra todos sin filtrar por estado base
+    // el filtro adicional del Select ya lo maneja abajo
+    if (mostrarHistorial && estado) {
+      base = base.filter((i) => i.estado === estado);
+    }
 
-  return base;
-}, [rawInstructors, mostrarHistorial, estado]);
+    return base;
+  }, [rawInstructors, mostrarHistorial, estado]);
 
   // Memoizar el filtro de instructores por nombre
   const filtered = useMemo(() => {
