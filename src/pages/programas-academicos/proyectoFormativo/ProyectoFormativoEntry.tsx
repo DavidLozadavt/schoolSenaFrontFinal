@@ -3,55 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
-
-interface Programa {
-  id: number;
-  nombrePrograma: string;
-  codigoPrograma: string;
-}
-
-interface Materia {
-  id: number;
-  nombreMateria: string;
-  descripcion?: string | null;
-  codigo: string;
-  horas: string | null;
-  creditos: number | null;
-  DocUrl?: string | null;
-}
-
-interface FaseProyectoRap {
-  id: number;
-  idFaseProyecto: number;
-  idMateria: number;
-  idActividadProyecto: number;
-  materia: Materia;
-}
-
-interface ActividadProyecto {
-  id: number;
-  descripcionActividad: string;
-  idFaseProyecto: number;
-  fase_proyecto_raps: FaseProyectoRap[];
-}
-
-interface FaseProyecto {
-  id: number;
-  descripcionFase: string;
-  idProyectoFormativo: number;
-  actividades: ActividadProyecto[];
-}
-
-interface ProyectoFormativo {
-  id: number;
-  nombreProyecto: string;
-  version: string;
-  estado: 'ACTIVO' | 'INACTIVO';
-  idPrograma: number;
-  rutaDocumentoUrl: string | null;
-  programa?: Programa;
-  fases?: FaseProyecto[];
-}
+import {
+  ActividadProyecto,
+  FaseProyecto,
+  FaseProyectoMateria,
+  FaseProyectoRap,
+  Materia,
+  Programa,
+  ProyectoFormativo
+} from './types/proyectoFormativo.types';
 
 const ESTADO_STYLES: Record<ProyectoFormativo['estado'], string> = {
   ACTIVO: 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400',
@@ -136,6 +96,28 @@ const ProyectoFormativoEntry: React.FC = () => {
     rap: FaseProyectoRap;
   } | null>(null);
   const [deletingRap, setDeletingRap] = useState<number | null>(null);
+
+  // ── Modal asignar materias hijas a RAP (FaseProyectoMateria) ──
+  const [fpmModalOpen, setFpmModalOpen] = useState(false);
+  const [fpmModalCtx, setFpmModalCtx] = useState<{
+    proyectoId: number;
+    faseId: number;
+    actividadId: number;
+    rap: FaseProyectoRap;
+  } | null>(null);
+  const [materiasHijas, setMateriasHijas] = useState<Materia[]>([]);
+  const [loadingMateriasHijas, setLoadingMateriasHijas] = useState(false);
+  const [searchMateriaHija, setSearchMateriaHija] = useState('');
+  const [selectedMateriaHijaIds, setSelectedMateriaHijaIds] = useState<Set<number>>(new Set());
+  const [savingFpm, setSavingFpm] = useState(false);
+  const [deleteFpm, setDeleteFpm] = useState<{
+    proyectoId: number;
+    faseId: number;
+    actividadId: number;
+    rapId: number;
+    fpm: FaseProyectoMateria;
+  } | null>(null);
+  const [deletingFpm, setDeletingFpm] = useState<number | null>(null);
 
   //Programa:
   const [programa, setPrograma] = useState<Programa | null>(null);
@@ -596,6 +578,131 @@ const ProyectoFormativoEntry: React.FC = () => {
     }
   };
 
+  // ── FaseProyectoMateria handlers ──
+  const openFpmModal = async (
+    proyectoId: number,
+    faseId: number,
+    actividadId: number,
+    rap: FaseProyectoRap
+  ) => {
+    setFpmModalCtx({ proyectoId, faseId, actividadId, rap });
+    setSearchMateriaHija('');
+    setSelectedMateriaHijaIds(new Set());
+    setFpmModalOpen(true);
+    setLoadingMateriasHijas(true);
+    try {
+      const res = await axios.get('fase-proyecto-materia/materias', {
+        params: { idMateriaPadre: rap.idMateria, idFaseProyecto: faseId }
+      });
+      setMateriasHijas(res.data);
+    } catch {
+      enqueueSnackbar('Error al cargar las materias.', { variant: 'error' });
+    } finally {
+      setLoadingMateriasHijas(false);
+    }
+  };
+
+  const closeFpmModal = () => {
+    setFpmModalOpen(false);
+    setFpmModalCtx(null);
+    setSearchMateriaHija('');
+    setSelectedMateriaHijaIds(new Set());
+    setMateriasHijas([]);
+  };
+
+  const toggleMateriaHijaSeleccionada = (id: number) => {
+    setSelectedMateriaHijaIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const updateRap = (
+    proyectoId: number,
+    faseId: number,
+    actividadId: number,
+    rapId: number,
+    updater: (r: FaseProyectoRap) => FaseProyectoRap
+  ) => {
+    updateActividad(proyectoId, faseId, actividadId, (a) => ({
+      ...a,
+      fase_proyecto_raps: (a.fase_proyecto_raps ?? []).map((r) => (r.id === rapId ? updater(r) : r))
+    }));
+  };
+
+  const handleAsignarFpm = async () => {
+    if (!fpmModalCtx || selectedMateriaHijaIds.size === 0) return;
+    const { proyectoId, faseId, actividadId, rap } = fpmModalCtx;
+    setSavingFpm(true);
+    try {
+      const res = await axios.post('fase-proyecto-materia', {
+        idFaseProyectoRap: rap.id,
+        idMaterias: Array.from(selectedMateriaHijaIds)
+      });
+      const { creados, duplicados } = res.data as {
+        creados: FaseProyectoMateria[];
+        duplicados: number[];
+      };
+      if (creados.length > 0) {
+        updateRap(proyectoId, faseId, actividadId, rap.id, (r) => ({
+          ...r,
+          fase_proyecto_materias: [...(r.fase_proyecto_materias ?? []), ...creados]
+        }));
+        setFpmModalCtx((prev) =>
+          prev
+            ? {
+                ...prev,
+                rap: {
+                  ...prev.rap,
+                  fase_proyecto_materias: [...(prev.rap.fase_proyecto_materias ?? []), ...creados]
+                }
+              }
+            : prev
+        );
+        enqueueSnackbar(
+          `${creados.length} materia${creados.length !== 1 ? 's' : ''} asignada${creados.length !== 1 ? 's' : ''}.`,
+          { variant: 'success' }
+        );
+      }
+      if (duplicados.length > 0) {
+        enqueueSnackbar(
+          `${duplicados.length} ya estaba${duplicados.length !== 1 ? 'n' : ''} asignada${duplicados.length !== 1 ? 's' : ''}.`,
+          {
+            variant: 'warning'
+          }
+        );
+      }
+      setSelectedMateriaHijaIds(new Set());
+      setSearchMateriaHija('');
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error al asignar.', { variant: 'error' });
+    } finally {
+      setSavingFpm(false);
+    }
+  };
+
+  const handleDesasignarFpm = async () => {
+    if (!deleteFpm) return;
+    const { proyectoId, faseId, actividadId, rapId, fpm } = deleteFpm;
+    setDeletingFpm(fpm.id);
+    try {
+      await axios.delete(`fase-proyecto-materia/${fpm.id}`);
+      updateRap(proyectoId, faseId, actividadId, rapId, (r) => ({
+        ...r,
+        fase_proyecto_materias: (r.fase_proyecto_materias ?? []).filter((m) => m.id !== fpm.id)
+      }));
+      enqueueSnackbar('Materia desasignada.', { variant: 'success' });
+      setDeleteFpm(null);
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error al desasignar.', {
+        variant: 'error'
+      });
+    } finally {
+      setDeletingFpm(null);
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -709,20 +816,6 @@ const ProyectoFormativoEntry: React.FC = () => {
                   <div className="border-t border-gray-100 dark:border-coal-300 p-4 space-y-4">
                     {/* Acciones integradas del proyecto */}
                     <div className="flex flex-wrap gap-2">
-                      {/**
-                        
-                        <button
-                          onClick={() =>
-                            navigate(
-                              `/gestion-academica/configuracion/redes/programas/${idRed}/proyecto/${idPrograma}/detalle/${proyecto.id}`
-                            )
-                          }
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-indigo-50 hover:bg-indigo-100 font-semibold text-indigo-700 dark:text-indigo-400 dark:bg-indigo-500/10 rounded-lg transition-all"
-                        >
-                          <i className="ki-outline ki-eye text-sm" /> Ver detalles completos
-                        </button>
-                       
-                       */}
                       <button
                         onClick={() => openEditProyecto(proyecto)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 font-semibold text-blue-700 dark:text-blue-400 dark:bg-blue-500/10 rounded-lg transition-all"
@@ -899,53 +992,111 @@ const ProyectoFormativoEntry: React.FC = () => {
                                                   Sin RAP/materias asociadas.
                                                 </p>
                                               ) : (
-                                                raps.map((rap) => (
-                                                  <div
-                                                    key={rap.id}
-                                                    className="flex items-start gap-2 px-2.5 py-2 bg-white dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-md"
-                                                  >
-                                                    <i className="ki-outline ki-book-open text-blue-400 text-xs mt-0.5 shrink-0" />
-                                                    <div className="min-w-0 flex-1">
-                                                      <p className="text-[11px] font-medium text-gray-700 dark:text-gray-300 leading-snug">
-                                                        <span className="text-blue-500 dark:text-blue-400">
-                                                          {rap.materia.codigo}
-                                                        </span>{' '}
-                                                        — {rap.materia.nombreMateria}
-                                                      </p>
-                                                      <div className="flex items-center gap-2 mt-1">
-                                                        {rap.materia.horas && (
-                                                          <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-0.5">
-                                                            <i className="ki-outline ki-time text-[10px]" />
-                                                            {rap.materia.horas} h
-                                                          </span>
-                                                        )}
-                                                        {rap.materia.creditos != null && (
-                                                          <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-0.5">
-                                                            <i className="ki-outline ki-medal-star text-[10px]" />
-                                                            {rap.materia.creditos}{' '}
-                                                            {rap.materia.creditos === 1
-                                                              ? 'crédito'
-                                                              : 'créditos'}
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                    <button
-                                                      onClick={() =>
-                                                        setDeleteRap({
-                                                          proyectoId: proyecto.id,
-                                                          faseId: fase.id,
-                                                          actividadId: actividad.id,
-                                                          rap
-                                                        })
-                                                      }
-                                                      title="Quitar materia"
-                                                      className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 hover:text-red-600 transition-colors shrink-0"
+                                                raps.map((rap) => {
+                                                  const fpms = rap.fase_proyecto_materias ?? [];
+                                                  return (
+                                                    <div
+                                                      key={rap.id}
+                                                      className="flex flex-col gap-1.5 px-2.5 py-2 bg-white dark:bg-coal-500 border border-gray-100 dark:border-coal-300 rounded-md"
                                                     >
-                                                      <i className="ki-outline ki-trash text-[10px]" />
-                                                    </button>
-                                                  </div>
-                                                ))
+                                                      {/* Fila de la competencia (RAP) */}
+                                                      <div className="flex items-start gap-2">
+                                                        <i className="ki-outline ki-book-open text-blue-400 text-xs mt-0.5 shrink-0" />
+                                                        <div className="min-w-0 flex-1">
+                                                          <p className="text-[11px] font-medium text-gray-700 dark:text-gray-300 leading-snug">
+                                                            <span className="text-blue-500 dark:text-blue-400">
+                                                              {rap.materia.codigo}
+                                                            </span>{' '}
+                                                            — {rap.materia.nombreMateria}
+                                                          </p>
+                                                          <div className="flex items-center gap-2 mt-1">
+                                                            {rap.materia.horas && (
+                                                              <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-0.5">
+                                                                <i className="ki-outline ki-time text-[10px]" />
+                                                                {rap.materia.horas} h
+                                                              </span>
+                                                            )}
+                                                            {rap.materia.creditos != null && (
+                                                              <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-0.5">
+                                                                <i className="ki-outline ki-medal-star text-[10px]" />
+                                                                {rap.materia.creditos}{' '}
+                                                                {rap.materia.creditos === 1
+                                                                  ? 'crédito'
+                                                                  : 'créditos'}
+                                                              </span>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                          <button
+                                                            onClick={() =>
+                                                              openFpmModal(
+                                                                proyecto.id,
+                                                                fase.id,
+                                                                actividad.id,
+                                                                rap
+                                                              )
+                                                            }
+                                                            title="Asignar raps"
+                                                            className="flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] bg-teal-50 hover:bg-teal-100 font-semibold text-teal-700 dark:text-teal-400 dark:bg-teal-500/10 rounded transition-colors"
+                                                          >
+                                                            <i className="ki-outline ki-plus text-[9px]" />{' '}
+                                                            Asignar Raps
+                                                          </button>
+                                                          <button
+                                                            onClick={() =>
+                                                              setDeleteRap({
+                                                                proyectoId: proyecto.id,
+                                                                faseId: fase.id,
+                                                                actividadId: actividad.id,
+                                                                rap
+                                                              })
+                                                            }
+                                                            title="Quitar competencia"
+                                                            className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 hover:text-red-600 transition-colors"
+                                                          >
+                                                            <i className="ki-outline ki-trash text-[10px]" />
+                                                          </button>
+                                                        </div>
+                                                      </div>
+
+                                                      {/* Materias hijas (FaseProyectoMateria) */}
+                                                      {fpms.length > 0 && (
+                                                        <div className="ml-5 space-y-1 border-l-2 border-teal-200 dark:border-teal-500/30 pl-2">
+                                                          {fpms.map((fpm) => (
+                                                            <div
+                                                              key={fpm.id}
+                                                              className="flex items-center gap-1.5"
+                                                            >
+                                                              <i className="ki-outline ki-arrow-right text-teal-400 text-[9px] shrink-0" />
+                                                              <span className="text-[10px] text-gray-600 dark:text-gray-400 flex-1 truncate">
+                                                                <span className="text-teal-600 dark:text-teal-400 font-medium">
+                                                                  {fpm.materia.codigo}
+                                                                </span>{' '}
+                                                                {fpm.materia.nombreMateria}
+                                                              </span>
+                                                              <button
+                                                                onClick={() =>
+                                                                  setDeleteFpm({
+                                                                    proyectoId: proyecto.id,
+                                                                    faseId: fase.id,
+                                                                    actividadId: actividad.id,
+                                                                    rapId: rap.id,
+                                                                    fpm
+                                                                  })
+                                                                }
+                                                                title="Quitar materia"
+                                                                className="w-5 h-5 flex items-center justify-center rounded text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors shrink-0"
+                                                              >
+                                                                <i className="ki-outline ki-trash text-[9px]" />
+                                                              </button>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  );
+                                                })
                                               )}
                                             </div>
                                           )}
@@ -1598,6 +1749,244 @@ const ProyectoFormativoEntry: React.FC = () => {
                     <i className="ki-outline ki-trash text-sm" />
                   )}
                   {deletingRap ? 'Quitando...' : 'Sí, quitar'}
+                </button>
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {fpmModalOpen && fpmModalCtx && (
+        <Modal open onClose={closeFpmModal} className="mx-4 sm:mx-auto max-w-lg w-full">
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>Asignar Raps a competencia</ModalTitle>
+              <button
+                onClick={closeFpmModal}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5 space-y-4">
+              {/* Contexto: competencia seleccionada */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                <i className="ki-outline ki-book-open text-blue-500 text-sm shrink-0" />
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 truncate">
+                  {fpmModalCtx.rap.materia.codigo} — {fpmModalCtx.rap.materia.nombreMateria}
+                </p>
+              </div>
+
+              {/* Ya asignadas */}
+              {(fpmModalCtx.rap.fase_proyecto_materias ?? []).length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Ya asignadas:
+                  </p>
+                  <div className="space-y-1">
+                    {(fpmModalCtx.rap.fase_proyecto_materias ?? []).map((fpm) => (
+                      <div
+                        key={fpm.id}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 rounded text-[11px]"
+                      >
+                        <i className="ki-outline ki-check text-teal-500 text-[10px]" />
+                        <span className="text-teal-700 dark:text-teal-400 font-medium">
+                          {fpm.materia.codigo}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {fpm.materia.nombreMateria}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Chips seleccionados */}
+              {selectedMateriaHijaIds.size > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {materiasHijas
+                    .filter((m) => selectedMateriaHijaIds.has(m.id))
+                    .map((m) => (
+                      <span
+                        key={m.id}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 rounded-full text-xs font-medium text-teal-700 dark:text-teal-400"
+                      >
+                        {m.codigo ? `[${m.codigo}] ` : ''}
+                        {m.nombreMateria}
+                        <button
+                          onClick={() => toggleMateriaHijaSeleccionada(m.id)}
+                          className="ml-0.5 text-teal-400 hover:text-teal-600 transition-colors"
+                        >
+                          <i className="ki-outline ki-cross text-[10px]" />
+                        </button>
+                      </span>
+                    ))}
+                  <button
+                    onClick={() => setSelectedMateriaHijaIds(new Set())}
+                    className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              )}
+
+              {/* Lista de materias hijas disponibles */}
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                  Raps disponibles
+                </label>
+                {loadingMateriasHijas ? (
+                  <div className="flex justify-center py-6">
+                    <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : materiasHijas.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic px-1 py-2">
+                    Esta competencia no tiene materias hijas registradas.
+                  </p>
+                ) : (
+                  <>
+                    <div className="relative mb-1.5">
+                      <i className="ki-outline ki-magnifier absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchMateriaHija}
+                        onChange={(e) => setSearchMateriaHija(e.target.value)}
+                        placeholder="Buscar Raps..."
+                        className="w-full text-sm pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                    <div className="border border-gray-200 dark:border-coal-300 rounded-lg overflow-hidden bg-white dark:bg-coal-400 divide-y divide-gray-100 dark:divide-coal-300 max-h-52 overflow-y-auto">
+                      {materiasHijas
+                        .filter((m) => {
+                          const asignadasIds = new Set(
+                            (fpmModalCtx.rap.fase_proyecto_materias ?? []).map((x) => x.idMateria)
+                          );
+                          if (asignadasIds.has(m.id)) return false;
+                          if (!searchMateriaHija.trim()) return true;
+                          return (
+                            m.nombreMateria
+                              .toLowerCase()
+                              .includes(searchMateriaHija.toLowerCase()) ||
+                            m.codigo?.toLowerCase().includes(searchMateriaHija.toLowerCase())
+                          );
+                        })
+                        .map((materia) => {
+                          const checked = selectedMateriaHijaIds.has(materia.id);
+                          return (
+                            <label
+                              key={materia.id}
+                              className={[
+                                'flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors select-none',
+                                checked
+                                  ? 'bg-teal-50 dark:bg-teal-500/10'
+                                  : 'hover:bg-gray-50 dark:hover:bg-coal-300'
+                              ].join(' ')}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleMateriaHijaSeleccionada(materia.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                                  {materia.nombreMateria}
+                                </p>
+                                {materia.codigo && (
+                                  <span className="text-xs text-teal-500 dark:text-teal-400 font-medium">
+                                    {materia.codigo}
+                                  </span>
+                                )}
+                              </div>
+                              {checked && (
+                                <i className="ki-outline ki-check-circle text-teal-500 text-sm shrink-0" />
+                              )}
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-coal-300">
+                <button
+                  onClick={closeFpmModal}
+                  disabled={savingFpm}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white dark:bg-coal-400 hover:bg-gray-100 dark:hover:bg-coal-300 font-semibold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-coal-300 rounded-lg transition-all disabled:opacity-50"
+                >
+                  <i className="ki-outline ki-cross-circle text-sm" /> Cerrar
+                </button>
+                <button
+                  onClick={handleAsignarFpm}
+                  disabled={savingFpm || selectedMateriaHijaIds.size === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-50 hover:bg-teal-100 font-semibold text-teal-700 dark:text-teal-400 dark:bg-teal-500/10 rounded-lg transition-all disabled:opacity-50"
+                >
+                  {savingFpm ? (
+                    <div className="w-3.5 h-3.5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <i className="ki-outline ki-check-circle text-sm" />
+                  )}
+                  {savingFpm
+                    ? 'Asignando...'
+                    : `Asignar ${selectedMateriaHijaIds.size || ''} materia${selectedMateriaHijaIds.size !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* ── Modal Confirmar Desasignar FaseProyectoMateria ── */}
+      {deleteFpm && (
+        <Modal open onClose={() => setDeleteFpm(null)} className="mx-4 sm:mx-auto max-w-sm w-full">
+          <ModalContent className="bg-white dark:bg-coal-500 rounded-xl w-full">
+            <ModalHeader className="border-b border-gray-100 dark:border-coal-300 px-5 py-4 flex justify-between items-center">
+              <ModalTitle>Confirmar desasignación</ModalTitle>
+              <button
+                onClick={() => setDeleteFpm(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="ki-outline ki-cross text-lg" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center shrink-0">
+                  <i className="ki-outline ki-trash text-red-600 dark:text-red-400 text-base" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                    ¿Quitar esta materia?
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                    {deleteFpm.fpm.materia.nombreMateria}
+                  </p>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-2">
+                    Se eliminará la asignación de esta materia a la competencia.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-coal-300">
+                <button
+                  onClick={() => setDeleteFpm(null)}
+                  disabled={!!deletingFpm}
+                  className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDesasignarFpm}
+                  disabled={!!deletingFpm}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all disabled:opacity-50"
+                >
+                  {deletingFpm ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <i className="ki-outline ki-trash text-sm" />
+                  )}
+                  {deletingFpm ? 'Quitando...' : 'Sí, quitar'}
                 </button>
               </div>
             </ModalBody>
