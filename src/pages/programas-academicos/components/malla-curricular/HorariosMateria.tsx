@@ -336,98 +336,112 @@ const toggleDia = (index: number) => {
     festivosSet
   ]);
 
-  const calcularProyeccion = () => {
-    const diasActivos = values.horarios.filter(h => h.activo).length;
+ const calcularProyeccion = () => {
+  const diasActivos = values.horarios.filter(h => h.activo).length;
 
-    const horasSemana = values.horarios
-      .filter(h => h.activo && h.horaInicio && h.horaFin)
-      .reduce((total, h) => {
+  const horasSemana = values.horarios
+    .filter(h => h.activo && h.horaInicio && h.horaFin)
+    .reduce((total, h) => {
+      const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
+      const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
+      const minutos = (hFin * 60 + mFin) - (hIni * 60 + mIni);
+      return total + (minutos / 60);
+    }, 0);
+
+  // Proyección de Fecha Fin
+  let fechaFinEstimada = '';
+  let horasProgramadas = 0;
+  let sesionesPasadas = 0;
+  let totalSesiones = 0;
+  let sesionesRestantes = 0;
+
+  const horasObjetivo = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
+  const horasPendientes = Math.max(0, horasObjetivo - (horasActuales || 0));
+
+  // --- Trabajamos en MINUTOS ENTEROS para evitar errores de decimales ---
+  const minutosPendientes = Math.round(horasPendientes * 60);
+
+  if (values.fechaInicio && diasActivos > 0 && horasSemana > 0 && minutosPendientes > 0) {
+
+    let minutosAcumulados = 0;
+    const fechaIteracion = new Date(values.fechaInicio + 'T00:00:00');
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const mapaHorarios = values.horarios.reduce((acc: any, h) => {
+      if (h.activo && h.horaInicio && h.horaFin) {
+        const jsDay = h.idDia === 7 ? 0 : h.idDia;
         const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
         const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
-        const minutos = (hFin * 60 + mFin) - (hIni * 60 + mIni);
-        return total + (minutos / 60);
-      }, 0);
+        // Duración en minutos, entero exacto (sin dividir entre 60 todavía)
+        const duracionMin = (hFin * 60 + mFin) - (hIni * 60 + mIni);
+        acc[jsDay] = duracionMin;
+      }
+      return acc;
+    }, {});
 
-    // Proyección de Fecha Fin
-    let fechaFinEstimada = '';
-    let horasProgramadas = 0;
-    let sesionesPasadas = 0;
-    let totalSesiones = 0;
-    let sesionesRestantes = 0;
+    // Límite de iteraciones para evitar bucles infinitos
+    let iteraciones = 0;
+    const MAX_ITERACIONES = 365 * 2;
 
-    const horasObjetivo = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
-    const horasPendientes = Math.max(0, horasObjetivo - (horasActuales || 0));
+    const fechaFinCalculada = new Date(fechaIteracion);
+    const fechasSesiones: Date[] = [];
 
-    if (values.fechaInicio && diasActivos > 0 && horasSemana > 0 && horasPendientes > 0) {
+    while (minutosAcumulados < minutosPendientes && iteraciones < MAX_ITERACIONES) {
+      const diaSemana = fechaFinCalculada.getDay();
+      const hayHorarioEnDia = mapaHorarios[diaSemana] !== undefined;
 
-      let horasAcumuladas = 0;
-      const fechaIteracion = new Date(values.fechaInicio + 'T00:00:00');
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      if (hayHorarioEnDia) {
+        const cuentaComoSesion =
+          incluirFestivos || !isColombianHoliday(fechaFinCalculada, festivosSet);
 
-      const mapaHorarios = values.horarios.reduce((acc: any, h) => {
-        if (h.activo && h.horaInicio && h.horaFin) {
-          const jsDay = h.idDia === 7 ? 0 : h.idDia;
-          const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
-          const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
-          const duracion = ((hFin * 60 + mFin) - (hIni * 60 + mIni)) / 60;
-          acc[jsDay] = duracion;
-        }
-        return acc;
-      }, {});
+        if (cuentaComoSesion) {
+          const minutosRestantes = minutosPendientes - minutosAcumulados;
+          // Regla: si lo que falta es más de 60 min (1h), sí agrega la sesión completa.
+          // Si falta 1h o menos, NO agrega otra sesión (evita sumar de más).
+          const debeAgregarSesion = minutosAcumulados === 0 || minutosRestantes > 60;
 
-      // Límite de iteraciones para evitar bucles infinitos
-      let iteraciones = 0;
-      const MAX_ITERACIONES = 365 * 2;
-
-      const fechaFinCalculada = new Date(fechaIteracion);
-      const fechasSesiones: Date[] = [];
-
-      while (horasAcumuladas < horasPendientes && iteraciones < MAX_ITERACIONES) {
-        const diaSemana = fechaFinCalculada.getDay();
-
-        if (mapaHorarios[diaSemana] !== undefined) {
-          const cuentaComoSesion =
-            incluirFestivos || !isColombianHoliday(fechaFinCalculada, festivosSet);
-          if (cuentaComoSesion) {
-            horasAcumuladas += mapaHorarios[diaSemana];
+          if (debeAgregarSesion) {
+            minutosAcumulados += mapaHorarios[diaSemana];
             fechasSesiones.push(new Date(fechaFinCalculada));
+          } else {
+            break;
           }
         }
-
-        if (horasAcumuladas < horasPendientes) {
-          fechaFinCalculada.setDate(fechaFinCalculada.getDate() + 1);
-        }
-        iteraciones++;
       }
 
-      horasProgramadas = horasAcumuladas;
-      fechaFinEstimada = fechaFinCalculada.toISOString().split('T')[0];
-
-      // Calcular sesiones basadas en las fechas reales
-      totalSesiones = fechasSesiones.length;
-      sesionesPasadas = fechasSesiones.filter(fecha => fecha < hoy).length;
-      sesionesRestantes = totalSesiones - sesionesPasadas;
-
-      // Actualizar fecha fin en formik solo si es diferente
-      if (fechaFinEstimada && values.fechaFin !== fechaFinEstimada) {
-        // Usar setTimeout para evitar actualizar durante el render
-        setTimeout(() => {
-          setFieldValue('fechaFin', fechaFinEstimada);
-        }, 0);
+      if (minutosAcumulados < minutosPendientes) {
+        fechaFinCalculada.setDate(fechaFinCalculada.getDate() + 1);
       }
+      iteraciones++;
     }
 
-    setEstadisticas({
-      diasPorSemana: diasActivos,
-      horasSemana: parseFloat(horasSemana.toFixed(2)),
-      horasProgramadas: parseFloat(horasProgramadas.toFixed(2)),
-      fechaFinEstimada,
-      sesionesPasadas,
-      totalSesiones,
-      sesionesRestantes
-    });
-  };
+    horasProgramadas = minutosAcumulados / 60;
+    fechaFinEstimada = fechaFinCalculada.toISOString().split('T')[0];
+
+    // Calcular sesiones basadas en las fechas reales
+    totalSesiones = fechasSesiones.length;
+    sesionesPasadas = fechasSesiones.filter(fecha => fecha < hoy).length;
+    sesionesRestantes = totalSesiones - sesionesPasadas;
+
+    // Actualizar fecha fin en formik solo si es diferente
+    if (fechaFinEstimada && values.fechaFin !== fechaFinEstimada) {
+      setTimeout(() => {
+        setFieldValue('fechaFin', fechaFinEstimada);
+      }, 0);
+    }
+  }
+
+  setEstadisticas({
+    diasPorSemana: diasActivos,
+    horasSemana: parseFloat(horasSemana.toFixed(2)),
+    horasProgramadas: parseFloat(horasProgramadas.toFixed(2)),
+    fechaFinEstimada,
+    sesionesPasadas,
+    totalSesiones,
+    sesionesRestantes
+  });
+};
 
   return (
     <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 animate-fade-in'>
