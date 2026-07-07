@@ -246,27 +246,43 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
 
   const titulo = tituloActividad || actividad?.tituloActividad || 'Actividad';
 
+  const clsLabelFiltro =
+    'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1 block';
+
   return (
     <>
       <Modal open={open} onClose={onClose} zIndex={110}>
-        <ModalContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <ModalHeader>
-            <ModalTitle>Aprendices</ModalTitle>
-            <button className="btn btn-sm btn-icon btn-light btn-clear" onClick={onClose}>
-              <KeenIcon icon="cross" />
-            </button>
-          </ModalHeader>
-          <ModalBody className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 truncate" title={titulo}>
-              {titulo}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {aprendices.length > 0 && (
-                <div className="w-full min-w-[220px] max-w-md">
-                  <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                    Buscar aprendiz
-                  </label>
-                  <Select<AprendizCalificacion, false>
+        <div className="flex min-h-[100dvh] w-full items-center justify-center p-3 sm:px-5 sm:py-10 box-border pointer-events-none">
+          <div
+            className="pointer-events-auto w-full max-w-5xl xl:max-w-6xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-0 max-h-[min(94dvh,960px)]">
+              <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
+                <div className="min-w-0 flex-1">
+                  <ModalTitle className="text-gray-900 dark:text-white">Aprendices</ModalTitle>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 truncate" title={titulo}>
+                    {titulo}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
+                  onClick={onClose}
+                  title="Cerrar"
+                >
+                  <KeenIcon icon="cross" />
+                </button>
+              </ModalHeader>
+              <ModalBody className="!flex !min-h-0 !flex-1 !flex-col !gap-0 !overflow-hidden !p-0">
+                <div className="shrink-0 border-b border-gray-100 dark:border-gray-600/50 px-5 sm:px-6 py-4 space-y-3">
+                  <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end">
+                    {aprendices.length > 0 && (
+                      <div className="w-full xl:flex-1 xl:min-w-[240px] xl:max-w-md">
+                        <label className={clsLabelFiltro} htmlFor="buscar-aprendiz-actividad">
+                          Buscar aprendiz
+                        </label>
+                        <Select<AprendizCalificacion, false>
                     inputId="buscar-aprendiz-actividad"
                     instanceId="buscar-aprendiz-actividad"
                     options={aprendices}
@@ -291,202 +307,277 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                       return filterOptionNormalized([a.nombreAprendiz, a.identificacion, a.email], raw);
                     }}
                     onChange={handleBusquedaAprendizSelect}
-                    noOptionsMessage={compactReactSelectNoOptions}
-                  />
-                </div>
-              )}
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="input text-sm py-1.5 px-2 border border-gray-300 dark:border-gray-600 rounded-lg"
-              >
-                <option value="todos">TODOS LOS APRENDICES</option>
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="ENVIADO">Enviado</option>
-                <option value="CORRECCION_SOLICITADA">Corrección solicitada</option>
-                <option value="CALIFICADO">Calificado</option>
-              </select>
-              {esActividadGrupal && gruposEnActividad.length > 0 && (
-                <>
-                  <select
-                    value={filtroGrupo}
-                    onChange={(e) => setFiltroGrupo(e.target.value === 'todos' ? 'todos' : Number(e.target.value))}
-                    className="input text-sm py-1.5 px-2 border border-gray-300 dark:border-gray-600 rounded-lg min-w-[140px]"
-                  >
-                    <option value="todos">Todos los grupos</option>
-                    {gruposEnActividad.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.nombre} ({aprendices.filter((a) => a.idGrupo === g.id).length})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 self-center">Calificar por grupos:</span>
-                  {idGrupoParaCalificar && (
-                    <button
-                      type="button"
-                      onClick={() => setModalCalificarGrupoOpen(true)}
-                      className="btn btn-sm btn-primary flex items-center gap-1.5 rounded-lg"
-                    >
-                      <KeenIcon icon="users" className="text-sm" />
-                      Calificar grupo ({integrantesGrupo.length} integrantes)
-                    </button>
-                  )}
-                </>
-              )}
-              {filtrados.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={toggleSeleccionTodos}
-                    className="btn btn-sm btn-light flex items-center gap-1 rounded-lg"
-                  >
-                    {todosSeleccionados ? 'Desmarcar todos' : 'Seleccionar todos'}
-                  </button>
-                  {seleccionados.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setModalCalificarMasivaOpen(true)}
-                      className="btn btn-sm btn-primary flex items-center gap-1.5 rounded-lg"
-                    >
-                      <KeenIcon icon="check-squared" className="text-sm" />
-                      Calificar seleccionados ({seleccionados.size})
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-              </div>
-            ) : filtrados.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
-                No hay aprendices asignados a esta actividad.
-              </p>
-            ) : (
-              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <table className="w-full text-sm table-fixed">
-                  <thead className="bg-gray-50 dark:bg-coal-500/50 sticky top-0">
-                    <tr>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-10">
-                        <input
-                          type="checkbox"
-                          checked={todosSeleccionados}
-                          onChange={toggleSeleccionTodos}
-                          className="rounded border-gray-300"
+                          noOptionsMessage={compactReactSelectNoOptions}
                         />
-                      </th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-16">Código</th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400">Aprendiz</th>
-                      {esActividadGrupal && (
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-28">Grupo</th>
-                      )}
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-24">Identificación</th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-16">Cal. Num.</th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400">Cal. Estándar</th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-24">Estado</th>
-                      <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-gray-400 w-20">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrados.map((a) => (
-                      <tr
-                        key={a.idCalificacionActividad}
-                        id={`aprendiz-row-${a.idCalificacionActividad}`}
-                        className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/30"
-                      >
-                        <td className="py-2 px-3">
-                          <input
-                            type="checkbox"
-                            checked={seleccionados.has(a.idCalificacionActividad)}
-                            onChange={() => toggleSeleccion(a.idCalificacionActividad)}
-                            className="rounded border-gray-300"
-                          />
-                        </td>
-                        <td className="py-2 px-3 text-gray-900 dark:text-white">{a.idCalificacionActividad}</td>
-                        <td className="py-2 px-3 overflow-hidden">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => setZoomFoto({ src: getFotoUrl(a.rutaFoto ?? undefined), alt: a.nombreAprendiz })}
-                              className="shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                            >
-                              <img
-                                src={getFotoUrl(a.rutaFoto ?? undefined)}
-                                alt={a.nombreAprendiz}
-                                className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              />
-                            </button>
-                            <span className="text-gray-900 dark:text-white truncate block" title={a.nombreAprendiz}>{a.nombreAprendiz}</span>
-                          </div>
-                        </td>
-                        {esActividadGrupal && (
-                          <td className="py-2 px-3 overflow-hidden">
-                            <span className="text-gray-600 dark:text-gray-400 truncate block" title={a.nombreGrupo || `Grupo ${a.idGrupo}`}>
-                              {a.nombreGrupo || (a.idGrupo ? `Grupo ${a.idGrupo}` : '-')}
-                            </span>
-                          </td>
-                        )}
-                        <td className="py-2 px-3 text-gray-700 dark:text-gray-300 truncate" title={a.identificacion || ''}>{a.identificacion || '-'}</td>
-                        <td className="py-2 px-3">
-                          {a.calificacionNumerica != null && a.calificacionNumerica !== '' ? (
-                            (() => {
-                              const nota = parseFloat(String(a.calificacionNumerica));
-                              const esRojo = nota <= 3.5;
-                              const esAmarillo = nota > 3.5 && nota < 4.0;
-                              const esVerde = nota >= 4.0;
-                              const clase = esRojo
-                                ? 'text-red-600 dark:text-red-400 font-medium'
-                                : esAmarillo
-                                ? 'text-amber-600 dark:text-amber-400 font-medium'
-                                : esVerde
-                                ? 'text-green-600 dark:text-green-400 font-medium'
-                                : 'text-gray-600 dark:text-gray-400 font-medium';
-                              return <span className={clase}>{a.calificacionNumerica}</span>;
-                            })()
-                          ) : (
-                            <span className="text-red-600 dark:text-red-400">Sin calificar</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-gray-600 dark:text-gray-400 overflow-hidden">
-                          <span className="truncate block" title={a.calificacionEstandart || 'Sin configuración de calificaciones'}>
-                            {a.calificacionEstandart || 'Sin configuración'}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3">
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                              a.estado === 'CALIFICADO'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                : a.estado === 'ENVIADO'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                : a.estado === 'CORRECCION_SOLICITADA'
-                                ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                            }`}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-end gap-2.5">
+                      <div>
+                        <label className={clsLabelFiltro} htmlFor="filtro-estado-aprendices">
+                          Estado
+                        </label>
+                        <select
+                          id="filtro-estado-aprendices"
+                          value={filtroEstado}
+                          onChange={(e) => setFiltroEstado(e.target.value)}
+                          className="select select-sm min-w-[10.5rem]"
+                        >
+                          <option value="todos">Todos los aprendices</option>
+                          <option value="PENDIENTE">Pendiente</option>
+                          <option value="ENVIADO">Enviado</option>
+                          <option value="CORRECCION_SOLICITADA">Corrección solicitada</option>
+                          <option value="CALIFICADO">Calificado</option>
+                        </select>
+                      </div>
+                      {esActividadGrupal && gruposEnActividad.length > 0 && (
+                        <div>
+                          <label className={clsLabelFiltro} htmlFor="filtro-grupo-aprendices">
+                            Grupo
+                          </label>
+                          <select
+                            id="filtro-grupo-aprendices"
+                            value={filtroGrupo}
+                            onChange={(e) =>
+                              setFiltroGrupo(e.target.value === 'todos' ? 'todos' : Number(e.target.value))
+                            }
+                            className="select select-sm min-w-[9.5rem]"
                           >
-                            {a.estado === 'CORRECCION_SOLICITADA' ? 'CORRECCIÓN' : a.estado}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleVerYCalificar(a)}
-                              className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-400"
-                              title="Ver respuesta y calificar"
-                            >
-                              <KeenIcon icon="eye" className="text-sm" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </ModalBody>
-        </ModalContent>
+                            <option value="todos">Todos los grupos</option>
+                            {gruposEnActividad.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.nombre} ({aprendices.filter((a) => a.idGrupo === g.id).length})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {esActividadGrupal && gruposEnActividad.length > 0 && idGrupoParaCalificar && (
+                      <button
+                        type="button"
+                        onClick={() => setModalCalificarGrupoOpen(true)}
+                        className="btn btn-sm btn-primary"
+                      >
+                        <KeenIcon icon="users" className="me-1" />
+                        Calificar grupo ({integrantesGrupo.length})
+                      </button>
+                    )}
+                    {filtrados.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={toggleSeleccionTodos}
+                          className="btn btn-sm btn-light"
+                        >
+                          {todosSeleccionados ? 'Desmarcar todos' : 'Seleccionar todos'}
+                        </button>
+                        {seleccionados.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setModalCalificarMasivaOpen(true)}
+                            className="btn btn-sm btn-primary"
+                          >
+                            <KeenIcon icon="check-squared" className="me-1" />
+                            Calificar seleccionados ({seleccionados.size})
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0 flex flex-col px-5 sm:px-6 py-4">
+                  {loading ? (
+                    <div className="flex justify-center py-12">
+                      <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-b-transparent border-primary" />
+                    </div>
+                  ) : filtrados.length === 0 ? (
+                    <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
+                      <KeenIcon icon="users" className="text-4xl text-gray-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        No hay aprendices asignados
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        No hay aprendices asignados a esta actividad con el filtro actual.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="card card-grid min-w-full flex-1 min-h-0 flex flex-col border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                      <div className="card-body !p-0 flex-1 min-h-0 flex flex-col">
+                        <div className="scrollable-y-auto flex-1 min-h-0 max-h-[min(55dvh,520px)] [scrollbar-gutter:stable]">
+                          <table className="w-full min-w-0 table-fixed" style={{ tableLayout: 'fixed' }}>
+                            <colgroup>
+                              <col style={{ width: 44 }} />
+                              <col style={{ width: esActividadGrupal ? '26%' : '32%' }} />
+                              {esActividadGrupal && <col style={{ width: '11%' }} />}
+                              <col style={{ width: esActividadGrupal ? '14%' : '16%' }} />
+                              <col style={{ width: esActividadGrupal ? '10%' : '12%' }} />
+                              <col style={{ width: esActividadGrupal ? '16%' : '20%' }} />
+                              <col style={{ width: esActividadGrupal ? '12%' : '14%' }} />
+                              <col style={{ width: '6.5rem' }} />
+                            </colgroup>
+                            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-coal-500/90 backdrop-blur-sm">
+                              <tr className="border-b border-gray-200 dark:border-gray-700">
+                                <th className="py-2.5 px-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={todosSeleccionados}
+                                    onChange={toggleSeleccionTodos}
+                                    className="checkbox checkbox-sm"
+                                    aria-label="Seleccionar todos"
+                                  />
+                                </th>
+                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Aprendiz
+                                </th>
+                                {esActividadGrupal && (
+                                  <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                    Grupo
+                                  </th>
+                                )}
+                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Documento
+                                </th>
+                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Calificación
+                                </th>
+                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Estándar
+                                </th>
+                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Estado
+                                </th>
+                                <th className="text-center py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                  Acciones
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {filtrados.map((a) => (
+                                <tr
+                                  key={a.idCalificacionActividad}
+                                  id={`aprendiz-row-${a.idCalificacionActividad}`}
+                                  className="hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors"
+                                >
+                                  <td className="py-3 px-2 align-middle text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={seleccionados.has(a.idCalificacionActividad)}
+                                      onChange={() => toggleSeleccion(a.idCalificacionActividad)}
+                                      className="checkbox checkbox-sm"
+                                      aria-label={`Seleccionar ${a.nombreAprendiz}`}
+                                    />
+                                  </td>
+                                  <td className="py-3 px-2 sm:px-3 align-middle min-w-0 overflow-hidden">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setZoomFoto({
+                                            src: getFotoUrl(a.rutaFoto ?? undefined),
+                                            alt: a.nombreAprendiz
+                                          })
+                                        }
+                                        className="shrink-0 rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1"
+                                      >
+                                        <img
+                                          src={getFotoUrl(a.rutaFoto ?? undefined)}
+                                          alt={a.nombreAprendiz}
+                                          className="w-9 h-9 rounded-full object-cover border-2 border-gray-100 dark:border-gray-700 shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+                                        />
+                                      </button>
+                                      <span
+                                        className="text-sm font-medium text-gray-900 dark:text-white truncate block"
+                                        title={a.nombreAprendiz}
+                                      >
+                                        {a.nombreAprendiz}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  {esActividadGrupal && (
+                                    <td className="py-3 px-2 sm:px-3 align-middle min-w-0 overflow-hidden">
+                                      <span
+                                        className="text-sm text-gray-600 dark:text-gray-400 truncate block"
+                                        title={a.nombreGrupo || `Grupo ${a.idGrupo}`}
+                                      >
+                                        {a.nombreGrupo || (a.idGrupo ? `Grupo ${a.idGrupo}` : '-')}
+                                      </span>
+                                    </td>
+                                  )}
+                                  <td
+                                    className="py-3 px-2 sm:px-3 align-middle text-sm text-gray-700 dark:text-gray-300 truncate"
+                                    title={a.identificacion || ''}
+                                  >
+                                    {a.identificacion || '-'}
+                                  </td>
+                                  <td className="py-3 px-2 sm:px-3 align-middle text-sm">
+                                    {a.calificacionNumerica != null && a.calificacionNumerica !== '' ? (
+                                      (() => {
+                                        const nota = parseFloat(String(a.calificacionNumerica));
+                                        const esRojo = nota <= 3.5;
+                                        const esAmarillo = nota > 3.5 && nota < 4.0;
+                                        const esVerde = nota >= 4.0;
+                                        const clase = esRojo
+                                          ? 'text-red-600 dark:text-red-400 font-semibold'
+                                          : esAmarillo
+                                            ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                                            : esVerde
+                                              ? 'text-green-600 dark:text-green-400 font-semibold'
+                                              : 'text-gray-600 dark:text-gray-400 font-semibold';
+                                        return <span className={clase}>{a.calificacionNumerica}</span>;
+                                      })()
+                                    ) : (
+                                      <span className="text-red-600 dark:text-red-400 font-medium">Sin calificar</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-2 sm:px-3 align-middle min-w-0 overflow-hidden">
+                                    <span
+                                      className="text-sm text-gray-600 dark:text-gray-400 truncate block"
+                                      title={a.calificacionEstandart || 'Sin configuración de calificaciones'}
+                                    >
+                                      {a.calificacionEstandart || 'Sin configuración'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 sm:px-3 align-middle">
+                                    <span
+                                      className={`inline-flex max-w-full px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                                        a.estado === 'CALIFICADO'
+                                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                          : a.estado === 'ENVIADO'
+                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                            : a.estado === 'CORRECCION_SOLICITADA'
+                                              ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200'
+                                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                      }`}
+                                    >
+                                      {a.estado === 'CORRECCION_SOLICITADA' ? 'Corrección' : a.estado}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 sm:px-3 align-middle text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleVerYCalificar(a)}
+                                      className="btn btn-sm btn-icon btn-clear btn-primary"
+                                      title="Ver respuesta y calificar"
+                                    >
+                                      <KeenIcon icon="eye" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ModalBody>
+            </ModalContent>
+          </div>
+        </div>
       </Modal>
       <ModalVerRespuestaYCalificar
         open={modalCalificarOpen}
@@ -555,14 +646,12 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  onClick={() => setModalCalificarGrupoOpen(false)}
-                >
+                <button type="button" className="btn btn-sm btn-light" onClick={() => setModalCalificarGrupoOpen(false)}>
                   Cancelar
                 </button>
                 <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                  type="button"
+                  className="btn btn-sm btn-primary"
                   onClick={handleCalificarGrupo}
                   disabled={guardandoGrupo}
                 >
@@ -610,14 +699,12 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  onClick={() => setModalCalificarMasivaOpen(false)}
-                >
+                <button type="button" className="btn btn-sm btn-light" onClick={() => setModalCalificarMasivaOpen(false)}>
                   Cancelar
                 </button>
                 <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                  type="button"
+                  className="btn btn-sm btn-primary"
                   onClick={handleCalificarMasiva}
                   disabled={guardandoMasiva}
                 >
