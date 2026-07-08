@@ -16,6 +16,7 @@ import {
   columnaHorarioApiClase,
   claseVisibleEnGrillaHorario,
   minutosFranjaHorarioClase,
+  minutosDesdeMedianocheHorario24h,
   tipoJornadaClaseAsignada
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
@@ -150,19 +151,8 @@ function textoRangoDel1Al1MesSiguiente(ref: Date = new Date()): string {
   return `del 1 de ${mesActual} de ${y} al 1 de ${mesSiguiente} de ${yN}`;
 }
 
-function horaAMinutos(hora: string, jornadaTipo: string): number | null {
-  const t = extraerHoraHHMM(hora);
-  if (!t) return null;
-  const parts = t.split(':');
-  if (parts.length < 2) return null;
-  let h = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10) || 0;
-  if (Number.isNaN(h)) return null;
-  const lowerJ = (jornadaTipo || '').toLowerCase();
-  const esTardeONoche =
-    lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  if (esTardeONoche && h < 12) h += 12;
-  return h * 60 + m;
+function horaAMinutos(hora: string, _jornadaTipo?: string): number | null {
+  return minutosDesdeMedianocheHorario24h(hora);
 }
 
 function formatoHoraCorta(min: number): string {

@@ -19,7 +19,6 @@ import {
   unificarSesionesCompletadas,
   ymdFromFechaSesion,
   ymdSetSesionesCompletadas,
-  textoJornadaParaAjuste12h,
   titulosCompetenciaYRapUi,
   jsGetDayDesdeApiClase,
   calendarioInstructorEnRango,
@@ -649,16 +648,12 @@ const CalendarComponent: React.FC<{
       [filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef]
     );
 
-    const formatHora12Tooltip = (timeString: string, jornadaNombre: string): string => {
+    const formatHora12Tooltip = (timeString: string, _jornadaNombre?: string): string => {
       if (!timeString) return '—';
       const time = timeString.substring(0, 5);
       const [hoursStr, minutes] = time.split(':');
-      let hour24 = parseInt(hoursStr, 10);
+      const hour24 = parseInt(hoursStr, 10);
       if (isNaN(hour24)) return timeString;
-      const lowerJ = (jornadaNombre || '').toLowerCase();
-      const esTardeONoche =
-        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-      if (esTardeONoche && hour24 < 12) hour24 += 12;
       const esPM = hour24 >= 12;
       let hour12 = hour24 % 12;
       if (hour12 === 0) hour12 = 12;
@@ -783,24 +778,10 @@ const CalendarComponent: React.FC<{
 
       const finVentanaFranjaEnDia = (row: ClaseTooltipDia, diaCalendario: Date): Date => {
         const ahora = ahoraRef;
-        let [hIni, mIni] = (
-          extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5)
-        )
-          .split(':')
-          .map(Number);
-        let [hFin, mFin] = (
-          extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5)
-        )
-          .split(':')
-          .map(Number);
-        const lowerJ = textoJornadaParaAjuste12h({
-          jornada_nombre: row.jornada_nombre,
-          jornada_tipo: row.jornada_tipo
-        });
-        const esTardeONoche =
-          lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-        if (esTardeONoche && hIni < 12) hIni += 12;
-        if (esTardeONoche && hFin < 12) hFin += 12;
+        const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+        const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+        const [hIni, mIni] = hiS.split(':').map(Number);
+        const [hFin, mFin] = hfS.split(':').map(Number);
         const hi = new Date(diaCalendario);
         hi.setHours(hIni, mIni || 0, 0, 0);
         const hf = new Date(diaCalendario);
@@ -934,20 +915,10 @@ const CalendarComponent: React.FC<{
         (s) => ymdFromFechaSesion(s.fechaSesion) === ymd
       );
 
-      let [hIni, mIni] = (extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5))
-        .split(':')
-        .map(Number);
-      let [hFin, mFin] = (extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5))
-        .split(':')
-        .map(Number);
-      const lowerJ = textoJornadaParaAjuste12h({
-        jornada_nombre: row.jornada_nombre,
-        jornada_tipo: row.jornada_tipo
-      });
-      const esTardeONoche =
-        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-      if (esTardeONoche && hIni < 12) hIni += 12;
-      if (esTardeONoche && hFin < 12) hFin += 12;
+      const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+      const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+      const [hIni, mIni] = hiS.split(':').map(Number);
+      const [hFin, mFin] = hfS.split(':').map(Number);
       const hi = new Date(ahora);
       hi.setHours(hIni, mIni || 0, 0, 0);
       const hf = new Date(ahora);
@@ -1843,21 +1814,8 @@ const ClaseDetallePage: React.FC = () => {
     // Verificar si estamos dentro del rango de horas de la clase
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
     const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
-    let [hIni, mIni] = hiS.split(':').map(Number);
-    let [hFin, mFin] = hfS.split(':').map(Number);
-
-    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTardeOEnoche =
-      jornadaTipoUpper.includes('TARDE') ||
-      jornadaTipoUpper.includes('NOCHE') ||
-      jornadaTipoUpper.includes('NOCTURNA');
-
-    if (esTardeOEnoche && hIni < 12) {
-      hIni += 12;
-    }
-    if (esTardeOEnoche && hFin < 12) {
-      hFin += 12;
-    }
+    const [hIni, mIni] = hiS.split(':').map(Number);
+    const [hFin, mFin] = hfS.split(':').map(Number);
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(hIni, mIni, 0, 0);
@@ -2245,29 +2203,19 @@ const ClaseDetallePage: React.FC = () => {
     return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
   };
 
-  // Función para convertir hora string (HH:MM:SS o HH:MM) a minutos desde medianoche
-  // El backend devuelve horas en formato 12h pero como si fueran 24h (ej: "04:00:00" = 4:00 PM si jornada es TARDE)
-  const timeToMinutes = (timeString: string, jornadaTipo?: string): number => {
+  // Función para convertir hora string (HH:MM:SS o HH:MM) a minutos desde medianoche (24h, horarioMateria).
+  const timeToMinutes = (timeString: string): number => {
     if (!timeString) return 0;
     const time = extraerHoraHHMM(timeString) ?? timeString.substring(0, 5);
-    let [hours, minutes] = time.split(':').map(Number);
-
-    const jornadaTipoUpper = (jornadaTipo || '').toUpperCase();
-    const esTarde = jornadaTipoUpper.includes('TARDE');
-    const esNoche = jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
-
-    if ((esTarde || esNoche) && hours < 12) {
-      hours += 12;
-    }
-
+    const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
 
   // Función para calcular la duración total de la clase en segundos
   const calcularDuracionClase = (): number => {
     if (!clase?.horaInicial || !clase?.horaFinal) return 0;
-    const inicio = timeToMinutes(clase.horaInicial, clase.jornada_tipo || clase.jornada_nombre);
-    const fin = timeToMinutes(clase.horaFinal, clase.jornada_tipo || clase.jornada_nombre);
+    const inicio = timeToMinutes(clase.horaInicial);
+    const fin = timeToMinutes(clase.horaFinal);
     // Si la hora final es menor que la inicial, asumimos que cruza medianoche
     let duracionMinutos = 0;
     if (fin <= inicio) {
@@ -2337,18 +2285,8 @@ const ClaseDetallePage: React.FC = () => {
     // 3. Hora actual dentro del rango horaInicial–horaFinal (misma lógica de jornada que el listado y el horario)
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
     const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
-    let [hIni, mIni] = hiS.split(':').map(Number);
-    let [hFin, mFin] = hfS.split(':').map(Number);
-
-    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
-
-    if (esTardeOEnoche && hIni < 12) {
-      hIni += 12;
-    }
-    if (esTardeOEnoche && hFin < 12) {
-      hFin += 12;
-    }
+    const [hIni, mIni] = hiS.split(':').map(Number);
+    const [hFin, mFin] = hfS.split(':').map(Number);
 
     const inicio = new Date(ahora); inicio.setHours(hIni, mIni, 0, 0);
     const fin = new Date(ahora); fin.setHours(hFin, mFin, 0, 0);
@@ -2365,15 +2303,7 @@ const ClaseDetallePage: React.FC = () => {
 
     const ahora = currentTime;
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
-    let [horaIni, minIni] = hiS.split(':').map(Number);
-
-    const jornadaTipo = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTarde = jornadaTipo.includes('TARDE');
-    const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
-
-    if ((esTarde || esNoche) && horaIni < 12) {
-      horaIni += 12;
-    }
+    const [horaIni, minIni] = hiS.split(':').map(Number);
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(horaIni, minIni, 0, 0);
@@ -3106,7 +3036,7 @@ const ClaseDetallePage: React.FC = () => {
                       (typeof ficha?.asignacion?.programa?.nombrePrograma === 'string'
                         ? ficha.asignacion.programa.nombrePrograma
                         : undefined),
-                    // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
+                    // estadoClase para el botón de asistencia: horas literales de horarioMateria (24h)
                     estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
                     idHorarioMateria: id ? parseInt(id) : undefined,
                     ficha_codigo: ficha?.codigo
