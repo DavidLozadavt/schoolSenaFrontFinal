@@ -244,8 +244,6 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
     }
   };
 
-  const titulo = tituloActividad || actividad?.tituloActividad || 'Actividad';
-
   const clsLabelFiltro =
     'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1 block';
 
@@ -261,9 +259,6 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
               <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
                 <div className="min-w-0 flex-1">
                   <ModalTitle className="text-gray-900 dark:text-white">Aprendices</ModalTitle>
-                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 truncate" title={titulo}>
-                    {titulo}
-                  </p>
                 </div>
                 <button
                   type="button"
