@@ -13,7 +13,6 @@ import {
   ocurrenciaPendienteEnDiaCalendario,
   seccionesSemanaCalendarioClase,
   sesionCompletadaEnFecha,
-  textoJornadaParaAjuste12h,
   textoRangoHorarioClase,
   titulosCompetenciaYRapUi,
   normalizarInstructoresRapApi,
@@ -721,15 +720,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
           let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
           let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
 
-          // Ajuste de 12h a 24h basado en jornada (el backend envía 12h sin indicador AM/PM)
-          const lowerJ = textoJornadaParaAjuste12h(clase);
-          const esTardeONoche =
-            lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-          // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
-          const yaEs24h1 = hFin >= 12;
-          if (esTardeONoche && !yaEs24h1 && hIni < 12) hIni += 12;
-          if (esTardeONoche && !yaEs24h1 && hFin < 12) hFin += 12;
-
           const horaInicio = new Date(ahora);
           horaInicio.setHours(hIni, mIni, 0, 0);
           const horaFinal = new Date(ahora);
@@ -788,15 +778,6 @@ const ListaHistorialRAPs: React.FC<Props> = ({ evento, setEvento, idInstructor }
         // Verificar si estamos dentro del rango de horas
         let [hIni, mIni] = clase.horaInicial.substring(0, 5).split(':').map(Number);
         let [hFin, mFin] = clase.horaFinal.substring(0, 5).split(':').map(Number);
-
-        // Ajuste de 12h a 24h basado en jornada
-        const lowerJ = textoJornadaParaAjuste12h(clase);
-        const esTardeONoche =
-          lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-        // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
-        const yaEs24h2 = hFin >= 12;
-        if (esTardeONoche && !yaEs24h2 && hIni < 12) hIni += 12;
-        if (esTardeONoche && !yaEs24h2 && hFin < 12) hFin += 12;
 
         const horaInicio = new Date(ahora);
         horaInicio.setHours(hIni, mIni, 0, 0);

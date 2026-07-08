@@ -7,9 +7,9 @@ import axios from 'axios';
  * Una fila visible por: ficha + día de semana + franja horaria + jornada de la ficha;
  * si la BD trae varios `horarioMateria` equivalentes, se conserva el de menor `idHorarioMateria`.
  *
- * Las funciones `extraerHoraHHMM` / `normalizarHoraCampoClaseApi` / `textoJornadaParaAjuste12h`
- * deben usarse también en Mis formaciones (`ListaHistorialRAPs`) y en el detalle de clase / calendario
- * (`ClaseDetallePage`) para que horario, listado y calendario interpreten la misma hora y jornada.
+ * Las funciones `extraerHoraHHMM` / `normalizarHoraCampoClaseApi` / `minutosDesdeMedianocheHorario24h`
+ * deben usarse en horario, listado y calendario: la fuente de verdad de la hora es `horarioMateria` (24h).
+ * `jornada_nombre` es solo descriptiva y no modifica horaInicial/horaFinal.
  *
  * `titulosCompetenciaYRapUi` unifica el texto de competencia + RAP en esas tres vistas.
  * `jsGetDayDesdeApiClase` prioriza `dia_semana` del API sobre `idDia` para que el día coincida en todas.
@@ -250,10 +250,21 @@ export function normalizarHoraCampoClaseApi(raw: unknown): string {
   return extraerHoraHHMM(s) ?? s;
 }
 
+/** Minutos desde medianoche a partir de `horarioMateria.horaInicial` / `horaFinal` (formato 24h). */
+export function minutosDesdeMedianocheHorario24h(h: string): number | null {
+  const t = extraerHoraHHMM(h);
+  if (!t) return null;
+  const parts = t.split(':');
+  const hh = parseInt(parts[0]!, 10);
+  const mm = parseInt(parts[1]!, 10) || 0;
+  if (Number.isNaN(hh)) return null;
+  return hh * 60 + mm;
+}
+
 /**
- * Texto para ajuste 12h→24h en franjas (tarde/noche): nombre o tipo de jornada, como en el horario semanal.
+ * Nombre o tipo de jornada de la ficha (solo informativo / UI; no altera horas).
  */
-export function textoJornadaParaAjuste12h(c: {
+export function textoJornadaDescriptivo(c: {
   jornada_nombre?: string | null;
   jornada_tipo?: string | null;
 }): string {
@@ -366,9 +377,7 @@ export function tipoJornadaClaseAsignada(c: FilaFranjaHoraria): TipoJornadaVisua
   return 'otro';
 }
 
-/**
- * Texto de jornada para ajuste 12h→24h (orden `jornada_tipo` → `jornada_nombre`, como el horario).
- */
+/** Texto de jornada de la ficha (orden `jornada_tipo` → `jornada_nombre`). */
 export function textoJornadaAjuste12hHorario(c: FilaFranjaHoraria): string {
   const t = (c.jornada_tipo ?? '').trim();
   const n = (c.jornada_nombre ?? '').trim();
@@ -376,32 +385,12 @@ export function textoJornadaAjuste12hHorario(c: FilaFranjaHoraria): string {
 }
 
 /**
- * Minutos desde medianoche — idéntico a `horaAMinutos` + `planificarColumnaDia` del horario semanal.
+ * Minutos desde medianoche — horas literales de `horarioMateria` (24h).
  * Si `fin <= inicio`, la franja no se pinta en Mi horario ni debe listarse en formaciones.
  */
 export function minutosFranjaHorarioClase(c: FilaFranjaHoraria): { start: number; end: number } | null {
-  const jornada = textoJornadaAjuste12hHorario(c);
-  const esTardeONoche =
-    jornada.includes('tarde') || jornada.includes('noche') || jornada.includes('nocturna');
-
-  // Detectar si las horas ya vienen en formato 24h: si horaFinal >= 12, no se ajusta.
-  const tFin = extraerHoraHHMM(String(c.horaFinal ?? ''));
-  const hhFinRaw = tFin ? parseInt(tFin.split(':')[0]!, 10) : 0;
-  const yaEs24h = hhFinRaw >= 12;
-
-  const aMinutos = (h: string): number | null => {
-    const t = extraerHoraHHMM(h);
-    if (!t) return null;
-    const parts = t.split(':');
-    let hh = parseInt(parts[0]!, 10);
-    const mm = parseInt(parts[1]!, 10) || 0;
-    if (Number.isNaN(hh)) return null;
-    if (esTardeONoche && !yaEs24h && hh < 12) hh += 12;
-    return hh * 60 + mm;
-  };
-
-  const start = aMinutos(String(c.horaInicial ?? ''));
-  const end = aMinutos(String(c.horaFinal ?? ''));
+  const start = minutosDesdeMedianocheHorario24h(String(c.horaInicial ?? ''));
+  const end = minutosDesdeMedianocheHorario24h(String(c.horaFinal ?? ''));
   if (start == null || end == null || end <= start) return null;
   return { start, end };
 }
@@ -657,26 +646,10 @@ function finVentanaFranjaCalendario(
   diaCalendario: Date,
   ahora: Date
 ): Date {
-  let [hIni, mIni] = (
-    extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5)
-  )
-    .split(':')
-    .map(Number);
-  let [hFin, mFin] = (
-    extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5)
-  )
-    .split(':')
-    .map(Number);
-  const lowerJ = textoJornadaParaAjuste12h({
-    jornada_nombre: row.jornada_nombre,
-    jornada_tipo: row.jornada_tipo
-  });
-  const esTardeONoche =
-    lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
-  const yaEs24h = hFin >= 12;
-  if (esTardeONoche && !yaEs24h && hIni < 12) hIni += 12;
-  if (esTardeONoche && !yaEs24h && hFin < 12) hFin += 12;
+  const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+  const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+  const [hIni, mIni] = hiS.split(':').map(Number);
+  const [hFin, mFin] = hfS.split(':').map(Number);
   const hi = new Date(diaCalendario);
   hi.setHours(hIni, mIni || 0, 0, 0);
   const hf = new Date(diaCalendario);
@@ -791,26 +764,10 @@ export function etiquetaEstadoBloqueCalendarioInstructor(
   const d0 = new Date(diaCalendario.getFullYear(), diaCalendario.getMonth(), diaCalendario.getDate());
   d0.setHours(0, 0, 0, 0);
 
-  let [hIni, mIni] = (
-    extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5)
-  )
-    .split(':')
-    .map(Number);
-  let [hFin, mFin] = (
-    extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5)
-  )
-    .split(':')
-    .map(Number);
-  const lowerJ = textoJornadaParaAjuste12h({
-    jornada_nombre: row.jornada_nombre,
-    jornada_tipo: row.jornada_tipo
-  });
-  const esTardeONoche =
-    lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-  // Si horaFinal >= 12, las horas ya están en 24h; no ajustar.
-  const yaEs24hEtq = hFin >= 12;
-  if (esTardeONoche && !yaEs24hEtq && hIni < 12) hIni += 12;
-  if (esTardeONoche && !yaEs24hEtq && hFin < 12) hFin += 12;
+  const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+  const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+  const [hIni, mIni] = hiS.split(':').map(Number);
+  const [hFin, mFin] = hfS.split(':').map(Number);
   const hi = new Date(ahora);
   hi.setHours(hIni, mIni || 0, 0, 0);
   const hf = new Date(ahora);
