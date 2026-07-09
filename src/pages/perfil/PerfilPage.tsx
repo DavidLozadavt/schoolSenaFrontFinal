@@ -1008,7 +1008,7 @@ const PerfilPage = () => {
       <ResetPasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
-        userEmail={formDataPersona.email || ''}
+        userEmail={authContext.user?.email || ''}
         isApprentice={authContext.roles?.some((role) => ['ESTUDIANTEUP'].includes(role))}
         onSuccess={handlePasswordChangeSuccess}
       />
