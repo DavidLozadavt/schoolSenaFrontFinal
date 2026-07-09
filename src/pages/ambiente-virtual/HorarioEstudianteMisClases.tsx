@@ -8,11 +8,13 @@ import { useLayout } from '@/providers';
 import { normalizarClases, type Materia } from './MisClases';
 
 interface HorarioEstudianteMisClasesProps {
-  onVolver: () => void;
+  onVolver?: () => void;
+  modoColegio?: boolean;
 }
 
 /** Columnas Lun–Dom; BD `idDia` 1=Lun … 7=Dom. */
 const DIAS_CORTO = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
+const DIAS_COLEGIO = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'] as const;
 
 type JornadaVisual = 'manana' | 'tarde' | 'noche';
 
@@ -20,11 +22,14 @@ type FiltroJornada = 'todos' | JornadaVisual;
 
 type BloqueEstudiante = {
   id: string;
+  idMateria: number;
   columna: number;
   start: number;
   end: number;
   competencia: string;
   instructor: string;
+  instructorEmail: string;
+  instructorTelefono: string;
   aula: string;
   fichaCodigo: string;
 };
@@ -156,11 +161,14 @@ function construirBloques(materias: Materia[]): BloqueEstudiante[] {
       if (s == null || e == null || e <= s) continue;
       out.push({
         id: `${m.idMateria}-${h.idHorarioMateria}`,
+        idMateria: m.idMateria,
         columna: col,
         start: s,
         end: e,
         competencia: m.materia_nombre || 'Sin competencia',
         instructor: inst,
+        instructorEmail: (m.profesor_email || '').trim(),
+        instructorTelefono: (m.profesor_telefono || '').trim(),
         aula,
         fichaCodigo: ficha
       });
@@ -200,6 +208,72 @@ const PILLS_FILTRO_JORNADA: { id: FiltroJornada; label: string }[] = [
 
 /** Por encima de esto se muestra acordeón (flecha + texto colapsado con …). */
 const UMBRAL_TEXTO_COMPETENCIA_ACORDEON = 52;
+
+function tituloMateriaColegio(nombre: string): string {
+  const base = nombre
+    .trim()
+    .replace(
+      /\s+(PRIMERO|SEGUNDO|TERCERO|CUARTO|QUINTO|SEXTO|SÉPTIMO|SEPTIMO|OCTAVO|NOVENO|DÉCIMO|DECIMO|UNDÉCIMO|UNDECIMO)$/i,
+      ''
+    )
+    .trim();
+  return base
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function nombreCortoProfesor(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return nombre.trim();
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
+function telefonoEnlace(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.startsWith('57') ? `+${digits}` : digits.length === 10 ? `+57${digits}` : `+${digits}`;
+}
+
+const BloqueTarjetaColegio: React.FC<{ bloque: BloqueEstudiante }> = ({ bloque: b }) => {
+  const materia = tituloMateriaColegio(b.competencia);
+  const hora = `${formatoHora24(b.start)} – ${formatoHora24(b.end)}`;
+  const profesor = nombreCortoProfesor(b.instructor);
+  const telHref = telefonoEnlace(b.instructorTelefono);
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 dark:border-gray-600 dark:bg-coal-400">
+      <div className="text-[10px] font-semibold tabular-nums text-blue-600 dark:text-blue-400">{hora}</div>
+      <div className="text-[11px] font-semibold leading-tight text-gray-900 dark:text-white">{materia}</div>
+      <div className="mt-0.5 text-[10px] text-gray-600 dark:text-gray-300">Prof. {profesor}</div>
+      {(b.instructorEmail || b.instructorTelefono) && (
+        <div className="mt-1 space-y-0.5 border-t border-slate-100 pt-1 dark:border-gray-600">
+          {b.instructorEmail ? (
+            <a
+              href={`mailto:${b.instructorEmail}`}
+              className="flex items-center gap-1 text-[9px] text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              title={b.instructorEmail}
+            >
+              <KeenIcon icon="sms" className="shrink-0 text-[9px]" />
+              <span className="truncate">{b.instructorEmail}</span>
+            </a>
+          ) : null}
+          {b.instructorTelefono ? (
+            <a
+              href={`tel:${telHref}`}
+              className="flex items-center gap-1 text-[9px] text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              title={b.instructorTelefono}
+            >
+              <KeenIcon icon="phone" className="shrink-0 text-[9px]" />
+              <span>{b.instructorTelefono}</span>
+            </a>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const BloqueTarjetaHorario: React.FC<{ bloque: BloqueEstudiante }> = ({ bloque: b }) => {
   const [expandido, setExpandido] = useState(false);
@@ -262,7 +336,10 @@ const BloqueTarjetaHorario: React.FC<{ bloque: BloqueEstudiante }> = ({ bloque: 
   );
 };
 
-const HorarioEstudianteMisClases: React.FC<HorarioEstudianteMisClasesProps> = ({ onVolver }) => {
+const HorarioEstudianteMisClases: React.FC<HorarioEstudianteMisClasesProps> = ({
+  onVolver,
+  modoColegio = false
+}) => {
   const { currentLayout } = useLayout();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -316,21 +393,25 @@ const HorarioEstudianteMisClases: React.FC<HorarioEstudianteMisClasesProps> = ({
 
   const hayResultadosConFiltro = columnasHorarioFiltradas.some((c) => c.length > 0);
 
+  const diasGrilla = modoColegio ? DIAS_COLEGIO : DIAS_CORTO;
+
   return (
     <>
-      {currentLayout?.name === 'demo1-layout' && (
+      {currentLayout?.name === 'demo1-layout' && !modoColegio && (
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-coal-300 rounded-lg px-2 py-1.5 -ml-2 mb-3"
-                onClick={onVolver}
-                title="Volver a mis clases"
-              >
-                <KeenIcon icon="arrow-left" className="text-sm" />
-                <span className="text-sm font-medium">Volver a mis clases</span>
-              </button>
+              {onVolver ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-coal-300 rounded-lg px-2 py-1.5 -ml-2 mb-3"
+                  onClick={onVolver}
+                  title="Volver a mis clases"
+                >
+                  <KeenIcon icon="arrow-left" className="text-sm" />
+                  <span className="text-sm font-medium">Volver a mis clases</span>
+                </button>
+              ) : null}
               <div className="flex items-center gap-2">
                 <KeenIcon icon="calendar" className="text-blue-600 dark:text-blue-400" />
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Mi horario</h1>
@@ -394,9 +475,35 @@ const HorarioEstudianteMisClases: React.FC<HorarioEstudianteMisClasesProps> = ({
                     <div className="rounded-xl border border-slate-100 bg-slate-50/80 py-10 text-center text-sm text-gray-600 dark:border-gray-600 dark:bg-coal-500/20 dark:text-gray-400">
                       No hay clases para la jornada seleccionada.
                     </div>
+                  ) : modoColegio ? (
+                    <div className="overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                      <div className="grid min-w-[440px] grid-cols-5 gap-1.5">
+                        {diasGrilla.map((dia, colIdx) => (
+                          <div
+                            key={dia}
+                            className="flex min-w-0 flex-col rounded-lg border border-slate-100 bg-slate-50/50 dark:border-gray-600/80 dark:bg-coal-500/30"
+                          >
+                            <div className="border-b border-slate-200 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-700 dark:border-gray-600 dark:text-slate-200">
+                              {dia}
+                            </div>
+                            <div className="flex flex-col gap-1 p-1 dark:bg-coal-400/40">
+                              {columnasHorarioFiltradas[colIdx]!.length === 0 ? (
+                                <div className="py-4 text-center text-[9px] text-gray-400 dark:text-gray-500">
+                                  —
+                                </div>
+                              ) : (
+                                columnasHorarioFiltradas[colIdx]!.map((b) => (
+                                  <BloqueTarjetaColegio key={b.id} bloque={b} />
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex min-w-[720px] gap-0 divide-x divide-slate-200 dark:divide-gray-600">
-                      {DIAS_CORTO.map((dia, colIdx) => (
+                      {diasGrilla.map((dia, colIdx) => (
                         <div key={dia} className="min-w-0 flex-1 px-1.5 sm:px-2">
                           <div className="sticky top-0 z-10 bg-gray-50/95 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-slate-700 backdrop-blur-sm dark:bg-coal-400/95 dark:text-slate-200">
                             {dia}
@@ -411,24 +518,26 @@ const HorarioEstudianteMisClases: React.FC<HorarioEstudianteMisClasesProps> = ({
                     </div>
                   )}
 
-                  <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 pt-4 text-xs text-gray-600 dark:border-gray-600 dark:text-gray-300">
-                    <span className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm border border-sky-500 bg-sky-200 dark:bg-sky-500/60" />
-                      Mañana
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm border border-amber-500 bg-amber-200 dark:bg-amber-500/60" />
-                      Tarde
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm border border-violet-600 bg-violet-200 dark:bg-violet-500/60" />
-                      Noche
-                    </span>
-                  </div>
+                  {!modoColegio ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 pt-4 text-xs text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                      <span className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm border border-sky-500 bg-sky-200 dark:bg-sky-500/60" />
+                        Mañana
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm border border-amber-500 bg-amber-200 dark:bg-amber-500/60" />
+                        Tarde
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm border border-violet-600 bg-violet-200 dark:bg-violet-500/60" />
+                        Noche
+                      </span>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
 
-              {filasTexto.length > 0 ? (
+              {filasTexto.length > 0 && !modoColegio ? (
                 <div className="mt-6 border-t border-slate-200 pt-4 dark:border-gray-600">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
                     Otras materias (detalle en texto)

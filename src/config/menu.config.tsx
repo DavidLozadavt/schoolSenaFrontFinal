@@ -73,6 +73,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     title: 'Ambiente Virtual',
     icon: 'devices',
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
+    hiddenForRoles: ['ESTUDIANTEUP'],
     children: [
       {
         title: 'Mis formaciones',
@@ -103,6 +104,34 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title: 'Biblioteca de conocimiento',
         path: '/ambiente-virtual/biblioteca-conocimiento',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      }
+    ]
+  },
+  {
+    title: 'Aula Virtual',
+    icon: 'tablet',
+    requiredRoles: ['ESTUDIANTEUP'],
+    requiredPermissions: ['AULA_VIRTUAL_APRENDIZ'],
+    children: [
+      {
+        title: 'Mi horario',
+        path: '/ambiente-virtual/mis-clases',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ_CLASES']
+      },
+      {
+        title: 'Mis Actividades',
+        path: '/ambiente-virtual/actividades',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ_ACTIVIDADES']
+      },
+      {
+        title: 'Grupos',
+        path: '/ambiente-virtual/grupos',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ_GRUPOS']
+      },
+      {
+        title: 'Biblioteca de conocimiento',
+        path: '/ambiente-virtual/biblioteca-conocimiento',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ_BIBLIOTECA']
       }
     ]
   },

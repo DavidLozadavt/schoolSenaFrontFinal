@@ -4,9 +4,10 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ScreenLoader } from '@/components/loaders';
 
 import { useAuthContext } from './useAuthContext';
+import { isActivationGateActive } from '@/utils/aulaVirtualEstudianteUp';
 
 const RequireAuth = () => {
-  const { auth, isLoading, activacion } = useAuthContext();
+  const { auth, isLoading, activacion, roles } = useAuthContext();
 
   const location = useLocation();
 
@@ -14,7 +15,7 @@ const RequireAuth = () => {
     return <ScreenLoader />;
   }
 
-  if (auth && activacion?.state_id === 18 && location.pathname !== '/perfil') {
+  if (auth && isActivationGateActive(roles, activacion?.state_id) && location.pathname !== '/perfil') {
     return <Navigate to="/perfil" replace />;
   }
 

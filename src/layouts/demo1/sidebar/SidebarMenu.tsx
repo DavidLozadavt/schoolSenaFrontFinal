@@ -19,6 +19,7 @@ import {
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
 import { userHasAnyPermission } from '@/utils/permissionUtils';
+import { isActivationGateActive, isEstudianteUpAulaVirtualAccess } from '@/utils/aulaVirtualEstudianteUp';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
@@ -26,8 +27,8 @@ const SidebarMenu = () => {
   const [searchText, setSearchText] = useState('');
   const { getMenuConfig } = useMenus();
 
-  // Usuarios pendientes de activación: no deben ver opciones de navegación.
-  if (activacion?.state_id === 18) {
+  // Usuarios pendientes de activación: no deben ver opciones de navegación (excepto ESTUDIANTEUP colegio).
+  if (isActivationGateActive(roles, activacion?.state_id)) {
     return null;
   }
 
@@ -48,7 +49,26 @@ const SidebarMenu = () => {
       userRoles.includes('INSTRUCTOR SENA') &&
       requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
 
-    return isAllowedByPermission || instructorSenaBypass;
+    const estudianteUpBypass = isEstudianteUpAulaVirtualAccess(userRoles, requiredPermissions);
+
+    return isAllowedByPermission || instructorSenaBypass || estudianteUpBypass;
+  };
+
+  const isMenuItemVisibleForRoles = (
+    item: IMenuItemConfig,
+    userRoles: string[]
+  ): boolean => {
+    const roles = userRoles ?? [];
+
+    if (item.hiddenForRoles?.some((role) => roles.includes(role))) {
+      return false;
+    }
+
+    if (item.requiredRoles?.length) {
+      return item.requiredRoles.some((role) => roles.includes(role));
+    }
+
+    return true;
   };
 
   const linkPl = 'ps-[10px]';
@@ -104,6 +124,10 @@ const SidebarMenu = () => {
   ): TMenuConfig => {
     return items
       .map((item) => {
+        if (!isMenuItemVisibleForRoles(item, userRoles)) {
+          return null;
+        }
+
         if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
           return null;
         }
@@ -141,6 +165,10 @@ const SidebarMenu = () => {
 
     return items
       .map((item) => {
+        if (!isMenuItemVisibleForRoles(item, userRoles)) {
+          return null;
+        }
+
         if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
           return null;
         }

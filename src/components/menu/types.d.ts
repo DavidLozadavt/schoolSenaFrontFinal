@@ -171,6 +171,10 @@ export interface IMenuItemConfig {
   children?: IMenuItemConfig[];
   childrenIndex?: number;
   requiredPermissions?: string[];
+  /** Si se define, el ítem solo se muestra cuando el usuario tiene alguno de estos roles. */
+  requiredRoles?: string[];
+  /** Oculta el ítem cuando el usuario tiene alguno de estos roles. */
+  hiddenForRoles?: string[];
 }
 
 export type TMenuConfig = IMenuItemConfig[];

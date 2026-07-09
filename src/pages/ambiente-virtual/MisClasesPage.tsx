@@ -8,6 +8,8 @@ import {
   ToolbarPageTitle
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
+import { useAuthContext } from '@/auth';
+import { ESTUDIANTE_UP_ROLE } from '@/utils/aulaVirtualEstudianteUp';
 import MisClases from './MisClases';
 import ReporteAsistencias from './ReporteAsistencias';
 import HorarioEstudianteMisClases from './HorarioEstudianteMisClases';
@@ -16,8 +18,11 @@ type VistaMisClases = 'clases' | 'reporte' | 'horario';
 
 const MisClasesPage: React.FC = () => {
   const { currentLayout } = useLayout();
+  const { roles } = useAuthContext();
+  const esEstudianteColegio = roles?.includes(ESTUDIANTE_UP_ROLE) ?? false;
+
   const [filtro, setFiltro] = useState<'todas' | 'completadas'>('todas');
-  const [vista, setVista] = useState<VistaMisClases>('clases');
+  const [vista, setVista] = useState<VistaMisClases>(esEstudianteColegio ? 'horario' : 'clases');
 
   const handleVerReporte = () => {
     setVista('reporte');
@@ -28,12 +33,12 @@ const MisClasesPage: React.FC = () => {
   };
 
   const handleVolverAClases = () => {
-    setVista('clases');
+    setVista(esEstudianteColegio ? 'horario' : 'clases');
   };
 
   return (
     <Fragment>
-      {currentLayout?.name === 'demo1-layout' && vista === 'clases' && (
+      {currentLayout?.name === 'demo1-layout' && vista === 'clases' && !esEstudianteColegio && (
         <Container>
           <Toolbar>
             <ToolbarHeading>
@@ -70,10 +75,48 @@ const MisClasesPage: React.FC = () => {
         </Container>
       )}
 
+      {currentLayout?.name === 'demo1-layout' && (vista === 'horario' || esEstudianteColegio) && vista !== 'reporte' && (
+        <Container>
+          <Toolbar>
+            <ToolbarHeading>
+              <ToolbarPageTitle />
+              <ToolbarDescription>
+                {esEstudianteColegio
+                  ? 'Tu horario semanal: día, materia, hora y docente'
+                  : 'Vista semanal de tus clases'}
+              </ToolbarDescription>
+            </ToolbarHeading>
+            <ToolbarActions>
+              <div className="flex flex-wrap items-center gap-3">
+                {!esEstudianteColegio ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border border-gray-300 dark:border-gray-600"
+                    onClick={handleVolverAClases}
+                  >
+                    Ver sesiones
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={handleVerReporte}
+                >
+                  Asistencias y justificar faltas
+                </button>
+              </div>
+            </ToolbarActions>
+          </Toolbar>
+        </Container>
+      )}
+
       {vista === 'reporte' ? (
         <ReporteAsistencias onVolver={handleVolverAClases} />
-      ) : vista === 'horario' ? (
-        <HorarioEstudianteMisClases onVolver={handleVolverAClases} />
+      ) : vista === 'horario' || esEstudianteColegio ? (
+        <HorarioEstudianteMisClases
+          onVolver={esEstudianteColegio ? undefined : handleVolverAClases}
+          modoColegio={esEstudianteColegio}
+        />
       ) : (
         <Container>
           <MisClases filtro={filtro} />

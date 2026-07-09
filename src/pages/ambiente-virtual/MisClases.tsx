@@ -21,6 +21,7 @@ export interface Materia {
   ficha_codigo: string;
   profesor_nombre: string;
   profesor_email: string;
+  profesor_telefono: string;
   aula_nombre: string;
   horario_texto: string;
   horarios: Array<{
@@ -75,6 +76,7 @@ const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
   ficha_codigo: typeof raw.ficha_codigo === 'string' ? raw.ficha_codigo : '',
   profesor_nombre: typeof raw.profesor_nombre === 'string' ? raw.profesor_nombre : '',
   profesor_email: typeof raw.profesor_email === 'string' ? raw.profesor_email : '',
+  profesor_telefono: typeof raw.profesor_telefono === 'string' ? raw.profesor_telefono : '',
   aula_nombre: typeof raw.aula_nombre === 'string' ? raw.aula_nombre : '',
   horario_texto: typeof raw.horario_texto === 'string' ? raw.horario_texto : '',
   horarios: Array.isArray(raw.horarios)

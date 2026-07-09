@@ -9,6 +9,7 @@ import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
 import { useLayout } from '@/providers';
+import { shouldSkipActivationGate } from '@/utils/aulaVirtualEstudianteUp';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
@@ -69,9 +70,9 @@ const Login = () => {
     // Wait until roles have been populated from the server
     if (roles.length === 0) return;
     
-    // We only depend on activacion now for the redirect logic
-    const isAllowed = activacion?.state_id == 18;
-    if (isAllowed) {
+    const mustSetPassword =
+      activacion?.state_id == 18 && !shouldSkipActivationGate(roles, activacion?.state_id);
+    if (mustSetPassword) {
       navigate('/perfil');
     } else {
       navigate('/');

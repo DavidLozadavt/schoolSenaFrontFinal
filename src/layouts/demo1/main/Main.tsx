@@ -5,12 +5,13 @@ import { useMenuCurrentItem } from '@/components/menu';
 import { Content, Footer, Header, Sidebar, useDemo1Layout } from '../';
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
+import { isActivationGateActive } from '@/utils/aulaVirtualEstudianteUp';
 
 const Main = () => {
   const { layout } = useDemo1Layout();
   const { pathname } = useLocation();
   const { getMenuConfig } = useMenus();
-  const { activacion } = useAuthContext();
+  const { activacion, roles } = useAuthContext();
   const menuConfig = getMenuConfig('primary');
   const menuItem = useMenuCurrentItem(pathname, menuConfig);
 
@@ -52,7 +53,7 @@ const Main = () => {
       </Helmet>
 
       <div className="flex grow">
-        {activacion?.state_id !== 18 && <Sidebar />}
+        {!isActivationGateActive(roles, activacion?.state_id) && <Sidebar />}
 
         <div className="wrapper flex grow flex-col">
           <Header />

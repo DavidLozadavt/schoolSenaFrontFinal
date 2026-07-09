@@ -14,6 +14,7 @@ import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPa
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
 import { getResolvedPersonaPhotoUrl } from '@/utils/profilePhotoUrl';
+import { ESTUDIANTE_UP_ROLE } from '@/utils/aulaVirtualEstudianteUp';
 
 interface FormErrors {
   [key: string]: string;
@@ -71,6 +72,13 @@ const PerfilPage = () => {
   });
 
   const checkProfileAccess = async () => {
+    if (roles?.includes(ESTUDIANTE_UP_ROLE)) {
+      setNeedsPasswordUpdate(false);
+      setStep(1);
+      setShowPasswordModal(false);
+      return;
+    }
+
     try {
       const response = await axios.get('profile/access-check', {
         headers: {
@@ -94,8 +102,8 @@ const PerfilPage = () => {
     } catch (error) {
       console.error('Error checking profile access:', error);
       // Fallback por roles si el API no funciona
-      const roles = authContext.roles || [];
-      const needsUpdate = roles.includes('DOCENTEUP') || roles.includes('ESTUDIANTEUP');
+      const rolesList = authContext.roles || [];
+      const needsUpdate = rolesList.includes('DOCENTEUP');
       setNeedsPasswordUpdate(needsUpdate);
 
       if (needsUpdate) {

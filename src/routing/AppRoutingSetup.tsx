@@ -194,6 +194,10 @@ const AppRoutingSetup = (): ReactElement => {
       return <ProfesoresPage />;
     }
 
+    if (roles?.includes('ESTUDIANTEUP')) {
+      return <EstudiantesPage />;
+    }
+
     const active = DASHBOARD_CONFIG.find((item) => permissions?.includes(item.permission));
 
     // Si hay coincidencia retornamos su componente, si no, el DefaultPage original
