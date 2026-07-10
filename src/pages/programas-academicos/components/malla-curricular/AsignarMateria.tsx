@@ -227,7 +227,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                     return (
                       <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
                         <div className="w-16 h-16 bg-gray-50 dark:bg-coal-600 rounded-full flex items-center justify-center mb-2">
-                          <BookOpen className="text-gray-300 dark:text-gray-600" size={32} />
+                          <BookOpen className="text-gray-300 dark:text-gray-400" size={32} />
                         </div>
                         <div>
                           <p className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-widest mb-1">

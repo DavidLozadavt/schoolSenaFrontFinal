@@ -2,6 +2,12 @@ import { useState } from 'react';
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
+import {
+  parseNumeroGrado,
+  siguienteNumeroGradoTrimestre,
+  trimestresPersistidos,
+  ultimoTrimestrePersistido,
+} from './utils/trimestreNumeroGrado';
 
 export const useTrimestres = (fichaId: number , programaId: number | undefined) => {
   const [trimestres, setTrimestres] = useState<any[]>([]);
@@ -31,10 +37,9 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
     }
   };
 
-  // Calcular fecha de inicio del nuevo trimestre
   const calcularFechaInicio = (ficha: any) => {
-    if (trimestres.length > 0) {
-      const ultimo = trimestres[trimestres.length - 1];
+    const ultimo = ultimoTrimestrePersistido(trimestres);
+    if (ultimo) {
       return ultimo.grado?.fechaFin || ultimo.fechaFin || new Date().toISOString().split('T')[0];
     }
     return new Date().toISOString().split('T')[0];
@@ -44,13 +49,7 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
   const agregarNuevoTrimestre = (ficha: any) => {
     if (!ficha || !programaId || nuevoTrimestre) return;
 
-    // Calcular el siguiente número de trimestre basado en el máximo existente
-    const maxGrado = trimestres.reduce((max, t) => {
-      const num = t.grado?.numeroGrado || t.numeroGrado || 0;
-      return num > max ? num : max;
-    }, 0);
-
-    const siguienteGrado = maxGrado + 1;
+    const siguienteGrado = siguienteNumeroGradoTrimestre(trimestres);
 
     const nuevo = {
       id: `temp-${Date.now()}`,
@@ -111,11 +110,13 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
   // Actualizar numero grado
   const actualizarNumeroGrado = (numeroGrado: number) => {
     if (!nuevoTrimestre) return;
+    const n = parseNumeroGrado(numeroGrado);
+    if (n == null) return;
 
     const actualizado = {
       ...nuevoTrimestre,
-      numeroGrado,
-      grado: { ...nuevoTrimestre.grado, numeroGrado }
+      numeroGrado: n,
+      grado: { ...nuevoTrimestre.grado, numeroGrado: n }
     };
 
     setNuevoTrimestre(actualizado);
@@ -151,6 +152,10 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
       return false;
     }
 
+    const numeroGradoPayload =
+      parseNumeroGrado(nuevoTrimestre.numeroGrado ?? nuevoTrimestre.grado?.numeroGrado) ??
+      siguienteNumeroGradoTrimestre(trimestresPersistidos(trimestres));
+
     const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: 'Al crear un nuevo trimestre se interrumpirán los horarios del trimestre actual.',
@@ -169,7 +174,7 @@ export const useTrimestres = (fichaId: number , programaId: number | undefined) 
       setGuardandoTrimestre(true);
       const payload = {
         idPrograma: nuevoTrimestre.idPrograma || programaId,
-        numeroGrado: nuevoTrimestre.numeroGrado,
+        numeroGrado: numeroGradoPayload,
         fechaInicio: nuevoTrimestre.fechaInicio || nuevoTrimestre.grado.fechaInicio,
         fechaFin: nuevoTrimestre.fechaFin || nuevoTrimestre.grado.fechaFin,
         idFicha: ficha.id,
