@@ -2,7 +2,13 @@ import React, { useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-
+import {
+  compararTrimestresPorNumeroGrado,
+  parseNumeroGrado,
+  siguienteNumeroGradoTrimestre,
+  trimestresPersistidos,
+  ultimoTrimestrePersistido,
+} from './utils/trimestreNumeroGrado';
 interface FormNuevoTrimestreProps {
   trimestre: any;
   guardando: boolean;
@@ -31,35 +37,31 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   trimestres,
   nivel
 }) => {
-  const persistedTrimestres = trimestres
-    .filter(t => !t.esNuevo)
-    .sort((a, b) => (a.grado?.numeroGrado || a.numeroGrado) - (b.grado?.numeroGrado || b.numeroGrado));
+  const persistedTrimestres = trimestresPersistidos(trimestres).sort(compararTrimestresPorNumeroGrado);
   const isFirst = persistedTrimestres.length === 0;
 
-  // Lógica de valores iniciales sugerida por el usuario
   useEffect(() => {
     if (isFirst) {
       if (!trimestre.fechaInicio) {
         const now = new Date().toISOString().split('T')[0];
         onActualizarFechaInicio(now);
       }
-      if (!trimestre.numeroGrado) {
+      if (parseNumeroGrado(trimestre.numeroGrado) == null) {
         onActualizarNumeroGrado(1);
       }
     } else {
-      const ultimo = persistedTrimestres[persistedTrimestres.length - 1];
-      if (!trimestre.fechaInicio) {
+      const ultimo = ultimoTrimestrePersistido(trimestres);
+      if (!trimestre.fechaInicio && ultimo) {
         onActualizarFechaInicio(formatearFecha(ultimo.grado?.fechaFin || ultimo.fechaFin));
       }
-      if (!trimestre.numeroGrado) {
-        onActualizarNumeroGrado((ultimo.grado?.numeroGrado || ultimo.numeroGrado) + 1);
+      if (parseNumeroGrado(trimestre.numeroGrado) == null) {
+        onActualizarNumeroGrado(siguienteNumeroGradoTrimestre(trimestres));
       }
     }
   }, [isFirst]);
-
   const formik = useFormik({
     initialValues: {
-      numeroGrado: trimestre.numeroGrado || '',
+      numeroGrado: parseNumeroGrado(trimestre.numeroGrado) ?? '',
       fechaInicio: formatearFecha(trimestre.fechaInicio) || '',
       fechaFin: trimestre.fechaFin || '',
     },
@@ -120,7 +122,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
             <div className={`grid grid-cols-1 ${isFirst ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
               {isFirst && (
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
                     Número Trimestre
                   </label>
                   <input
@@ -143,7 +145,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
               )}
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
                   Fecha de Inicio
                 </label>
                 <input
@@ -164,7 +166,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-600 mb-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
                   Fecha de Fin
                 </label>
                 <input
@@ -187,7 +189,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
 
             {/* MATERIAS */}
             <div>
-              <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-600 border-l-4 border-primary pl-3 mb-6">
+              <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3 mb-6">
                 Competencias Asignadas
               </h4>
 
@@ -207,7 +209,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                                   {materia.nombreMateria || 'Sin nombre'}
                                 </p>
                               </div>
-                              <p className="text-2xs text-gray-500 font-bold uppercase truncate">
+                              <p className="text-2xs text-gray-500 dark:text-gray-300 font-bold uppercase truncate">
                                 {materia.descripcion || 'Sin descripción'}
                               </p>
                             </div>

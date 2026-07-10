@@ -11,6 +11,10 @@ import { FormCompetencia } from './FormCompetencia';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
+import {
+  compararTrimestresPorNumeroGrado,
+  maxNumeroGradoTrimestres,
+} from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
 import { HorariosMateria } from './HorariosMateria';
 import { enqueueSnackbar } from 'notistack';
@@ -181,7 +185,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
               {ficha && (
                 <div className="flex w-full items-center gap-3 px-4 justify-between">
                   <div className='flex items-center'>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-600">Trimestres:</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Trimestres:</span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
@@ -205,8 +209,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                     disabled={
                       nuevoTrimestre !== null ||
                       (trimestres.length > 0 && (
-                        (program.nivel?.toUpperCase() === 'TECNICO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 3) ||
-                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 7)
+                        (program.nivel?.toUpperCase() === 'TECNICO' && maxNumeroGradoTrimestres(trimestres) >= 3) ||
+                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && maxNumeroGradoTrimestres(trimestres) >= 7)
                       )) ||
                       trimestres.length >= 9
                     }
@@ -218,8 +222,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                     <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
                       {
                         trimestres.length > 0 && (
-                          (program.nivel?.toUpperCase() === 'TECNICO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 3) ||
-                          (program.nivel?.toUpperCase() === 'TECNOLOGO' && trimestres[trimestres.length - 1].grado?.numeroGrado >= 7)
+                          (program.nivel?.toUpperCase() === 'TECNICO' && maxNumeroGradoTrimestres(trimestres) >= 3) ||
+                          (program.nivel?.toUpperCase() === 'TECNOLOGO' && maxNumeroGradoTrimestres(trimestres) >= 7)
                         )
                           ? 'Límite alcanzado'
                           : 'Añadir Trimestre'
@@ -253,8 +257,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       (
                         trimestres.length > 0 ? (
                         (sortOrder === 'asc' 
-                            ? [...trimestres].sort((a, b) => (a.grado?.numeroGrado || a.numeroGrado) - (b.grado?.numeroGrado || b.numeroGrado))
-                            : [...trimestres].sort((a, b) => (b.grado?.numeroGrado || b.numeroGrado) - (a.grado?.numeroGrado || a.numeroGrado))
+                            ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
+                            : [...trimestres].sort((a, b) => compararTrimestresPorNumeroGrado(b, a))
                           )
                             .map((trimestre, index) => (
                               <div
