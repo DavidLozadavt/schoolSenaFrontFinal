@@ -163,9 +163,7 @@ function formatInstructores(instructores?: Instructor[]): string {
 
 export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
   // 1. Fetch datos
-  const response = await axios.get(
-    `/fichapry/${ficha.id}/proyecto-formativo`
-  );
+  const response = await axios.get(`/fichapry/${ficha.id}/proyecto-formativo`);
 
   const rawData = response.data?.data ?? response.data;
   const { proyectoFormativo, fasesProyecto = [] } = (rawData ?? {}) as ProyectoFormativoData;
@@ -277,56 +275,62 @@ export async function exportarPlaneacionExcel(ficha: FichaInfo): Promise<void> {
       isFirstOfActivity: boolean
     ) {
       const mat = rap.materia;
-      const esPadre = rap.idMateriaPadre === null;
+      const esPadre = rap.idMateriaPadre === null || rap.idMateriaPadre === undefined;
 
       if (esPadre) {
-        if (mat.hijas && mat.hijas.length > 0) {
-          // Una fila por cada hija; la competencia aparece solo en la primera
+        if (mat && mat.hijas && mat.hijas.length > 0) {
+          // Una fila por cada hija
           mat.hijas.forEach((hija, hijaIdx) => {
+            // Si la hija no tiene instructores, usamos los del RAP o de la materia padre
+            const insts =
+              hija.instructores && hija.instructores.length > 0
+                ? hija.instructores
+                : (mat.instructores ?? rap.instructores ?? []);
+
             rapRows.push({
               actividadDesc,
-              competencia: hijaIdx === 0 ? (mat.nombre ?? null) : null,
-              resultadoAprendizaje: hija.nombre ?? null,
-              instructor: formatInstructores(hija.instructores),
+              competencia: hijaIdx === 0 ? (mat.nombre ?? 'Sin Competencia') : null,
+              resultadoAprendizaje: hija.nombre ?? 'Sin Resultado de Aprendizaje', // <-- Esto llenará la Columna 4
+              instructor: formatInstructores(insts), // <-- Esto llenará la Columna 11
               isFirst: isFirstOfActivity && hijaIdx === 0,
-              trimestre: hija.trimestre ?? null,
+              trimestre: hija.trimestre ?? mat.trimestre ?? null,
               horas: hija.horas ?? 0,
               numeroSesiones: hija.numeroSesiones ?? 0,
-              fechaInicio: hija.fechaInicio ?? null,
-              fechaFin: hija.fechaFin ?? null,
+              fechaInicio: hija.fechaInicio ?? mat.fechaInicio ?? null,
+              fechaFin: hija.fechaFin ?? mat.fechaFin ?? null,
               estado: hija.estado ?? 'PENDIENTE'
             });
           });
         } else {
-          // Padre sin hijas → solo competencia
+          // Padre sin hijas → La competencia actúa como el mismo resultado si está vacío
           rapRows.push({
             actividadDesc,
-            competencia: mat.nombre ?? null,
-            resultadoAprendizaje: null,
-            instructor: formatInstructores(mat.instructores ?? rap.instructores),
+            competencia: mat?.nombre ?? 'Sin Competencia',
+            resultadoAprendizaje: mat?.nombre ?? 'Sin Resultado asignado',
+            instructor: formatInstructores(mat?.instructores ?? rap.instructores ?? []),
             isFirst: isFirstOfActivity,
-            trimestre: mat.trimestre ?? rap.trimestre ?? null,
-            horas: mat.horas ?? rap.horas ?? 0,
-            numeroSesiones: mat.numeroSesiones ?? rap.numeroSesiones ?? 0,
-            fechaInicio: mat.fechaInicio ?? rap.fechaInicio ?? null,
-            fechaFin: mat.fechaFin ?? rap.fechaFin ?? null,
-            estado: mat.estado ?? rap.estado ?? 'PENDIENTE'
+            trimestre: mat?.trimestre ?? rap.trimestre ?? null,
+            horas: mat?.horas ?? rap.horas ?? 0,
+            numeroSesiones: mat?.numeroSesiones ?? rap.numeroSesiones ?? 0,
+            fechaInicio: mat?.fechaInicio ?? rap.fechaInicio ?? null,
+            fechaFin: mat?.fechaFin ?? rap.fechaFin ?? null,
+            estado: mat?.estado ?? rap.estado ?? 'PENDIENTE'
           });
         }
       } else {
-        // Materia hija directamente asignada → resultado de aprendizaje
+        // Materia hija directamente asignada en la raíz del objeto RAP
         rapRows.push({
           actividadDesc,
-          competencia: null,
-          resultadoAprendizaje: mat.nombre ?? null,
-          instructor: formatInstructores(mat.instructores ?? rap.instructores),
+          competencia: 'Materia Hija Directa',
+          resultadoAprendizaje: mat?.nombre ?? 'Sin Resultado',
+          instructor: formatInstructores(mat?.instructores ?? rap.instructores ?? []),
           isFirst: isFirstOfActivity,
-          trimestre: mat.trimestre ?? rap.trimestre ?? null,
-          horas: mat.horas ?? rap.horas ?? 0,
-          numeroSesiones: mat.numeroSesiones ?? rap.numeroSesiones ?? 0,
-          fechaInicio: mat.fechaInicio ?? rap.fechaInicio ?? null,
-          fechaFin: mat.fechaFin ?? rap.fechaFin ?? null,
-          estado: mat.estado ?? rap.estado ?? 'PENDIENTE'
+          trimestre: mat?.trimestre ?? rap.trimestre ?? null,
+          horas: mat?.horas ?? rap.horas ?? 0,
+          numeroSesiones: mat?.numeroSesiones ?? rap.numeroSesiones ?? 0,
+          fechaInicio: mat?.fechaInicio ?? rap.fechaInicio ?? null,
+          fechaFin: mat?.fechaFin ?? rap.fechaFin ?? null,
+          estado: mat?.estado ?? rap.estado ?? 'PENDIENTE'
         });
       }
     }
