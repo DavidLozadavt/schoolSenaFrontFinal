@@ -23,7 +23,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Estados para modal de RAPs - NUEVO
   const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
@@ -256,17 +256,24 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       :
                       (
                         trimestres.length > 0 ? (
-                        (sortOrder === 'asc' 
+                        (sortOrder === 'asc'
                             ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
-                            : [...trimestres].sort((a, b) => compararTrimestresPorNumeroGrado(b, a))
-                          )
-                            .map((trimestre, index) => (
+                            : [...trimestres].sort((a, b) =>
+                                compararTrimestresPorNumeroGrado(b, a)
+                              )
+                          ).map((trimestre, index) => (
                               <div
-                                key={trimestre.id || index}
-                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
-                                  ? 'border-primary animate-pulse-slow'
-                                  : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
-                                  }`}
+                                key={
+                                  trimestre.grado?.idGradoPrograma ??
+                                  trimestre.idGradoPrograma ??
+                                  trimestre.id ??
+                                  `grado-${trimestre.grado?.numeroGrado ?? trimestre.numeroGrado ?? index}`
+                                }
+                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
+                                  trimestre.esNuevo
+                                    ? 'border-primary animate-pulse-slow'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                                }`}
                               >
                                 <CardTrimestre
                                   trimestre={trimestre}
