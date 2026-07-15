@@ -12,6 +12,34 @@ interface SolicitudInstructorAceptarProps {
   selectedSolicitud: any;
 }
 
+const ESTADOS_COMPETENCIA_COMPLETADA = new Set([
+  'COMPLETADO',
+  'COMPLETADA',
+  'FINALIZADO',
+  'FINALIZADA',
+  'CERRADO',
+  'CERRADA'
+]);
+
+const competenciaEstaCompletada = (mat: any): boolean => {
+  if (mat?.isCompleta === true) return true;
+  const estado = String(mat?.estado ?? '')
+    .trim()
+    .toUpperCase();
+  return ESTADOS_COMPETENCIA_COMPLETADA.has(estado);
+};
+
+const resolverIdPrograma = (solicitud: any): number | undefined => {
+  const raw =
+    solicitud?.ficha?.asignacion?.idPrograma ??
+    solicitud?.ficha?.aperturarPrograma?.idPrograma ??
+    solicitud?.ficha?.asignacion?.programa?.id ??
+    solicitud?.ficha?.aperturarPrograma?.programa?.id ??
+    solicitud?.idPrograma;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
 const SolicitudInstructorAceptar = ({
   modalAccept,
   setModalAccept,
@@ -20,6 +48,7 @@ const SolicitudInstructorAceptar = ({
 }: SolicitudInstructorAceptarProps) => {
   const [materias, setMaterias] = useState<any[]>([]);
   const [instructores, setInstructores] = useState<any[]>([]);
+  const [loadingMaterias, setLoadingMaterias] = useState(false);
   const [loadingInstructores, setLoadingInstructores] = useState(false);
   const [loadingHorario, setLoadingHorario] = useState(false);
   const [showCalendario, setShowCalendario] = useState(false);
@@ -29,14 +58,12 @@ const SolicitudInstructorAceptar = ({
   useEffect(() => {
     if (!modalAccept || !selectedSolicitud) return;
 
+    setMaterias([]);
     setInstructores([]);
     setInstructorHorario([]);
     setInstructorCalendario(null);
     setShowCalendario(false);
-    fetchMateriasByFicha(
-      selectedSolicitud.idFicha,
-      selectedSolicitud.ficha?.asignacion?.idPrograma
-    );
+    fetchMateriasByFicha(selectedSolicitud.idFicha, resolverIdPrograma(selectedSolicitud));
   }, [modalAccept, selectedSolicitud]);
 
   const fetchInstructores = async (idMateria: number) => {
@@ -55,19 +82,45 @@ const SolicitudInstructorAceptar = ({
   };
 
   const fetchMateriasByFicha = async (idFicha: number, idPrograma?: number) => {
-    setLoadingInstructores(true);
+    if (!idFicha) {
+      setMaterias([]);
+      enqueueSnackbar('La solicitud no tiene ficha asociada', { variant: 'error' });
+      return;
+    }
+    if (!idPrograma) {
+      setMaterias([]);
+      enqueueSnackbar('No se pudo determinar el programa de la ficha', { variant: 'error' });
+      return;
+    }
+
+    setLoadingMaterias(true);
     try {
       const res = await axios.get('materias-programa', { params: { idFicha, idPrograma } });
-      setMaterias(res.data || res || []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      if (!Array.isArray(res.data) && res.data?.message) {
+        setMaterias([]);
+        enqueueSnackbar(res.data.message || 'Error al cargar las competencias', {
+          variant: 'error'
+        });
+        return;
+      }
+      setMaterias(data);
     } catch (error: any) {
       setMaterias([]);
-      enqueueSnackbar(error.response?.data?.message || 'Error al cargar las materias', {
+      enqueueSnackbar(error.response?.data?.message || 'Error al cargar las competencias', {
         variant: 'error'
       });
     } finally {
-      setLoadingInstructores(false);
+      setLoadingMaterias(false);
     }
   };
+
+  const opcionesCompetencias = materias
+    .filter((mat) => !competenciaEstaCompletada(mat))
+    .map((mat) => ({
+      value: mat.id,
+      label: mat.nombreMateria
+    }));
 
   const fetchHorariosInstructor = async (idInstructor: number) => {
     const instructor = instructores.find(
@@ -225,15 +278,15 @@ const SolicitudInstructorAceptar = ({
                 Seleccionar Competencia <span className="text-danger">*</span>
               </label>
               <Select
-                options={materias
-                  .filter((mat) => mat.idCategoriaFormacion == 1 && mat.estado != 'FINALIZADO')
-                  .map((mat) => ({
-                    value: mat.id,
-                    label: mat.nombreMateria
-                  }))}
+                options={opcionesCompetencias}
                 isClearable
-                isLoading={loadingInstructores && materias.length === 0}
-                placeholder="Seleccione una materia..."
+                isLoading={loadingMaterias}
+                placeholder="Seleccione una competencia..."
+                noOptionsMessage={() =>
+                  loadingMaterias
+                    ? 'Cargando competencias...'
+                    : 'No existen competencias disponibles.'
+                }
                 value={
                   acceptFormik.values.idMateria
                     ? (() => {
@@ -242,7 +295,7 @@ const SolicitudInstructorAceptar = ({
                             m.id === Number(acceptFormik.values.idMateria) ||
                             m.id === acceptFormik.values.idMateria
                         );
-                        if (!mat) return null;
+                        if (!mat || competenciaEstaCompletada(mat)) return null;
                         return {
                           value: mat.id,
                           label: mat.nombreMateria
@@ -278,13 +331,7 @@ const SolicitudInstructorAceptar = ({
               </label>
               <Select
                 isClearable
-                options={instructores
-                  .filter((inst) =>
-                    inst.asignacionCategoriaFormacionContrato.some(
-                      (cat: any) => cat.idCategoriaFormacion == 1
-                    )
-                  )
-                  .map((inst) => ({
+                options={instructores.map((inst) => ({
                     value: inst.id,
                     label: (
                       <div className="flex flex-row justify-between items-center text-gray-900 dark:text-gray-100">
