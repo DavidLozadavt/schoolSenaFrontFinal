@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MallaCurricularProps } from '../../types';
-import { BookOpen, Calendar, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
+import { Calendar, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 
 // Componentes separados
 import { CardTrimestre } from './CardTrimestre';
@@ -146,13 +146,13 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
 
         {/* Header con Banner */}
-        <div className="relative flex-shrink-0 w-full h-36 overflow-hidden">
+        <div className="relative flex-shrink-0 w-full overflow-hidden">
           <img
             src={program.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600'}
             className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
             alt="Banner del programa"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
           <button
             onClick={onClose}
@@ -162,17 +162,29 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
             <i className="text-lg ki-outline ki-cross"></i>
           </button>
 
-          <div className="absolute text-white bottom-5 left-6">
-            <span className="px-3 py-1 text-xs font-extrabold tracking-wider uppercase bg-primary rounded-md mb-2 inline-block shadow-lg">
-              {program.estado?.nombre || program.status || "SIN ESTADO"}
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-none text-white drop-shadow-lg">
-              {program.name || "Programa sin nombre"}
-            </h2>
-            <p className="mt-1.5 font-semibold tracking-wide text-gray-300 dark:text-white/70 text-xs flex items-center gap-2">
-              <BookOpen size={14} />
-              Código: {program.codigo} • Malla Curricular
-            </p>
+          <div className="relative z-[1] flex flex-col px-6 pb-5 pt-12 pr-16 text-white">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 mb-0.5">
+                  Programa
+                </p>
+                <h2 className="text-base sm:text-lg md:text-xl font-bold uppercase tracking-tight leading-snug text-white/95 drop-shadow line-clamp-2">
+                  {program?.name || program?.nombrePrograma || 'Programa sin nombre'}
+                </h2>
+                <p className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none drop-shadow-lg">
+                  FICHA {ficha?.codigo ?? '—'}
+                </p>
+              </div>
+
+              <div className="shrink-0 sm:text-right">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 mb-1">
+                  Jornada
+                </p>
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-md bg-white/15 border border-white/35 backdrop-blur-sm text-sm sm:text-base font-black uppercase tracking-widest text-white shadow-lg">
+                  {ficha?.jornada?.nombreJornada || 'Sin jornada'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
