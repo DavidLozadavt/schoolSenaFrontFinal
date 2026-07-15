@@ -14,6 +14,7 @@ import { useTrimestres } from './UseTrimestres';
 import {
   compararTrimestresPorNumeroGrado,
   maxNumeroGradoTrimestres,
+  numeroGradoDesdeTrimestre,
 } from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
 import { HorariosMateria } from './HorariosMateria';
@@ -23,7 +24,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Estados para modal de RAPs - NUEVO
   const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
@@ -256,21 +257,39 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       :
                       (
                         trimestres.length > 0 ? (
-                        (sortOrder === 'asc' 
-                            ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
-                            : [...trimestres].sort((a, b) => compararTrimestresPorNumeroGrado(b, a))
-                          )
-                            .map((trimestre, index) => (
+                        (() => {
+                          const trimestresOrdenados =
+                            sortOrder === 'asc'
+                              ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
+                              : [...trimestres].sort((a, b) =>
+                                  compararTrimestresPorNumeroGrado(b, a)
+                                );
+                          const hayBorrador = trimestresOrdenados.some((t) => t.esNuevo);
+                          const numeroMasReciente = maxNumeroGradoTrimestres(trimestresOrdenados);
+
+                          return trimestresOrdenados.map((trimestre, index) => {
+                            const numeroActual = numeroGradoDesdeTrimestre(trimestre);
+                            const expandirPorDefecto = Boolean(
+                              trimestre.esNuevo ||
+                                (!hayBorrador &&
+                                  numeroActual !== null &&
+                                  numeroActual === numeroMasReciente)
+                            );
+
+                            return (
                               <div
-                                key={trimestre.id || index}
-                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${trimestre.esNuevo
-                                  ? 'border-primary animate-pulse-slow'
-                                  : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
-                                  }`}
+                                key={trimestre.idGradoPrograma ?? trimestre.id ?? `tmp-${index}`}
+                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
+                                  trimestre.esNuevo
+                                    ? 'border-primary animate-pulse-slow'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                                }`}
                               >
                                 <CardTrimestre
                                   trimestre={trimestre}
                                   index={index}
+                                  defaultExpanded={expandirPorDefecto}
+                                  esPanelActivo={expandirPorDefecto}
                                   onAbrirMaterias={handleOpenMateriaFromTrimestre}
                                   setSelectedNivelId={setSelectedNivelId}
                                   onVerRaps={handleOpenRaps}
@@ -280,7 +299,9 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                                   onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
                                 />
                               </div>
-                            ))
+                            );
+                          });
+                        })()
                         ) : (
                           <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
                             <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
