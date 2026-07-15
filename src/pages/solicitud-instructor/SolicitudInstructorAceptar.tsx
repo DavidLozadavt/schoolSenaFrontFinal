@@ -40,6 +40,16 @@ const resolverIdPrograma = (solicitud: any): number | undefined => {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 };
 
+const esCompetenciaTransversal = (mat: any): boolean => {
+  const nombre = String(mat?.categoriaFormacionNombre ?? mat?.categoriaFormacion?.nombre ?? '')
+    .trim()
+    .toUpperCase();
+  if (nombre.includes('TRASVERSAL') || nombre.includes('TRANSVERSAL')) {
+    return true;
+  }
+  return Number(mat?.idCategoriaFormacion) === 1;
+};
+
 const SolicitudInstructorAceptar = ({
   modalAccept,
   setModalAccept,
@@ -95,7 +105,14 @@ const SolicitudInstructorAceptar = ({
 
     setLoadingMaterias(true);
     try {
-      const res = await axios.get('materias-programa', { params: { idFicha, idPrograma } });
+      const res = await axios.get('materias-programa', {
+        params: {
+          idFicha,
+          idPrograma,
+          soloTransversales: true,
+          excluirCompletadas: true
+        }
+      });
       const data = Array.isArray(res.data) ? res.data : [];
       if (!Array.isArray(res.data) && res.data?.message) {
         setMaterias([]);
@@ -116,7 +133,7 @@ const SolicitudInstructorAceptar = ({
   };
 
   const opcionesCompetencias = materias
-    .filter((mat) => !competenciaEstaCompletada(mat))
+    .filter((mat) => esCompetenciaTransversal(mat) && !competenciaEstaCompletada(mat))
     .map((mat) => ({
       value: mat.id,
       label: mat.nombreMateria
@@ -285,7 +302,7 @@ const SolicitudInstructorAceptar = ({
                 noOptionsMessage={() =>
                   loadingMaterias
                     ? 'Cargando competencias...'
-                    : 'No existen competencias disponibles.'
+                    : 'No existen competencias transversales disponibles para asignar.'
                 }
                 value={
                   acceptFormik.values.idMateria
