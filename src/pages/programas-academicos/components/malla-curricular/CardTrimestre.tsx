@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, TrendingUp } from 'lucide-react';
 import { numeroGradoDesdeTrimestre } from './utils/trimestreNumeroGrado';
@@ -14,13 +14,6 @@ interface CardTrimestreProps {
   onAsignacionSuccess?: () => void;
   setModalHorarios?: any;
   idFicha?: number;
-  /** Trimestre más reciente (o borrador) expandido al montar. */
-  defaultExpanded?: boolean;
-  /**
-   * Si es true, este panel es el “activo” (más reciente / borrador).
-   * Sirve para colapsar el resto cuando aparece un trimestre nuevo.
-   */
-  esPanelActivo?: boolean;
 }
 
 const formatearFecha = (fecha: Date): string => {
@@ -60,24 +53,9 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
   onEditCompetencia,
   onAsignacionSuccess,
   setModalHorarios,
-  idFicha,
-  defaultExpanded = false,
-  esPanelActivo = false
+  idFicha
 }) => {
-  const [expandido, setExpandido] = useState(Boolean(defaultExpanded));
-  const eraPanelActivo = useRef(esPanelActivo);
-
-  // Al pasar a ser el panel activo (trimestre nuevo / más reciente), expandir.
-  // Al dejar de serlo, colapsar. Sin interferir si el usuario abre/cierra manualmente.
-  useEffect(() => {
-    if (esPanelActivo && !eraPanelActivo.current) {
-      setExpandido(true);
-    }
-    if (!esPanelActivo && eraPanelActivo.current) {
-      setExpandido(false);
-    }
-    eraPanelActivo.current = esPanelActivo;
-  }, [esPanelActivo]);
+  const [expandido, setExpandido] = useState(false);
 
   const materiasArray = Array.isArray(trimestre.materias) ? trimestre.materias : [];
   const tieneObjetosCompletos = materiasArray.length > 0 && typeof materiasArray[0] === 'object';
