@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
@@ -40,7 +40,14 @@ const STEPS = [
 ]
 
 const InformePagoGeneral: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setCurrentStep] = useState(() => {
+    const savedStep = localStorage.getItem('informePagoCurrentStep')
+    return savedStep !== null ? parseInt(savedStep, 10) : 0
+  })
+
+  useEffect(() => {
+    localStorage.setItem('informePagoCurrentStep', currentStep.toString())
+  }, [currentStep])
   const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const informeRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)

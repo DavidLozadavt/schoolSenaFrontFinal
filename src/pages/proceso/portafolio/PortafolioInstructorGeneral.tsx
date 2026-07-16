@@ -136,7 +136,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
   const fetchCategorias = async () => {
     try {
-      const res = await axios.get('portafolio-categorias');
+      const res = await axios.get(`portafolio-categorias?idContrato=${idContrato}`);
       setCategorias(res.data);
     } catch (error) {
       // Ignorar
@@ -465,7 +465,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
     }
     setSavingCat(true);
     try {
-      await axios.post('portafolio-categorias', catForm);
+      await axios.post('portafolio-categorias', { ...catForm, idContrato });
       enqueueSnackbar('Categoría/Carpeta creada.', { variant: 'success' });
       fetchCategorias();
       closeCatModal();
@@ -485,7 +485,8 @@ const PortafolioInstructorGeneral: React.FC = () => {
     try {
       await axios.post('portafolio-categorias', {
         nombre: inlineFolderCtx.nombre,
-        idCategoriaPadre: getCurrentFolder(inlineFolderCtx.fichaId) ?? ''
+        idCategoriaPadre: getCurrentFolder(inlineFolderCtx.fichaId) ?? '',
+        idContrato
       });
       enqueueSnackbar('Carpeta creada.', { variant: 'success' });
       fetchCategorias();
