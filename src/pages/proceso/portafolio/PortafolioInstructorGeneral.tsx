@@ -400,18 +400,22 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
       if (editDoc) {
         const res = await axios.post(`portafolio-documentos/${editDoc.id}?_method=PUT`, formData);
+        const updatedDoc = res.data.data || res.data;
+        if (updatedDoc.idCategoria) updatedDoc.idCategoria = Number(updatedDoc.idCategoria);
         updateFicha(portafolioId, fichaId, (f) => ({
           ...f,
-          portafolioDocumentos: (f.portafolio_documentos ?? []).map((d) =>
-            d.id === editDoc.id ? { ...d, ...(res.data.data || res.data) } : d
+          portafolio_documentos: (f.portafolio_documentos ?? []).map((d) =>
+            d.id === editDoc.id ? { ...d, ...updatedDoc } : d
           )
         }));
         enqueueSnackbar('Documento actualizado.', { variant: 'success' });
       } else {
         const res = await axios.post('portafolio-documentos', formData);
+        const newDoc = res.data.data || res.data;
+        if (newDoc.idCategoria) newDoc.idCategoria = Number(newDoc.idCategoria);
         updateFicha(portafolioId, fichaId, (f) => ({
           ...f,
-          portafolioDocumentos: [...(f.portafolio_documentos ?? []), res.data.data || res.data]
+          portafolio_documentos: [...(f.portafolio_documentos ?? []), newDoc]
         }));
         enqueueSnackbar('Documento creado.', { variant: 'success' });
       }
@@ -431,7 +435,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
       await axios.delete(`portafolio-documentos/${doc.id}`);
       updateFicha(portafolioId, fichaId, (f) => ({
         ...f,
-        portafolioDocumentos: (f.portafolio_documentos ?? []).filter((d) => d.id !== doc.id)
+        portafolio_documentos: (f.portafolio_documentos ?? []).filter((d) => d.id !== doc.id)
       }));
       enqueueSnackbar('Documento eliminado.', { variant: 'success' });
       setDeleteDoc(null);
