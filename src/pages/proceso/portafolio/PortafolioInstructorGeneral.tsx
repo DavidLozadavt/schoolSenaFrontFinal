@@ -4,47 +4,14 @@ import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import { useRef } from 'react';
-
-interface Ficha {
-  id: number;
-  codigo: string;
-  codigoFicha?: string;
-}
-
-interface PortafolioCategoria {
-  id: number;
-  nombre: string;
-  slug: string;
-  idCategoriaPadre?: number | null;
-  orden: number;
-  hijos?: PortafolioCategoria[];
-}
-
-interface PortafolioDocumento {
-  id: number;
-  descripcion: string;
-  urlDocumento?: string | null;
-  idPortafolioFichas: number;
-  urlDocumentoUrl?: string | null;
-  idCategoria?: number | null;
-  categoria?: PortafolioCategoria;
-}
-
-interface PortafolioFicha {
-  id: number;
-  descripcion: string;
-  idPortafolio: number;
-  idFicha: number;
-  ficha?: Ficha;
-  portafolio_documentos?: PortafolioDocumento[];
-}
-
-interface Portafolio {
-  id: number;
-  descripcion: string;
-  idContrato: number;
-  portafolio_fichas?: PortafolioFicha[];
-}
+import {
+  Ficha,
+  Portafolio,
+  PortafolioCategoria,
+  PortafolioDocumento,
+  PortafolioFicha
+} from './interface/Portafolios';
+import { getFileIconInfo } from './hooks/getFileConInfo';
 
 const EMPTY_PORTAFOLIO_FORM = { descripcion: '' };
 const EMPTY_FICHA_FORM = { descripcion: '', idFicha: 0 };
@@ -169,7 +136,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
   const fetchCategorias = async () => {
     try {
-      const res = await axios.get('portafolio-categorias');
+      const res = await axios.get(`portafolio-categorias?idContrato=${idContrato}`);
       setCategorias(res.data);
     } catch (error) {
       // Ignorar
@@ -433,18 +400,22 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
       if (editDoc) {
         const res = await axios.post(`portafolio-documentos/${editDoc.id}?_method=PUT`, formData);
+        const updatedDoc = res.data.data || res.data;
+        if (updatedDoc.idCategoria) updatedDoc.idCategoria = Number(updatedDoc.idCategoria);
         updateFicha(portafolioId, fichaId, (f) => ({
           ...f,
-          portafolioDocumentos: (f.portafolio_documentos ?? []).map((d) =>
-            d.id === editDoc.id ? { ...d, ...(res.data.data || res.data) } : d
+          portafolio_documentos: (f.portafolio_documentos ?? []).map((d) =>
+            d.id === editDoc.id ? { ...d, ...updatedDoc } : d
           )
         }));
         enqueueSnackbar('Documento actualizado.', { variant: 'success' });
       } else {
         const res = await axios.post('portafolio-documentos', formData);
+        const newDoc = res.data.data || res.data;
+        if (newDoc.idCategoria) newDoc.idCategoria = Number(newDoc.idCategoria);
         updateFicha(portafolioId, fichaId, (f) => ({
           ...f,
-          portafolioDocumentos: [...(f.portafolio_documentos ?? []), res.data.data || res.data]
+          portafolio_documentos: [...(f.portafolio_documentos ?? []), newDoc]
         }));
         enqueueSnackbar('Documento creado.', { variant: 'success' });
       }
@@ -464,7 +435,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
       await axios.delete(`portafolio-documentos/${doc.id}`);
       updateFicha(portafolioId, fichaId, (f) => ({
         ...f,
-        portafolioDocumentos: (f.portafolio_documentos ?? []).filter((d) => d.id !== doc.id)
+        portafolio_documentos: (f.portafolio_documentos ?? []).filter((d) => d.id !== doc.id)
       }));
       enqueueSnackbar('Documento eliminado.', { variant: 'success' });
       setDeleteDoc(null);
@@ -494,7 +465,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
     }
     setSavingCat(true);
     try {
-      await axios.post('portafolio-categorias', catForm);
+      await axios.post('portafolio-categorias', { ...catForm, idContrato });
       enqueueSnackbar('Categoría/Carpeta creada.', { variant: 'success' });
       fetchCategorias();
       closeCatModal();
@@ -514,7 +485,8 @@ const PortafolioInstructorGeneral: React.FC = () => {
     try {
       await axios.post('portafolio-categorias', {
         nombre: inlineFolderCtx.nombre,
-        idCategoriaPadre: getCurrentFolder(inlineFolderCtx.fichaId) ?? ''
+        idCategoriaPadre: getCurrentFolder(inlineFolderCtx.fichaId) ?? '',
+        idContrato
       });
       enqueueSnackbar('Carpeta creada.', { variant: 'success' });
       fetchCategorias();
@@ -710,9 +682,8 @@ const PortafolioInstructorGeneral: React.FC = () => {
                                     path.length > 1 ? path[path.length - 2].id : null;
 
                                   const renderDocItem = (doc: PortafolioDocumento) => {
-                                    const isPdf =
-                                      doc.urlDocumentoUrl?.toLowerCase().endsWith('.pdf') ||
-                                      doc.descripcion.toLowerCase().endsWith('.pdf');
+                                    const { icon, colorClass } = getFileIconInfo(doc);
+                                    const isPdf = icon === 'ki-file-sheet';
 
                                     return (
                                       <div
@@ -733,7 +704,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
                                       >
                                         <div className="w-12 h-12 flex items-center justify-center mb-2 shrink-0">
                                           <i
-                                            className={`ki-outline ${isPdf ? 'ki-file-pdf text-red-500' : 'ki-document text-amber-500'} text-4xl group-hover:scale-105 transition-transform`}
+                                            className={`ki-outline ${icon} ${colorClass} text-4xl group-hover:scale-105 transition-transform`}
                                           />
                                         </div>
                                         <span className="text-[11px] leading-tight font-medium text-gray-700 dark:text-gray-200 text-center line-clamp-2 w-full px-1 break-words">
