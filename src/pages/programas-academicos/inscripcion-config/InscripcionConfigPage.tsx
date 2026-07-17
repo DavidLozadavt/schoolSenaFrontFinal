@@ -204,9 +204,9 @@ const InscripcionConfigPage = () => {
                   disabled={saving}
                 >
                   {saving ? (
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <span key="spinner" className="loading loading-spinner loading-xs"></span>
                   ) : (
-                    <KeenIcon icon="check-square" />
+                    <KeenIcon key="icon" icon="check-square" />
                   )}
                   Guardar Configuración
                 </button>

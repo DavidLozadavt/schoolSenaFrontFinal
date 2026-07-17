@@ -41,6 +41,7 @@ export interface SolicitudInscripcion {
   requierePago: boolean;
   editado?: boolean;
   fechaEditado?: string | null;
+  creadoEn?: string;
 }
 
 export interface EstudianteSolicitudInscripcion {

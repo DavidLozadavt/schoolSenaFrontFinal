@@ -118,6 +118,11 @@ export async function registrarPagoFacturaAcademica(
   return res.data;
 }
 
+export async function deleteSolicitudInscripcion(idFactura: number): Promise<{ message: string }> {
+  const res = await axios.delete<{ message: string }>(`solicitudes_inscripcion/${idFactura}`);
+  return res.data;
+}
+
 export async function aprobarValidacionSolicitudInscripcion(
   idFactura: number,
   observaciones?: string

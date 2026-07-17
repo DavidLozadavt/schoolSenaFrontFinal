@@ -30,17 +30,17 @@ interface Evento {
 
 interface EventsContentProps {
   reload: boolean;
+  searchTerm: string;
+  isArchived: boolean;
 }
 
-const EventsContent = ({ reload }: EventsContentProps) => {
+const EventsContent = ({ reload, searchTerm, isArchived }: EventsContentProps) => {
   const navigate = useNavigate();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isArchived, setIsArchived] = useState(false);
   const { confirmAction } = useConfirm();
 
   const fetchData = async (page = 1, search = searchTerm, archived = isArchived) => {
@@ -81,12 +81,8 @@ const EventsContent = ({ reload }: EventsContentProps) => {
 
   useEffect(() => {
     fetchData(1, searchTerm, isArchived);
-  }, [reload, isArchived]);
-
-  const toggleArchive = () => {
-    setIsArchived(!isArchived);
     setCurrentPage(1);
-  };
+  }, [reload, isArchived, searchTerm]);
 
   const deleteEvento = async (id: number) => {
     confirmAction('¿Eliminar este evento permanentemente?', async () => {
@@ -183,56 +179,7 @@ const EventsContent = ({ reload }: EventsContentProps) => {
   }
 
   return (
-    <div className="py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-3xl font-extrabold flex items-center gap-2 text-neutral-900 dark:text-slate-50">
-            <Calendar className={`w-7 h-7 ${isArchived ? 'text-neutral-400' : 'text-orange-500'}`} />
-            {isArchived ? 'Eventos Finalizados' : 'Eventos Próximos'}
-            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-400">
-              ({pagination?.total || 0} eventos)
-            </span>
-          </h2>
-          {isArchived && (
-            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500 italic">
-              Historial de eventos marcados como finalizados
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-4 items-center w-full sm:w-auto">
-          <button
-            onClick={toggleArchive}
-            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-lg ${
-              isArchived 
-                ? 'bg-orange-500 text-white shadow-orange-500/20' 
-                : 'bg-white dark:bg-neutral-900 text-neutral-500 border border-neutral-100 dark:border-white/5'
-            }`}
-          >
-            <KeenIcon icon="archive" className="text-sm" />
-            {isArchived ? 'Ver Activos' : 'Ver Archivo'}
-          </button>
-
-          <div className="relative flex items-center flex-1 sm:flex-initial min-w-[240px]">
-            <KeenIcon
-              icon="magnifier"
-              className="absolute left-0 ml-3 leading-none text-gray-500 -translate-y-1/2 text-md top-1/2"
-            />
-            <input
-              type="text"
-              placeholder="Buscar eventos..."
-              className="pl-8 input input-sm w-full focus:ring-orange-500/20"
-              value={searchTerm}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSearchTerm(val);
-                fetchData(1, val, isArchived);
-              }}
-            />
-          </div>
-        </div>
-      </div>
+    <div className="pb-8">
 
       {filteredData.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
