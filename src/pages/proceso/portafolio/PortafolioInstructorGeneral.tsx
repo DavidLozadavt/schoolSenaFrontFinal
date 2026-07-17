@@ -98,11 +98,13 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
   // --- Utilidades de navegación de carpetas (estilo explorador de archivos) ---
 
+  const idNumber = (v: unknown) => (v == null ? null : Number(v));
+
   const categoriasById = useMemo(() => {
     const map = new Map<number, PortafolioCategoria>();
     const walk = (items: PortafolioCategoria[]) => {
       items.forEach((c) => {
-        map.set(c.id, c);
+        map.set(Number(c.id), c);
         if (c.hijos?.length) walk(c.hijos);
       });
     };
@@ -112,23 +114,27 @@ const PortafolioInstructorGeneral: React.FC = () => {
 
   const getCategoryChildren = (parentId: number | null): PortafolioCategoria[] => {
     if (parentId === null) return categorias;
-    return categoriasById.get(parentId)?.hijos ?? [];
+    return categoriasById.get(idNumber(parentId)!)?.hijos ?? [];
   };
 
   // Ruta desde la raíz hasta la carpeta indicada (para breadcrumbs)
   const getCategoryPath = (id: number | null): PortafolioCategoria[] => {
     const path: PortafolioCategoria[] = [];
-    let current = id !== null ? categoriasById.get(id) : undefined;
+    let current = id != null ? categoriasById.get(Number(id)) : undefined;
     while (current) {
       path.unshift(current);
       current =
-        current.idCategoriaPadre != null ? categoriasById.get(current.idCategoriaPadre) : undefined;
+        current.idCategoriaPadre != null
+          ? categoriasById.get(Number(current.idCategoriaPadre))
+          : undefined;
     }
     return path;
   };
 
-  const getCurrentFolder = (fichaId: number): number | null =>
-    currentFolderByFicha[fichaId] ?? null;
+  const getCurrentFolder = (fichaId: number): number | null => {
+    const val = currentFolderByFicha[fichaId];
+    return val == null ? null : Number(val);
+  };
 
   const navigateToFolder = (fichaId: number, categoriaId: number | null) => {
     setCurrentFolderByFicha((prev) => ({ ...prev, [fichaId]: categoriaId }));
@@ -676,7 +682,7 @@ const PortafolioInstructorGeneral: React.FC = () => {
                                   const path = getCategoryPath(currentFolderId);
                                   const childFolders = getCategoryChildren(currentFolderId);
                                   const docsHere = documentos.filter(
-                                    (d) => (d.idCategoria ?? null) === currentFolderId
+                                    (d) => idNumber(d.idCategoria) === idNumber(currentFolderId)
                                   );
                                   const parentId =
                                     path.length > 1 ? path[path.length - 2].id : null;
