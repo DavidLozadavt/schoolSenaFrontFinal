@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import axios from 'axios'
 import ContratoGeneralInstructor from './contratoInstructor/ContratoGeneralInstructor'
 import InformeGeneralInstructor from './informeInstructor/InformeGeneralInstructor'
 import RmiInstructor from './rmiInstructor/RmiInstructor'
@@ -40,14 +41,24 @@ const STEPS = [
 ]
 
 const InformePagoGeneral: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(() => {
-    const savedStep = localStorage.getItem('informePagoCurrentStep')
-    return savedStep !== null ? parseInt(savedStep, 10) : 0
-  })
+  const [currentStep, setCurrentStep] = useState<number>(0)
+  const [loadingInitial, setLoadingInitial] = useState(true)
 
   useEffect(() => {
-    localStorage.setItem('informePagoCurrentStep', currentStep.toString())
-  }, [currentStep])
+    const fetchInitialStep = async () => {
+      try {
+        const res = await axios.get('instructores/estado_informe_pago')
+        if (res.data && typeof res.data.step === 'number') {
+          setCurrentStep(res.data.step)
+        }
+      } catch (error) {
+        console.error('Error fetching initial step:', error)
+      } finally {
+        setLoadingInitial(false)
+      }
+    }
+    fetchInitialStep()
+  }, [])
   const contratoRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const rmiRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
   const informeRef = useRef<{ validate: () => { isValid: boolean; errors: string[] } }>(null)
@@ -136,7 +147,13 @@ const InformePagoGeneral: React.FC = () => {
         </p>
       </div>
 
-      {/* ── Stepper horizontal ── */}
+      {loadingInitial ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* ── Stepper horizontal ── */}
       <div className="mb-8">
         <div className="flex items-center justify-between relative">
           {/* Línea de fondo */}
@@ -288,6 +305,8 @@ const InformePagoGeneral: React.FC = () => {
           <i className="ki-outline ki-right text-sm" />
         </button>
       </div>
+        </>
+      )}
     </div>
   )
 }

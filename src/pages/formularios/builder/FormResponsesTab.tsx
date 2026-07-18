@@ -44,8 +44,10 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return pregunta?.titulo || `Pregunta ${idPregunta}`;
   };
 
-  /** Resolve full name from user object — handles accessor, flat name, or nested persona */
-  const getUserName = (usuario: any): string => {
+  const getUserName = (usuario: any, respuesta?: any): string => {
+    if (!usuario && (respuesta?.nexiEmail || respuesta?.usuario?.email)) {
+      return respuesta?.nexiEmail || respuesta?.usuario?.email;
+    }
     if (!usuario) return 'Anónimo';
     // Backend may already compute name via accessor or map()
     if (usuario.name && usuario.name.trim()) return usuario.name.trim();
@@ -59,13 +61,27 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return usuario.email?.split('@')[0] || 'Anónimo';
   };
 
-  const getUserInitials = (usuario: any): string => {
-    const name = getUserName(usuario);
+  const getUserInitials = (usuario: any, respuesta?: any): string => {
+    const name = getUserName(usuario, respuesta);
     if (name === 'Anónimo') return '?';
+    if (usuario?.isNexiUser || respuesta?.nexiEmail) return name.split('@')[0].slice(0, 2).toUpperCase();
     const words = name.trim().split(' ');
     return words.length >= 2
       ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
       : name[0].toUpperCase();
+  };
+
+  const deleteResponse = async (id: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!window.confirm('¿Eliminar esta respuesta? Esta acción no se puede deshacer.')) return;
+    try {
+      await axios.delete(`formularios/${formularioId}/respuestas/${id}`);
+      setRespuestas(prev => prev.filter(r => r.id !== id));
+      if (selectedResponse?.id === id) setSelectedResponse(null);
+    } catch (error) {
+      console.error('Error eliminando respuesta', error);
+      alert('No se pudo eliminar la respuesta.');
+    }
   };
 
   const exportToExcel = () => {
@@ -197,13 +213,16 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shrink-0"
-                            style={{ backgroundColor: accentColor }}
+                            style={{ backgroundColor: r.nexiEmail ? '#f59e0b' : accentColor }}
                           >
-                            {getUserInitials(r.usuario)}
+                            {getUserInitials(r.usuario, r)}
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario)}</span>
-                            {r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>}
+                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario, r)}</span>
+                            {(r.usuario?.isNexiUser || r.nexiEmail)
+                              ? <span className="text-[9px] font-black uppercase tracking-wider text-amber-500">NexiService</span>
+                              : r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>
+                            }
                           </div>
                         </div>
                       </td>
@@ -221,8 +240,17 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         );
                       })}
                       <td className="px-4 py-4">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all opacity-0 group-hover:opacity-100">
-                          <i className="bi bi-chevron-right text-xs"></i>
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={(e) => deleteResponse(r.id, e)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 transition-colors"
+                            title="Eliminar respuesta"
+                          >
+                            <i className="bi bi-trash3 text-xs"></i>
+                          </button>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all">
+                            <i className="bi bi-chevron-right text-xs"></i>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -301,16 +329,29 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                   >
                     {getUserInitials(selectedResponse.usuario)}
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col flex-1 min-w-0">
                     <span className="text-base font-black text-neutral-800 dark:text-white">
                       {getUserName(selectedResponse.usuario)}
                     </span>
                     <span className="text-xs text-neutral-400 flex items-center gap-2 flex-wrap">
                       {selectedResponse.usuario?.email && <span>{selectedResponse.usuario.email}</span>}
                       <span className="text-neutral-300 hidden sm:inline">·</span>
-                      <span>{new Date(selectedResponse.created_at).toLocaleString()}</span>
+                      <span>Inscrito: {new Date(selectedResponse.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      {selectedResponse.updated_at && selectedResponse.updated_at !== selectedResponse.created_at && (
+                        <>
+                          <span className="text-neutral-300 hidden sm:inline">·</span>
+                          <span className="text-amber-500">Editado: {new Date(selectedResponse.updated_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </>
+                      )}
                     </span>
                   </div>
+                  <button
+                    onClick={() => deleteResponse(selectedResponse.id)}
+                    className="shrink-0 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-800/40 hover:text-red-600 transition-all"
+                  >
+                    <i className="bi bi-trash3 text-xs"></i>
+                    Eliminar
+                  </button>
                 </div>
 
                 {/* Answer items */}
@@ -323,6 +364,9 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                       <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-250">
                         {(() => {
                           if (Array.isArray(item.valor)) {
+                            if (item.valor.length === 0) {
+                              return <span className="italic text-neutral-350 dark:text-neutral-600 text-xs">Sin respuesta</span>;
+                            }
                             return (
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {item.valor.map((v, vi) => (
@@ -366,7 +410,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                                 {urls.map((url, uidx) => {
                                   const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(url);
                                   return (
-                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/20 border border-neutral-100/50 max-w-lg shadow-inner">
+                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-coal-400 border border-neutral-100/50 max-w-lg shadow-inner">
                                       <div 
                                         className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-neutral-200/20 bg-neutral-100 flex items-center justify-center ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                         onClick={() => isImage && setActiveLightboxUrl(url)}
