@@ -44,24 +44,135 @@ const mapeoDias: { [key: string]: number } = {
   'SÁBADO': 6
 };
 
-const parseDate = (dateString: string): Date | null => {
+/**
+ * idDia en BD (igual que generatePastSessions / HorariosMateria):
+ * 1=Lunes … 6=Sábado, 7=Domingo → JS getDay(): 0=Domingo … 6=Sábado.
+ */
+const idDiaToJsDay = (idDiaRaw: any): number => {
+  const id = Number(idDiaRaw);
+  if (!Number.isFinite(id)) return -1;
+  if (id === 7 || id === 0) return 0;
+  if (id >= 1 && id <= 6) return id;
+  return -1;
+};
+
+const normalizeDayName = (raw: any): string =>
+  String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+
+/** Resuelve el día JS priorizando idDia (fuente de verdad del sistema). */
+const resolveJsDay = (h: any): number => {
+  const fromId = idDiaToJsDay(h?.dia?.id ?? h?.idDia);
+  if (fromId >= 0) return fromId;
+
+  const nombre = normalizeDayName(h?.dia?.dia || h?.dia_semana || h?.nombreDia);
+  if (nombre && mapeoDias[nombre] !== undefined) return mapeoDias[nombre];
+  // Sin tildes: MIERCOLES / SABADO
+  if (nombre === 'MIERCOLES') return 3;
+  if (nombre === 'SABADO') return 6;
+  return -1;
+};
+
+const parseDate = (dateString: any): Date | null => {
   if (!dateString) return null;
-  const parts = dateString.split('T')[0].split('-');
-  if (parts.length === 3) {
-    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  if (dateString instanceof Date && !isNaN(dateString.getTime())) {
+    return new Date(dateString.getFullYear(), dateString.getMonth(), dateString.getDate());
   }
-  return new Date(dateString);
+  const str = String(dateString);
+  const parts = str.split('T')[0].split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m, d);
+    }
+  }
+  const fallback = new Date(str);
+  return isNaN(fallback.getTime()) ? null : fallback;
+};
+
+const normalizeHora = (timeStr?: any): string => {
+  if (timeStr == null) return '';
+  const s = String(timeStr);
+  const match = s.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
 };
 
 const format12h = (timeStr?: any) => {
-  if (!timeStr || typeof timeStr !== 'string') return '';
-  const parts = timeStr.split(':');
+  const normalized = normalizeHora(timeStr);
+  if (!normalized) return '';
+  const parts = normalized.split(':');
   let h = parseInt(parts[0], 10);
   if (isNaN(h)) return '';
   const m = parts[1] || '00';
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${h}:${m} ${ampm}`;
+};
+
+/** Paleta estable por materia para distinguir bloques en el calendario. */
+const COLORES_MATERIA = [
+  { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+  { bg: '#f0fdf4', border: '#86efac', text: '#166534' },
+  { bg: '#fff7ed', border: '#fdba74', text: '#9a3412' },
+  { bg: '#faf5ff', border: '#d8b4fe', text: '#6b21a8' },
+  { bg: '#ecfeff', border: '#67e8f9', text: '#155e75' },
+  { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b' },
+  { bg: '#f8fafc', border: '#cbd5e1', text: '#334155' },
+  { bg: '#fefce8', border: '#fde047', text: '#854d0e' },
+];
+
+const colorPorMateria = (idMateria?: number | null) => {
+  const idx = Math.abs(Number(idMateria) || 0) % COLORES_MATERIA.length;
+  return COLORES_MATERIA[idx];
+};
+
+const nombreMateriaHorario = (h: any, fallback = ''): string =>
+  h?.gradoMateria?.materia?.nombreMateria ||
+  h?.materia?.nombreMateria ||
+  h?.rap ||
+  h?._materiaFallback ||
+  fallback ||
+  'Sin competencia';
+
+const instructorHorario = (h: any) =>
+  h?.instructor || h?.contrato?.persona || h?.persona || null;
+
+/**
+ * Horario usable en calendario: basta fechaInicial + horas + día.
+ * NO se exige fechaFinal (histórico sin cierre también debe verse).
+ * NO se filtra por “hoy” ni solo futuros.
+ */
+const horarioEsRenderable = (h: any): boolean => {
+  const fInicio = h?.fechaInicial || h?.fechaInicio;
+  const hIni = normalizeHora(h?.horaInicial || h?.horaInicio);
+  const hFin = normalizeHora(h?.horaFinal || h?.horaFin);
+  const jsDay = resolveJsDay(h);
+  return !!(fInicio && hIni && hFin && jsDay >= 0);
+};
+
+/** Rango de expansión del horario recurrente (pasado + futuro). */
+const resolveRangoFechas = (h: any): { start: Date; end: Date } | null => {
+  const start = parseDate(h?.fechaInicial || h?.fechaInicio);
+  if (!start) return null;
+
+  let end = parseDate(h?.fechaFinal || h?.fechaFin);
+  if (!end) {
+    // Sin fechaFinal: cubrir histórico desde inicio y proyección a 12 meses desde hoy
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    end = new Date(hoy);
+    end.setFullYear(end.getFullYear() + 1);
+    if (start > end) end = new Date(start);
+  }
+
+  if (end < start) end = new Date(start);
+  return { start, end };
 };
 
 // ─── Tooltip flotante ────────────────────────────────────────────────────────
@@ -76,7 +187,7 @@ const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ 
   const { ev, x, y } = data;
   const hIni = ev.horaInicial || ev.horaInicio;
   const hFin = ev.horaFinal || ev.horaFin;
-  const instructor = ev.instructor || ev.contrato?.persona;
+  const instructor = instructorHorario(ev);
 
   const TOOLTIP_W = 260;
   const TOOLTIP_H = 340; // estimado
@@ -102,7 +213,7 @@ const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ 
     width: TOOLTIP_W,
   };
 
-  const materiaNombre = ev.gradoMateria?.materia?.nombreMateria || ev._materiaFallback || '';
+  const materiaNombre = nombreMateriaHorario(ev);
 
   return (
     <div
@@ -234,22 +345,26 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  // Carga de horarios
+  // Planeación: carga TODA la programación de la ficha.
+  // modoRmi: respeta el subconjunto ya filtrado en materia.horarios.
   useEffect(() => {
     let isMounted = true;
     const cargarHorarios = async () => {
       if (!isOpen) return;
       setLoading(true);
       try {
-        if (materia?.horarios && !Array.isArray(materia.horarios)) {
+        if (modoRmi && materia?.horarios && !Array.isArray(materia.horarios)) {
           const horariosCombinados = [
             ...(materia.horarios.asignados || []),
-            ...(materia.horarios.sinAsignar || [])
+            ...(materia.horarios.sinAsignar || []),
           ];
           if (isMounted) setHorariosFicha(horariosCombinados);
-        } else {
+        } else if (idFicha) {
           const response = await axios.get(`horario/ficha/${idFicha}`);
-          if (isMounted) setHorariosFicha(response.data.data || []);
+          const data = response.data?.data || [];
+          if (isMounted) setHorariosFicha(Array.isArray(data) ? data : []);
+        } else if (isMounted) {
+          setHorariosFicha([]);
         }
       } catch {
         if (isMounted) setHorariosFicha([]);
@@ -262,7 +377,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
     };
     if (isOpen) cargarHorarios();
     return () => { isMounted = false; };
-  }, [isOpen, idFicha, refreshTrigger, materia]);
+  }, [isOpen, idFicha, refreshTrigger, modoRmi, materia]);
 
   // Reset al cerrar
   useEffect(() => {
@@ -274,29 +389,26 @@ export const Calendario: React.FC<CalendarioProps> = ({
     }
   }, [isOpen]);
 
-  // Procesar horarios
-  const { asignados, sinAsignar } = useMemo(() => {
-    if (!horariosFicha.length) return { asignados: [], sinAsignar: [] };
-    return {
-      asignados: horariosFicha.filter((h: any) => h.estado === 'ASIGNADO'),
-      sinAsignar: horariosFicha.filter((h: any) => h.estado === 'PENDIENTE'),
-    };
-  }, [horariosFicha]);
+  // Horarios de toda la ficha (histórico + futuro). Sin filtro por “hoy”.
+  const horariosProgramados = useMemo(
+    () => horariosFicha.filter(horarioEsRenderable),
+    [horariosFicha]
+  );
 
   const holidayDates = useMemo(() => {
     const currentYear = new Date().getFullYear();
     let minYear = currentYear;
     let maxYear = currentYear + 1;
 
-    [...asignados, ...sinAsignar].forEach((h: any) => {
-      const start = parseDate(h.fechaInicial || h.fechaInicio);
-      const end = parseDate(h.fechaFinal || h.fechaFin);
-      if (start) minYear = Math.min(minYear, start.getFullYear());
-      if (end) maxYear = Math.max(maxYear, end.getFullYear());
+    horariosProgramados.forEach((h: any) => {
+      const rango = resolveRangoFechas(h);
+      if (!rango) return;
+      minYear = Math.min(minYear, rango.start.getFullYear());
+      maxYear = Math.max(maxYear, rango.end.getFullYear());
     });
 
     return getColombianHolidayDateSet(minYear, maxYear);
-  }, [asignados, sinAsignar]);
+  }, [horariosProgramados]);
 
   const festivos = useMemo(
     () =>
@@ -316,44 +428,49 @@ export const Calendario: React.FC<CalendarioProps> = ({
     let minYear = currentYear;
     let maxYear = currentYear + 1;
 
-    [...asignados, ...sinAsignar].forEach((h: any) => {
-      const start = parseDate(h.fechaInicial || h.fechaInicio);
-      const end = parseDate(h.fechaFinal || h.fechaFin);
-      if (start) minYear = Math.min(minYear, start.getFullYear());
-      if (end) maxYear = Math.max(maxYear, end.getFullYear());
+    horariosProgramados.forEach((h: any) => {
+      const rango = resolveRangoFechas(h);
+      if (!rango) return;
+      minYear = Math.min(minYear, rango.start.getFullYear());
+      maxYear = Math.max(maxYear, rango.end.getFullYear());
     });
 
     return getColombianHolidayMap(minYear, maxYear);
-  }, [asignados, sinAsignar]);
+  }, [horariosProgramados]);
 
   const horarioIncluyeFestivos = (h: any): boolean =>
     h.festivos === true || h.festivos === 1 || h.festivos === '1';
 
-  // ── Convertir horarios recurrentes en eventos de FullCalendar ──────────────
+  // ── Expandir TODOS los horarios de la ficha (pasado, presente y futuro) ───
   const fcEvents = useMemo(() => {
     const events: any[] = [];
-    const materiaFallback = materia.nombre || materia.nombreMateria;
 
-    const processHorario = (h: any, type: 'asignados' | 'sinAsignar') => {
-      const fInicio = h.fechaInicial || h.fechaInicio;
-      const fFin = h.fechaFinal || h.fechaFin;
-      const start = parseDate(fInicio);
-      const end = parseDate(fFin);
-      if (!start || !end) return;
+    const processHorario = (h: any) => {
+      const rango = resolveRangoFechas(h);
+      if (!rango) return;
 
-      const hIni = h.horaInicial || h.horaInicio || '00:00';
-      const hFin = h.horaFinal || h.horaFin || '01:00';
+      const hIni = normalizeHora(h.horaInicial || h.horaInicio);
+      const hFin = normalizeHora(h.horaFinal || h.horaFin);
+      if (!hIni || !hFin) return;
 
-      const idDiaRaw = h.dia?.id !== undefined ? h.dia.id : h.idDia;
-      const jsDayFromId = idDiaRaw !== undefined ? (Number(idDiaRaw) === 7 ? 0 : Number(idDiaRaw)) : -1;
-      const diaNombreRaw = h.dia?.dia?.toUpperCase() || h.dia_semana?.toUpperCase() || h.nombreDia?.toUpperCase();
-      const jsDay = diaNombreRaw ? mapeoDias[diaNombreRaw] : jsDayFromId;
-      if (jsDay === undefined || jsDay < 0) return;
+      const jsDay = resolveJsDay(h);
+      if (jsDay < 0) return;
 
-      // Recorrer cada día del rango que coincida con el día de semana del horario
-      const cursor = new Date(start);
+      const idMateria = h.gradoMateria?.idMateria ?? h.gradoMateria?.materia?.id ?? null;
+      const nombreComp = nombreMateriaHorario(h);
+      const colors = colorPorMateria(idMateria);
+      const type =
+        h.estado === 'PENDIENTE' || !h.idContrato
+          ? 'sinAsignar'
+          : h.estado === 'FINALIZADO' || h.estado === 'EVALUADO'
+            ? 'finalizado'
+            : h.estado === 'INTERRUMPIDO'
+              ? 'interrumpido'
+              : 'asignados';
+
+      const cursor = new Date(rango.start);
       cursor.setHours(0, 0, 0, 0);
-      const endNorm = new Date(end);
+      const endNorm = new Date(rango.end);
       endNorm.setHours(0, 0, 0, 0);
 
       while (cursor <= endNorm) {
@@ -365,7 +482,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
             const dateStr = toLocalDateKey(cursor);
 
             const assignments = h.asignacion_sesion || h.asignacionSesion || [];
-            const activeAsignacion = assignments.find((asig: any) => {
+            const activeAsignacion = (Array.isArray(assignments) ? assignments : []).find((asig: any) => {
               const s = parseDate(asig.fechaInicio);
               const e = parseDate(asig.fechaFin);
               if (!s || !e) return false;
@@ -378,17 +495,25 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
             events.push({
               id: `${h.id}-${dateStr}`,
+              title: nombreComp,
               start: `${dateStr}T${hIni}`,
               end: `${dateStr}T${hFin}`,
+              backgroundColor: colors.bg,
+              borderColor: colors.border,
+              textColor: colors.text,
               extendedProps: {
                 ...h,
                 type,
+                horaInicial: hIni,
+                horaFinal: hFin,
+                instructor: instructorHorario(h),
                 activeAsignacion,
-                allInstructors: [h.instructor || h.contrato?.persona],
+                allInstructors: [instructorHorario(h)].filter(Boolean),
                 allAssignments: activeAsignacion ? [activeAsignacion] : [],
                 isSharedSlot: !!activeAsignacion,
-                _materiaFallback: materiaFallback,
+                _materiaFallback: nombreComp,
                 _dateStr: dateStr,
+                _colors: colors,
               },
             });
           }
@@ -397,8 +522,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
       }
     };
 
-    asignados.forEach(h => processHorario(h, 'asignados'));
-    sinAsignar.forEach(h => processHorario(h, 'sinAsignar'));
+    horariosProgramados.forEach(processHorario);
 
     // Agrupar por slot (misma fecha + misma hora + mismo idGradoMateria)
     const grouped: any[] = [];
@@ -406,7 +530,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
       const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}`;
       const existing = grouped.find(g => `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}` === key);
       if (existing) {
-        const currentInstructor = ev.extendedProps.instructor || ev.extendedProps.contrato?.persona;
+        const currentInstructor = instructorHorario(ev.extendedProps);
         if (currentInstructor) existing.extendedProps.allInstructors.push(currentInstructor);
         if (ev.extendedProps.activeAsignacion) existing.extendedProps.allAssignments.push(ev.extendedProps.activeAsignacion);
         existing.extendedProps.isSharedSlot =
@@ -418,88 +542,117 @@ export const Calendario: React.FC<CalendarioProps> = ({
     });
 
     return grouped;
-  }, [asignados, sinAsignar, materia, holidayDates]);
+  }, [horariosProgramados, holidayDates]);
 
-  // Colores por tipo
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case 'asignados': return { backgroundColor: '#eff6ff', borderColor: '#bfdbfe', textColor: '#1e40af' };
-      case 'sinAsignar': return { backgroundColor: '#f9fafb', borderColor: '#e5e7eb', textColor: '#374151' };
-      default: return { backgroundColor: '#f9fafb', borderColor: '#e5e7eb', textColor: '#374151' };
+  /** Si el mes actual no tiene clases, abrir en el mes más cercano con programación. */
+  const calendarInitialDate = useMemo(() => {
+    if (!fcEvents.length) return undefined;
+    const now = new Date();
+    const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (fcEvents.some((e) => String(e.start || '').startsWith(ymNow))) return undefined;
+
+    const hoyMs = now.getTime();
+    let bestStart: string | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    fcEvents.forEach((e) => {
+      const startStr = String(e.start || '').slice(0, 10);
+      const d = parseDate(startStr);
+      if (!d) return;
+      const dist = Math.abs(d.getTime() - hoyMs);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestStart = startStr;
+      }
+    });
+    return bestStart || undefined;
+  }, [fcEvents]);
+
+  // Renderizado: bloque académico (hora + competencia + instructor)
+  const renderEventContent = (arg: EventContentArg) => {
+    const ev = arg.event.extendedProps;
+
+    if (ev.isHoliday) {
+      return null;
     }
-  };
 
-  // Renderizado personalizado del evento en la celda
-const renderEventContent = (arg: EventContentArg) => {
-  const ev = arg.event.extendedProps;
-  
-  if (ev.isHoliday) {
-    return null;
-  }
+    const hIni = ev.horaInicial || ev.horaInicio;
+    const hFin = ev.horaFinal || ev.horaFin;
+    const colors = ev._colors || colorPorMateria(ev.gradoMateria?.idMateria);
+    const nombre = nombreMateriaHorario(ev);
+    const instructor = instructorHorario(ev);
+    const nombreInstructor = instructor
+      ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}`.trim()
+      : '';
 
-  const hIni = ev.horaInicial || ev.horaInicio;
-  const hFin = ev.horaFinal || ev.horaFin;
-  const colors = getEventColor(ev.type);
-
-  return (
-    <div
-      className="w-full h-full px-1 py-0.5 rounded-[4px] text-[10px] font-bold border overflow-hidden cursor-default select-none"
-      style={{ 
-        backgroundColor: colors.backgroundColor, 
-        borderColor: colors.borderColor, 
-        color: colors.textColor 
-      }}
-      onMouseEnter={(e) => setTooltip({ ev, x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
-      onMouseLeave={() => setTooltip(null)}
-    >
-      <div className="flex items-center gap-1 justify-center leading-tight">
-        <span>{format12h(hIni)}-{format12h(hFin)}</span>
-        {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />}
-      </div>
-      
-      {ev.isSharedSlot && (
-        <div className="text-[7px] text-blue-500 mt-0.5 uppercase font-black text-center truncate">
-          {ev.allAssignments?.[0]?.tipoAsignacion || ''}
+    return (
+      <div
+        className="w-full h-full min-h-[44px] px-1.5 py-1 rounded-md text-[10px] font-bold border overflow-hidden cursor-default select-none flex flex-col gap-0.5"
+        style={{
+          backgroundColor: colors.bg,
+          borderColor: colors.border,
+          color: colors.text,
+        }}
+        onMouseEnter={(e) => setTooltip({ ev, x: e.clientX, y: e.clientY })}
+        onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        <div className="flex items-center gap-1 leading-tight shrink-0">
+          <Clock size={10} className="shrink-0 opacity-70" />
+          <span className="whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
+          {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />}
         </div>
-      )}
 
-      {/* Botones de acción - SOLO para eventos normales */}
-      {!modoRmi && (
-        <div className="flex justify-center items-center gap-1 mt-0.5">
-          {!ev.isSharedSlot && ev.estado === 'ASIGNADO' && (
+        <p className="leading-snug font-black uppercase line-clamp-2 text-[9px] tracking-wide">
+          {nombre}
+        </p>
+
+        {nombreInstructor ? (
+          <p className="text-[8px] font-semibold opacity-80 truncate leading-tight">
+            {nombreInstructor}
+          </p>
+        ) : (
+          <p className="text-[8px] font-black uppercase text-orange-500 truncate">Sin instructor</p>
+        )}
+
+        {ev.estado && (
+          <p className="text-[7px] font-black uppercase opacity-60 truncate">{ev.estado}</p>
+        )}
+
+        {!modoRmi && (
+          <div className="flex justify-end items-center gap-1 mt-auto pt-0.5">
+            {!ev.isSharedSlot && ev.estado === 'ASIGNADO' && (
+              <button
+                onMouseEnter={() => setTooltip(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFechaSeleccionada(ev._dateStr);
+                  setHorarioAsignacionSesion(ev);
+                  setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
+                  setAsignacionSesionModal(true);
+                }}
+                className="rounded-full bg-blue-500/10 w-5 h-5 flex items-center justify-center text-blue-700 hover:text-blue-800 transition"
+                title="Agregar asignación"
+              >
+                <Plus size={11} />
+              </button>
+            )}
+
             <button
               onMouseEnter={() => setTooltip(null)}
               onClick={(e) => {
                 e.stopPropagation();
-                setFechaSeleccionada(ev._dateStr);
-                setHorarioAsignacionSesion(ev);
-                setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
-                setAsignacionSesionModal(true);
+                handleEliminarHorario(ev.id);
               }}
-              className="rounded-full bg-blue-500/10 w-5 h-5 flex items-center justify-center text-blue-700 hover:text-blue-800 transition"
-              title="Agregar asignación"
+              className="rounded-full bg-red-500/10 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-600 transition"
+              title="Eliminar"
             >
-              <Plus size={11} />
+              <Trash2 size={11} />
             </button>
-          )}
-          
-          <button
-            onMouseEnter={() => setTooltip(null)}
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              handleEliminarHorario(ev.id); 
-            }}
-            className="rounded-full bg-red-500/10 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-600 transition"
-            title="Eliminar"
-          >
-            <Trash2 size={11} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleEliminarHorario = async (idHorario: number) => {
     if (modoRmi) return;
@@ -539,8 +692,10 @@ const renderEventContent = (arg: EventContentArg) => {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
               <div className="min-w-0 text-left">
-                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
-                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
+                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Programación de la ficha</ModalTitle>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
+                  Vista completa · Entrada: {materia.nombre || materia.nombreMateria}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
@@ -570,8 +725,10 @@ const renderEventContent = (arg: EventContentArg) => {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg text-primary"><CalendarIcon size={20} /></div>
               <div className="min-w-0 text-left">
-                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Calendario de Horarios</ModalTitle>
-                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">{materia.nombre || materia.nombreMateria}</p>
+                <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Programación de la ficha</ModalTitle>
+                <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
+                  Vista completa · Entrada: {materia.nombre || materia.nombreMateria}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="absolute z-10 flex items-center justify-center w-8 h-8 text-gray-400 transition-all border rounded-full top-4 right-4 hover:bg-danger border-gray-200 hover:text-white hover:scale-110 shadow-sm">
@@ -613,12 +770,27 @@ const renderEventContent = (arg: EventContentArg) => {
                 font-size: 0.65rem;
               }
               /* Celdas */
-              .fc .fc-daygrid-day { min-height: 80px; }
+              .fc .fc-daygrid-day { min-height: 110px; }
+              .fc .fc-daygrid-day-frame { min-height: 110px; }
               .fc td, .fc th { border-color: #f3f4f6 !important; }
-              /* Evento */
-              .fc .fc-daygrid-event { border-radius: 4px !important; margin: 1px 2px !important; background: transparent !important; border: none !important; }
+              /* Evento bloque académico */
+              .fc .fc-daygrid-event {
+                border-radius: 6px !important;
+                margin: 2px 3px !important;
+                background: transparent !important;
+                border: none !important;
+                white-space: normal !important;
+              }
+              .fc .fc-daygrid-block-event .fc-event-main { padding: 0 !important; }
               .fc .fc-event-main { padding: 0 !important; }
-              .fc .fc-timegrid-event { border-radius: 4px !important; background: transparent !important; border: none !important; }
+              .fc .fc-timegrid-event {
+                border-radius: 6px !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+              }
+              .fc .fc-timegrid-event .fc-event-main { padding: 0 !important; height: 100%; }
+              .fc .fc-daygrid-event-harness { margin-top: 2px !important; }
               /* Scrollbar oculto */
               .fc-scroller { scrollbar-width: none; }
               .fc-scroller::-webkit-scrollbar { display: none; }
@@ -641,6 +813,7 @@ const renderEventContent = (arg: EventContentArg) => {
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
+              initialDate={calendarInitialDate}
               locale={esLocale}
               headerToolbar={{
                 left: 'prev,next today',
@@ -662,6 +835,7 @@ const renderEventContent = (arg: EventContentArg) => {
               events={[...fcEvents, ...festivos]}
               dayMaxEvents={false}
               eventDisplay="block"
+              displayEventTime={false}
               eventContent={renderEventContent}
               editable={false}
               selectable={false}
