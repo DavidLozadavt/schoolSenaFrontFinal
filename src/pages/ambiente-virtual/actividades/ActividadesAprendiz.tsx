@@ -5,6 +5,7 @@ import { KeenIcon, ImageZoomModal, Toast } from '@/components';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
+import ModalRevisarIntentoCuestionario from './ModalRevisarIntentoCuestionario';
 import {
   actOnMaterialDocumento,
   ENTREGA_EVIDENCIA_ACCEPT,
@@ -73,6 +74,7 @@ interface ActividadAprendiz {
   activa?: boolean;
   esGrupal?: boolean;
   idGrupo?: number | null;
+  tieneRespuestasCuestionario?: boolean;
   preguntas?: Array<{
     id: number;
     descripcion: string;
@@ -843,6 +845,7 @@ const ActividadesAprendiz: React.FC = () => {
   const [filtro, setFiltro] = useState<EstadoActividad>('TODOS');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actividadResponder, setActividadResponder] = useState<ActividadAprendiz | null>(null);
+  const [actividadRevisar, setActividadRevisar] = useState<ActividadAprendiz | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1040,6 +1043,20 @@ const ActividadesAprendiz: React.FC = () => {
                             >
                               <KeenIcon icon="notepad-edit" className="text-[10px]" />
                               Responder
+                            </button>
+                          )}
+                          {actividad.tipoActividad === 'cuestionario' &&
+                            (actividad.tieneRespuestasCuestionario ||
+                              actividad.comentarioEstudiante === 'Cuestionario respondido' ||
+                              actividad.estadoVisual === 'POR_EVALUAR' ||
+                              actividad.estadoVisual === 'CALIFICADO') && (
+                            <button
+                              type="button"
+                              onClick={() => setActividadRevisar(actividad)}
+                              className="btn btn-sm btn-light h-7 px-2 text-[10px]"
+                            >
+                              <KeenIcon icon="eye" className="text-[10px]" />
+                              Revisar intento
                             </button>
                           )}
                           <button
@@ -1250,6 +1267,16 @@ const ActividadesAprendiz: React.FC = () => {
                                       <p className="text-sm text-emerald-700 dark:text-emerald-300">
                                         {actividad.comentarioEstudiante}
                                       </p>
+                                      {actividad.tipoActividad === 'cuestionario' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setActividadRevisar(actividad)}
+                                          className="mt-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                                        >
+                                          <KeenIcon icon="eye" className="w-3 h-3" />
+                                          Revisar intento
+                                        </button>
+                                      )}
                                       <div className="flex items-center justify-between mt-2">
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
@@ -1330,6 +1357,18 @@ const ActividadesAprendiz: React.FC = () => {
           onClose={() => setActividadResponder(null)}
           onSaved={() => fetchActividades(pagination.currentPage)}
           onSuccess={showToast}
+          onCompleted={(act) => {
+            setActividadResponder(null);
+            setActividadRevisar(act as ActividadAprendiz);
+          }}
+        />
+      )}
+      {actividadRevisar && (
+        <ModalRevisarIntentoCuestionario
+          open={true}
+          idCalificacionActividad={actividadRevisar.idCalificacionActividad}
+          tituloFallback={actividadRevisar.tituloActividad}
+          onClose={() => setActividadRevisar(null)}
         />
       )}
       {actividadResponder && actividadResponder.tipoActividad !== 'cuestionario' && (

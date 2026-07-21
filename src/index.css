@@ -164,3 +164,82 @@ input[type="time"],
 input[type="datetime-local"] {
   color-scheme: light dark;
 }
+
+/* --- Parche de Visibilidad para Modo Oscuro en Formularios --- */
+.dark input.input,
+.dark select.input,
+.dark textarea.input,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="date"],
+.dark select,
+.dark textarea,
+.dark select.input option {
+  background-color: #1e1e2d !important;
+  color: #ffffff !important;
+  border-color: #323248 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled,
+.dark input[disabled],
+.dark select:disabled,
+.dark select[disabled] {
+  background-color: #151521 !important;
+  color: #a0a0c0 !important;
+  border-color: #272738 !important;
+  -webkit-text-fill-color: #a0a0c0 !important; /* Forzar color en iOS/Chrome para disabled */
+}
+
+/* Forzar que el texto digitado por el usuario sea legible (no negro) en el tema oscuro de Metronic/Keen */
+.dark .input,
+.dark input,
+.dark select,
+.dark textarea,
+.dark select.input,
+.dark select option,
+.dark .form-control {
+  background-color: #1b1b29 !important;
+  color: #ffffff !important;
+  border-color: #2b2b40 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled,
+.dark input[disabled],
+.dark select:disabled,
+.dark select[disabled] {
+  background-color: #13131f !important;
+  color: #8a8ab0 !important;
+  border-color: #20202f !important;
+  -webkit-text-fill-color: #8a8ab0 !important;
+}
+
+.dark .input::placeholder,
+.dark input::placeholder {
+  color: #6a6a8a !important;
+  -webkit-text-fill-color: #6a6a8a !important;
+}
+
+/* Reglas ultra agresivas para forzar texto blanco en inputs en modo oscuro */
+.dark input, 
+.dark select, 
+.dark textarea, 
+.dark select.input, 
+.dark input.input,
+.dark select.input option {
+  color: #ffffff !important;
+  background-color: #1e1e2d !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled, 
+.dark input[disabled],
+.dark select:disabled, 
+.dark select[disabled] {
+  color: #8f8f9f !important;
+  background-color: #1a1a24 !important;
+  -webkit-text-fill-color: #8f8f9f !important;
+}
+
+
