@@ -49,8 +49,11 @@ export const CardRap = ({
       asignados = materia.horarios.asignados || [];
       sinAsignar = materia.horarios.sinAsignar || [];
     } else if (Array.isArray(materia?.horarios)) {
-      asignados = materia.horarios.filter((h: any) => h.estado !== 'PENDIENTE');
-      sinAsignar = materia.horarios.filter((h: any) => h.estado === 'PENDIENTE');
+      // Sin instructor = sin contrato; no limitar a PENDIENTE (FINALIZADO también aplica).
+      asignados = materia.horarios.filter((h: any) => h.idContrato != null || h.instructor || h.persona);
+      sinAsignar = materia.horarios.filter(
+        (h: any) => !h.idContrato && !h.instructor && !h.persona && h.estado !== 'INTERRUMPIDO'
+      );
     }
 
     setHorarios(asignados);
@@ -99,6 +102,29 @@ export const CardRap = ({
     setInstructoresAsignados(unicos);
   }, [materia]);
 
+  /** Horarios a enviar al asignar: sin instructor, o todos si FINALIZADO (cambiar / trazabilidad). */
+  const obtenerHorariosParaAsignacion = (): any[] => {
+    const asignados = Array.isArray(materia?.horarios)
+      ? materia.horarios.filter((h: any) => h.idContrato != null || h.instructor || h.persona)
+      : (materia?.horarios?.asignados || []);
+    const sinAsignar = Array.isArray(materia?.horarios)
+      ? materia.horarios.filter(
+          (h: any) => !h.idContrato && !h.instructor && !h.persona && h.estado !== 'INTERRUMPIDO'
+        )
+      : (materia?.horarios?.sinAsignar || []);
+
+    if (sinAsignar.length > 0) return sinAsignar;
+    if (horariosSinAsignar.length > 0) return horariosSinAsignar;
+
+    // FINALIZADO: permitir cambiar instructor sobre horarios ya existentes
+    if (materia?.estado === 'FINALIZADO') {
+      const todos = [...asignados, ...sinAsignar].filter((h: any) => h?.id != null);
+      if (todos.length > 0) return todos;
+      if (horarios.length > 0) return horarios;
+    }
+    return [];
+  };
+
   // Cargar instructores disponibles cuando se abre el selector
   const cargarInstructores = async () => {
     setCargandoInstructores(true);
@@ -117,11 +143,17 @@ export const CardRap = ({
   };
 
   const handleAsignarInstructor = async (instructor: any) => {
+    const horariosPayload = obtenerHorariosParaAsignacion();
+    if (horariosPayload.length === 0) {
+      enqueueSnackbar('No hay horarios disponibles para asignar el instructor', { variant: 'warning' });
+      return;
+    }
+
     setAsignando(true);
     try {
       const res = await axios.put('asignar/instructor', {
         idContrato: instructor.id, // instructor es el contrato, los datos personales vienen en instructor.persona
-        horarios: horariosSinAsignar
+        horarios: horariosPayload
       });
 
       if (res.data.conflicto) {
@@ -385,12 +417,19 @@ export const CardRap = ({
         {(() => {
           const horariosData = materia?.horarios;
           const hasAsignados = Array.isArray(horariosData)
-            ? horariosData.some((h: any) => h.estado !== 'PENDIENTE')
+            ? horariosData.some((h: any) => h.idContrato != null || h.instructor || h.persona)
             : (horariosData?.asignados?.length > 0);
 
           const hasSinAsignar = Array.isArray(horariosData)
-            ? horariosData.some((h: any) => h.estado == 'PENDIENTE')
+            ? horariosData.some(
+                (h: any) => !h.idContrato && !h.instructor && !h.persona && h.estado !== 'INTERRUMPIDO'
+              )
             : (horariosData?.sinAsignar?.length > 0);
+
+          const horariosAsignables = obtenerHorariosParaAsignacion();
+          const puedeAsignarInstructor =
+            (materia.estado === 'PENDIENTE' && hasSinAsignar) ||
+            (materia.estado === 'FINALIZADO' && horariosAsignables.length > 0);
 
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg pt-2 text-center">
@@ -531,8 +570,8 @@ export const CardRap = ({
                 </p>
               </div>
 
-              {/* Botón para asignar (solo si hay horarios sin asignar) */}
-              {hasSinAsignar && materia.estado == 'PENDIENTE' && (
+              {/* Botón para asignar / cambiar instructor (incluye FINALIZADO) */}
+              {puedeAsignarInstructor && (
                 <div className="col-span-full border-t border-gray-200 dark:border-gray-600 relative">
                   <button
                     onClick={() => {
@@ -547,7 +586,9 @@ export const CardRap = ({
                     >
                       <User className="text-primary" size={14} />
                     </div>
-                    Asignar instructor
+                    {instructoresAsignados.length > 0 && materia.estado === 'FINALIZADO'
+                      ? 'Cambiar instructor'
+                      : 'Asignar instructor'}
                     <ChevronDown size={14} className={`transition-transform ${mostrarSelector ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -694,13 +735,13 @@ export const CardRap = ({
                       </p>
                     </div>
 
-                    {materia.estado != 'FINALIZADO' && (inst.esPrincipal || materia.idMateriaPadre != null) ? <button
+                    {(inst.esPrincipal || materia.idMateriaPadre != null) ? <button
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button> : materia.estado == 'FINALIZADO' ? <p className="text-xs text-gray-500 dark:text-gray-400">RAP finalizado</p> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
+                    </button> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
                   </div>
                 ))}
               </div>
