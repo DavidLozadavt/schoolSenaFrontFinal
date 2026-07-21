@@ -54,7 +54,7 @@ interface FormularioInterno {
 const FormulariosPage: React.FC = () => {
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'external' | 'internal'>('external');
+  const [activeTab, setActiveTab] = useState<'external' | 'internal'>('internal');
   
   // External Forms Integration States
   const [events, setEvents] = useState<any[]>([]);
@@ -202,13 +202,23 @@ const FormulariosPage: React.FC = () => {
               </ToolbarDescription>
             </ToolbarHeading>
             <ToolbarActions>
-              <button
-                onClick={() => setWizardOpen(true)}
-                className="btn btn-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-orange-500/20 rounded-xl px-5 py-2.5"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Vincular Formulario Externo</span>
-              </button>
+              {activeTab === 'internal' ? (
+                <button
+                  onClick={() => navigate('/formularios/builder')}
+                  className="btn btn-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/20 rounded-xl px-5 py-2.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Crear Formulario Interno</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setWizardOpen(true)}
+                  className="btn btn-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-orange-500/20 rounded-xl px-5 py-2.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Vincular Formulario Externo</span>
+                </button>
+              )}
             </ToolbarActions>
           </Toolbar>
         </Container>
@@ -217,6 +227,17 @@ const FormulariosPage: React.FC = () => {
       <Container>
         {/* Tab Selector */}
         <div className="flex gap-1 mb-8 bg-neutral-100 dark:bg-neutral-800/80 p-1.5 rounded-2xl w-fit border border-neutral-200/20 shadow-inner">
+          <button
+            onClick={() => setActiveTab('internal')}
+            className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+              activeTab === 'internal'
+                ? 'bg-white dark:bg-neutral-900 shadow-xl shadow-black/5 text-blue-600 dark:text-blue-400'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Formularios Internos</span>
+          </button>
           <button
             onClick={() => setActiveTab('external')}
             className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
@@ -227,17 +248,6 @@ const FormulariosPage: React.FC = () => {
           >
             <Globe className="w-4 h-4" />
             <span>Integración de Formularios Externos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('internal')}
-            className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-              activeTab === 'internal'
-                ? 'bg-white dark:bg-neutral-900 shadow-xl shadow-black/5 text-blue-600 dark:text-blue-400'
-                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Estructura de Formularios Internos (Demo)</span>
           </button>
         </div>
 
