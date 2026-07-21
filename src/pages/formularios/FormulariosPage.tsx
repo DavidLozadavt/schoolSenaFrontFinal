@@ -36,6 +36,7 @@ import {
 } from '@/partials/toolbar';
 import { FormIntegrationWizard } from '@/pages/gestion-eventos/eventos/FormIntegrationWizard';
 import ExternalFormEmbed from '@/pages/gestion-eventos/eventos/ExternalFormEmbed';
+import { FormConfigModal } from './components/FormConfigModal';
 import { compactReactSelectClassNames, compactReactSelectNoOptions } from '@/components/forms/compactReactSelect';
 
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +70,20 @@ const FormulariosPage: React.FC = () => {
   // Internal Forms State
   const [internalForms, setInternalForms] = useState<FormularioInterno[]>([]);
   const [loadingInternalForms, setLoadingInternalForms] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
+
+  const fetchInternalForms = async () => {
+    setLoadingInternalForms(true);
+    try {
+      const response = await axios.get('formularios');
+      setInternalForms(response.data);
+    } catch (error) {
+      console.error('Error fetching internal forms:', error);
+    } finally {
+      setLoadingInternalForms(false);
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToast({ open: true, message, type });
@@ -670,7 +685,7 @@ const FormulariosPage: React.FC = () => {
 
                               {/* Configurar */}
                               <button 
-                                onClick={() => navigate(`/formularios/builder/${f.id}`)}
+                                onClick={() => { setSelectedFormId(f.id); setConfigModalOpen(true); }}
                                 className="p-2.5 bg-neutral-50 hover:bg-amber-500/10 text-neutral-500 hover:text-amber-600 dark:bg-neutral-800/40 dark:hover:bg-amber-500/20 dark:text-neutral-400 dark:hover:text-amber-400 rounded-xl transition-all active:scale-90"
                                 title="Configurar Formulario"
                               >
@@ -739,6 +754,14 @@ const FormulariosPage: React.FC = () => {
           setReloadSignal((prev) => !prev);
           showToast('Formulario integrado con éxito', 'success');
         }}
+      />
+
+      {/* Form Configuration Modal */}
+      <FormConfigModal 
+        open={configModalOpen}
+        onClose={() => setConfigModalOpen(false)}
+        formId={selectedFormId}
+        onFormUpdated={fetchInternalForms}
       />
     </Fragment>
   );
