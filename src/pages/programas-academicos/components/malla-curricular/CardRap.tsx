@@ -386,28 +386,28 @@ export const CardRap = ({
 
 
   return (
-    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 hover:border-primary/50 transition-all duration-300 ${materia.estado === 'FINALIZADO' ? 'bg-black/10 dark:bg-white/10' : 'bg-white dark:bg-coal-400'}`}>
+    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-4 sm:p-5 flex gap-5 hover:border-primary/50 transition-all duration-300 ${materia.estado === 'FINALIZADO' ? 'bg-black/10 dark:bg-white/10' : 'bg-white dark:bg-coal-400'}`}>
       {/* Contenido principal */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0 space-y-3">
         {/* Título del RAP */}
         {materia?.fechaFinalRap &&
-          <span className={`my-2 px-2 text-center text-xs font-semibold text-gray-500`}>
+          <span className={`block px-1 text-left text-xs font-semibold text-gray-500`}>
             Fecha Final: {materia?.fechaFinalRap || ''}
           </span>}
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium text-gray-900 dark:text-white px-2">
+        <div className="flex justify-between items-start gap-4">
+          <h3 className="font-semibold text-base sm:text-[1.05rem] leading-snug text-gray-900 dark:text-white px-1">
             {materia.nombre || materia.nombreMateria}
-            <p className='text-gray-500 font-normal text-xs'>
+            <p className='text-gray-500 dark:text-gray-400 font-normal text-sm mt-1.5 leading-relaxed'>
               {materia.descripcion ? materia.descripcion : ''}
             </p>
           </h3>
-          <div className='flex flex-col items-center'>
-            <span className={`my-2 sm:mt-0 text-center rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide
+          <div className='flex flex-col items-center gap-1 shrink-0 pt-0.5'>
+            <span className={`text-center rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide
               ${materia.estado === 'FINALIZADO' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
               {materia.estado || 'Sin estado'}
             </span>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
-            <p className="text-lg text-center text-blue-500 font-semibold">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Progreso</p>
+            <p className="text-xl text-center text-blue-500 font-semibold leading-none">
               {materia.porcentajeAvance > 100 ? 100 : materia.porcentajeAvance || 0}%
             </p>
           </div>
@@ -432,8 +432,8 @@ export const CardRap = ({
             (materia.estado === 'FINALIZADO' && horariosAsignables.length > 0);
 
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg pt-2 text-center">
-              <div className="flex flex-col items-center justify-center gap-2 text-center relative col-span-1 md:col-span-1 min-h-[60px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 rounded-lg pt-3 mt-1 text-center">
+              <div className="flex flex-col items-center justify-center gap-2.5 text-center relative col-span-1 md:col-span-1 min-h-[72px]">
                 {!hasAsignados && !hasSinAsignar ? (
                   <div className="flex-1 text-center py-2">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -549,36 +549,36 @@ export const CardRap = ({
               </div>
 
               {/* Horas */}
-              <div>
+              <div className="flex flex-col items-center justify-center gap-1 py-1">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Total de horas</p>
-                <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                <p className="text-xl font-semibold text-gray-800 dark:text-white leading-tight">
                   {materia.horasTotales || materia.horas || 0}
                 </p>
               </div>
 
-              <div>
+              <div className="flex flex-col items-center justify-center gap-1 py-1">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Horas acumuladas</p>
-                <p className="text-lg font-semibold text-green-600">
+                <p className="text-xl font-semibold text-green-600 leading-tight">
                   {materia.horasActuales || 0}
                 </p>
               </div>
 
-              <div>
+              <div className="flex flex-col items-center justify-center gap-1 py-1">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Horas restantes</p>
-                <p className="text-lg font-semibold text-orange-500">
+                <p className="text-xl font-semibold text-orange-500 leading-tight">
                   {materia.horasFaltantes?.toFixed(2) || 0}
                 </p>
               </div>
 
               {/* Botón para asignar / cambiar instructor (incluye FINALIZADO) */}
               {puedeAsignarInstructor && (
-                <div className="col-span-full border-t border-gray-200 dark:border-gray-600 relative">
+                <div className="col-span-full border-t border-gray-200 dark:border-gray-600 relative pt-3 mt-1">
                   <button
                     onClick={() => {
                       setMostrarSelector(!mostrarSelector);
                       cargarInstructores();
                     }}
-                    className="flex items-center justify-center gap-4 text-2xs bg-primary/10 text-primary font-bold p-3 rounded-lg hover:bg-primary/20 transition-all uppercase w-full"
+                    className="flex items-center justify-center gap-4 text-2xs bg-primary/10 text-primary font-bold p-3.5 rounded-lg hover:bg-primary/20 transition-all uppercase w-full"
                   >
                     <div
                       className="h-8 w-8 rounded-full bg-primary/10 border border-dashed border-primary flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all"
@@ -641,11 +641,11 @@ export const CardRap = ({
 
       {/* Acciones */}
       {materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? <div></div> :
-        <div className="flex flex-col items-center justify-between py-2 gap-1">
+        <div className="flex flex-col items-center justify-between py-1 gap-2 shrink-0">
           {onVerRaps && (
             <button
               onClick={() => onVerRaps(materia.id, materia.nombre || materia.nombreMateria, idTrimestre ?? 0)}
-              className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition"
+              className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition"
               title="RAPs"
             >
               <FolderPlus size={18} />
@@ -654,7 +654,7 @@ export const CardRap = ({
 
           <button
             onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }}
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
+            className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
             title="Editar"
           >
             <Pencil size={18} />
@@ -662,7 +662,7 @@ export const CardRap = ({
 
           {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
             onClick={() => handleFinalizarRap()}
-            className="p-2 rounded-md text-green-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
+            className="p-2.5 rounded-md text-green-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
             title="Finalizar RAP"
           >
             <Check size={18} />
@@ -670,7 +670,7 @@ export const CardRap = ({
 
           {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarInterrumpir && <button
             onClick={() => handleInterrumpirRap()}
-            className="p-2 rounded-md text-red-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
+            className="p-2.5 rounded-md text-red-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
             title="Interrumpir RAP"
           >
             <Pause size={18} />
@@ -680,7 +680,7 @@ export const CardRap = ({
             onClick={materia.idMateriaPadre == null ? () => setIsCalendarioOpen(true) // si es competencia abrimos el calendario normalmente
               : materia.idMateriaPadre != null && parseFloat(materia.horasTotales) > 0 ? () => setIsCalendarioOpen(true) // si es rap pero tiene horas configuradas abrimos el calendario normalmente
                 : () => enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} // si es rap pero no tiene horas, mostrar alerta
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
+            className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
             title="Horarios"
           >
             <Calendar size={18} />
@@ -688,7 +688,7 @@ export const CardRap = ({
 
           <button
             onClick={handleEliminarCompetencia}
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
+            className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
             title="Eliminar"
           >
             <Trash2 size={18} />
