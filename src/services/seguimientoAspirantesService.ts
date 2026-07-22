@@ -146,6 +146,20 @@ export const seguimientoAspirantesService = {
   },
 
   /**
+   * Exporta el listado de aspirantes (PDF o Excel/CSV) según filtros.
+   * Devuelve el archivo como Blob para descargar/abrir en el navegador.
+   */
+  exportar: async (
+    params: GetAspirantesParams & { estadoDocumental?: string; formato: 'pdf' | 'excel' }
+  ): Promise<Blob> => {
+    const response = await axios.get(`${API_PATH}/exportar`, {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  /**
    * Get all WhatsApp templates from database.
    */
   getPlantillas: async (): Promise<WhatsappPlantilla[]> => {

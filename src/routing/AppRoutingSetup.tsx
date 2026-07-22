@@ -106,6 +106,7 @@ import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 import { SeguimientoAspirantesPage } from '@/pages/seguimiento-aspirantes/SeguimientoAspirantesPage';
 import { TelecomConfigPage } from '@/pages/telecom-config/TelecomConfigPage';
+import { FormularioAspirantePublicPage } from '@/pages/solicitudes-inscripcion/FormularioAspirantePublicPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
@@ -196,6 +197,7 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+      <Route path="/formulario-aspirante/:token" element={<FormularioAspirantePublicPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>

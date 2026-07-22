@@ -11,6 +11,7 @@ import {
 import clsx from 'clsx';
 import { ModalImportarAspirantes } from './ModalImportarAspirantes';
 import { ModalEnviarWhatsApp } from './ModalEnviarWhatsApp';
+import { ModalExportarAspirantes } from './ModalExportarAspirantes';
 
 interface SeguimientoAspirantesContentProps {
   reloadTrigger: boolean;
@@ -53,6 +54,7 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
   // Importer modal state
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Load filter unique option arrays
   const fetchFilterOptions = async () => {
@@ -419,6 +421,14 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
             <KeenIcon icon="whatsapp" />
             Enviar WhatsApp ({selectedIds.length})
           </button>
+
+          <button
+            onClick={() => setExportModalOpen(true)}
+            className="btn btn-sm btn-light flex items-center gap-1.5"
+          >
+            <KeenIcon icon="exit-down" />
+            Exportar
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -745,6 +755,15 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
           fetchAspirantes(currentPage);
           setSelectedIds([]);
         }}
+      />
+
+      {/* Modal de Exportación */}
+      <ModalExportarAspirantes
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        programas={programas}
+        centros={centros}
+        fichas={fichas}
       />
     </Fragment>
   );

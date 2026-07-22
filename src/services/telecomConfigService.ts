@@ -14,6 +14,7 @@ export interface TelecomConfig {
   webhookUrl?: string | null;
   graphVersion?: string;
   activo?: boolean;
+  idFormularioInscripcion?: number | null;
   created_at?: string;
   updated_at?: string;
 }

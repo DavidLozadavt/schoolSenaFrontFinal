@@ -1,5 +1,6 @@
 import { useLayout } from '@/providers';
 import { Fragment, useEffect, useState, FormEvent } from 'react';
+import axios from 'axios';
 import {
   Toolbar,
   ToolbarDescription,
@@ -8,6 +9,11 @@ import {
 } from '@/partials/toolbar';
 import { Container } from '@/components/container';
 import { telecomConfigService, TelecomConfig } from '@/services/telecomConfigService';
+
+interface FormularioOption {
+  id: number;
+  titulo: string;
+}
 
 /**
  * Configuración WhatsApp Meta — formulario simplificado.
@@ -20,19 +26,26 @@ const TelecomConfigPage = () => {
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [configId, setConfigId] = useState<number | null>(null);
+  const [idFormularioInscripcion, setIdFormularioInscripcion] = useState<string>('');
+  const [formularios, setFormularios] = useState<FormularioOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const activa = await telecomConfigService.activa();
+      const [activa, formulariosRes] = await Promise.all([
+        telecomConfigService.activa(),
+        axios.get('formularios').catch(() => ({ data: [] })),
+      ]);
       if (activa && activa.id) {
         // accessToken viene oculto desde el backend por seguridad (se deja vacío)
         setPhoneNumberId(activa.phoneNumberId ?? '');
         setVerifyToken(activa.verifyToken ?? '');
         setConfigId(activa.id);
+        setIdFormularioInscripcion(activa.idFormularioInscripcion ? String(activa.idFormularioInscripcion) : '');
       }
+      setFormularios(formulariosRes.data ?? []);
       setLoading(false);
     })();
   }, []);
@@ -47,6 +60,7 @@ const TelecomConfigPage = () => {
     if (accessToken.trim() !== '') payload.accessToken = accessToken.trim();
     if (phoneNumberId.trim() !== '') payload.phoneNumberId = phoneNumberId.trim();
     if (verifyToken.trim() !== '') payload.verifyToken = verifyToken.trim();
+    payload.idFormularioInscripcion = idFormularioInscripcion ? Number(idFormularioInscripcion) : null;
 
     try {
       if (configId) {
@@ -118,6 +132,23 @@ const TelecomConfigPage = () => {
                   value={verifyToken}
                   onChange={(e) => setVerifyToken(e.target.value)}
                 />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="form-label font-medium">Formulario de inscripción de aspirantes</label>
+                <select
+                  className="select"
+                  value={idFormularioInscripcion}
+                  onChange={(e) => setIdFormularioInscripcion(e.target.value)}
+                >
+                  <option value="">Sin asignar</option>
+                  {formularios.map((f) => (
+                    <option key={f.id} value={f.id}>{f.titulo}</option>
+                  ))}
+                </select>
+                <span className="text-2xs text-gray-500">
+                  Formulario que deben diligenciar los aspirantes que responden "Sí" por WhatsApp.
+                </span>
               </div>
             </div>
             <div className="card-footer flex items-center gap-3">
