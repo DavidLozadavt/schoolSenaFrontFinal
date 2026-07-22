@@ -4,6 +4,22 @@ import axios from 'axios';
 import { FormData, FormQuestion } from './formBuilderTypes';
 import QuestionCard from './QuestionCard';
 import FormResponsesTab from './FormResponsesTab';
+import { 
+  ArrowLeft, 
+  Link as LinkIcon, 
+  Copy, 
+  CheckCircle2, 
+  AlertCircle, 
+  ListTodo, 
+  Eye, 
+  BarChart2, 
+  Globe, 
+  Lock, 
+  Save, 
+  Palette, 
+  Plus, 
+  UploadCloud 
+} from 'lucide-react';
 
 const FormBuilderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -432,7 +448,7 @@ const FormBuilderPage: React.FC = () => {
       {/* Simple Toast */}
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl transition-all duration-300 transform scale-100 border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 backdrop-blur-xl animate-bounce-short">
-          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} fs-5`}></i>
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span className="text-xs font-black uppercase tracking-wider">{toast.message}</span>
         </div>
       )}
@@ -440,14 +456,14 @@ const FormBuilderPage: React.FC = () => {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <button className="btn btn-sm btn-light font-black uppercase tracking-widest text-[9px] py-3.5 px-6 rounded-xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all border border-neutral-150 dark:border-white/5" onClick={() => navigate('/formularios')}>
-          <i className="bi bi-arrow-left"></i> Volver a formularios
+          <ArrowLeft className="w-4 h-4" /> Volver a formularios
         </button>
 
         {formData.estado === 'publicado' && (
           <div className="flex items-center gap-2 bg-emerald-500/10 border border-dashed border-emerald-500/25 rounded-2xl px-5 py-3 cursor-pointer hover:scale-[1.01] transition-all text-emerald-600 dark:text-emerald-400" onClick={copyPublicLink} title="Copiar enlace">
-            <i className="bi bi-link-45deg fs-4"></i>
+            <LinkIcon className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">Enlace público: /formulario/{id}</span>
-            <i className="bi bi-clipboard fs-6 ms-2"></i>
+            <Copy className="w-4 h-4 ms-2" />
           </div>
         )}
       </div>
@@ -463,23 +479,23 @@ const FormBuilderPage: React.FC = () => {
               {/* Tab Selector inside builder */}
               <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200/20 shadow-inner">
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('editor')}
                 >
-                  <i className="bi bi-ui-checks me-1"></i> Preguntas
+                  <ListTodo className="w-3.5 h-3.5" /> Preguntas
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('vista_previa')}
                 >
-                  <i className="bi bi-eye me-1"></i> Vista Previa
+                  <Eye className="w-3.5 h-3.5" /> Vista Previa
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('respuestas')}
                   disabled={!id}
                 >
-                  <i className="bi bi-bar-chart me-1"></i> Respuestas
+                  <BarChart2 className="w-3.5 h-3.5" /> Respuestas
                 </button>
               </div>
 
@@ -489,16 +505,16 @@ const FormBuilderPage: React.FC = () => {
                 disabled={!id} 
                 title="Vista previa"
               >
-                <i className="bi bi-eye fs-5"></i>
+                <Eye className="w-4 h-4" />
               </button>
 
               <button 
-                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
+                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border flex items-center gap-1.5 ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
                 onClick={toggleEstado}
                 disabled={saving || !id}
               >
-                <i className={`bi ${formData.estado === 'publicado' ? 'bi-globe2' : 'bi-lock'} me-1.5`}></i>
-                {formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}
+                {formData.estado === 'publicado' ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                <span>{formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}</span>
               </button>
 
               <button 
@@ -509,7 +525,7 @@ const FormBuilderPage: React.FC = () => {
                 {saving ? (
                   <div className="w-3.5 h-3.5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
                 ) : (
-                  <i className="bi bi-save"></i>
+                  <Save className="w-3.5 h-3.5" />
                 )}
                 <span>Guardar</span>
               </button>
@@ -552,7 +568,7 @@ const FormBuilderPage: React.FC = () => {
                  <div className="flex items-center justify-between p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
                    <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-800 shadow-sm">
-                        <i className="bi bi-palette-fill fs-4" style={{ color: formData.colorTema }}></i>
+                        <Palette className="w-5 h-5" style={{ color: formData.colorTema }} />
                      </div>
                      <div className="flex flex-col">
                         <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white">Color del tema</label>
@@ -612,7 +628,7 @@ const FormBuilderPage: React.FC = () => {
           {/* Floating action button for new question */}
           <div className="flex justify-center mt-8 mb-10 pb-10">
             <button className="w-14 h-14 rounded-full shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center transition-all duration-300" onClick={addQuestion} title="Agregar pregunta" style={{ backgroundColor: formData.colorTema }}>
-              <i className="bi bi-plus fs-1 text-white"></i>
+              <Plus className="w-7 h-7 text-white" />
             </button>
           </div>
         </div>
@@ -758,7 +774,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'archivo' && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-coal-200 rounded-3xl cursor-not-allowed bg-neutral-50/20 dark:bg-coal-400/20">
                   <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-coal-300 flex items-center justify-center mb-3">
-                    <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
+                    <UploadCloud className="w-6 h-6 text-neutral-400" />
                   </div>
                   <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>
                   <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">Arrastra aquí o haz clic (Máx 5MB)</span>

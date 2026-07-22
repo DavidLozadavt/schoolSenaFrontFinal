@@ -49,6 +49,33 @@ const FormPublicPage: React.FC = () => {
   const [fileError, setFileError] = useState<string | null>(null);
   const [alertMsg, setAlertMsg] = useState<{ text: string; tipo: 'error' | 'info' } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ text: string; onConfirm: () => void } | null>(null);
+  
+  // Real-time Countdown Timer State
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  const formatDateSafe = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const str = String(dateStr).trim();
+    let d: Date;
+    if (str.includes('Z') || str.includes('+')) {
+      d = new Date(str);
+    } else {
+      const parts = str.split(/[- :T]/);
+      if (parts.length >= 5) {
+        d = new Date(
+          Number(parts[0]),
+          Number(parts[1]) - 1,
+          Number(parts[2]),
+          Number(parts[3]),
+          Number(parts[4])
+        );
+      } else {
+        d = new Date(str.replace(' ', 'T'));
+      }
+    }
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+  };
 
   const buildEmptyRespuestas = (preguntas: any[]) =>
     preguntas.map((q: any) => ({ idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' }));
@@ -92,6 +119,52 @@ const FormPublicPage: React.FC = () => {
     };
     fetchForm();
   }, [slug]);
+
+  // Real-Time Expiration Countdown Effect
+  useEffect(() => {
+    if (!form || !form.fechaLimite || form.is_expired) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const calculateTimeLeft = () => {
+      const str = String(form.fechaLimite).trim();
+      let targetTime: number;
+      if (str.includes('Z') || str.includes('+')) {
+        targetTime = new Date(str).getTime();
+      } else {
+        const parts = str.split(/[- :T]/);
+        if (parts.length >= 5) {
+          targetTime = new Date(
+            Number(parts[0]),
+            Number(parts[1]) - 1,
+            Number(parts[2]),
+            Number(parts[3]),
+            Number(parts[4])
+          ).getTime();
+        } else {
+          targetTime = new Date(str.replace(' ', 'T')).getTime();
+        }
+      }
+      const now = new Date().getTime();
+      const difference = targetTime - now;
+
+      if (difference <= 0) {
+        setTimeLeft(null);
+        setForm(prev => prev ? { ...prev, is_expired: true, motivo_expiracion: 'expirado' } : null);
+      } else {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [form?.fechaLimite, form?.is_expired]);
 
   const entrarModoEdicion = () => {
     if (!form) return;
@@ -353,6 +426,104 @@ const FormPublicPage: React.FC = () => {
 
   if (!form) return null;
 
+  if (form.is_expired && !modoEdicion) {
+    const getExpiracionTitulo = () => {
+      switch (form.motivo_expiracion) {
+        case 'no_iniciado': return 'Inscripciones Aún No Abiertas';
+        case 'expirado': return 'Formulario Expirado';
+        case 'limite_alcanzado': return 'Cupos Llenos / Límite Alcanzado';
+        case 'pausado': return 'Formulario Pausado';
+        case 'borrador': return 'Formulario en Borrador';
+        default: return 'Formulario No Disponible';
+      }
+    };
+
+    const getExpiracionMensaje = () => {
+      if (form.mensajeCierre) return form.mensajeCierre;
+      switch (form.motivo_expiracion) {
+        case 'no_iniciado':
+          return `Las respuestas para este formulario abrirán a partir del ${formatDateSafe(form.fechaInicio) || 'próximamente'}.`;
+        case 'expirado':
+          return `El periodo de respuestas para este formulario finalizó el ${formatDateSafe(form.fechaLimite) || 'recientemente'}.`;
+        case 'limite_alcanzado':
+          return 'Se ha alcanzado el límite máximo de cupos/respuestas permitidas para este formulario.';
+        case 'pausado':
+          return 'El organizador ha pausado temporalmente la recepción de respuestas para este formulario.';
+        case 'borrador':
+          return 'Este formulario se encuentra actualmente en borrador y no está publicado.';
+        default:
+          return 'Este formulario no se encuentra disponible actualmente.';
+      }
+    };
+
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
+        <div 
+          className="bg-white dark:bg-neutral-900 p-10 md:p-14 rounded-[2.5rem] shadow-2xl border border-neutral-100 dark:border-white/5 w-full max-w-lg text-center flex flex-col items-center gap-6 overflow-hidden relative"
+          style={{ borderTop: `10px solid ${form.colorTema || '#f59e0b'}` }}
+        >
+          <div className="w-20 h-20 bg-orange-500/10 text-orange-500 rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-500/10">
+            <Clock className="w-10 h-10 animate-pulse" />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 w-fit mx-auto border border-orange-500/20">
+              {getExpiracionTitulo()}
+            </span>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white mt-1">
+              {form.titulo || 'Formulario sin título'}
+            </h1>
+          </div>
+
+          {form.mensajeCierre ? (
+            <div className="w-full p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold leading-relaxed text-center shadow-sm">
+              💬 "{form.mensajeCierre}"
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold leading-relaxed max-w-md">
+              {getExpiracionMensaje()}
+            </p>
+          )}
+
+          {(form.fechaInicio || form.fechaLimite) && (
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-150 dark:border-white/5 text-left">
+              {form.fechaInicio && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-emerald-500" /> Fecha Apertura
+                  </span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">
+                    {formatDateSafe(form.fechaInicio)}
+                  </span>
+                </div>
+              )}
+              {form.fechaLimite && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-rose-500" /> Fecha Expiración
+                  </span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">
+                    {formatDateSafe(form.fechaLimite)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-center w-full mt-2">
+            <button
+              onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
+              className="py-4 px-8 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver a la Página Principal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (yaInscrito) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
@@ -549,6 +720,49 @@ const FormPublicPage: React.FC = () => {
             <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
             <span>Volver al Dashboard</span>
           </button>
+        )}
+
+        {/* Real-time Expiration Countdown Banner */}
+        {timeLeft && !form.is_expired && (
+          <div className="w-full bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/15 border border-orange-500/30 dark:border-orange-500/20 p-5 rounded-[2rem] mb-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md animate-fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                  ⚡ Vigencia de Inscripción Activa
+                </span>
+                <span className="text-xs font-bold text-neutral-800 dark:text-white">
+                  Este formulario vencerá en:
+                </span>
+              </div>
+            </div>
+
+            {/* Countdown Units */}
+            <div className="flex items-center gap-2 font-mono">
+              {timeLeft.days > 0 && (
+                <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                  <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.days).padStart(2, '0')}</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Días</span>
+                </div>
+              )}
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.hours).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Horas</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl animate-pulse">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Min</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl animate-pulse">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-rose-500">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Seg</span>
+              </div>
+            </div>
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>

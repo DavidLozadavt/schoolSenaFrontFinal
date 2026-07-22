@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
 import { FormQuestion, QuestionType } from './formBuilderTypes';
+import { 
+  ArrowUp, 
+  ArrowDown, 
+  Trash2, 
+  Copy, 
+  FileText, 
+  Plus, 
+  X, 
+  HelpCircle, 
+  Circle, 
+  Square, 
+  Calendar, 
+  Clock, 
+  UploadCloud 
+} from 'lucide-react';
 
 interface Props {
   question: FormQuestion;
@@ -79,7 +94,7 @@ const QuestionCard: React.FC<Props> = ({
 
   return (
     <div 
-      className="bg-white dark:bg-neutral-900 rounded-[2rem] border border-neutral-150 dark:border-white/5 shadow-xl hover:shadow-2xl transition-all duration-300 mb-6 overflow-hidden relative"
+      className="bg-white dark:bg-neutral-900 rounded-[2rem] border border-neutral-200 dark:border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300 mb-6 overflow-hidden relative"
       style={{ borderLeft: `8px solid ${accentColor}` }}
     >
       <div className="p-6 md:p-8 flex flex-col gap-6">
@@ -87,28 +102,29 @@ const QuestionCard: React.FC<Props> = ({
         {/* Controls row */}
         <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-white/5 gap-4">
           <div 
-            className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-            style={{ backgroundColor: `${accentColor}12`, color: accentColor }}
+            className="text-[10px] font-black uppercase tracking-widest px-3.5 py-1.5 rounded-xl flex items-center gap-2"
+            style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
           >
-            <i className="bi bi-question-circle-fill"></i> Pregunta {index + 1}
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Pregunta {index + 1}</span>
           </div>
           
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button 
-              className="w-8 h-8 rounded-lg flex items-center justify-center border border-neutral-150 dark:border-white/5 bg-neutral-50 hover:bg-neutral-100 dark:bg-coal-300 dark:hover:bg-coal-200 text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="w-9 h-9 rounded-xl flex items-center justify-center border border-neutral-200 dark:border-white/10 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-all disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               onClick={() => moveUp(index)} 
               disabled={isFirst} 
               title="Mover arriba"
             >
-              <i className="bi bi-arrow-up"></i>
+              <ArrowUp className="w-4 h-4" />
             </button>
             <button 
-              className="w-8 h-8 rounded-lg flex items-center justify-center border border-neutral-150 dark:border-white/5 bg-neutral-50 hover:bg-neutral-100 dark:bg-coal-300 dark:hover:bg-coal-200 text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="w-9 h-9 rounded-xl flex items-center justify-center border border-neutral-200 dark:border-white/10 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-all disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               onClick={() => moveDown(index)} 
               disabled={isLast} 
               title="Mover abajo"
             >
-              <i className="bi bi-arrow-down"></i>
+              <ArrowDown className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -121,7 +137,7 @@ const QuestionCard: React.FC<Props> = ({
               <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Título de la Pregunta</label>
               <input
                 type="text"
-                className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-200 dark:border-coal-200 px-4 py-3 text-base font-bold text-neutral-800 dark:text-white rounded-xl outline-none transition-all"
+                className="w-full bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 px-4 py-3 text-base font-bold text-neutral-800 dark:text-white rounded-xl outline-none transition-all"
                 style={focusedField === 'title' ? { borderColor: accentColor, boxShadow: `0 0 0 4px ${accentColor}20` } : {}}
                 onFocus={() => setFocusedField('title')}
                 onBlur={() => setFocusedField(null)}
@@ -137,7 +153,7 @@ const QuestionCard: React.FC<Props> = ({
                 <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Descripción o Aclaración (Opcional)</label>
                 <input
                   type="text"
-                  className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-200 dark:border-coal-200 px-4 py-3 text-sm font-semibold text-neutral-600 dark:text-gray-305 rounded-xl outline-none transition-all"
+                  className="w-full bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 px-4 py-3 text-sm font-semibold text-neutral-600 dark:text-neutral-300 rounded-xl outline-none transition-all"
                   style={focusedField === 'desc' ? { borderColor: accentColor, boxShadow: `0 0 0 4px ${accentColor}20` } : {}}
                   onFocus={() => setFocusedField('desc')}
                   onBlur={() => setFocusedField(null)}
@@ -152,7 +168,7 @@ const QuestionCard: React.FC<Props> = ({
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Tipo de Pregunta</label>
             <select 
-              className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-200 dark:border-coal-200 px-4 py-3 text-sm font-bold text-neutral-700 dark:text-neutral-200 rounded-xl outline-none transition-all cursor-pointer" 
+              className="w-full bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 px-4 py-3 text-sm font-bold text-neutral-700 dark:text-neutral-200 rounded-xl outline-none transition-all cursor-pointer" 
               style={focusedField === 'type' ? { borderColor: accentColor, boxShadow: `0 0 0 4px ${accentColor}20` } : {}}
               onFocus={() => setFocusedField('type')}
               onBlur={() => setFocusedField(null)}
@@ -178,15 +194,15 @@ const QuestionCard: React.FC<Props> = ({
             <div className="flex flex-col gap-3.5">
               {question.opciones.map((opt, oIdx) => (
                 <div key={opt.id || oIdx} className="flex items-center gap-3 group">
-                  <div className="flex items-center justify-center shrink-0 w-8 h-8">
-                    {question.tipo === 'opcion_multiple' && <i className="bi bi-circle text-neutral-350 dark:text-neutral-600 fs-4"></i>}
-                    {question.tipo === 'casillas' && <i className="bi bi-square text-neutral-350 dark:text-neutral-600 fs-4"></i>}
-                    {question.tipo === 'desplegable' && <span className="text-xs font-black text-neutral-400 dark:text-neutral-600">{oIdx + 1}.</span>}
+                  <div className="flex items-center justify-center shrink-0 w-8 h-8 text-neutral-400">
+                    {question.tipo === 'opcion_multiple' && <Circle className="w-4 h-4 text-neutral-400" />}
+                    {question.tipo === 'casillas' && <Square className="w-4 h-4 text-neutral-400" />}
+                    {question.tipo === 'desplegable' && <span className="text-xs font-black text-neutral-400">{oIdx + 1}.</span>}
                   </div>
                   
                   <input
                     type="text"
-                    className="flex-1 bg-neutral-50 dark:bg-coal-400 border border-neutral-200 dark:border-coal-200 px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-250 rounded-xl outline-none transition-all max-w-[650px]"
+                    className="flex-1 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 rounded-xl outline-none transition-all max-w-[650px]"
                     style={focusedField === `option-${oIdx}` ? { borderColor: accentColor, boxShadow: `0 0 0 4px ${accentColor}20` } : {}}
                     onFocus={() => setFocusedField(`option-${oIdx}`)}
                     onBlur={() => setFocusedField(null)}
@@ -197,35 +213,36 @@ const QuestionCard: React.FC<Props> = ({
                   
                   {question.opciones.length > 1 && (
                     <button 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-neutral-50 hover:bg-red-500/10 dark:bg-coal-400 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100" 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 text-neutral-500 dark:text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all opacity-80 group-hover:opacity-100" 
                       onClick={() => removeOption(oIdx)}
                       title="Eliminar opción"
                     >
-                      <i className="bi bi-x-lg text-xs font-bold"></i>
+                      <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               ))}
               
               <div className="flex items-center gap-3 mt-1">
-                <div className="flex items-center justify-center shrink-0 w-8 h-8">
-                  {question.tipo === 'opcion_multiple' && <i className="bi bi-circle text-neutral-300 dark:text-neutral-700 fs-4"></i>}
-                  {question.tipo === 'casillas' && <i className="bi bi-square text-neutral-300 dark:text-neutral-700 fs-4"></i>}
-                  {question.tipo === 'desplegable' && <span className="text-xs font-black text-neutral-400 dark:text-neutral-600">{question.opciones.length + 1}.</span>}
+                <div className="flex items-center justify-center shrink-0 w-8 h-8 text-neutral-300">
+                  {question.tipo === 'opcion_multiple' && <Circle className="w-4 h-4" />}
+                  {question.tipo === 'casillas' && <Square className="w-4 h-4" />}
+                  {question.tipo === 'desplegable' && <span className="text-xs font-black text-neutral-400">{question.opciones.length + 1}.</span>}
                 </div>
                 <button 
-                  className="text-[10px] font-black uppercase tracking-widest py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition-all hover:scale-105" 
-                  style={{ backgroundColor: `${accentColor}12`, color: accentColor }}
+                  className="text-[10px] font-black uppercase tracking-widest py-2.5 px-4 rounded-xl flex items-center gap-2 transition-all hover:scale-105 shadow-sm" 
+                  style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
                   onClick={addOption}
                 >
-                  <i className="bi bi-plus-lg text-xs font-bold"></i> Agregar opción
+                  <Plus className="w-4 h-4" />
+                  <span>Agregar opción</span>
                 </button>
               </div>
             </div>
           )}
 
           {question.tipo === 'escala_lineal' && (
-            <div className="bg-neutral-50/50 dark:bg-coal-400 border border-neutral-150 dark:border-white/5 rounded-3xl p-6 flex flex-col gap-5">
+            <div className="bg-neutral-50/50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-3xl p-6 flex flex-col gap-5">
               <div className="flex flex-wrap items-center gap-4">
                  <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 dark:text-neutral-500">Mínimo</span>
@@ -316,20 +333,20 @@ const QuestionCard: React.FC<Props> = ({
             ></textarea>
           )}
           {question.tipo === 'fecha' && (
-            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 border border-neutral-150 dark:border-coal-200 px-4 py-2.5 rounded-xl w-fit">
+            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 rounded-xl w-fit">
                <input type="date" className="bg-transparent border-0 text-sm text-neutral-450 outline-none cursor-not-allowed" disabled />
-               <i className="bi bi-calendar-event text-neutral-400"></i>
+               <Calendar className="w-4 h-4 text-neutral-400" />
             </div>
           )}
           {question.tipo === 'hora' && (
-            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 border border-neutral-150 dark:border-coal-200 px-4 py-2.5 rounded-xl w-fit">
+            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 rounded-xl w-fit">
                <input type="time" className="bg-transparent border-0 text-sm text-neutral-450 outline-none cursor-not-allowed" disabled />
-               <i className="bi bi-clock text-neutral-400"></i>
+               <Clock className="w-4 h-4 text-neutral-400" />
             </div>
           )}
           {question.tipo === 'archivo' && (
-            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 border border-neutral-150 dark:border-coal-200 px-4 py-2.5 rounded-xl w-fit">
-               <i className="bi bi-cloud-upload text-neutral-400 fs-5"></i>
+            <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700 px-4 py-2.5 rounded-xl w-fit">
+               <UploadCloud className="w-4 h-4 text-neutral-400" />
                <span className="text-xs text-neutral-400">Subir archivo (PDF o Imagen) (vista previa)</span>
             </div>
           )}
@@ -337,28 +354,36 @@ const QuestionCard: React.FC<Props> = ({
 
         {/* Footer Actions */}
         <div className="flex justify-between items-center pt-5 mt-4 border-t border-neutral-100 dark:border-white/5 flex-wrap gap-4">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button 
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${question.descripcion !== undefined ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-neutral-50 hover:bg-neutral-100 dark:bg-coal-300 text-neutral-400 hover:text-neutral-600'}`} 
+              className={`h-9 px-3 rounded-xl flex items-center gap-2 text-xs font-bold transition-all shadow-sm ${
+                question.descripcion !== undefined 
+                  ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20' 
+                  : 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 border border-neutral-200/60 dark:border-white/10'
+              }`} 
               onClick={toggleDescription} 
               title="Descripción"
             >
-              <i className="bi bi-card-text fs-5"></i>
+              <FileText className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Descripción</span>
             </button>
-            <div className="h-5 w-[1px] bg-neutral-200 dark:bg-neutral-800 mx-1"></div>
+
             <button 
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-neutral-50 hover:bg-neutral-100 dark:bg-coal-300 text-neutral-400 hover:text-neutral-600 transition-all" 
+              className="h-9 px-3 rounded-xl flex items-center gap-2 text-xs font-bold bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 border border-neutral-200/60 dark:border-white/10 transition-all shadow-sm" 
               onClick={() => duplicateQuestion(index)} 
-              title="Duplicar"
+              title="Duplicar pregunta"
             >
-              <i className="bi bi-files fs-5"></i>
+              <Copy className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Duplicar</span>
             </button>
+
             <button 
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-neutral-50 hover:bg-red-500/10 dark:bg-coal-300 text-neutral-400 hover:text-red-500 transition-all" 
+              className="h-9 px-3 rounded-xl flex items-center gap-2 text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-all shadow-sm" 
               onClick={() => removeQuestion(index)} 
-              title="Eliminar"
+              title="Eliminar pregunta"
             >
-              <i className="bi bi-trash fs-5"></i>
+              <Trash2 className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Eliminar</span>
             </button>
           </div>
           
