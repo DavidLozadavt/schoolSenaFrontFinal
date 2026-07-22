@@ -1,4 +1,4 @@
-import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause } from 'lucide-react';
+import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause, Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
@@ -16,7 +16,10 @@ interface CardRapProps {
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   materiasLength?: number;
   cargarRaps?: () => void;
+  esEditable?: boolean;
 }
+
+const MSG_SOLO_ACTUAL = 'Solo puede modificarse el trimestre actual.';
 
 export const CardRap = ({
   materia,
@@ -27,7 +30,8 @@ export const CardRap = ({
   onAsignacionSuccess,
   onEditCompetencia,
   materiasLength,
-  cargarRaps
+  cargarRaps,
+  esEditable = true
 }: CardRapProps) => {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosSinAsignar, setHorariosSinAsignar] = useState<any[]>([]);
@@ -330,7 +334,8 @@ export const CardRap = ({
     if (result.isConfirmed) {
       try {
         await axios.put('materias/interrumpir-rap', {
-          idGradoMateria: materia.idGradoMateria
+          idGradoMateria: materia.idGradoMateria,
+          idFicha: idFicha
         })
         if (onAsignacionSuccess) onAsignacionSuccess();
         enqueueSnackbar('RAP interrumpido correctamente', { variant: 'success' });
@@ -364,7 +369,8 @@ export const CardRap = ({
     if (result.isConfirmed) {
       try {
         await axios.put(`materias/finalizar-rap`, {
-          idGradoMateria: materia.idGradoMateria
+          idGradoMateria: materia.idGradoMateria,
+          idFicha: idFicha
         });
         if (onAsignacionSuccess) onAsignacionSuccess();
         enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
@@ -428,8 +434,9 @@ export const CardRap = ({
 
           const horariosAsignables = obtenerHorariosParaAsignacion();
           const puedeAsignarInstructor =
-            (materia.estado === 'PENDIENTE' && hasSinAsignar) ||
-            (materia.estado === 'FINALIZADO' && horariosAsignables.length > 0);
+            esEditable &&
+            ((materia.estado === 'PENDIENTE' && hasSinAsignar) ||
+              (materia.estado === 'FINALIZADO' && horariosAsignables.length > 0));
 
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 rounded-lg pt-3 mt-1 text-center">
@@ -490,7 +497,7 @@ export const CardRap = ({
                     </div>
 
                     {/* Botón para asignar 2º Profe (Solo si es compartido, falta el secundario y ES UN RAP, no la competencia padre) */}
-                    {materia.idMateriaPadre != null && instructoresAsignados.length > 0 && 
+                    {esEditable && materia.idMateriaPadre != null && instructoresAsignados.length > 0 && 
                      horarios.some(h => h.asignacionSesion?.some((as: any) => as.tipoAsignacion === 'HORARIO COMPARTIDO' && as.idContrato === null)) && (
                       <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
                         <div className="relative">
@@ -652,15 +659,26 @@ export const CardRap = ({
             </button>
           )}
 
-          <button
-            onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }}
-            className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
-            title="Editar"
-          >
-            <Pencil size={18} />
-          </button>
+          {esEditable ? (
+            <button
+              onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }}
+              className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
+              title="Editar"
+            >
+              <Pencil size={18} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={MSG_SOLO_ACTUAL}
+              className="p-2.5 rounded-md text-gray-300 dark:text-gray-600 cursor-not-allowed"
+            >
+              <Lock size={18} />
+            </button>
+          )}
 
-          {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
+          {esEditable && materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
             onClick={() => handleFinalizarRap()}
             className="p-2.5 rounded-md text-green-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-green-600 transition"
             title="Finalizar RAP"
@@ -668,7 +686,7 @@ export const CardRap = ({
             <Check size={18} />
           </button>}
 
-          {materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarInterrumpir && <button
+          {esEditable && materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarInterrumpir && <button
             onClick={() => handleInterrumpirRap()}
             className="p-2.5 rounded-md text-red-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
             title="Interrumpir RAP"
@@ -686,13 +704,24 @@ export const CardRap = ({
             <Calendar size={18} />
           </button>
 
-          <button
-            onClick={handleEliminarCompetencia}
-            className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
-            title="Eliminar"
-          >
-            <Trash2 size={18} />
-          </button>
+          {esEditable ? (
+            <button
+              onClick={handleEliminarCompetencia}
+              className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
+              title="Eliminar"
+            >
+              <Trash2 size={18} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={MSG_SOLO_ACTUAL}
+              className="p-2.5 rounded-md text-gray-300 dark:text-gray-600 cursor-not-allowed"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
         </div>}
 
       {/* Modal de Lista de Instructores */}
@@ -735,13 +764,13 @@ export const CardRap = ({
                       </p>
                     </div>
 
-                    {(inst.esPrincipal || materia.idMateriaPadre != null) ? <button
+                    {(esEditable && (inst.esPrincipal || materia.idMateriaPadre != null)) ? <button
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
-                    </button> : <p className="text-xs text-gray-500 dark:text-gray-400">Desasigna desde el RAP</p>}
+                    </button> : <p className="text-xs text-gray-500 dark:text-gray-400">{esEditable ? 'Desasigna desde el RAP' : MSG_SOLO_ACTUAL}</p>}
                   </div>
                 ))}
               </div>
@@ -766,6 +795,7 @@ export const CardRap = ({
           materia={materia}
           idFicha={idFicha ?? 0}
           cargarRaps={cargarRaps}
+          permiteEdicion={esEditable}
           onAddSchedule={() => {
             setModalHorarios({
               open: true,

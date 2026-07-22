@@ -20,6 +20,7 @@ interface ListaRapsProps {
   ficha?: any;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
+  esEditable?: boolean;
 }
 
 export const ListaRaps: React.FC<ListaRapsProps> = ({
@@ -34,7 +35,8 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   program,
   ficha,
   onEditCompetencia,
-  onUpdate
+  onUpdate,
+  esEditable = true
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -251,6 +253,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                           if (onUpdate) onUpdate();
                         }}
                         onEditCompetencia={(id) => onEditCompetencia && onEditCompetencia(id, cargarRaps)}
+                        esEditable={esEditable}
                       />
 
                       {/* Información adicional del RAP */}

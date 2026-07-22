@@ -21,6 +21,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey, getColombianHolidayMap } from '@/utils/colombianHolidays';
 import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
+import { numeroTrimestreDesdeHorario, parseNumeroGrado } from './utils/trimestreNumeroGrado';
 
 interface CalendarioProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface CalendarioProps {
   onAddSchedule: () => void;
   cargarRaps?: () => void;
   modoRmi?: boolean;
+  permiteEdicion?: boolean;
 }
 
 const mapeoDias: { [key: string]: number } = {
@@ -253,9 +255,16 @@ const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ 
       <div className="p-4 text-left">
         {/* Estado + Hora */}
         <div className="flex justify-between items-center mb-3 gap-2">
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : ev.estado === 'PENDIENTE' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-            {ev.estado || 'SIN ESTADO'}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : ev.estado === 'PENDIENTE' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+              {ev.estado || 'SIN ESTADO'}
+            </span>
+            {ev.numeroTrimestre != null && (
+              <span className="px-1.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wide bg-gray-100 dark:bg-coal-500 text-gray-600 dark:text-gray-300 shrink-0">
+                T{ev.numeroTrimestre}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 text-primary shrink-0">
             <Clock size={12} className="shrink-0" />
             <span className="text-[11px] font-black tracking-wide whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
@@ -323,9 +332,11 @@ export const Calendario: React.FC<CalendarioProps> = ({
   idFicha,
   onAddSchedule,
   cargarRaps,
-  modoRmi = false
+  modoRmi = false,
+  permiteEdicion = true
 }) => {
   const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
+  const [maxNumeroTrimestreApi, setMaxNumeroTrimestreApi] = useState(0);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [asignacionSesionModal, setAsignacionSesionModal] = useState<boolean>(false);
@@ -362,12 +373,20 @@ export const Calendario: React.FC<CalendarioProps> = ({
         } else if (idFicha) {
           const response = await axios.get(`horario/ficha/${idFicha}`);
           const data = response.data?.data || [];
-          if (isMounted) setHorariosFicha(Array.isArray(data) ? data : []);
+          const maxApi = Number(response.data?.maxNumeroTrimestre) || 0;
+          if (isMounted) {
+            setHorariosFicha(Array.isArray(data) ? data : []);
+            setMaxNumeroTrimestreApi(maxApi > 0 ? maxApi : 0);
+          }
         } else if (isMounted) {
           setHorariosFicha([]);
+          setMaxNumeroTrimestreApi(0);
         }
       } catch {
-        if (isMounted) setHorariosFicha([]);
+        if (isMounted) {
+          setHorariosFicha([]);
+          setMaxNumeroTrimestreApi(0);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -383,6 +402,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setHorariosFicha([]);
+      setMaxNumeroTrimestreApi(0);
       setLoading(true);
       setInitialLoadComplete(false);
       setTooltip(null);
@@ -394,6 +414,21 @@ export const Calendario: React.FC<CalendarioProps> = ({
     () => horariosFicha.filter(horarioEsRenderable),
     [horariosFicha]
   );
+
+  const maxNumeroTrimestre = useMemo(() => {
+    let max = maxNumeroTrimestreApi > 0 ? maxNumeroTrimestreApi : 0;
+    horariosFicha.forEach((h: any) => {
+      const n = numeroTrimestreDesdeHorario(h);
+      if (n != null && n > max) max = n;
+    });
+    return max;
+  }, [horariosFicha, maxNumeroTrimestreApi]);
+
+  const puedeEditarHorarioPorTrimestre = (ev: any): boolean => {
+    const n = parseNumeroGrado(ev?.numeroTrimestre) ?? numeroTrimestreDesdeHorario(ev);
+    if (n == null || maxNumeroTrimestre <= 0) return false;
+    return n === maxNumeroTrimestre;
+  };
 
   const holidayDates = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -514,6 +549,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
                 _materiaFallback: nombreComp,
                 _dateStr: dateStr,
                 _colors: colors,
+                idHorarioMateria: Number(h.id),
+                numeroTrimestre: numeroTrimestreDesdeHorario(h),
               },
             });
           }
@@ -583,6 +620,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
     const nombreInstructor = instructor
       ? `${instructor.nombre1 || ''} ${instructor.apellido1 || ''}`.trim()
       : '';
+    const numeroTrimestre =
+      parseNumeroGrado(ev.numeroTrimestre) ?? numeroTrimestreDesdeHorario(ev);
+    const eventoEditable = !modoRmi && puedeEditarHorarioPorTrimestre(ev);
 
     return (
       <div
@@ -596,10 +636,20 @@ export const Calendario: React.FC<CalendarioProps> = ({
         onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
         onMouseLeave={() => setTooltip(null)}
       >
-        <div className="flex items-center gap-1 leading-tight shrink-0">
-          <Clock size={10} className="shrink-0 opacity-70" />
-          <span className="whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
-          {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+        <div className="flex items-center justify-between gap-1 leading-tight shrink-0">
+          <div className="flex items-center gap-1 min-w-0">
+            <Clock size={10} className="shrink-0 opacity-70" />
+            <span className="whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
+            {ev.isSharedSlot && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+          </div>
+          {numeroTrimestre != null && (
+            <span
+              className="shrink-0 px-1 py-px rounded text-[8px] font-black tracking-wide uppercase bg-black/10 dark:bg-white/15 opacity-90"
+              title={`Trimestre ${numeroTrimestre}`}
+            >
+              T{numeroTrimestre}
+            </span>
+          )}
         </div>
 
         <p className="leading-snug font-black uppercase line-clamp-2 text-[9px] tracking-wide">
@@ -618,13 +668,17 @@ export const Calendario: React.FC<CalendarioProps> = ({
           <p className="text-[7px] font-black uppercase opacity-60 truncate">{ev.estado}</p>
         )}
 
-        {!modoRmi && (
+        {eventoEditable && (
           <div className="flex justify-end items-center gap-1 mt-auto pt-0.5">
             {!ev.isSharedSlot && ev.estado === 'ASIGNADO' && (
               <button
                 onMouseEnter={() => setTooltip(null)}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!puedeEditarHorarioPorTrimestre(ev)) {
+                    enqueueSnackbar('Solo puede modificarse el trimestre actual.', { variant: 'warning' });
+                    return;
+                  }
                   setFechaSeleccionada(ev._dateStr);
                   setHorarioAsignacionSesion(ev);
                   setIdMateriaAsignacion(ev.gradoMateria?.idMateria);
@@ -641,7 +695,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
               onMouseEnter={() => setTooltip(null)}
               onClick={(e) => {
                 e.stopPropagation();
-                handleEliminarHorario(ev.id);
+                handleEliminarHorario(ev);
               }}
               className="rounded-full bg-red-500/10 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-600 transition"
               title="Eliminar"
@@ -654,8 +708,22 @@ export const Calendario: React.FC<CalendarioProps> = ({
     );
   };
 
-  const handleEliminarHorario = async (idHorario: number) => {
+  const handleEliminarHorario = async (ev: any) => {
     if (modoRmi) return;
+
+    if (!puedeEditarHorarioPorTrimestre(ev)) {
+      enqueueSnackbar('Solo puede modificarse el trimestre actual. Este horario pertenece a un trimestre histórico.', {
+        variant: 'warning',
+      });
+      return;
+    }
+
+    const idHorario = Number(ev?.idHorarioMateria ?? ev?.id);
+    if (!Number.isFinite(idHorario) || idHorario <= 0) {
+      enqueueSnackbar('No se pudo identificar el horario a eliminar', { variant: 'error' });
+      return;
+    }
+
     try {
       const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
       const isDarkMode = theme === 'dark';
@@ -728,6 +796,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
                 <ModalTitle className="text-md font-black uppercase tracking-tight dark:text-white truncate">Programación de la ficha</ModalTitle>
                 <p className="text-3xs text-gray-500 font-semibold uppercase max-w-xl">
                   Vista completa · Entrada: {materia.nombre || materia.nombreMateria}
+                  {maxNumeroTrimestre > 0 ? (
+                    <span className="ml-2 text-primary">· Editable: T{maxNumeroTrimestre}</span>
+                  ) : null}
                 </p>
               </div>
             </div>
@@ -866,7 +937,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
             />
           </ModalBody>
 
-          {!modoRmi && (
+          {!modoRmi && permiteEdicion && (
             <div className="px-6 py-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-end gap-4 bg-white dark:bg-coal-500 rounded-b-2xl">
               {materia.idMateriaPadre != null && (
                 <button
