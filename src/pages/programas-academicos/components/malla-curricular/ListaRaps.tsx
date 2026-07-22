@@ -15,8 +15,12 @@ interface ListaRapsProps {
   nivelId?: number;
   porcentajeEjecucion?: number;
   programId: number;
+  /** Misma ficha/programa que Planeación (encabezado unificado). */
+  program?: any;
+  ficha?: any;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
+  esEditable?: boolean;
 }
 
 export const ListaRaps: React.FC<ListaRapsProps> = ({
@@ -28,8 +32,11 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   nivelId,
   porcentajeEjecucion,
   programId,
+  program,
+  ficha,
   onEditCompetencia,
-  onUpdate
+  onUpdate,
+  esEditable = true
 }) => {
   const [raps, setRaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,45 +103,90 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   
   if (!isOpen) return null;
 
+  const nombrePrograma =
+    program?.name ||
+    program?.nombrePrograma ||
+    ficha?.programa?.nombrePrograma ||
+    'Programa sin nombre';
+  const numeroFicha = ficha?.codigo ?? ficha?.numeroFicha ?? '—';
+  const jornadaFicha =
+    ficha?.jornada?.nombreJornada ||
+    ficha?.jornadaFicha ||
+    'Sin jornada';
+  const bannerUrl =
+    program?.imageUrl ||
+    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600';
+
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/10 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
 
-        {/* Header */}
-        <div className="flex-shrink-0 bg-primary-active p-4 text-white">
-          <div className="flex items-center justify-between flex-col md:flex-row">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <BookOpen size={24} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black uppercase tracking-tight">
-                    Resultados de Aprendizaje (RAPs)
-                  </h2>
-                  <span className="text-sm font-bold text-gray-300">
-                    Total: {raps.length} -
-                    Pendientes:{raps.filter((rap: any) => rap.estado === 'PENDIENTE').length} -
-                    Finalizados:{raps.filter((rap: any) => rap.estado === 'FINALIZADO').length} -
-                    {nombreCompetencia}
-                  </span>
-                </div>
+        {/* Encabezado unificado con Planeación de Fichas */}
+        <div className="relative flex-shrink-0 w-full overflow-hidden">
+          <img
+            src={bannerUrl}
+            className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
+            alt="Banner del programa"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
+          <button
+            onClick={onClose}
+            className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
+            aria-label="Cerrar modal"
+          >
+            <i className="text-lg ki-outline ki-cross"></i>
+          </button>
+
+          <div className="relative z-[1] flex flex-col px-6 pb-5 pt-12 pr-16 text-white">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 mb-0.5">
+                  Programa
+                </p>
+                <h2 className="text-base sm:text-lg md:text-xl font-bold uppercase tracking-tight leading-snug text-white/95 drop-shadow line-clamp-2">
+                  {nombrePrograma}
+                </h2>
+                <p className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none drop-shadow-lg">
+                  FICHA {numeroFicha}
+                </p>
+              </div>
+
+              <div className="shrink-0 sm:text-right">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 mb-1">
+                  Jornada
+                </p>
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-md bg-white/15 border border-white/35 backdrop-blur-sm text-sm sm:text-base font-black uppercase tracking-widest text-white shadow-lg">
+                  {jornadaFicha}
+                </span>
               </div>
             </div>
-
-            <span className="text-md font-bold text-gray-300 mr-12">
-              Porcentaje de Ejecución
-              <p className="text-center text-lg font-bold">{porcentajeEjecucion}%</p>
-            </span>
-
-            <button
-              onClick={onClose}
-              className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
-              aria-label="Cerrar modal"
-            >
-              <i className="text-lg ki-outline ki-cross"></i>
-            </button>
           </div>
+        </div>
+
+        {/* Contexto RAPs (sin alterar listado / progreso) */}
+        <div className="flex-shrink-0 px-6 py-3 bg-white dark:bg-coal-400 border-b border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0">
+              <BookOpen size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-tight text-gray-800 dark:text-white truncate">
+                Resultados de Aprendizaje (RAPs)
+              </p>
+              <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 truncate">
+                Total: {raps.length} · Pendientes: {raps.filter((rap: any) => rap.estado === 'PENDIENTE').length} · Finalizados: {raps.filter((rap: any) => rap.estado === 'FINALIZADO').length} · {nombreCompetencia}
+              </p>
+            </div>
+          </div>
+          {porcentajeEjecucion != null && (
+            <div className="text-right shrink-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Porcentaje de Ejecución
+              </p>
+              <p className="text-sm font-black text-primary">{porcentajeEjecucion}%</p>
+            </div>
+          )}
         </div>
 
         {/* Contenido */}
@@ -168,7 +220,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           ) : (
             <div className="space-y-4">
               {/* Lista de RAPs usando CardRap */}
-              <div className="space-y-3">
+              <div className="space-y-4 sm:space-y-5">
                 {raps.sort((b: any, a: any) => a.estado.localeCompare(b.estado)).map((rap, index) => {
                   // Transformar el RAP al formato que espera CardRap
                   const materiaTransformada = {
@@ -189,7 +241,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   };
 
                   return (
-                    <div key={rap.id} className="rounded-xl p-1">
+                    <div key={rap.id} className="rounded-xl">
                       <CardRap
                         materia={materiaTransformada}
                         idTrimestre={nivelId}
@@ -201,6 +253,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                           if (onUpdate) onUpdate();
                         }}
                         onEditCompetencia={(id) => onEditCompetencia && onEditCompetencia(id, cargarRaps)}
+                        esEditable={esEditable}
                       />
 
                       {/* Información adicional del RAP */}

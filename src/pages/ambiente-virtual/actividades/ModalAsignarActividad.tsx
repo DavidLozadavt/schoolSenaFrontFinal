@@ -12,6 +12,13 @@ import {
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
+/** Valor para input datetime-local en hora local del navegador (YYYY-MM-DDTHH:mm). */
+const ahoraDatetimeLocal = (): string => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 const getDocumentUrl = (path: string | undefined): string | null => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
@@ -116,7 +123,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
     if (open) {
       setAprendicesSeleccionados([]);
       setGruposSeleccionados([]);
-      setFechaInicial('');
+      setFechaInicial(ahoraDatetimeLocal());
       setFechaFinal('');
       setError('');
     }

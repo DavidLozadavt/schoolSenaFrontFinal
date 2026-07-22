@@ -13,6 +13,7 @@ import { FormCompetencia } from './FormCompetencia';
 import { useTrimestres } from './UseTrimestres';
 import {
   compararTrimestresPorNumeroGrado,
+  esTrimestreActual,
   maxNumeroGradoTrimestres,
 } from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
@@ -297,6 +298,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                                   setModalHorarios={setModalHorarios}
                                   idFicha={ficha?.id}
                                   onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
+                                  esEditable={esTrimestreActual(trimestre, trimestres)}
                                 />
                               </div>
                             ))
@@ -378,10 +380,19 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           nombreCompetencia={selectedCompetenciaNombre}
           idFicha={ficha?.id}
           programId={program?.id}
+          program={program}
+          ficha={ficha}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
           onUpdate={() => ficha && cargarTrimestres(ficha?.id)}
+          esEditable={esTrimestreActual(
+            trimestres.find(
+              (t) =>
+                (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId
+            ),
+            trimestres
+          )}
         />
       )}
 
