@@ -1760,13 +1760,6 @@ const ClaseDetallePage: React.FC = () => {
   const puedeAbrirModalJuicios =
     idFichaParaClase > 0 && !!idProgramaJuicios && !!idSedeJuicios && !!idGradoJuicios;
 
-  const abrirModalJuiciosEvaluativos = () => {
-    setActiveMenu('juicios-evaluativos');
-    if (puedeAbrirModalJuicios) {
-      setModalJuiciosOpen(true);
-    }
-  };
-
   const idHorarioMateriaRuta = useMemo(() => {
     const n = id ? parseInt(String(id), 10) : NaN;
     return Number.isFinite(n) && n > 0 ? n : undefined;
@@ -2980,7 +2973,7 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Juicios evaluativos"
-                  onClick={abrirModalJuiciosEvaluativos}
+                  onClick={() => setActiveMenu('juicios-evaluativos')}
                   className={claseBotonItemMenu(activeMenu === 'juicios-evaluativos')}
                 >
                   <KeenIcon
