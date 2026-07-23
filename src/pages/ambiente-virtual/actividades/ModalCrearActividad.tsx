@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle, ModalFooter } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useAuthContext } from '@/auth';
@@ -224,15 +224,16 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
-      <ModalContent className="max-w-[600px] top-[10%] max-h-[90vh] overflow-y-auto p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
-        <ModalHeader>
-          <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
-        <ModalBody className="grid gap-4 px-0 py-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <ModalContent className="w-[95vw] max-w-[840px] top-[5%] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 max-h-[90vh] flex-1">
+          <ModalHeader className="shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+            <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
+            <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
+              <KeenIcon icon="cross" />
+            </button>
+          </ModalHeader>
+
+          <ModalBody className="grid gap-4 px-4 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Actividad *</label>
               <select
@@ -321,17 +322,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 required
               />
             </div>
+          </ModalBody>
 
-            <div className="flex justify-between gap-2 pt-4">
-              <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={onClose}>
-                X CANCELAR
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Guardando...' : actividadEditar ? 'Actualizar' : '+ CREAR ACTIVIDAD'}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
+          <ModalFooter className="shrink-0 flex justify-between gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-500">
+            <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={onClose}>
+              X CANCELAR
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Guardando...' : actividadEditar ? 'Actualizar' : '+ CREAR ACTIVIDAD'}
+            </button>
+          </ModalFooter>
+        </form>
       </ModalContent>
     </Modal>
   );
