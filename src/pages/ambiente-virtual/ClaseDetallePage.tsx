@@ -64,6 +64,7 @@ import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 import JustificacionesInstructorPage from './JustificacionesInstructorPage';
 import ListaAsistenciasGlobalPage from './ListaAsistenciasGlobalPage';
+import ModalJuiciosEvaluativos from '@/pages/shared/ModalJuiciosEvaluativos';
 
 /** YYYY-MM-DD en calendario local (no usar toISOString() para claves: desfasa el día en UTC). */
 const formatYmdLocal = (d: Date): string => {
@@ -1386,6 +1387,7 @@ interface Ficha {
   documento?: string | null;
   /** URL completa para visualizar el documento de la ficha. */
   rutaDocumentoUrl?: string | null;
+  sede?: { id: number; nombre?: string };
   jornada?: {
     id: number;
     nombreJornada: string;
@@ -1394,6 +1396,7 @@ interface Ficha {
   };
   asignacion?: {
     id: number;
+    idSede?: number;
     fechaInicialClases?: string;
     fechaFinalClases?: string;
     programa?: {
@@ -1401,7 +1404,9 @@ interface Ficha {
       nombrePrograma: string;
       /** URL completa del documento del programa. */
       documentoUrl?: string | null;
+      grados?: Array<{ pivot?: { idGrado?: number } }>;
     };
+    sede?: { id: number };
   };
   instructorLider?: {
     id: number;
@@ -1700,15 +1705,6 @@ const ClaseDetallePage: React.FC = () => {
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
-
-  //Juicios evaluativos:
-  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
-  const [idFicha, setIdFicha] = useState<number | undefined>(0);
-  const [idSede, setIdSede] = useState<number | undefined>(0);
-  const [idGrado, setIdGrado] = useState<number | undefined>(0);
-  const [idPrograma, setIdPrograma] = useState<string | undefined>('');
-  const [evento, setEvento] = useState<boolean>(false);
-
   // Actividades
   const [actividadesDisponibles, setActividadesDisponibles] = useState<Actividad[]>([]);
   const [actividadesAsignadas, setActividadesAsignadas] = useState<Actividad[]>([]);
@@ -1735,6 +1731,7 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
   const [modalMoverRapOpen, setModalMoverRapOpen] = useState(false);
   const [actividadParaMoverRap, setActividadParaMoverRap] = useState<Actividad | null>(null);
+  const [modalJuiciosOpen, setModalJuiciosOpen] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1747,6 +1744,30 @@ const ClaseDetallePage: React.FC = () => {
     () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
     [locationState?.ficha_id, ficha?.id]
   );
+
+  /** Mismos parámetros que Planeación → ModalJuiciosEvaluativos (POST raps). */
+  const idProgramaJuicios = useMemo(() => {
+    const raw = ficha?.asignacion?.programa?.id;
+    return raw != null && String(raw).trim() !== '' ? String(raw) : undefined;
+  }, [ficha?.asignacion?.programa?.id]);
+
+  const idSedeJuicios = useMemo(() => {
+    const n = Number(
+      ficha?.idSede ?? ficha?.sede?.id ?? ficha?.asignacion?.idSede ?? ficha?.asignacion?.sede?.id ?? 0
+    );
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [ficha?.idSede, ficha?.sede?.id, ficha?.asignacion?.idSede, ficha?.asignacion?.sede?.id]);
+
+  const idGradoJuicios = useMemo(() => {
+    const desdeClase = Number((clase as { idGrado?: unknown } | null)?.idGrado);
+    if (Number.isFinite(desdeClase) && desdeClase > 0) return desdeClase;
+    const desdePrograma = Number(ficha?.asignacion?.programa?.grados?.[0]?.pivot?.idGrado);
+    if (Number.isFinite(desdePrograma) && desdePrograma > 0) return desdePrograma;
+    return 1;
+  }, [clase, ficha?.asignacion?.programa?.grados]);
+
+  const puedeAbrirModalJuicios =
+    idFichaParaClase > 0 && !!idProgramaJuicios && !!idSedeJuicios && !!idGradoJuicios;
 
   const idHorarioMateriaRuta = useMemo(() => {
     const n = id ? parseInt(String(id), 10) : NaN;
@@ -1910,6 +1931,15 @@ const ClaseDetallePage: React.FC = () => {
                 fichaDetalle.data?.data?.apertura?.programa?.documento;
               if (progDoc && fichaData.asignacion?.programa && !fichaData.asignacion.programa.documentoUrl) {
                 fichaData.asignacion.programa.documentoUrl = `${backUrl}${progDoc}`;
+              }
+              if (fichaRaw?.idSede != null && fichaData.idSede == null) {
+                fichaData.idSede = Number(fichaRaw.idSede);
+              }
+              if (fichaRaw?.sede && !fichaData.sede) {
+                fichaData.sede = fichaRaw.sede;
+              }
+              if (fichaRaw?.asignacion?.programa?.grados && fichaData.asignacion?.programa) {
+                fichaData.asignacion.programa.grados = fichaRaw.asignacion.programa.grados;
               }
               if (fichaRaw?.idInstructorLider != null) {
                 fichaData.idInstructorLider = Number(fichaRaw.idInstructorLider);
@@ -3195,14 +3225,38 @@ const ClaseDetallePage: React.FC = () => {
                 />
               )}
 
-              {/* Juicios Evaluativos Section */}
+              {/* Juicios Evaluativos: mismo modal de Planeación (POST raps) */}
               {activeMenu === 'juicios-evaluativos' && (
                 <div className="text-center py-12">
                   <KeenIcon icon="chart-simple" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay juicios evaluativos</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-200">
-                    Los juicios evaluativos aparecerán aquí cuando estén disponibles
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Juicios evaluativos
                   </p>
+                  {idFichaParaClase > 0 ? (
+                    <>
+                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-4">
+                        Carga el archivo Excel de juicios evaluativos para la ficha{' '}
+                        <span className="font-semibold">{ficha?.codigo || idFichaParaClase}</span>.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        disabled={!puedeAbrirModalJuicios}
+                        onClick={() => puedeAbrirModalJuicios && setModalJuiciosOpen(true)}
+                      >
+                        Cargar Juicios Evaluativos
+                      </button>
+                      {!puedeAbrirModalJuicios && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
+                          Faltan datos de sede o programa para abrir la carga. Recarga la clase e inténtalo de nuevo.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-600 dark:text-gray-200">
+                      No hay ficha asociada a esta clase.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -3441,6 +3495,17 @@ const ClaseDetallePage: React.FC = () => {
         idHorarioMateria={idHorarioMateriaRuta}
         onSave={() => fetchActividades()}
         onSuccess={showToast}
+      />
+      <ModalJuiciosEvaluativos
+        open={modalJuiciosOpen && puedeAbrirModalJuicios}
+        onClose={() => setModalJuiciosOpen(false)}
+        onSave={() => {
+          showToast('Juicios evaluativos cargados correctamente');
+        }}
+        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
+        idPrograma={idProgramaJuicios}
+        idSede={idSedeJuicios}
+        idGrado={idGradoJuicios}
       />
       {zoomFoto && (
         <ImageZoomModal

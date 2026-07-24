@@ -12,6 +12,7 @@ import clsx from 'clsx';
 import { ModalImportarAspirantes } from './ModalImportarAspirantes';
 import { ModalEnviarWhatsApp } from './ModalEnviarWhatsApp';
 import { ModalExportarAspirantes } from './ModalExportarAspirantes';
+import { ModalPlantillas } from './ModalPlantillas';
 
 interface SeguimientoAspirantesContentProps {
   reloadTrigger: boolean;
@@ -55,6 +56,7 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [plantillasModalOpen, setPlantillasModalOpen] = useState(false);
 
   // Load filter unique option arrays
   const fetchFilterOptions = async () => {
@@ -429,6 +431,14 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
             <KeenIcon icon="exit-down" />
             Exportar
           </button>
+
+          <button
+            onClick={() => setPlantillasModalOpen(true)}
+            className="btn btn-sm btn-light flex items-center gap-1.5"
+          >
+            <KeenIcon icon="messages" />
+            Plantillas
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -764,6 +774,12 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
         programas={programas}
         centros={centros}
         fichas={fichas}
+      />
+
+      {/* Modal de Plantillas */}
+      <ModalPlantillas
+        open={plantillasModalOpen}
+        onClose={() => setPlantillasModalOpen(false)}
       />
     </Fragment>
   );

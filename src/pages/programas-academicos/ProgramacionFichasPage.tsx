@@ -8,7 +8,7 @@ import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import { Calendario } from './components/malla-curricular/Calendario';
 import { useAuthContext } from '@/auth';
-import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
+import ModalJuiciosEvaluativos from '@/pages/shared/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';

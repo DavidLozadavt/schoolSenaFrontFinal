@@ -18,13 +18,18 @@ export interface FormularioPreguntaPublica {
   descripcion: string | null;
   esObligatoria: boolean;
   orden: number;
-  opciones?: { id: number; valor: string }[];
+  opciones?: { id: number; texto: string }[];
+  configuracion?: { min?: number; max?: number; minLabel?: string; maxLabel?: string } | null;
 }
 
 export interface FormularioPublico {
   id: number;
   titulo: string;
   descripcion: string | null;
+  colorTema?: string;
+  imagenCabecera?: string | null;
+  mensajeCierre?: string | null;
+  fechaLimite?: string | null;
   preguntas: FormularioPreguntaPublica[];
 }
 
@@ -32,6 +37,7 @@ export interface InscripcionAspiranteResponse {
   aspirante: AspiranteInfo;
   formulario: FormularioPublico;
   respuestaPrevia: { idPregunta: number; valor: string }[] | null;
+  motivoNoDisponible: string | null;
 }
 
 const API_PATH = 'inscripcion-aspirante';
