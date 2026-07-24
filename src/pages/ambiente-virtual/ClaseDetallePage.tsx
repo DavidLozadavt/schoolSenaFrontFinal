@@ -45,6 +45,7 @@ import {
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
+import ModalVerOpinionesClase from './calificaciones/modal/ModalVerOpinionesClase';
 import {
   ModalCrearActividad,
   ModalVerActividad,
@@ -1439,7 +1440,8 @@ type MenuOption =
   | 'calificaciones'
   | 'material-apoyo'
   | 'justificaciones-pendientes'
-  | 'lista-asistencias';
+  | 'lista-asistencias'
+  | 'opiniones-clase';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -1476,6 +1478,13 @@ const ClaseDetallePage: React.FC = () => {
   const [sesionesCompletadasPorHorario, setSesionesCompletadasPorHorario] =
     useState<SesionesPorHorarioMap>({});
   const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
+
+  // Estados para Calificaciones de Clase (Opiniones)
+  const [selectedSesionForOpinions, setSelectedSesionForOpinions] = useState<{
+    id: number;
+    numeroSesion: number;
+  } | null>(null);
+  const [isOpinionsModalOpen, setIsOpinionsModalOpen] = useState(false);
 
   const idContratoUsuario = useMemo(
     () => obtenerIdContratoActivo(authContext?.user?.persona?.contrato),
@@ -1928,11 +1937,40 @@ const ClaseDetallePage: React.FC = () => {
               : Array.isArray((response.data?.data as { sesiones_completadas?: unknown })?.sesiones_completadas)
                 ? (response.data?.data as { sesiones_completadas: unknown[] }).sesiones_completadas
                 : [];
-            if (norm && sesionesLista.length > 0) {
-              norm.sesiones_completadas = unificarSesionesCompletadas(
-                norm.sesiones_completadas,
-                sesionesLista as Array<{ fechaSesion?: unknown; numeroSesion?: number }>
-              ) as Clase['sesiones_completadas'];
+            
+            if (norm) {
+              const unificadas: SesionCompletada[] = [];
+              const agregadas = new Set<string>();
+
+              // 1. Añadir sesiones que ya están en norm (preserva todas las propiedades como id, fechaFormateada, etc.)
+              for (const s of norm.sesiones_completadas ?? []) {
+                const key = `${s.fechaSesion}|${s.numeroSesion}`;
+                if (!agregadas.has(key)) {
+                  unificadas.push(s);
+                  agregadas.add(key);
+                }
+              }
+
+              // 2. Añadir de sesionesLista si no están, sin perder propiedades
+              for (const s of sesionesLista as any[]) {
+                if (!s) continue;
+                const fSesion = s.fechaSesion ?? s.fecha_sesion ?? '';
+                const numSesion = s.numeroSesion ?? s.numero_sesion ?? 0;
+                const key = `${fSesion}|${numSesion}`;
+                if (!agregadas.has(key)) {
+                  unificadas.push({
+                    id: s.id,
+                    numeroSesion: numSesion,
+                    fechaSesion: fSesion,
+                    fechaFormateada: s.fechaFormateada ?? s.fecha_formateada ?? fSesion,
+                    fechaCorta: s.fechaCorta ?? s.fecha_corta ?? '',
+                    estado: s.estado ?? 'COMPLETADA',
+                    observacion: s.observacion,
+                  });
+                  agregadas.add(key);
+                }
+              }
+              norm.sesiones_completadas = unificadas;
             }
             setClase(norm ?? (claseData as Clase));
           } else {
@@ -3010,6 +3048,23 @@ const ClaseDetallePage: React.FC = () => {
                         <EtiquetaMenuClase etiqueta="Lista de asistencias" />
                       ) : null}
                     </button>
+                    <button
+                      type="button"
+                      title="Opiniones de clase"
+                      onClick={() => setActiveMenu('opiniones-clase')}
+                      className={claseBotonItemMenu(activeMenu === 'opiniones-clase')}
+                    >
+                      <KeenIcon
+                        icon="star"
+                        className={clsx(
+                          claseIconoItemMenu,
+                          activeMenu === 'opiniones-clase' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                        )}
+                      />
+                      {mostrarEtiquetasMenu ? (
+                        <EtiquetaMenuClase etiqueta="Opiniones de clase" />
+                      ) : null}
+                    </button>
                   </>
                 )}
               </div>
@@ -3216,6 +3271,72 @@ const ClaseDetallePage: React.FC = () => {
                   defaultIdHorarioMateria={idHorarioMateriaClase}
                 />
               )}
+
+              {activeMenu === 'opiniones-clase' && modoCalendario !== 'aprendiz' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase mb-1">
+                      Opiniones de alumnos sobre las sesiones
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Selecciona una sesión de clase completada para ver las calificaciones y comentarios detallados dejados por los aprendices.
+                    </p>
+                  </div>
+
+                  {!clase?.sesiones_completadas || clase.sesiones_completadas.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                      <KeenIcon icon="star" className="text-4xl text-gray-300 mx-auto mb-3 animate-pulse" />
+                      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                        No hay sesiones de clase registradas/completadas todavía.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {clase.sesiones_completadas.map((sesion) => (
+                        <div
+                          key={sesion.id}
+                          className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-coal-400 flex flex-col justify-between hover:shadow-md transition-shadow"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">
+                                Sesión #{sesion.numeroSesion}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400">
+                                Completada
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+                              {sesion.fechaFormateada}
+                            </h4>
+                            {sesion.observacion && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-2 italic">
+                                "{sesion.observacion}"
+                              </p>
+                            )}
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSesionForOpinions({
+                                  id: sesion.id,
+                                  numeroSesion: sesion.numeroSesion,
+                                });
+                                setIsOpinionsModalOpen(true);
+                              }}
+                              className="btn btn-xs py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md flex items-center gap-1 text-xs cursor-pointer focus:outline-none"
+                            >
+                              <KeenIcon icon="star" className="text-white text-xs" />
+                              Ver opiniones
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3328,6 +3449,18 @@ const ClaseDetallePage: React.FC = () => {
           src={zoomFoto.src}
           alt={zoomFoto.alt}
           title={zoomFoto.alt}
+        />
+      )}
+      {selectedSesionForOpinions && (
+        <ModalVerOpinionesClase
+          open={isOpinionsModalOpen}
+          onClose={() => {
+            setIsOpinionsModalOpen(false);
+            setSelectedSesionForOpinions(null);
+          }}
+          idSesionMateria={selectedSesionForOpinions.id}
+          numeroSesion={selectedSesionForOpinions.numeroSesion}
+          materiaNombre={clase?.materia_nombre || 'Materia'}
         />
       )}
       <Toast
