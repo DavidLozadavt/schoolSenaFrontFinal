@@ -19,6 +19,7 @@ export interface FormularioPreguntaPublica {
   esObligatoria: boolean;
   orden: number;
   opciones?: { id: number; texto: string }[];
+  configuracion?: { min?: number; max?: number; minLabel?: string; maxLabel?: string } | null;
 }
 
 export interface FormularioPublico {
@@ -26,6 +27,9 @@ export interface FormularioPublico {
   titulo: string;
   descripcion: string | null;
   colorTema?: string;
+  imagenCabecera?: string | null;
+  mensajeCierre?: string | null;
+  fechaLimite?: string | null;
   preguntas: FormularioPreguntaPublica[];
 }
 
