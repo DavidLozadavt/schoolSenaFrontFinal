@@ -35,6 +35,7 @@ const FormularioAspirantePublicPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [enviado, setEnviado] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<number[]>([]);
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -59,11 +60,44 @@ const FormularioAspirantePublicPage = () => {
       .finally(() => setLoading(false));
   }, [token]);
 
+  useEffect(() => {
+    const fechaLimite = data?.formulario.fechaLimite;
+    if (!fechaLimite || data?.motivoNoDisponible) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const tick = () => {
+      const target = new Date(String(fechaLimite).replace(' ', 'T')).getTime();
+      const diff = target - Date.now();
+      if (diff <= 0) {
+        setTimeLeft(null);
+        return;
+      }
+      setTimeLeft({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((diff / 1000 / 60) % 60),
+        seconds: Math.floor((diff / 1000) % 60)
+      });
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [data?.formulario.fechaLimite, data?.motivoNoDisponible]);
+
   const colorTema = data?.formulario.colorTema || '#16a34a';
 
   const handleChange = (idPregunta: number, valor: string) => {
     setValores((prev) => ({ ...prev, [idPregunta]: valor }));
     setValidationErrors((prev) => prev.filter((id) => id !== idPregunta));
+  };
+
+  const handleCheckboxToggle = (idPregunta: number, texto: string, checked: boolean) => {
+    const actuales = (valores[idPregunta] || '').split(',').filter(Boolean);
+    const nuevos = checked ? [...actuales, texto] : actuales.filter((v) => v !== texto);
+    handleChange(idPregunta, nuevos.join(','));
   };
 
   const handleFilesUpload = async (idPregunta: number, filesList: FileList) => {
@@ -171,7 +205,7 @@ const FormularioAspirantePublicPage = () => {
           </div>
           <h2 className="text-lg font-black uppercase tracking-tight text-neutral-800 dark:text-white">Formulario no disponible</h2>
           <p className="text-xs text-neutral-500 font-semibold leading-relaxed">
-            {mensajes[motivoNoDisponible] || 'Este formulario no está disponible actualmente.'}
+            {formulario.mensajeCierre || mensajes[motivoNoDisponible] || 'Este formulario no está disponible actualmente.'}
           </p>
         </div>
       </div>
@@ -210,12 +244,57 @@ const FormularioAspirantePublicPage = () => {
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-neutral-950" data-no-uppercase>
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-28">
+        {timeLeft && (
+          <div className="w-full bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/15 border border-orange-500/30 dark:border-orange-500/20 p-5 rounded-[2rem] mb-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-lg shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                  Vigencia de inscripción activa
+                </span>
+                <span className="text-xs font-bold text-neutral-800 dark:text-white">Este formulario vencerá en:</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 font-mono">
+              {timeLeft.days > 0 && (
+                <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                  <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.days).padStart(2, '0')}</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Días</span>
+                </div>
+              )}
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.hours).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Horas</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Min</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-rose-500">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Seg</span>
+              </div>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           {/* Card principal */}
           <div
-            className="bg-white dark:bg-neutral-900 p-8 md:p-12 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl mb-8 overflow-hidden relative"
+            className="bg-white dark:bg-neutral-900 rounded-[2.5rem] border border-neutral-100 dark:border-white/5 shadow-2xl mb-8 overflow-hidden relative"
             style={{ borderTop: `10px solid ${colorTema}` }}
           >
+            {formulario.imagenCabecera && (
+              <img
+                src={formulario.imagenCabecera}
+                alt="Cabecera"
+                className="w-full h-40 sm:h-56 object-cover"
+              />
+            )}
+            <div className="p-8 md:p-12">
             <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-10" style={{ backgroundColor: colorTema }} />
 
             <div className="flex items-center gap-4 p-6 rounded-[2rem] bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-neutral-100/10 dark:border-white/5 mb-8 shadow-inner">
@@ -262,6 +341,7 @@ const FormularioAspirantePublicPage = () => {
 
             <div className="text-rose-500 text-[9px] font-black uppercase tracking-widest mt-6 pt-4 border-t border-neutral-100 dark:border-white/5 flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5" /> <span>* Indica que el documento/campo es obligatorio</span>
+            </div>
             </div>
           </div>
 
@@ -388,6 +468,32 @@ const FormularioAspirantePublicPage = () => {
                           ))}
                         </select>
                       </div>
+                    ) : p.tipo === 'casillas' ? (
+                      <div className="flex flex-col gap-3">
+                        {(p.opciones || []).map((opt) => {
+                          const seleccionados = (valores[p.id] || '').split(',').filter(Boolean);
+                          const isChecked = seleccionados.includes(opt.texto);
+                          return (
+                            <label
+                              key={opt.id}
+                              className="flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all"
+                              style={{
+                                borderColor: isChecked ? colorTema : 'rgba(0,0,0,0.06)',
+                                backgroundColor: isChecked ? `${colorTema}0b` : 'rgba(0,0,0,0.015)'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => handleCheckboxToggle(p.id, opt.texto, e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: colorTema }}
+                              />
+                              <span className="text-xs font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     ) : p.tipo === 'opcion_multiple' ? (
                       <div className="flex flex-col gap-3">
                         {(p.opciones || []).map((opt) => {
@@ -414,6 +520,41 @@ const FormularioAspirantePublicPage = () => {
                           );
                         })}
                       </div>
+                    ) : p.tipo === 'escala_lineal' ? (
+                      (() => {
+                        const cfg = p.configuracion || {};
+                        const min = cfg.min ?? 1;
+                        const max = cfg.max ?? 5;
+                        const escala = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+                        return (
+                          <div className="flex flex-col gap-6 py-6 px-8 bg-neutral-50/50 dark:bg-coal-400 rounded-[2.5rem] border border-neutral-100/50 dark:border-white/5 shadow-inner">
+                            <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-center">
+                              {escala.map((n) => {
+                                const isSelected = valores[p.id] === String(n);
+                                return (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    onClick={() => handleChange(p.id, String(n))}
+                                    className="w-12 h-12 rounded-full font-black text-sm flex items-center justify-center transition-all border"
+                                    style={{
+                                      borderColor: isSelected ? colorTema : 'rgba(0,0,0,0.08)',
+                                      backgroundColor: isSelected ? colorTema : 'rgba(0,0,0,0.02)',
+                                      color: isSelected ? '#ffffff' : 'inherit'
+                                    }}
+                                  >
+                                    {n}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flex justify-between items-center px-2 text-[10px] font-black uppercase tracking-wider text-neutral-400">
+                              <span>{cfg.minLabel || 'Bajo'}</span>
+                              <span>{cfg.maxLabel || 'Alto'}</span>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <input
                         type="text"
