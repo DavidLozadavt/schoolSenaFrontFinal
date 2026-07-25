@@ -131,7 +131,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
     if (!titulo.trim()) return;
     const idMateriaFinal = idMateriaProp || idMateria || materias[0]?.id;
     if (!idMateriaFinal) {
-      alert('Seleccione una materia');
+      alert('Seleccione un RAP');
       return;
     }
     setSaving(true);
@@ -280,12 +280,12 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Materia</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RAP</label>
               {idMateriaProp ? (
                 <div className="p-2 text-sm rounded bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                   {(() => {
                     const m = materias.find((x) => x.id === idMateriaProp);
-                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `Materia del RAPS`;
+                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `RAP del RAPS`;
                   })()}
                 </div>
               ) : (
@@ -295,10 +295,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                   onChange={(e) => setIdMateria(Number(e.target.value))}
                   required
                 >
-                  <option value="">Seleccione materia</option>
+                  <option value="">Seleccione RAP</option>
                   {materias.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `Materia ${m.id}`}
+                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `RAP ${m.id}`}
                     </option>
                   ))}
                 </select>

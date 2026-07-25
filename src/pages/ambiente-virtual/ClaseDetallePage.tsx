@@ -2009,7 +2009,12 @@ const ClaseDetallePage: React.FC = () => {
           ? Number(rawProg)
           : undefined;
       const params: Record<string, string> = {};
-      if (idMateriaFiltro) params.id_materia_clase = String(idMateriaFiltro);
+      if (idMateriaFiltro) {
+        // RAP exacto: id_materia_clase + idRap/idMateria (misma llave en backend: actividades.idMateria).
+        params.id_materia_clase = String(idMateriaFiltro);
+        params.idRap = String(idMateriaFiltro);
+        params.idMateria = String(idMateriaFiltro);
+      }
       if (idProgramaFiltro != null && !Number.isNaN(idProgramaFiltro)) {
         params.id_programa = String(idProgramaFiltro);
       }
@@ -2021,6 +2026,8 @@ const ClaseDetallePage: React.FC = () => {
       }
       if (idMateriaFiltro) {
         planeacionQs.set('id_materia_clase', String(idMateriaFiltro));
+        planeacionQs.set('idRap', String(idMateriaFiltro));
+        planeacionQs.set('idMateria', String(idMateriaFiltro));
       }
       const planeacionUrl = `planeacionactividades/ficha/${idFichaParaClase}${
         planeacionQs.toString() ? `?${planeacionQs.toString()}` : ''
@@ -2035,7 +2042,6 @@ const ClaseDetallePage: React.FC = () => {
       const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
       setActividadesDisponibles(disp);
       setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
-
       if (coberturaRes.status === 'fulfilled' && coberturaRes.value?.data) {
         const d = coberturaRes.value.data;
         const por = d.porActividad as
