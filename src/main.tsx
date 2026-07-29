@@ -11,6 +11,9 @@ import { App } from './App';
 import { setupAxios } from './auth';
 import { ProvidersWrapper } from './providers';
 import React from 'react';
+import { installGoogleTranslateDomPatch } from './utils/googleTranslateDomPatch';
+
+installGoogleTranslateDomPatch();
 
 /**
  * Inject interceptors for axios.

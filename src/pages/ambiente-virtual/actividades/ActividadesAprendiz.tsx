@@ -427,8 +427,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     }
   }, [open, actividad]);
 
-  if (!open) return null;
-
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividad) return;
@@ -520,7 +518,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     [applySelectedFile]
   );
 
-  // Extraer informaciÃ³n de proyecto y materia/RAP (misma lÃ³gica que la lista principal)
+  // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
   const projectInfo = useMemo(() => {
     if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
@@ -529,18 +527,23 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       rap: etiquetaMateriaActividadAprendiz(actividad)
     };
   }, [actividad]);
+
   const maxChars = 500;
   const charsRemaining = maxChars - comentario.length;
-
   const tieneArchivoActual = !!actividad?.archivoEntregaUrl;
   const tituloModal = tieneArchivoActual ? 'Actualizar Entrega' : 'Responder Actividad';
+
+  // Todos los hooks deben ejecutarse antes de cualquier return condicional.
+  if (!open) return null;
 
   if (!actividad) {
     return (
       <Modal open={open} onClose={onClose} zIndex={110}>
         <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
           <div className="bg-primary px-5 py-3 flex items-center justify-between">
-            <ModalTitle className="text-white text-base font-semibold">Cargando...</ModalTitle>
+            <ModalTitle className="text-white text-base font-semibold">
+              <span>Cargando...</span>
+            </ModalTitle>
             <button
               className="text-white hover:text-gray-200 transition-colors"
               onClick={onClose}
@@ -564,7 +567,9 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
         {/* Header azul */}
         <div className="bg-primary px-5 py-3 flex items-center justify-between">
-          <ModalTitle className="text-white text-base font-semibold">{tituloModal}</ModalTitle>
+          <ModalTitle className="text-white text-base font-semibold">
+            <span>{tituloModal}</span>
+          </ModalTitle>
           <button
             className="text-white hover:text-gray-200 transition-colors"
             onClick={onClose}
@@ -575,25 +580,31 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* InformaciÃ³n de la actividad */}
+          {/* Información de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
-              Proyecto: {projectInfo.proyecto}
+              <span>Proyecto: </span>
+              <span>{projectInfo.proyecto}</span>
             </p>
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              RAP: {projectInfo.rap}
+              <span>RAP: </span>
+              <span>{projectInfo.rap}</span>
             </p>
           </div>
 
           {/* Material de Apoyo */}
           <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Material de Apoyo</p>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Material de Apoyo</span>
+            </p>
             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
           {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
           <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Documento de la actividad</p>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Documento de la actividad</span>
+            </p>
             {actividadTieneDocumentoOficial(actividad) ? (
               <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1042,7 +1053,7 @@ const ActividadesAprendiz: React.FC = () => {
                               className="btn btn-sm btn-primary h-7 px-2 text-[10px]"
                             >
                               <KeenIcon icon="notepad-edit" className="text-[10px]" />
-                              Responder
+                              <span>Responder</span>
                             </button>
                           )}
                           {actividad.tipoActividad === 'cuestionario' &&
@@ -1056,7 +1067,7 @@ const ActividadesAprendiz: React.FC = () => {
                               className="btn btn-sm btn-light h-7 px-2 text-[10px]"
                             >
                               <KeenIcon icon="eye" className="text-[10px]" />
-                              Revisar intento
+                              <span>Revisar intento</span>
                             </button>
                           )}
                           <button
@@ -1256,7 +1267,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar PDF"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
@@ -1274,7 +1285,7 @@ const ActividadesAprendiz: React.FC = () => {
                                           className="mt-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline inline-flex items-center gap-1"
                                         >
                                           <KeenIcon icon="eye" className="w-3 h-3" />
-                                          Revisar intento
+                                          <span>Revisar intento</span>
                                         </button>
                                       )}
                                       <div className="flex items-center justify-between mt-2">
@@ -1295,7 +1306,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar entrega"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
