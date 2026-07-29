@@ -20,7 +20,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey, getColombianHolidayMap } from '@/utils/colombianHolidays';
-import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
+import type { EventContentArg, EventClickArg, DateClickArg } from '@fullcalendar/core';
 import { numeroTrimestreDesdeHorario, parseNumeroGrado } from './utils/trimestreNumeroGrado';
 
 interface CalendarioProps {
@@ -28,7 +28,8 @@ interface CalendarioProps {
   onClose: () => void;
   materia: any;
   idFicha: number;
-  onAddSchedule: () => void;
+  /** Abre el modal existente de horario. Opcionalmente con fecha precargada desde el calendario. */
+  onAddSchedule: (prefs?: { fechaInicio: string }) => void;
   cargarRaps?: () => void;
   modoRmi?: boolean;
   permiteEdicion?: boolean;
@@ -398,6 +399,19 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return () => { isMounted = false; };
   }, [isOpen, idFicha, refreshTrigger, modoRmi, materia]);
 
+  // Tras guardar desde el modal de horarios, refrescar sin recargar la página.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onGuardado = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail;
+      if (detail?.idFicha != null && Number(detail.idFicha) !== Number(idFicha)) return;
+      setRefreshTrigger((prev) => prev + 1);
+      cargarRaps?.();
+    };
+    window.addEventListener('horario-materia-guardado', onGuardado);
+    return () => window.removeEventListener('horario-materia-guardado', onGuardado);
+  }, [isOpen, idFicha, cargarRaps]);
+
   // Reset al cerrar
   useEffect(() => {
     if (!isOpen) {
@@ -708,6 +722,65 @@ export const Calendario: React.FC<CalendarioProps> = ({
     );
   };
 
+  /** Clic en día del calendario → abre el modal existente de horario con fecha/día precargados. */
+  const abrirCreacionDesdeDia = (date: Date) => {
+    if (modoRmi || !permiteEdicion) return;
+    if (materia?.idMateriaPadre == null) return;
+
+    if (!(Number(materia?.horasTotales) > 0)) {
+      enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
+      return;
+    }
+    if (materia?.estado === 'FINALIZADO') {
+      enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+      return;
+    }
+
+    const ymd = toLocalDateKey(date);
+    const fechaFinalRap = materia?.fechaFinalRap;
+    if (fechaFinalRap) {
+      const fin = parseDate(fechaFinalRap);
+      const sel = parseDate(ymd);
+      if (fin && sel && sel.getTime() > fin.getTime()) {
+        enqueueSnackbar('No se pueden crear horarios después de la fecha final del RAP', {
+          variant: 'error',
+        });
+        return;
+      }
+    }
+
+    const idGm = Number(materia?.idGradoMateria);
+    const enInterrupcion = horariosProgramados.some((h: any) => {
+      if (String(h?.estado || '').toUpperCase() !== 'INTERRUMPIDO') return false;
+      const gm = Number(h?.idGradoMateria ?? h?.gradoMateria?.id);
+      if (Number.isFinite(idGm) && idGm > 0 && Number.isFinite(gm) && gm > 0 && gm !== idGm) {
+        return false;
+      }
+      const rango = resolveRangoFechas(h);
+      if (!rango) return false;
+      const sel = parseDate(ymd);
+      if (!sel) return false;
+      sel.setHours(0, 0, 0, 0);
+      const start = new Date(rango.start);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(rango.end);
+      end.setHours(0, 0, 0, 0);
+      return sel >= start && sel <= end;
+    });
+    if (enInterrupcion) {
+      enqueueSnackbar('No se pueden crear horarios dentro de un período de interrupción', {
+        variant: 'error',
+      });
+      return;
+    }
+
+    onAddSchedule({ fechaInicio: ymd });
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    abrirCreacionDesdeDia(arg.date);
+  };
+
   const handleEliminarHorario = async (ev: any) => {
     if (modoRmi) return;
 
@@ -843,6 +916,14 @@ export const Calendario: React.FC<CalendarioProps> = ({
               /* Celdas */
               .fc .fc-daygrid-day { min-height: 110px; }
               .fc .fc-daygrid-day-frame { min-height: 110px; }
+              ${!modoRmi && permiteEdicion && materia?.idMateriaPadre != null ? `
+              .fc .fc-daygrid-day:not(.fc-day-other) {
+                cursor: pointer;
+              }
+              .fc .fc-daygrid-day:not(.fc-day-other):hover {
+                background-color: rgba(59, 130, 246, 0.06) !important;
+              }
+              ` : ''}
               .fc td, .fc th { border-color: #f3f4f6 !important; }
               /* Evento bloque académico */
               .fc .fc-daygrid-event {
@@ -910,6 +991,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
               eventContent={renderEventContent}
               editable={false}
               selectable={false}
+              dateClick={!modoRmi && permiteEdicion ? handleDateClick : undefined}
               eventClick={(_arg: EventClickArg) => {/* manejado en renderEventContent */}}
               height="auto"
               moreLinkText={(n) => `+${n} más`}

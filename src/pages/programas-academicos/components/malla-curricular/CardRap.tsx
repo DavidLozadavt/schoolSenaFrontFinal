@@ -796,14 +796,32 @@ export const CardRap = ({
           idFicha={idFicha ?? 0}
           cargarRaps={cargarRaps}
           permiteEdicion={esEditable}
-          onAddSchedule={() => {
+          onAddSchedule={(prefs) => {
+            const todos = [...horarios, ...horariosSinAsignar];
+            let horaInicio: string | undefined;
+            let horaFin: string | undefined;
+            for (const h of todos) {
+              const ini = String(h?.horaInicial || h?.horaInicio || '');
+              const fin = String(h?.horaFinal || h?.horaFin || '');
+              const mIni = ini.match(/(\d{1,2}):(\d{2})/);
+              const mFin = fin.match(/(\d{1,2}):(\d{2})/);
+              if (mIni && mFin) {
+                horaInicio = `${mIni[1].padStart(2, '0')}:${mIni[2]}`;
+                horaFin = `${mFin[1].padStart(2, '0')}:${mFin[2]}`;
+                break;
+              }
+            }
             setModalHorarios({
               open: true,
               idGradoMateria: materia.idGradoMateria,
               idFicha: idFicha || undefined,
               totalHoras: materia.horasTotales ?? 0,
               horasActuales: materia.horasActuales ?? 0,
-              horasFaltantes: materia.horasFaltantes ?? 0
+              horasFaltantes: materia.horasFaltantes ?? 0,
+              fechaInicioPrefill: prefs?.fechaInicio,
+              horaInicioPrefill: horaInicio,
+              horaFinPrefill: horaFin,
+              fechaFinalRap: materia.fechaFinalRap || undefined,
             });
           }}
         />

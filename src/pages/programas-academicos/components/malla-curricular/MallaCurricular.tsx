@@ -69,6 +69,10 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     totalHoras?: number;
     horasActuales?: number;
     horasFaltantes?: number;
+    fechaInicioPrefill?: string;
+    horaInicioPrefill?: string;
+    horaFinPrefill?: string;
+    fechaFinalRap?: string;
   }>({
     open: false,
     idGradoMateria: undefined,
@@ -419,6 +423,21 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
+          jornada={ficha?.jornada?.nombreJornada}
+          fechaInicioPrefill={modalHorarios.fechaInicioPrefill}
+          horaInicioPrefill={
+            modalHorarios.horaInicioPrefill ||
+            (ficha?.jornada?.horaInicial
+              ? String(ficha.jornada.horaInicial).slice(0, 5)
+              : undefined)
+          }
+          horaFinPrefill={
+            modalHorarios.horaFinPrefill ||
+            (ficha?.jornada?.horaFinal
+              ? String(ficha.jornada.horaFinal).slice(0, 5)
+              : undefined)
+          }
+          fechaFinalRap={modalHorarios.fechaFinalRap}
           onGuardado={() => {
             if (ficha?.id) cargarTrimestres(ficha?.id);
           }}
