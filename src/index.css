@@ -143,12 +143,16 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding: 4px;
   border-radius: 6px;
   transition: all 0.2s ease-in-out;
+  opacity: 1;
 }
 
 .dark input[type="date"]::-webkit-calendar-picker-indicator,
 .dark input[type="time"]::-webkit-calendar-picker-indicator,
 .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(0.8);
+  /* Icono claro y legible sobre fondos oscuros */
+  filter: invert(1) brightness(1.35) contrast(1.05);
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 input[type="date"]:hover::-webkit-calendar-picker-indicator,
@@ -158,11 +162,45 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   transform: scale(1.1);
 }
 
-/* Forzar esquema de color en navegadores modernos */
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"] {
-  color-scheme: light dark;
+.dark input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.dark input[type="time"]:hover::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/*
+ * Esquema de color explícito: el popup nativo (Chromium/Edge/Safari) sigue el tema.
+ * Evita calendario claro sobre modal oscuro.
+ */
+html:not(.dark) input[type="date"],
+html:not(.dark) input[type="time"],
+html:not(.dark) input[type="datetime-local"] {
+  color-scheme: light;
+}
+
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Campo Ampliar actividad: área clicable completa + icono más visible */
+input.datetime-ampliar-actividad {
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+input.datetime-ampliar-actividad::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.35rem;
+}
+
+.dark input.datetime-ampliar-actividad::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.5);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
 }
 
 /* --- Parche de Visibilidad para Modo Oscuro en Formularios --- */
@@ -172,6 +210,8 @@ input[type="datetime-local"] {
 .dark input[type="text"],
 .dark input[type="email"],
 .dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
 .dark select,
 .dark textarea,
 .dark select.input option {
