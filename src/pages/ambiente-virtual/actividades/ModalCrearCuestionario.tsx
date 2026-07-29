@@ -72,7 +72,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       axios.get('materia').then((r) => {
         const data = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
         setMaterias(data);
-        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? data[0]?.id ?? 0;
+        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? 0;
         setIdMateria(valorInicial);
       }).catch(() => setMaterias([]));
     }
@@ -129,9 +129,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim()) return;
-    const idMateriaFinal = idMateriaProp || idMateria || materias[0]?.id;
-    if (!idMateriaFinal) {
-      alert('Seleccione un RAP');
+    // Solo el RAP del contexto de clase. Nunca materias[0]: asociaría un RAP incorrecto.
+    const idMateriaFinal = Number(idMateriaProp || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar el cuestionario.');
       return;
     }
     setSaving(true);
