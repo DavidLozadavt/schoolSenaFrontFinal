@@ -49,6 +49,10 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
     totalHoras?: number;
     horasActuales?: number;
     horasFaltantes?: number;
+    fechaInicioPrefill?: string;
+    horaInicioPrefill?: string;
+    horaFinPrefill?: string;
+    fechaFinalRap?: string;
   }>({
     open: false,
     idGradoMateria: undefined,
@@ -313,6 +317,21 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
           porcentajeEjecucion={porcentajeEjecucion ?? 0}
+          jornada={jornadaFicha}
+          fechaInicioPrefill={modalHorarios.fechaInicioPrefill}
+          horaInicioPrefill={
+            modalHorarios.horaInicioPrefill ||
+            (ficha?.jornada?.horaInicial
+              ? String(ficha.jornada.horaInicial).slice(0, 5)
+              : undefined)
+          }
+          horaFinPrefill={
+            modalHorarios.horaFinPrefill ||
+            (ficha?.jornada?.horaFinal
+              ? String(ficha.jornada.horaFinal).slice(0, 5)
+              : undefined)
+          }
+          fechaFinalRap={modalHorarios.fechaFinalRap}
           onGuardado={() => {
             cargarRaps();
             if (onUpdate) onUpdate();

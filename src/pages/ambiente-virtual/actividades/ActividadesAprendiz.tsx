@@ -84,13 +84,13 @@ interface ActividadAprendiz {
   }>;
 }
 
-/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar Ã¡rea de conocimiento aquÃ­. */
+/** Nombre del RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar área de conocimiento aquí. */
 const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.trim();
   }
-  return 'Sin materia asignada';
+  return 'Sin RAP asignado';
 };
 
 const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÃ“N]';
@@ -522,7 +522,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
 
   // Extraer informaciÃ³n de proyecto y materia/RAP (misma lÃ³gica que la lista principal)
   const projectInfo = useMemo(() => {
-    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin materia asignada' };
+    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
     return {
       proyecto: title || 'Sin proyecto',
@@ -581,7 +581,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               Proyecto: {projectInfo.proyecto}
             </p>
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              Materia: {projectInfo.rap}
+              RAP: {projectInfo.rap}
             </p>
           </div>
 

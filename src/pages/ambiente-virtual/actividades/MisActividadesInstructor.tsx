@@ -20,9 +20,12 @@ export interface ActividadInstructorResumen {
   codigoFicha?: string | null;
   idMateria: number;
   materiaNombre?: string | null;
+  idCompetencia?: number | null;
+  competenciaNombre?: string | null;
   idRap?: number;
   rapNombre?: string | null;
   codigoRap?: string | null;
+  numeroRap?: number | null;
   fechaInicio?: string | null;
   fechaLimite?: string | null;
   estadoGeneral: string;
@@ -288,17 +291,26 @@ const MisActividadesInstructor: React.FC = () => {
     actividades
       .filter((a) => !fichaSel || a.idFicha === fichaSel)
       .forEach((a) => {
-        if (a.idMateria && a.materiaNombre) {
-          map.set(a.idMateria, a.materiaNombre);
+        const idComp = a.idCompetencia ?? null;
+        const nombre = a.competenciaNombre || a.materiaNombre;
+        if (idComp && idComp > 0 && nombre) {
+          map.set(idComp, nombre);
         }
       });
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
   }, [actividades, fichaSel]);
 
   const opcionesRap = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, { label: string; numero: number }>();
     actividades
-      .filter((a) => (!fichaSel || a.idFicha === fichaSel) && (!materiaSel || a.idMateria === materiaSel))
+      .filter((a) => {
+        if (fichaSel && a.idFicha !== fichaSel) return false;
+        const idComp = a.idCompetencia ?? null;
+        if (materiaSel && idComp !== materiaSel) return false;
+        return true;
+      })
       .forEach((a) => {
         const id = a.idRap ?? a.idMateria;
         const label = a.rapNombre
@@ -306,17 +318,24 @@ const MisActividadesInstructor: React.FC = () => {
             ? `${a.codigoRap} - ${a.rapNombre}`
             : a.rapNombre
           : a.materiaNombre;
+        const numero =
+          typeof a.numeroRap === 'number' && a.numeroRap > 0 && a.numeroRap < Number.MAX_SAFE_INTEGER
+            ? a.numeroRap
+            : Number.MAX_SAFE_INTEGER;
         if (id && label) {
-          map.set(id, label);
+          map.set(id, { label, numero });
         }
       });
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(map.entries())
+      .map(([value, meta]) => ({ value, label: meta.label, numero: meta.numero }))
+      .sort((x, y) => x.numero - y.numero || x.label.localeCompare(y.label));
   }, [actividades, fichaSel, materiaSel]);
 
   const filtradas = useMemo(() => {
     return actividades.filter((a) => {
       if (fichaSel && a.idFicha !== fichaSel) return false;
-      if (materiaSel && a.idMateria !== materiaSel) return false;
+      const idComp = a.idCompetencia ?? null;
+      if (materiaSel && idComp !== materiaSel) return false;
       if (rapSel && (a.idRap ?? a.idMateria) !== rapSel) return false;
       if (!coincideChip(a, chip)) return false;
       return true;
