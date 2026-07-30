@@ -11,8 +11,8 @@ export interface ModalActividadFechaMotivoProps {
   fechaLabel: string;
   descripcionLabel: string;
   descripcionPlaceholder?: string;
-  /** Valor `YYYY-MM-DDTHH:mm` para `input[type=datetime-local]` */
   initialFecha?: string;
+  fechaInputType?: 'date' | 'datetime-local';
   submitButtonText: string;
   savingButtonText?: string;
   /**
@@ -31,6 +31,7 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
   descripcionLabel,
   descripcionPlaceholder = '',
   initialFecha = '',
+  fechaInputType = 'datetime-local',
   submitButtonText,
   savingButtonText = 'Guardando...',
   onSubmit
@@ -122,7 +123,7 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
               </label>
               <input
                 ref={fechaInputRef}
-                type="datetime-local"
+                type={fechaInputType}
                 value={nuevaFecha}
                 onChange={(e) => setNuevaFecha(e.target.value)}
                 onClick={abrirSelectorFecha}
