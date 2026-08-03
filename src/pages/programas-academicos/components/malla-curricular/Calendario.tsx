@@ -23,7 +23,8 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey, getColombianHolidayMap } from '@/utils/colombianHolidays';
-import type { EventContentArg, EventClickArg, DateClickArg } from '@fullcalendar/core';
+import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
+import type { DateClickArg } from '@fullcalendar/interaction';
 import { numeroTrimestreDesdeHorario, parseNumeroGrado } from './utils/trimestreNumeroGrado';
 
 interface CalendarioProps {
