@@ -38,6 +38,8 @@ const KpiCard = ({ label, value, icon, color }: { label: string; value: number; 
   </div>
 );
 
+type SortBy = 'fecha_envio' | 'estado' | 'template' | 'nombre' | 'programa' | 'ficha';
+
 const EstadisticasWhatsAppContent = () => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -53,6 +55,8 @@ const EstadisticasWhatsAppContent = () => {
   const [centro, setCentro] = useState('');
   const [estado, setEstado] = useState('');
   const [plantilla, setPlantilla] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('fecha_envio');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -67,6 +71,8 @@ const EstadisticasWhatsAppContent = () => {
     centro_formacion: centro || undefined,
     estado: estado || undefined,
     plantilla: plantilla || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
   });
 
   const fetchAll = useCallback(async (page = 1) => {
@@ -88,11 +94,25 @@ const EstadisticasWhatsAppContent = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaDesde, fechaHasta, programa, ficha, centro, estado, plantilla]);
+  }, [fechaDesde, fechaHasta, programa, ficha, centro, estado, plantilla, sortBy, sortDir]);
 
   useEffect(() => {
     fetchAll(1);
   }, [fetchAll]);
+
+  const handleSort = (columna: SortBy) => {
+    if (sortBy === columna) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(columna);
+      setSortDir('desc');
+    }
+  };
+
+  const sortIcon = (columna: SortBy) => {
+    if (sortBy !== columna) return null;
+    return <KeenIcon icon={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'} className="text-xs ml-1" />;
+  };
 
   const handleExportar = async (formato: 'excel' | 'pdf') => {
     setExporting(formato);
@@ -121,6 +141,14 @@ const EstadisticasWhatsAppContent = () => {
     xaxis: { categories: dashboard?.porDia.map((d) => d.fecha) || [] },
   };
 
+  const porMesOptions: ApexOptions = {
+    chart: { type: 'bar', toolbar: { show: false } },
+    colors: ['#0ea5e9'],
+    plotOptions: { bar: { borderRadius: 4 } },
+    dataLabels: { enabled: false },
+    xaxis: { categories: dashboard?.porMes.map((d) => d.mes) || [] },
+  };
+
   const porProgramaOptions: ApexOptions = {
     chart: { type: 'bar', toolbar: { show: false } },
     colors: ['#3b82f6'],
@@ -137,6 +165,14 @@ const EstadisticasWhatsAppContent = () => {
     xaxis: { categories: dashboard?.porFicha.map((d) => d.ficha) || [] },
   };
 
+  const porCentroOptions: ApexOptions = {
+    chart: { type: 'bar', toolbar: { show: false } },
+    colors: ['#f59e0b'],
+    plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+    dataLabels: { enabled: false },
+    xaxis: { categories: dashboard?.porCentro.map((d) => d.centro_formacion) || [] },
+  };
+
   const plantillasOptions: ApexOptions = {
     chart: { type: 'donut' },
     labels: dashboard?.plantillasMasUsadas.map((d) => d.plantilla) || [],
@@ -149,6 +185,12 @@ const EstadisticasWhatsAppContent = () => {
     colors: ['#3b82f6', '#06b6d4', '#22c55e', '#ef4444'],
     legend: { position: 'bottom' },
   };
+
+  const Th = ({ columna, label }: { columna: SortBy; label: string }) => (
+    <th className="p-3 text-left cursor-pointer select-none" onClick={() => handleSort(columna)}>
+      <span className="flex items-center">{label} {sortIcon(columna)}</span>
+    </th>
+  );
 
   return (
     <Fragment>
@@ -208,6 +250,11 @@ const EstadisticasWhatsAppContent = () => {
         <KpiCard label="Con error" value={dashboard?.kpis.errores ?? 0} icon="cross-circle" color="bg-red-100 text-red-600" />
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <KpiCard label="Plantillas distintas enviadas" value={dashboard?.kpis.totalPlantillasEnviadas ?? 0} icon="element-11" color="bg-indigo-100 text-indigo-600" />
+        <KpiCard label="Conversaciones iniciadas" value={dashboard?.kpis.totalConversaciones ?? 0} icon="messages" color="bg-purple-100 text-purple-600" />
+      </div>
+
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
         <div className="card p-4">
@@ -215,8 +262,8 @@ const EstadisticasWhatsAppContent = () => {
           <ApexChart options={porDiaOptions} series={[{ name: 'Mensajes', data: dashboard?.porDia.map((d) => d.total) || [] }]} type="area" height={260} />
         </div>
         <div className="card p-4">
-          <h4 className="text-sm font-semibold text-gray-800 mb-2">Estados de los mensajes</h4>
-          <ApexChart options={estadosOptions} series={dashboard?.estadosDistribucion.map((d) => d.total) || []} type="pie" height={260} />
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Mensajes enviados por mes</h4>
+          <ApexChart options={porMesOptions} series={[{ name: 'Mensajes', data: dashboard?.porMes.map((d) => d.total) || [] }]} type="bar" height={260} />
         </div>
         <div className="card p-4">
           <h4 className="text-sm font-semibold text-gray-800 mb-2">Mensajes por programa</h4>
@@ -225,6 +272,14 @@ const EstadisticasWhatsAppContent = () => {
         <div className="card p-4">
           <h4 className="text-sm font-semibold text-gray-800 mb-2">Mensajes por ficha</h4>
           <ApexChart options={porFichaOptions} series={[{ name: 'Mensajes', data: dashboard?.porFicha.map((d) => d.total) || [] }]} type="bar" height={260} />
+        </div>
+        <div className="card p-4">
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Mensajes por centro de formación</h4>
+          <ApexChart options={porCentroOptions} series={[{ name: 'Mensajes', data: dashboard?.porCentro.map((d) => d.total) || [] }]} type="bar" height={260} />
+        </div>
+        <div className="card p-4">
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Estados de los mensajes</h4>
+          <ApexChart options={estadosOptions} series={dashboard?.estadosDistribucion.map((d) => d.total) || []} type="pie" height={260} />
         </div>
         <div className="card p-4 lg:col-span-2">
           <h4 className="text-sm font-semibold text-gray-800 mb-2">Plantillas más utilizadas</h4>
@@ -239,36 +294,46 @@ const EstadisticasWhatsAppContent = () => {
             <table className="table table-auto align-middle text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-gray-600">
-                  <th className="p-3 text-left">Fecha envío</th>
-                  <th className="p-3 text-left">Aspirante</th>
+                  <Th columna="fecha_envio" label="Fecha envío" />
+                  <Th columna="nombre" label="Aspirante" />
                   <th className="p-3 text-left">Celular</th>
-                  <th className="p-3 text-left">Programa</th>
-                  <th className="p-3 text-left">Ficha</th>
-                  <th className="p-3 text-left">Plantilla</th>
-                  <th className="p-3 text-left">Estado</th>
+                  <Th columna="programa" label="Programa" />
+                  <Th columna="ficha" label="Ficha" />
+                  <Th columna="template" label="Plantilla" />
+                  <Th columna="estado" label="Estado" />
                   <th className="p-3 text-left">Message ID</th>
+                  <th className="p-3 text-left">Origen</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8} className="p-6 text-center text-gray-400">Cargando...</td></tr>
+                  <tr><td colSpan={9} className="p-6 text-center text-gray-400">Cargando...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={8} className="p-6 text-center text-gray-400">No hay mensajes registrados con estos filtros.</td></tr>
+                  <tr><td colSpan={9} className="p-6 text-center text-gray-400">No hay mensajes registrados con estos filtros.</td></tr>
                 ) : (
                   rows.map((r) => (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-3 text-gray-700">{r.ultimo_envio || '—'}</td>
+                      <td className="p-3 text-gray-700">{r.fecha_envio || '—'}</td>
                       <td className="p-3 font-semibold text-gray-900">{r.nombre} {r.apellido}</td>
                       <td className="p-3 text-gray-700">{r.celular}</td>
                       <td className="p-3 text-gray-700">{r.programa}</td>
                       <td className="p-3 text-gray-700 font-mono">{r.ficha}</td>
-                      <td className="p-3 text-gray-700">{r.ultimaPlantilla || 'Sin registrar'}</td>
+                      <td className="p-3 text-gray-700">{r.template || 'Sin registrar'}</td>
                       <td className="p-3">
-                        <span className={clsx('badge badge-sm badge-outline', ESTADO_BADGE[r.estadoEnvio || ''] || 'badge-secondary')}>
-                          {r.estadoEnvio || '—'}
+                        <span className={clsx('badge badge-sm badge-outline', ESTADO_BADGE[r.estado || ''] || 'badge-secondary')}>
+                          {r.estado || '—'}
                         </span>
                       </td>
                       <td className="p-3 text-gray-500 font-mono text-xs truncate max-w-[160px]">{r.waMessageId || '—'}</td>
+                      <td className="p-3">
+                        {r.esMigrado ? (
+                          <span className="badge badge-sm badge-outline badge-warning" title="Copiado del último estado registrado antes de existir el historial completo">
+                            Migrado
+                          </span>
+                        ) : (
+                          <span className="badge badge-sm badge-outline badge-success">Real</span>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

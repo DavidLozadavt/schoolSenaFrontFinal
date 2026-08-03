@@ -9,21 +9,23 @@ export interface StatsFilterParams {
   centro_formacion?: string;
   estado?: string;
   plantilla?: string;
+  sort_by?: string;
+  sort_dir?: 'asc' | 'desc';
 }
 
 export interface MessageRow {
   id: number;
+  fecha_envio: string | null;
+  template: string | null;
+  estado: string | null;
+  waMessageId: string | null;
+  esMigrado: boolean;
   nombre: string;
   apellido: string;
   celular: string;
   programa: string;
   ficha: string;
   centro_formacion: string;
-  ultimaPlantilla: string | null;
-  estadoEnvio: string | null;
-  errorEnvio: string | null;
-  waMessageId: string | null;
-  ultimo_envio: string | null;
 }
 
 export interface Kpis {
@@ -31,13 +33,17 @@ export interface Kpis {
   entregados: number;
   leidos: number;
   errores: number;
+  totalPlantillasEnviadas: number;
+  totalConversaciones: number;
 }
 
 export interface DashboardData {
   kpis: Kpis;
   porDia: { fecha: string; total: number }[];
+  porMes: { mes: string; total: number }[];
   porPrograma: { programa: string; total: number }[];
   porFicha: { ficha: string; total: number }[];
+  porCentro: { centro_formacion: string; total: number }[];
   plantillasMasUsadas: { plantilla: string; total: number }[];
   estadosDistribucion: { estado: string; total: number }[];
 }
