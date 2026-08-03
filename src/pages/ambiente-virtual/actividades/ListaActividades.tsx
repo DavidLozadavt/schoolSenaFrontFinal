@@ -746,10 +746,10 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
 
   const mostrarColumnaSeleccion = modo === 'agregar' && !!onAsignarActividades;
   const headers = mostrarColumnaSeleccion
-    ? ['', 'Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones']
+    ? ['', 'Código', 'Autor', 'Título', 'Entregables', 'RAP', 'Estado', 'Tipo', 'Acciones']
     : modo === 'agregar'
-      ? ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Tipo', 'Acciones']
-      : ['Código', 'Autor', 'Título', 'Entregables', 'Materia', 'Estado', 'Fecha límite', 'Tipo', 'Acciones'];
+      ? ['Código', 'Autor', 'Título', 'Entregables', 'RAP', 'Estado', 'Tipo', 'Acciones']
+      : ['Código', 'Autor', 'Título', 'Entregables', 'RAP', 'Estado', 'Fecha límite', 'Tipo', 'Acciones'];
 
   const tituloSeccion = modo === 'agregar' ? 'Agregar actividades' : 'Actividades asignadas';
 
@@ -764,7 +764,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             <KeenIcon icon="search" className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por título, autor, materia, entregables..."
+              placeholder="Buscar por título, autor, RAP, entregables..."
               value={busqueda}
               onChange={handleBusquedaChange}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm shadow-sm transition-all"

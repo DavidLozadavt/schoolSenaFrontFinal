@@ -310,11 +310,67 @@ export const CardRap = ({
     }
   };
 
-  const handleInterrumpirRap = async () => {
+  const toDateInputValue = (raw: any): string => {
+    if (!raw) return '';
+    const str = String(raw);
+    const m = str.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
+  const fechaFinalActualRap = (): string => {
+    if (materia?.fechaFinalRap) {
+      return toDateInputValue(materia.fechaFinalRap);
+    }
+    const todos = [...horarios, ...horariosSinAsignar];
+    let max = '';
+    for (const h of todos) {
+      const f = toDateInputValue(h?.fechaFinal ?? h?.fechaFin);
+      if (f && f > max) max = f;
+    }
+    return max;
+  };
+
+  const swalTheme = () => {
     const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
     const isDarkMode = theme === 'dark';
-    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
-    const color = isDarkMode ? 'white' : '#4B5675';
+    return {
+      background: isDarkMode ? '#1B1C22' : '#F9F9F9',
+      color: isDarkMode ? 'white' : '#4B5675',
+    };
+  };
+
+  const handleInterrumpirRap = async () => {
+    const { background, color } = swalTheme();
+    const fechaFinalActual = fechaFinalActualRap();
+
+    const fechaResult = await Swal.fire({
+      title: 'Interrumpir RAP',
+      text: 'Seleccione la fecha hasta la cual permanecerá interrumpido',
+      input: 'date',
+      inputValue: undefined,
+      showCancelButton: true,
+      confirmButtonText: 'Continuar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-success',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'La fecha es obligatoria';
+        }
+        if (fechaFinalActual && value >= fechaFinalActual) {
+          return 'La fecha de interrupción debe ser menor que la fecha final actual del RAP.';
+        }
+        return null;
+      }
+    });
+
+    if (!fechaResult.isConfirmed || !fechaResult.value) {
+      return;
+    }
 
     const result = await Swal.fire({
       title: '¿Interrumpir RAP?',
@@ -335,21 +391,19 @@ export const CardRap = ({
       try {
         await axios.put('materias/interrumpir-rap', {
           idGradoMateria: materia.idGradoMateria,
-          idFicha: idFicha
-        })
+          idFicha: idFicha,
+          fechaFinal: fechaResult.value,
+        });
         if (onAsignacionSuccess) onAsignacionSuccess();
         enqueueSnackbar('RAP interrumpido correctamente', { variant: 'success' });
       } catch (error: any) {
         enqueueSnackbar(error.response?.data?.message || 'Error al interrumpir el RAP', { variant: 'error' });
       }
     }
-  }
+  };
 
   const handleFinalizarRap = async () => {
-    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
-    const isDarkMode = theme === 'dark';
-    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
-    const color = isDarkMode ? 'white' : '#4B5675';
+    const { background, color } = swalTheme();
 
     const result = await Swal.fire({
       title: '¿Finalizar RAP?',
@@ -378,7 +432,8 @@ export const CardRap = ({
         enqueueSnackbar(error.response?.data?.message || 'Error al finalizar el RAP', { variant: 'error' });
       }
     }
-  }
+  };
+
   const totalHorarios = horarios.length + horariosSinAsignar.length;
   // Cuenta cuántos horarios están finalizados o realizados dentro de "horarios"
   const cantidadFinalizados = horarios.filter((rap: any) => rap.estado === 'FINALIZADO').length;
@@ -796,14 +851,32 @@ export const CardRap = ({
           idFicha={idFicha ?? 0}
           cargarRaps={cargarRaps}
           permiteEdicion={esEditable}
-          onAddSchedule={() => {
+          onAddSchedule={(prefs) => {
+            const todos = [...horarios, ...horariosSinAsignar];
+            let horaInicio: string | undefined;
+            let horaFin: string | undefined;
+            for (const h of todos) {
+              const ini = String(h?.horaInicial || h?.horaInicio || '');
+              const fin = String(h?.horaFinal || h?.horaFin || '');
+              const mIni = ini.match(/(\d{1,2}):(\d{2})/);
+              const mFin = fin.match(/(\d{1,2}):(\d{2})/);
+              if (mIni && mFin) {
+                horaInicio = `${mIni[1].padStart(2, '0')}:${mIni[2]}`;
+                horaFin = `${mFin[1].padStart(2, '0')}:${mFin[2]}`;
+                break;
+              }
+            }
             setModalHorarios({
               open: true,
               idGradoMateria: materia.idGradoMateria,
               idFicha: idFicha || undefined,
               totalHoras: materia.horasTotales ?? 0,
               horasActuales: materia.horasActuales ?? 0,
-              horasFaltantes: materia.horasFaltantes ?? 0
+              horasFaltantes: materia.horasFaltantes ?? 0,
+              fechaInicioPrefill: prefs?.fechaInicio,
+              horaInicioPrefill: horaInicio,
+              horaFinPrefill: horaFin,
+              fechaFinalRap: materia.fechaFinalRap || undefined,
             });
           }}
         />

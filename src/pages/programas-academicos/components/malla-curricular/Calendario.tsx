@@ -6,12 +6,15 @@ import {
   User,
   X,
   Trash2,
-  Plus
+  Plus,
+  Ban,
+  CheckCircle2
 } from "lucide-react";
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { enqueueSnackbar } from 'notistack';
 import Swal from 'sweetalert2';
 import AsignacionSesionModal from './AsignacionSesionModal';
+import ModalActividadFechaMotivo from '@/pages/ambiente-virtual/actividades/ModalActividadFechaMotivo';
 
 // FullCalendar imports
 import FullCalendar from '@fullcalendar/react';
@@ -21,6 +24,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import { getColombianHolidayDateSet, isColombianHoliday, toLocalDateKey, getColombianHolidayMap } from '@/utils/colombianHolidays';
 import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
+import type { DateClickArg } from '@fullcalendar/interaction';
 import { numeroTrimestreDesdeHorario, parseNumeroGrado } from './utils/trimestreNumeroGrado';
 
 interface CalendarioProps {
@@ -28,7 +32,8 @@ interface CalendarioProps {
   onClose: () => void;
   materia: any;
   idFicha: number;
-  onAddSchedule: () => void;
+  /** Abre el modal existente de horario. Opcionalmente con fecha precargada desde el calendario. */
+  onAddSchedule: (prefs?: { fechaInicio: string }) => void;
   cargarRaps?: () => void;
   modoRmi?: boolean;
   permiteEdicion?: boolean;
@@ -128,6 +133,10 @@ const COLORES_MATERIA = [
   { bg: '#f8fafc', border: '#cbd5e1', text: '#334155' },
   { bg: '#fefce8', border: '#fde047', text: '#854d0e' },
 ];
+
+const COLOR_INTERRUMPIDO = { bg: '#f3f4f6', border: '#e5e7eb', text: '#9ca3af' };
+
+const COLOR_FINALIZADO = { bg: 'rgba(0,0,0,0.10)', border: 'rgba(0,0,0,0.18)', text: '#4b5563' };
 
 const colorPorMateria = (idMateria?: number | null) => {
   const idx = Math.abs(Number(idMateria) || 0) % COLORES_MATERIA.length;
@@ -253,10 +262,17 @@ const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ 
 
       {/* Cuerpo del tooltip */}
       <div className="p-4 text-left">
-        {/* Estado + Hora */}
-        <div className="flex justify-between items-center mb-3 gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${ev.estado === 'FINALIZADO' ? 'bg-emerald-100 text-emerald-700' : ev.estado === 'PENDIENTE' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+        <div className="flex flex-col gap-1.5 mb-3">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${
+              ev.estado === 'FINALIZADO' || ev.estado === 'EVALUADO'
+                ? 'bg-black/10 text-gray-700 dark:bg-white/10 dark:text-gray-200'
+                : ev.estado === 'INTERRUMPIDO'
+                  ? 'bg-gray-100 text-gray-500 dark:bg-coal-500 dark:text-gray-400'
+                  : ev.estado === 'PENDIENTE'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-blue-100 text-blue-700'
+            }`}>
               {ev.estado || 'SIN ESTADO'}
             </span>
             {ev.numeroTrimestre != null && (
@@ -265,9 +281,11 @@ const EventTooltip: React.FC<{ data: TooltipData; carouselIndex: number }> = ({ 
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-primary shrink-0">
+          <div className="flex items-center gap-1.5 text-primary">
             <Clock size={12} className="shrink-0" />
-            <span className="text-[11px] font-black tracking-wide whitespace-nowrap">{format12h(hIni)} – {format12h(hFin)}</span>
+            <span className="text-[11px] font-black tracking-wide whitespace-nowrap">
+              {format12h(hIni)} – {format12h(hFin)}
+            </span>
           </div>
         </div>
 
@@ -346,6 +364,10 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [modalCierreHorario, setModalCierreHorario] = useState<{
+    modo: 'interrumpir' | 'finalizar';
+    horario: any;
+  } | null>(null);
 
   // Carrusel
   useEffect(() => {
@@ -397,6 +419,19 @@ export const Calendario: React.FC<CalendarioProps> = ({
     if (isOpen) cargarHorarios();
     return () => { isMounted = false; };
   }, [isOpen, idFicha, refreshTrigger, modoRmi, materia]);
+
+  // Tras guardar desde el modal de horarios, refrescar sin recargar la página.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onGuardado = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail;
+      if (detail?.idFicha != null && Number(detail.idFicha) !== Number(idFicha)) return;
+      setRefreshTrigger((prev) => prev + 1);
+      cargarRaps?.();
+    };
+    window.addEventListener('horario-materia-guardado', onGuardado);
+    return () => window.removeEventListener('horario-materia-guardado', onGuardado);
+  }, [isOpen, idFicha, cargarRaps]);
 
   // Reset al cerrar
   useEffect(() => {
@@ -493,7 +528,6 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
       const idMateria = h.gradoMateria?.idMateria ?? h.gradoMateria?.materia?.id ?? null;
       const nombreComp = nombreMateriaHorario(h);
-      const colors = colorPorMateria(idMateria);
       const type =
         h.estado === 'PENDIENTE' || !h.idContrato
           ? 'sinAsignar'
@@ -502,6 +536,12 @@ export const Calendario: React.FC<CalendarioProps> = ({
             : h.estado === 'INTERRUMPIDO'
               ? 'interrumpido'
               : 'asignados';
+      const colors =
+        type === 'interrumpido'
+          ? COLOR_INTERRUMPIDO
+          : type === 'finalizado'
+            ? COLOR_FINALIZADO
+            : colorPorMateria(idMateria);
 
       const cursor = new Date(rango.start);
       cursor.setHours(0, 0, 0, 0);
@@ -691,6 +731,41 @@ export const Calendario: React.FC<CalendarioProps> = ({
               </button>
             )}
 
+            {(ev.estado === 'ASIGNADO' || ev.estado === 'PENDIENTE') && (
+              <>
+                <button
+                  onMouseEnter={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!puedeEditarHorarioPorTrimestre(ev)) {
+                      enqueueSnackbar('Solo puede modificarse el trimestre actual.', { variant: 'warning' });
+                      return;
+                    }
+                    setModalCierreHorario({ modo: 'interrumpir', horario: ev });
+                  }}
+                  className="rounded-full bg-gray-500/10 w-5 h-5 flex items-center justify-center text-gray-600 hover:text-gray-800 transition"
+                  title="Interrumpir horario"
+                >
+                  <Ban size={11} />
+                </button>
+                <button
+                  onMouseEnter={() => setTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!puedeEditarHorarioPorTrimestre(ev)) {
+                      enqueueSnackbar('Solo puede modificarse el trimestre actual.', { variant: 'warning' });
+                      return;
+                    }
+                    setModalCierreHorario({ modo: 'finalizar', horario: ev });
+                  }}
+                  className="rounded-full bg-black/10 w-5 h-5 flex items-center justify-center text-gray-700 hover:text-gray-900 transition"
+                  title="Finalizar horario"
+                >
+                  <CheckCircle2 size={11} />
+                </button>
+              </>
+            )}
+
             <button
               onMouseEnter={() => setTooltip(null)}
               onClick={(e) => {
@@ -706,6 +781,65 @@ export const Calendario: React.FC<CalendarioProps> = ({
         )}
       </div>
     );
+  };
+
+  /** Clic en día del calendario → abre el modal existente de horario con fecha/día precargados. */
+  const abrirCreacionDesdeDia = (date: Date) => {
+    if (modoRmi || !permiteEdicion) return;
+    if (materia?.idMateriaPadre == null) return;
+
+    if (!(Number(materia?.horasTotales) > 0)) {
+      enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' });
+      return;
+    }
+    if (materia?.estado === 'FINALIZADO') {
+      enqueueSnackbar('No se pueden programar horarios para un RAP finalizado', { variant: 'error' });
+      return;
+    }
+
+    const ymd = toLocalDateKey(date);
+    const fechaFinalRap = materia?.fechaFinalRap;
+    if (fechaFinalRap) {
+      const fin = parseDate(fechaFinalRap);
+      const sel = parseDate(ymd);
+      if (fin && sel && sel.getTime() > fin.getTime()) {
+        enqueueSnackbar('No se pueden crear horarios después de la fecha final del RAP', {
+          variant: 'error',
+        });
+        return;
+      }
+    }
+
+    const idGm = Number(materia?.idGradoMateria);
+    const enInterrupcion = horariosProgramados.some((h: any) => {
+      if (String(h?.estado || '').toUpperCase() !== 'INTERRUMPIDO') return false;
+      const gm = Number(h?.idGradoMateria ?? h?.gradoMateria?.id);
+      if (Number.isFinite(idGm) && idGm > 0 && Number.isFinite(gm) && gm > 0 && gm !== idGm) {
+        return false;
+      }
+      const rango = resolveRangoFechas(h);
+      if (!rango) return false;
+      const sel = parseDate(ymd);
+      if (!sel) return false;
+      sel.setHours(0, 0, 0, 0);
+      const start = new Date(rango.start);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(rango.end);
+      end.setHours(0, 0, 0, 0);
+      return sel >= start && sel <= end;
+    });
+    if (enInterrupcion) {
+      enqueueSnackbar('No se pueden crear horarios dentro de un período de interrupción', {
+        variant: 'error',
+      });
+      return;
+    }
+
+    onAddSchedule({ fechaInicio: ymd });
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    abrirCreacionDesdeDia(arg.date);
   };
 
   const handleEliminarHorario = async (ev: any) => {
@@ -747,6 +881,75 @@ export const Calendario: React.FC<CalendarioProps> = ({
       cargarRaps?.();
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.message || "Error al eliminar horario", { variant: "error" });
+    }
+  };
+
+  const toDateInputValue = (raw: any): string => {
+    if (!raw) return '';
+    const str = String(raw);
+    const m = str.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
+  const handleCerrarHorarioSubmit = async (fecha: string, observacion: string) => {
+    if (!modalCierreHorario) return;
+    const idHorario = Number(
+      modalCierreHorario.horario?.idHorarioMateria ?? modalCierreHorario.horario?.id
+    );
+    if (!Number.isFinite(idHorario) || idHorario <= 0) {
+      throw new Error('No se pudo identificar el horario');
+    }
+
+    const fechaFinal = fecha.includes('T') ? fecha.split('T')[0] : fecha;
+    const fechaFinalActual = toDateInputValue(
+      modalCierreHorario.horario?.fechaFinal ?? modalCierreHorario.horario?.fechaFin
+    );
+    const fechaInicial = toDateInputValue(
+      modalCierreHorario.horario?.fechaInicial ?? modalCierreHorario.horario?.fechaInicio
+    );
+
+    if (fechaFinalActual && fechaFinal > fechaFinalActual) {
+      throw new Error('La fecha no puede ser mayor que la fecha final actual del horario.');
+    }
+    if (fechaInicial && fechaFinal < fechaInicial) {
+      throw new Error('La fecha no puede ser anterior a la fecha inicial del horario.');
+    }
+
+    const endpoint =
+      modalCierreHorario.modo === 'interrumpir'
+        ? `horarios/materia/${idHorario}/interrumpir`
+        : `horarios/materia/${idHorario}/finalizar`;
+
+    try {
+      const res = await axios.put(endpoint, {
+        fechaFinal,
+        observacion: observacion.trim() || undefined,
+      });
+      const nuevoEstado = modalCierreHorario.modo === 'interrumpir' ? 'INTERRUMPIDO' : 'FINALIZADO';
+      setHorariosFicha((prev) =>
+        prev.map((h) =>
+          Number(h.id) === idHorario
+            ? { ...h, fechaFinal, estado: nuevoEstado }
+            : h
+        )
+      );
+      enqueueSnackbar(
+        res.data?.message ||
+          (modalCierreHorario.modo === 'interrumpir'
+            ? 'Horario interrumpido correctamente'
+            : 'Horario finalizado correctamente'),
+        { variant: 'success' }
+      );
+      setModalCierreHorario(null);
+      setRefreshTrigger((prev) => prev + 1);
+      cargarRaps?.();
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string; error?: string } } };
+      throw new Error(
+        ax.response?.data?.message ||
+          ax.response?.data?.error ||
+          'Error al actualizar el horario'
+      );
     }
   };
 
@@ -843,6 +1046,14 @@ export const Calendario: React.FC<CalendarioProps> = ({
               /* Celdas */
               .fc .fc-daygrid-day { min-height: 110px; }
               .fc .fc-daygrid-day-frame { min-height: 110px; }
+              ${!modoRmi && permiteEdicion && materia?.idMateriaPadre != null ? `
+              .fc .fc-daygrid-day:not(.fc-day-other) {
+                cursor: pointer;
+              }
+              .fc .fc-daygrid-day:not(.fc-day-other):hover {
+                background-color: rgba(59, 130, 246, 0.06) !important;
+              }
+              ` : ''}
               .fc td, .fc th { border-color: #f3f4f6 !important; }
               /* Evento bloque académico */
               .fc .fc-daygrid-event {
@@ -910,6 +1121,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
               eventContent={renderEventContent}
               editable={false}
               selectable={false}
+              dateClick={!modoRmi && permiteEdicion ? handleDateClick : undefined}
               eventClick={(_arg: EventClickArg) => {/* manejado en renderEventContent */}}
               height="auto"
               moreLinkText={(n) => `+${n} más`}
@@ -972,6 +1184,34 @@ export const Calendario: React.FC<CalendarioProps> = ({
             idMateria={materia.idMateria || materia.id}
             horario={horarioAsignacionSesion}
             fechaSeleccionada={fechaSeleccionada}
+          />
+        )}
+
+        {modalCierreHorario && (
+          <ModalActividadFechaMotivo
+            open={!!modalCierreHorario}
+            onClose={() => setModalCierreHorario(null)}
+            zIndex={130}
+            title={
+              modalCierreHorario.modo === 'interrumpir'
+                ? 'Interrumpir horario'
+                : 'Finalizar horario'
+            }
+            fechaLabel={
+              modalCierreHorario.modo === 'interrumpir'
+                ? 'Fecha hasta la cual permanecerá interrumpido'
+                : 'Fecha efectiva de finalización'
+            }
+            descripcionLabel="Motivo / observación"
+            descripcionPlaceholder="Indique el motivo del cambio..."
+            fechaInputType="date"
+            initialFecha={toDateInputValue(
+              modalCierreHorario.horario?.fechaFinal ?? modalCierreHorario.horario?.fechaFin
+            )}
+            submitButtonText="+ ACEPTAR"
+            onSubmit={async (fecha, descripcion) => {
+              await handleCerrarHorarioSubmit(fecha, descripcion);
+            }}
           />
         )}
       </div>

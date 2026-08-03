@@ -257,7 +257,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
           value={emailForReset}
           onChange={(e) => setEmailForReset(e.target.value)}
           placeholder="correo@ejemplo.com"
-          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
+          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition-all focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25"
         />
       </div>
 
@@ -309,7 +309,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
             value={otpCode[index]}
             onChange={(e) => handleOtpChange(index, e.target.value)}
             onKeyDown={(e) => handleOtpKeyDown(index, e)}
-            className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl border-gray-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none"
+            className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl border-gray-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25 outline-none"
           />
         ))}
       </div>
@@ -318,7 +318,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
         <button
           onClick={handleResendOtp}
           disabled={countdown > 0 || loading}
-          className="text-sm text-gray-600 hover:text-orange-500 disabled:text-gray-400"
+          className="text-sm text-gray-600 hover:text-[#1e6fd9] disabled:text-gray-400"
         >
           {loading ? 'Enviando...' : countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar código'}
         </button>
@@ -366,7 +366,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
               onChange={(e) => setNewPassword({ ...newPassword, password: e.target.value })}
               placeholder="Mínimo 8 caracteres"
               data-no-uppercase
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25"
             />
             <button
               type="button"
@@ -387,7 +387,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
               onChange={(e) => setNewPassword({ ...newPassword, confirmPassword: e.target.value })}
               placeholder="Repite tu contraseña"
               data-no-uppercase
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20"
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 text-sm outline-none transition-all focus:border-blue-600 focus:ring-4 focus:ring-blue-500/25"
             />
             <button
               type="button"

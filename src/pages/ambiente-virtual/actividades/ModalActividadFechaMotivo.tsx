@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle, ModalFooter } from '@/components/modal';
 import { KeenIcon } from '@/components';
 
 /** Misma base visual que el modal "Ampliar actividad" (datetime-local + textarea + Cancelar / acción principal). */
@@ -11,8 +11,8 @@ export interface ModalActividadFechaMotivoProps {
   fechaLabel: string;
   descripcionLabel: string;
   descripcionPlaceholder?: string;
-  /** Valor `YYYY-MM-DDTHH:mm` para `input[type=datetime-local]` */
   initialFecha?: string;
+  fechaInputType?: 'date' | 'datetime-local';
   submitButtonText: string;
   savingButtonText?: string;
   /**
@@ -31,6 +31,7 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
   descripcionLabel,
   descripcionPlaceholder = '',
   initialFecha = '',
+  fechaInputType = 'datetime-local',
   submitButtonText,
   savingButtonText = 'Guardando...',
   onSubmit
@@ -39,6 +40,8 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
   const [descripcion, setDescripcion] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isDark, setIsDark] = useState(false);
+  const fechaInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -47,6 +50,28 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
       setError('');
     }
   }, [open, initialFecha]);
+
+  useEffect(() => {
+    if (!open) return;
+    const syncDark = () => setIsDark(document.documentElement.classList.contains('dark'));
+    syncDark();
+    const obs = new MutationObserver(syncDark);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, [open]);
+
+  /** Abre el selector nativo con clic en cualquier zona del campo (no solo el icono). */
+  const abrirSelectorFecha = () => {
+    const el = fechaInputRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === 'function') {
+        el.showPicker();
+      }
+    } catch {
+      // showPicker puede fallar si el navegador lo bloquea; el input sigue usable.
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,69 +96,79 @@ const ModalActividadFechaMotivo: React.FC<ModalActividadFechaMotivoProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} zIndex={zIndex}>
-      <ModalContent className="max-w-md">
-        <ModalHeader>
-          <ModalTitle>{title}</ModalTitle>
-          <button
-            type="button"
-            className="btn btn-sm btn-icon btn-light btn-clear text-red-600 hover:text-red-700"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
-        <ModalBody>
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <ModalContent className="w-[95vw] max-w-[720px] top-[8%] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col min-h-0 max-h-[90vh] flex-1">
+          <ModalHeader className="shrink-0 px-5 sm:px-6 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+            <ModalTitle className="text-gray-900 dark:text-white">{title}</ModalTitle>
+            <button
+              type="button"
+              className="btn btn-sm btn-icon btn-light btn-clear shrink-0"
+              onClick={onClose}
+              aria-label="Cerrar"
+            >
+              <KeenIcon icon="cross" />
+            </button>
+          </ModalHeader>
+
+          <ModalBody className="flex flex-col gap-5 sm:gap-6 px-5 sm:px-6 py-5 sm:py-6 flex-1 min-h-0 overflow-y-auto">
             {error && (
-              <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">{error}</div>
+              <div className="rounded-lg border border-red-200 bg-red-50/90 p-3 text-sm text-red-700 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-200">
+                {error}
+              </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{fechaLabel}</label>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-white">
+                {fechaLabel} <span className="text-red-500">*</span>
+              </label>
               <input
-                type="datetime-local"
+                ref={fechaInputRef}
+                type={fechaInputType}
                 value={nuevaFecha}
                 onChange={(e) => setNuevaFecha(e.target.value)}
-                className="input w-full text-sm py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg"
+                onClick={abrirSelectorFecha}
+                style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                className="input datetime-ampliar-actividad w-full text-sm py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-coal-500 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/60 cursor-pointer"
                 placeholder="dd/mm/aaaa"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{descripcionLabel}</label>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-white">
+                {descripcionLabel}
+              </label>
               <textarea
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
-                rows={3}
+                rows={6}
                 maxLength={2000}
-                className="input w-full text-sm py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none"
+                className="input w-full text-sm py-2.5 px-3 min-h-[140px] border border-gray-300 dark:border-gray-600 rounded-lg resize-y bg-white dark:bg-coal-500 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/60"
                 placeholder={descripcionPlaceholder}
               />
             </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-lg"
-              >
-                CANCELAR
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg flex items-center gap-1"
-              >
-                {saving ? (
-                  <>
-                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    {savingButtonText}
-                  </>
-                ) : (
-                  submitButtonText
-                )}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
+          </ModalBody>
+
+          <ModalFooter className="shrink-0 flex justify-between gap-3 px-5 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-500">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn bg-red-600 hover:bg-red-700 text-white"
+              disabled={saving}
+            >
+              X CANCELAR
+            </button>
+            <button type="submit" disabled={saving} className="btn btn-primary min-w-[140px]">
+              {saving ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  {savingButtonText}
+                </span>
+              ) : (
+                submitButtonText
+              )}
+            </button>
+          </ModalFooter>
+        </form>
       </ModalContent>
     </Modal>
   );

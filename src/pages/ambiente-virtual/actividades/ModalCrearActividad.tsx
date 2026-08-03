@@ -161,8 +161,13 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const idMateriaFinal = formData.idMateria || idMateria || materias[0]?.id;
-    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !idMateriaFinal || !formData.estrategia || !formData.entregables || !formData.idCompany) {
+    // Solo el RAP del contexto de clase (o el ya guardado al editar). Nunca materias[0]: asociaría otro RAP.
+    const idMateriaFinal = Number(formData.idMateria || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar la actividad.');
+      return;
+    }
+    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !formData.estrategia || !formData.entregables || !formData.idCompany) {
       return;
     }
     if (documentoFile) {

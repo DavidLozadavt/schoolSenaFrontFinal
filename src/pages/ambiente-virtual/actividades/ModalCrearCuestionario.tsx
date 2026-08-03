@@ -72,7 +72,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       axios.get('materia').then((r) => {
         const data = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
         setMaterias(data);
-        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? data[0]?.id ?? 0;
+        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? 0;
         setIdMateria(valorInicial);
       }).catch(() => setMaterias([]));
     }
@@ -129,9 +129,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim()) return;
-    const idMateriaFinal = idMateriaProp || idMateria || materias[0]?.id;
-    if (!idMateriaFinal) {
-      alert('Seleccione una materia');
+    // Solo el RAP del contexto de clase. Nunca materias[0]: asociaría un RAP incorrecto.
+    const idMateriaFinal = Number(idMateriaProp || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar el cuestionario.');
       return;
     }
     setSaving(true);
@@ -280,12 +281,12 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Materia</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RAP</label>
               {idMateriaProp ? (
                 <div className="p-2 text-sm rounded bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                   {(() => {
                     const m = materias.find((x) => x.id === idMateriaProp);
-                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `Materia del RAPS`;
+                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `RAP del RAPS`;
                   })()}
                 </div>
               ) : (
@@ -295,10 +296,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                   onChange={(e) => setIdMateria(Number(e.target.value))}
                   required
                 >
-                  <option value="">Seleccione materia</option>
+                  <option value="">Seleccione RAP</option>
                   {materias.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `Materia ${m.id}`}
+                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `RAP ${m.id}`}
                     </option>
                   ))}
                 </select>
