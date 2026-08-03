@@ -444,12 +444,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
     }
   }, [isOpen]);
 
-  // Horarios de toda la ficha (histórico + futuro). Sin filtro por “hoy”.
-  const horariosProgramados = useMemo(
-    () => horariosFicha.filter(horarioEsRenderable),
-    [horariosFicha]
-  );
-
+  // Trimestre vigente = mayor numeroGrado (solo para edición y filtro de FINALIZADO).
   const maxNumeroTrimestre = useMemo(() => {
     let max = maxNumeroTrimestreApi > 0 ? maxNumeroTrimestreApi : 0;
     horariosFicha.forEach((h: any) => {
@@ -458,6 +453,23 @@ export const Calendario: React.FC<CalendarioProps> = ({
     });
     return max;
   }, [horariosFicha, maxNumeroTrimestreApi]);
+
+  // Historial completo de la ficha (todos los trimestres).
+  // Excepción: en el trimestre vigente no se muestran RAP/horarios FINALIZADO|EVALUADO.
+  const horariosProgramados = useMemo(
+    () =>
+      horariosFicha.filter((h) => {
+        if (!horarioEsRenderable(h)) return false;
+        const n = parseNumeroGrado(h?.numeroTrimestre) ?? numeroTrimestreDesdeHorario(h);
+        const esTrimestreActual = maxNumeroTrimestre > 0 && n != null && n === maxNumeroTrimestre;
+        if (esTrimestreActual) {
+          const estado = String(h?.estado || '').toUpperCase();
+          if (estado === 'FINALIZADO' || estado === 'EVALUADO') return false;
+        }
+        return true;
+      }),
+    [horariosFicha, maxNumeroTrimestre]
+  );
 
   const puedeEditarHorarioPorTrimestre = (ev: any): boolean => {
     const n = parseNumeroGrado(ev?.numeroTrimestre) ?? numeroTrimestreDesdeHorario(ev);

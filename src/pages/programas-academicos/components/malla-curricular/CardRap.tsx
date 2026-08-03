@@ -404,6 +404,36 @@ export const CardRap = ({
 
   const handleFinalizarRap = async () => {
     const { background, color } = swalTheme();
+    const fechaFinalActual = fechaFinalActualRap();
+
+    const fechaResult = await Swal.fire({
+      title: 'Finalizar RAP',
+      text: 'Seleccione la fecha efectiva de finalización',
+      input: 'date',
+      inputValue: undefined,
+      showCancelButton: true,
+      confirmButtonText: 'Continuar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        confirmButton: 'btn btn-sm btn-success',
+        cancelButton: 'btn btn-sm btn-light'
+      },
+      background,
+      color,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'La fecha es obligatoria';
+        }
+        if (fechaFinalActual && value > fechaFinalActual) {
+          return 'La fecha no puede ser mayor que la fecha final actual del RAP.';
+        }
+        return null;
+      }
+    });
+
+    if (!fechaResult.isConfirmed || !fechaResult.value) {
+      return;
+    }
 
     const result = await Swal.fire({
       title: '¿Finalizar RAP?',
@@ -424,7 +454,8 @@ export const CardRap = ({
       try {
         await axios.put(`materias/finalizar-rap`, {
           idGradoMateria: materia.idGradoMateria,
-          idFicha: idFicha
+          idFicha: idFicha,
+          fechaFinal: fechaResult.value,
         });
         if (onAsignacionSuccess) onAsignacionSuccess();
         enqueueSnackbar('RAP finalizado correctamente', { variant: 'success' });
