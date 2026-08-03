@@ -130,7 +130,8 @@ export const ProgramacionFichasPage = () => {
 
   const { centroF, roles } = authContext;
 
-  const esInstructorSena = roles?.includes('INSTRUCTOR SENA');
+  const esAdministrador = roles?.includes('ADMINISTRADOR VT') || roles?.includes('ADMIN REGIONAL') || roles?.includes('ADMIN CENTRO');
+  const esInstructorSena = roles?.includes('INSTRUCTOR SENA') && !esAdministrador;
 
   const loadProgram = async () => {
     if (!programId) return;
