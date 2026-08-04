@@ -5,13 +5,19 @@ import clsx from 'clsx';
 import { KeenIcon } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
-import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
+import {
+  filterOptionNormalized,
+  compactReactSelectClassNames,
+  compactReactSelectNoOptions,
+} from '@/components/forms/compactReactSelect';
+import Select from 'react-select';
 import {
   extensionFromPath,
   materialDocumentoActionLabel,
   materialDocumentoBadgeClass,
   materialDocumentoTypeLabel,
 } from './materialDocumentoSupport';
+import { tipoMaterialDisplay } from './tipoMaterialApoyo';
 
 interface MaterialApoyoCreador {
   idPersona?: number | null;
@@ -25,6 +31,7 @@ interface MaterialApoyoAprendizItem {
   id: number;
   titulo: string;
   descripcion?: string | null;
+  tipoMaterial?: string | null;
   urlDocumento?: string | null;
   urlDocumentoUrl?: string | null;
   urlAdicional?: string | null;
@@ -33,6 +40,7 @@ interface MaterialApoyoAprendizItem {
   idMateria?: number;
   materiaNombre?: string | null;
   competenciaNombre?: string | null;
+  idCompetencia?: number | null;
   idFicha?: number;
   fichaCodigo?: string | null;
   idRap?: number | null;
@@ -134,6 +142,39 @@ interface RecursosMenuState {
   left: number;
 }
 
+const clsLabelFiltro =
+  'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block';
+
+const selectClassNamesBiblioteca = {
+  ...compactReactSelectClassNames,
+  control: () => `${compactReactSelectClassNames.control()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
+  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () => `${compactReactSelectClassNames.menuList()} dark:text-white`,
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white',
+};
+
+const selectStylesBiblioteca = {
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+};
+
+const idCompetenciaDeItem = (it: MaterialApoyoAprendizItem): number | null => {
+  if (it.idCompetencia && it.idCompetencia > 0) return it.idCompetencia;
+  return null;
+};
+
 export interface MaterialApoyoAprendizProps {
   idFicha?: number;
   idRap?: number;
@@ -159,6 +200,8 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [competenciaSel, setCompetenciaSel] = useState<number | null>(null);
+  const [rapFiltroSel, setRapFiltroSel] = useState<number | null>(null);
   const [videoModalItem, setVideoModalItem] = useState<MaterialApoyoAprendizItem | null>(null);
   const [recursosMenu, setRecursosMenu] = useState<RecursosMenuState | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -228,10 +271,45 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       ? 'No hay recursos en la biblioteca de conocimiento para tu programa.'
       : 'No hay material de apoyo disponible para este RAP.');
 
+  const opcionesCompetencia = useMemo(() => {
+    const map = new Map<number, string>();
+    items.forEach((it) => {
+      const idComp = idCompetenciaDeItem(it);
+      const nombre = it.competenciaNombre || it.materiaNombre;
+      if (idComp && idComp > 0 && nombre) {
+        map.set(idComp, nombre);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [items]);
+
+  const opcionesRapFiltro = useMemo(() => {
+    const map = new Map<number, string>();
+    items
+      .filter((it) => {
+        if (!competenciaSel) return true;
+        return idCompetenciaDeItem(it) === competenciaSel;
+      })
+      .forEach((it) => {
+        const id = it.idRap;
+        const label = it.rapNombre || it.materiaNombre;
+        if (id && label) map.set(id, label);
+      });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [items, competenciaSel]);
+
   const filtered = useMemo(() => {
     const q = search.trim();
-    if (!q) return items;
     return items.filter((item) => {
+      const idComp = idCompetenciaDeItem(item);
+      if (competenciaSel && idComp !== competenciaSel) return false;
+      if (rapFiltroSel && item.idRap !== rapFiltroSel) return false;
+
+      if (!q) return true;
       const hasDoc = Boolean(item.urlDocumentoUrl || item.urlDocumento);
       const hasLink = Boolean(item.urlAdicional);
       const hasVid = Boolean(item.urlVideoUrl || item.urlVideo);
@@ -243,6 +321,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         hasLink ? 'Enlace' : '',
         hasVid ? 'Video' : '',
         docExt ? materialDocumentoTypeLabel(docExt) : '',
+        tipoMaterialDisplay(item.tipoMaterial),
       ].filter(Boolean);
       return filterOptionNormalized(
         [
@@ -253,12 +332,13 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           item.competenciaNombre,
           item.creador?.nombreCompleto,
           item.creador?.email,
+          tipoMaterialDisplay(item.tipoMaterial),
           ...tipoTokens
         ],
         q
       );
     });
-  }, [items, search]);
+  }, [items, search, competenciaSel, rapFiltroSel]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, MaterialApoyoAprendizItem[]>();
@@ -378,6 +458,9 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 min-w-0">
+                  <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-violet-50 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200">
+                    {tipoMaterialDisplay(item.tipoMaterial)}
+                  </span>
                   {chips.map((c) => (
                     <span
                       key={c.key}
@@ -476,7 +559,40 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white p-3 dark:bg-coal-400 dark:border-gray-700">
+      <div className="rounded-xl border border-gray-200 bg-white p-3 dark:bg-coal-400 dark:border-gray-700 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={clsLabelFiltro}>Competencia</label>
+            <Select
+              isClearable
+              placeholder="Todas las competencias"
+              options={opcionesCompetencia}
+              value={opcionesCompetencia.find((o) => o.value === competenciaSel) ?? null}
+              onChange={(opt) => {
+                setCompetenciaSel(opt?.value ?? null);
+                setRapFiltroSel(null);
+              }}
+              isDisabled={opcionesCompetencia.length === 0}
+              classNames={selectClassNamesBiblioteca}
+              styles={selectStylesBiblioteca}
+              noOptionsMessage={compactReactSelectNoOptions}
+            />
+          </div>
+          <div>
+            <label className={clsLabelFiltro}>RAP</label>
+            <Select
+              isClearable
+              placeholder="Todos los RAP"
+              options={opcionesRapFiltro}
+              value={opcionesRapFiltro.find((o) => o.value === rapFiltroSel) ?? null}
+              onChange={(opt) => setRapFiltroSel(opt?.value ?? null)}
+              isDisabled={opcionesRapFiltro.length === 0}
+              classNames={selectClassNamesBiblioteca}
+              styles={selectStylesBiblioteca}
+              noOptionsMessage={compactReactSelectNoOptions}
+            />
+          </div>
+        </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
