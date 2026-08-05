@@ -9,6 +9,10 @@ import {
   EstadoWompi
 } from '@/services/wompiPagosService';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 const formatearPrecio = (valor: string | number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -87,7 +91,13 @@ const DashboardPlanesContent = () => {
     return <p className="py-16 text-center text-sm text-gray-400">No hay datos disponibles.</p>;
   }
 
-  const { tarjetas, porMes, porMetodoPago, porEstadoPago, topPlanes, topUsuarios } = datos;
+  // Tolerante a respuestas incompletas del backend (p. ej. tablas sin migrar).
+  const tarjetas = datos.tarjetas ?? ({} as ResumenDashboard['tarjetas']);
+  const porMes = datos.porMes ?? [];
+  const porMetodoPago = datos.porMetodoPago ?? [];
+  const porEstadoPago = datos.porEstadoPago ?? [];
+  const topPlanes = datos.topPlanes ?? [];
+  const topUsuarios = datos.topUsuarios ?? [];
 
   return (
     <Fragment>
@@ -116,7 +126,7 @@ const DashboardPlanesContent = () => {
           Aplicar
         </button>
         <span className="text-2xs text-gray-500 ms-auto">
-          Rango: {datos.rango.desde} → {datos.rango.hasta}
+          Rango: {datos.rango?.desde ?? '—'} → {datos.rango?.hasta ?? '—'}
         </span>
       </div>
 
@@ -128,8 +138,8 @@ const DashboardPlanesContent = () => {
         <Tarjeta titulo="Solicitudes pendientes" valor={tarjetas.solicitudesPendientes} icono="time" color="warning" />
         <Tarjeta titulo="Pagos aprobados" valor={tarjetas.pagosAprobados} icono="check-circle" color="success" />
         <Tarjeta titulo="Pagos rechazados" valor={tarjetas.pagosRechazados} icono="cross-circle" color="danger" />
-        <Tarjeta titulo="Mensajes vendidos" valor={tarjetas.mensajesVendidos.toLocaleString('es-CO')} icono="sms" color="info" />
-        <Tarjeta titulo="Mensajes consumidos" valor={tarjetas.mensajesConsumidos.toLocaleString('es-CO')} icono="send" color="dark" />
+        <Tarjeta titulo="Mensajes vendidos" valor={formatearNumero(tarjetas.mensajesVendidos)} icono="sms" color="info" />
+        <Tarjeta titulo="Mensajes consumidos" valor={formatearNumero(tarjetas.mensajesConsumidos)} icono="send" color="dark" />
       </div>
 
       {/* Gráficos */}
@@ -257,8 +267,8 @@ const DashboardPlanesContent = () => {
                   <tr key={usuario.userId}>
                     <td className="font-semibold text-gray-900">{usuario.nombre || '—'}</td>
                     <td className="text-xs text-gray-500">{usuario.email ?? '—'}</td>
-                    <td>{usuario.mensajesConsumidos.toLocaleString('es-CO')}</td>
-                    <td>{usuario.mensajesDisponibles.toLocaleString('es-CO')}</td>
+                    <td>{formatearNumero(usuario.mensajesConsumidos)}</td>
+                    <td>{formatearNumero(usuario.mensajesDisponibles)}</td>
                   </tr>
                 ))}
               </tbody>

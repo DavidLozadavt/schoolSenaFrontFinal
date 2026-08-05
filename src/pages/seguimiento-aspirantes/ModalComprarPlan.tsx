@@ -6,6 +6,10 @@ import clsx from 'clsx';
 import { MensajesPlan, planesMensajesService } from '@/services/planesMensajesService';
 import { ModalPagoWompi } from './ModalPagoWompi';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 interface ModalComprarPlanProps {
   open: boolean;
   onClose: () => void;
@@ -187,7 +191,7 @@ const ModalComprarPlan = ({
                         )}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {plan.cantidadMensajes.toLocaleString('es-CO')} mensajes
+                        {formatearNumero(plan.cantidadMensajes)} mensajes
                         {plan.descripcion ? ` — ${plan.descripcion}` : ''}
                       </span>
                     </div>
@@ -224,7 +228,7 @@ const ModalComprarPlan = ({
               <div className="flex justify-between">
                 <span>Cantidad de mensajes</span>
                 <strong className="text-gray-900">
-                  {planSeleccionado.cantidadMensajes.toLocaleString('es-CO')}
+                  {formatearNumero(planSeleccionado.cantidadMensajes)}
                 </strong>
               </div>
               <div className="flex justify-between">

@@ -9,6 +9,10 @@ import {
   wompiPagosService
 } from '@/services/wompiPagosService';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 interface ModalPagoWompiProps {
   open: boolean;
   planId: number | null;
@@ -98,7 +102,7 @@ const ModalPagoWompi = ({ open, planId, onClose }: ModalPagoWompiProps) => {
               <span className="spinner-border spinner-border-sm" />
               Cargando resumen de la compra...
             </div>
-          ) : !resumen ? (
+          ) : !resumen || !resumen.plan ? (
             <p className="text-sm text-gray-400 py-6 text-center">
               No se pudo cargar el resumen de la compra.
             </p>
@@ -114,7 +118,7 @@ const ModalPagoWompi = ({ open, planId, onClose }: ModalPagoWompiProps) => {
                 <div className="flex justify-between py-0.5">
                   <span>Cantidad de mensajes</span>
                   <strong className="text-gray-900">
-                    {resumen.plan.cantidadMensajes.toLocaleString('es-CO')}
+                    {formatearNumero(resumen.plan.cantidadMensajes)}
                   </strong>
                 </div>
                 <div className="flex justify-between py-0.5">

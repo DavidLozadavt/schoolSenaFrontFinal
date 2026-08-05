@@ -3,6 +3,10 @@ import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
 import { MensajesPlan, planesMensajesService } from '@/services/planesMensajesService';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 const formatearPrecio = (valor: string | number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -191,7 +195,7 @@ const PlanesMensajesContent = () => {
                 {planes.map((plan) => (
                   <tr key={plan.id}>
                     <td className="font-semibold text-gray-900">{plan.nombre}</td>
-                    <td>{plan.cantidadMensajes.toLocaleString('es-CO')}</td>
+                    <td>{formatearNumero(plan.cantidadMensajes)}</td>
                     <td>{formatearPrecio(plan.precio)}</td>
                     <td className="text-xs text-gray-500">{plan.descripcion || '—'}</td>
                     <td>
