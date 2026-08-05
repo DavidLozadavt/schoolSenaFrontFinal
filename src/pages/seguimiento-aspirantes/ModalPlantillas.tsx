@@ -4,6 +4,8 @@ import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
 import { useConfirm } from '@/hooks';
 import { seguimientoAspirantesService, WhatsappPlantilla } from '@/services/seguimientoAspirantesService';
+import clsx from 'clsx';
+import { AdministradorPlantillasMeta } from './AdministradorPlantillasMeta';
 
 interface ModalPlantillasProps {
   open: boolean;
@@ -19,6 +21,10 @@ const ModalPlantillas = ({ open, onClose }: ModalPlantillasProps) => {
   const [nombre, setNombre] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Aditivo: pestaña del administrador de plantillas de Meta. La administración
+  // local existente se conserva íntegra en la pestaña "Plantilla local".
+  const [tab, setTab] = useState<'meta' | 'local'>('meta');
 
   const fetchPlantillas = async () => {
     setLoading(true);
@@ -69,7 +75,7 @@ const ModalPlantillas = ({ open, onClose }: ModalPlantillasProps) => {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[600px] top-[6%] p-4 max-h-[90vh] flex flex-col">
+      <ModalContent className="max-w-[1000px] top-[5%] p-4 max-h-[90vh] flex flex-col">
         <ModalHeader>
           <ModalTitle className="flex items-center gap-2">
             <KeenIcon icon="messages" className="text-primary text-2xl" />
@@ -80,6 +86,27 @@ const ModalPlantillas = ({ open, onClose }: ModalPlantillasProps) => {
           </button>
         </ModalHeader>
         <ModalBody className="overflow-y-auto grow flex flex-col gap-5">
+          <div className="tabs" data-tabs="true">
+            <button
+              type="button"
+              className={clsx('tab', tab === 'meta' && 'active')}
+              onClick={() => setTab('meta')}
+            >
+              Plantillas Meta
+            </button>
+            <button
+              type="button"
+              className={clsx('tab', tab === 'local' && 'active')}
+              onClick={() => setTab('local')}
+            >
+              Plantilla local (envío actual)
+            </button>
+          </div>
+
+          {tab === 'meta' && <AdministradorPlantillasMeta />}
+
+          {tab === 'local' && (
+            <>
           <div className="flex flex-col gap-2">
             <label className="form-label font-medium">
               Nombre (debe coincidir exacto con el nombre de la plantilla aprobada en Meta)
@@ -128,6 +155,8 @@ const ModalPlantillas = ({ open, onClose }: ModalPlantillasProps) => {
               </div>
             )}
           </div>
+            </>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>

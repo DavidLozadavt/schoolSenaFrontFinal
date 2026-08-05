@@ -13,6 +13,9 @@ import { ModalImportarAspirantes } from './ModalImportarAspirantes';
 import { ModalEnviarWhatsApp } from './ModalEnviarWhatsApp';
 import { ModalExportarAspirantes } from './ModalExportarAspirantes';
 import { ModalPlantillas } from './ModalPlantillas';
+import { ModalComprarPlan } from './ModalComprarPlan';
+import { SaldoMensajesIndicador } from './SaldoMensajesIndicador';
+import { planesMensajesService, SaldoMensajes } from '@/services/planesMensajesService';
 
 interface SeguimientoAspirantesContentProps {
   reloadTrigger: boolean;
@@ -57,6 +60,43 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [plantillasModalOpen, setPlantillasModalOpen] = useState(false);
+
+  // Planes de mensajes (aditivo): saldo del usuario y modal de compra.
+  const [saldo, setSaldo] = useState<SaldoMensajes | null>(null);
+  const [saldoLoading, setSaldoLoading] = useState(true);
+  const [comprarPlanOpen, setComprarPlanOpen] = useState(false);
+  const [requeridosCompra, setRequeridosCompra] = useState(0);
+
+  const fetchSaldo = useCallback(async () => {
+    setSaldoLoading(true);
+    try {
+      setSaldo(await planesMensajesService.getMiSaldo());
+    } catch (err) {
+      console.error('Error al consultar el saldo de mensajes:', err);
+    } finally {
+      setSaldoLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSaldo();
+  }, [fetchSaldo]);
+
+  /**
+   * El modal de envío se abre siempre. La validación del saldo ocurre dentro del
+   * modal, en el momento de CONFIRMAR el envío (ver ModalEnviarWhatsApp).
+   */
+  const handleAbrirEnvioWhatsApp = () => {
+    setWhatsappModalOpen(true);
+  };
+
+  /** Llamado por el modal de envío cuando el backend responde 402 (saldo insuficiente). */
+  const handleSaldoInsuficiente = (requeridos: number) => {
+    setWhatsappModalOpen(false);
+    setRequeridosCompra(requeridos);
+    setComprarPlanOpen(true);
+    fetchSaldo();
+  };
 
   // Load filter unique option arrays
   const fetchFilterOptions = async () => {
@@ -404,6 +444,17 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
 
   return (
     <Fragment>
+      {/* Indicadores de saldo de mensajes (encima del botón "Enviar WhatsApp") */}
+      <SaldoMensajesIndicador
+        saldo={saldo}
+        loading={saldoLoading}
+        seleccionados={selectedIds.length}
+        onComprarPlan={() => {
+          setRequeridosCompra(0);
+          setComprarPlanOpen(true);
+        }}
+      />
+
       {/* Botones de acción superior */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
@@ -416,7 +467,7 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
           </button>
 
           <button 
-            onClick={() => setWhatsappModalOpen(true)} 
+            onClick={handleAbrirEnvioWhatsApp}
             disabled={selectedIds.length === 0}
             className="btn btn-sm btn-success flex items-center gap-1.5 disabled:opacity-50"
           >
@@ -764,7 +815,9 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
         onSuccess={() => {
           fetchAspirantes(currentPage);
           setSelectedIds([]);
+          fetchSaldo();
         }}
+        onSaldoInsuficiente={handleSaldoInsuficiente}
       />
 
       {/* Modal de Exportación */}
@@ -780,6 +833,15 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
       <ModalPlantillas
         open={plantillasModalOpen}
         onClose={() => setPlantillasModalOpen(false)}
+      />
+
+      {/* Modal de compra de plan de mensajes */}
+      <ModalComprarPlan
+        open={comprarPlanOpen}
+        onClose={() => setComprarPlanOpen(false)}
+        mensajesRequeridos={requeridosCompra}
+        mensajesDisponibles={saldo?.mensajesDisponibles ?? 0}
+        onSolicitudEnviada={fetchSaldo}
       />
     </Fragment>
   );

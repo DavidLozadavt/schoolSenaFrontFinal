@@ -105,6 +105,9 @@ import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
 import { SeguimientoAspirantesPage } from '@/pages/seguimiento-aspirantes/SeguimientoAspirantesPage';
+import { SolicitudesPlanesPage } from '@/pages/solicitudes-planes/SolicitudesPlanesPage';
+import { PagoResultadoPage } from '@/pages/pago-plan/PagoResultadoPage';
+import { PlanesMensajesPage } from '@/pages/planes-mensajes/PlanesMensajesPage';
 import { TelecomConfigPage } from '@/pages/telecom-config/TelecomConfigPage';
 import { FormularioAspirantePublicPage } from '@/pages/solicitudes-inscripcion/FormularioAspirantePublicPage';
 
@@ -207,6 +210,24 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_SEGUIMIENTO_ASPIRANTES']}>
                 <SeguimientoAspirantesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Retorno del Checkout de Wompi (compra de planes de mensajes) */}
+          <Route path="pago-plan/resultado" element={<PagoResultadoPage />} />
+          <Route
+            path="planes-mensajes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_PLANES_MENSAJES']}>
+                <PlanesMensajesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="solicitudes-planes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_SOLICITUDES_PLANES']}>
+                <SolicitudesPlanesPage />
               </ProtectedRoute>
             }
           />
