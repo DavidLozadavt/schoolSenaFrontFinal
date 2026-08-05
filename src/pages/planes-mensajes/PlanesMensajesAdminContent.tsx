@@ -4,6 +4,10 @@ import { useSnackbar } from 'notistack';
 import { useConfirm } from '@/hooks';
 import { MensajesPlan, planesMensajesService } from '@/services/planesMensajesService';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 const formatearPrecio = (valor: string | number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -306,7 +310,7 @@ const PlanesMensajesAdminContent = () => {
                         )}
                       </div>
                     </td>
-                    <td>{plan.cantidadMensajes.toLocaleString('es-CO')}</td>
+                    <td>{formatearNumero(plan.cantidadMensajes)}</td>
                     <td>{formatearPrecio(plan.precio)}</td>
                     <td>
                       {plan.etiqueta ? (

@@ -17,6 +17,10 @@ import {
 } from '@/services/wompiPagosService';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 const BADGE_ESTADO: Record<EstadoSolicitudPlan, string> = {
   PENDIENTE: 'badge-warning',
   PAGO_REALIZADO: 'badge-info',
@@ -89,10 +93,10 @@ const SolicitudesPlanesContent = () => {
         page: pagina,
         per_page: 15
       });
-      setSolicitudes(data.data);
-      setTotalPages(data.last_page);
-      setTotal(data.total);
-      setPage(data.current_page);
+      setSolicitudes(data.data ?? []);
+      setTotalPages(data.last_page ?? 1);
+      setTotal(data.total ?? 0);
+      setPage(data.current_page ?? 1);
     } catch (error: any) {
       enqueueSnackbar(error?.response?.data?.error || 'Error al cargar las solicitudes.', {
         variant: 'error'
@@ -237,7 +241,7 @@ const SolicitudesPlanesContent = () => {
                     </td>
                     <td>{solicitud.empresaNombre || '—'}</td>
                     <td>{solicitud.planNombre}</td>
-                    <td>{solicitud.cantidadMensajes.toLocaleString('es-CO')}</td>
+                    <td>{formatearNumero(solicitud.cantidadMensajes)}</td>
                     <td>{formatearPrecio(solicitud.valor)}</td>
                     <td>
                       {solicitud.pagoMetodo

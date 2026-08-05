@@ -14,6 +14,10 @@ import {
 } from '@/services/historialFacturacionService';
 import { ETIQUETA_METODO_WOMPI } from '@/services/wompiPagosService';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 const formatearPrecio = (valor: string | number) =>
   new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -93,11 +97,11 @@ const HistorialFacturacionContent = () => {
     setLoading(true);
     try {
       const data = await historialFacturacionService.listar(parametros(pagina));
-      setRegistros(data.registros.data);
-      setKpis(data.kpis);
-      setTotalPages(data.registros.last_page);
-      setTotal(data.registros.total);
-      setPage(data.registros.current_page);
+      setRegistros(data.registros?.data ?? []);
+      setKpis(data.kpis ?? null);
+      setTotalPages(data.registros?.last_page ?? 1);
+      setTotal(data.registros?.total ?? 0);
+      setPage(data.registros?.current_page ?? 1);
     } catch (error: any) {
       enqueueSnackbar(error?.response?.data?.error || 'Error al cargar el historial.', {
         variant: 'error'
@@ -437,7 +441,7 @@ const HistorialFacturacionContent = () => {
                     </td>
                     <td>{registro.empresaNombre || '—'}</td>
                     <td>{registro.planNombre}</td>
-                    <td>{registro.cantidadMensajes.toLocaleString('es-CO')}</td>
+                    <td>{formatearNumero(registro.cantidadMensajes)}</td>
                     <td className="font-semibold text-gray-900">{formatearPrecio(registro.valor)}</td>
                     <td>
                       {registro.pagoMetodo

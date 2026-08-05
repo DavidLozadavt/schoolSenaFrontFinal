@@ -2,6 +2,10 @@ import { KeenIcon } from '@/components';
 import { SaldoMensajes } from '@/services/planesMensajesService';
 import { NotificacionesPlanesCampana } from './NotificacionesPlanesCampana';
 
+/** Formatea un número tolerando null/undefined (datos incompletos del backend). */
+const formatearNumero = (valor?: number | string | null) =>
+  Number(valor ?? 0).toLocaleString('es-CO');
+
 interface SaldoMensajesIndicadorProps {
   saldo: SaldoMensajes | null;
   loading: boolean;
@@ -41,7 +45,7 @@ const SaldoMensajesIndicador = ({
         <KeenIcon icon="sms" className="text-primary" />
         <span className="text-gray-600">Disponibles:</span>
         <strong className={insuficiente ? 'text-danger' : 'text-gray-900'}>
-          {saldo.mensajesDisponibles.toLocaleString('es-CO')}
+          {formatearNumero(saldo.mensajesDisponibles)}
         </strong>
       </div>
 
@@ -49,14 +53,14 @@ const SaldoMensajesIndicador = ({
 
       <div className="flex items-center gap-1.5 text-sm">
         <span className="text-gray-600">Consumidos:</span>
-        <strong className="text-gray-900">{saldo.mensajesConsumidos.toLocaleString('es-CO')}</strong>
+        <strong className="text-gray-900">{formatearNumero(saldo.mensajesConsumidos)}</strong>
       </div>
 
       <span className="text-gray-300">|</span>
 
       <div className="flex items-center gap-1.5 text-sm">
         <span className="text-gray-600">Gratuitos:</span>
-        <strong className="text-gray-900">{saldo.mensajesGratuitos.toLocaleString('es-CO')}</strong>
+        <strong className="text-gray-900">{formatearNumero(saldo.mensajesGratuitos)}</strong>
       </div>
 
       <span className="text-gray-300">|</span>
@@ -76,7 +80,7 @@ const SaldoMensajesIndicador = ({
 
       {insuficiente && (
         <span className="text-2xs text-danger font-medium">
-          Faltan {(seleccionados - saldo.mensajesDisponibles).toLocaleString('es-CO')} mensajes para
+          Faltan {formatearNumero(seleccionados - saldo.mensajesDisponibles)} mensajes para
           esta campaña.
         </span>
       )}
