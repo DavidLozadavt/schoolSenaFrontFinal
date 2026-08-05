@@ -305,7 +305,7 @@ const HistorialFacturacionContent = () => {
                 onChange={(e) => setFiltros({ ...filtros, empresaId: e.target.value })}
               >
                 <option value="">Todas las empresas</option>
-                {opciones?.empresas.map((empresa) => (
+                {(opciones?.empresas ?? []).map((empresa) => (
                   <option key={empresa.id} value={empresa.id}>
                     {empresa.nombre}
                   </option>
@@ -320,7 +320,7 @@ const HistorialFacturacionContent = () => {
                 onChange={(e) => setFiltros({ ...filtros, planId: e.target.value })}
               >
                 <option value="">Todos los planes</option>
-                {opciones?.planes.map((plan) => (
+                {(opciones?.planes ?? []).map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.nombre}
                   </option>
@@ -335,7 +335,7 @@ const HistorialFacturacionContent = () => {
                 onChange={(e) => setFiltros({ ...filtros, estadoPago: e.target.value })}
               >
                 <option value="">Todos</option>
-                {opciones?.estadosPago.map((estado) => (
+                {(opciones?.estadosPago ?? []).map((estado) => (
                   <option key={estado} value={estado}>
                     {estado}
                   </option>
@@ -350,7 +350,7 @@ const HistorialFacturacionContent = () => {
                 onChange={(e) => setFiltros({ ...filtros, estadoSolicitud: e.target.value })}
               >
                 <option value="">Todos</option>
-                {opciones?.estadosSolicitud.map((estado) => (
+                {(opciones?.estadosSolicitud ?? []).map((estado) => (
                   <option key={estado} value={estado}>
                     {ETIQUETA_ESTADO_SOLICITUD[estado] ?? estado}
                   </option>
@@ -365,7 +365,7 @@ const HistorialFacturacionContent = () => {
                 onChange={(e) => setFiltros({ ...filtros, metodoPago: e.target.value })}
               >
                 <option value="">Todos</option>
-                {opciones?.metodosPago.map((metodo) => (
+                {(opciones?.metodosPago ?? []).map((metodo) => (
                   <option key={metodo} value={metodo}>
                     {ETIQUETA_METODO_WOMPI[metodo] ?? metodo}
                   </option>
