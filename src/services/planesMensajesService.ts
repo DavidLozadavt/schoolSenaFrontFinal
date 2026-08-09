@@ -171,38 +171,5 @@ export const planesMensajesService = {
   desactivarPlan: async (id: number): Promise<{ message: string }> => {
     const response = await axios.delete(`mensajes/planes/${id}`);
     return response.data;
-  },
-
-  // ---------------------------------------------------------------------------
-  // Módulo "Planes de Mensajes" (permiso GESTION_PLANES_MENSAJES).
-  // Rutas propias; las de arriba se conservan para GESTION_SOLICITUDES_PLANES.
-  // ---------------------------------------------------------------------------
-
-  adminListarPlanes: async (): Promise<MensajesPlan[]> => {
-    const response = await axios.get<MensajesPlan[]>('mensajes/planes-admin', {
-      params: { todos: 1 }
-    });
-    return response.data;
-  },
-
-  adminCrearPlan: async (plan: Partial<MensajesPlan>): Promise<MensajesPlan> => {
-    const response = await axios.post<MensajesPlan>('mensajes/planes-admin', plan);
-    return response.data;
-  },
-
-  adminActualizarPlan: async (id: number, plan: Partial<MensajesPlan>): Promise<MensajesPlan> => {
-    const response = await axios.put<MensajesPlan>(`mensajes/planes-admin/${id}`, plan);
-    return response.data;
-  },
-
-  /**
-   * Elimina el plan. Si tiene compras asociadas el backend NO lo elimina:
-   * lo desactiva y responde `tieneCompras: true`.
-   */
-  adminEliminarPlan: async (
-    id: number
-  ): Promise<{ message: string; tieneCompras: boolean }> => {
-    const response = await axios.delete(`mensajes/planes-admin/${id}`);
-    return response.data;
   }
 };

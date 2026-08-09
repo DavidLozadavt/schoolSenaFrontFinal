@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { KeenIcon } from '@/components';
 import { useSnackbar } from 'notistack';
+import { useConfirm } from '@/hooks';
 import { MensajesPlan, planesMensajesService } from '@/services/planesMensajesService';
 
 /** Formatea un número tolerando null/undefined (datos incompletos del backend). */
@@ -19,14 +20,29 @@ const PLAN_VACIO: Partial<MensajesPlan> = {
   cantidadMensajes: 500,
   precio: 0,
   descripcion: '',
-  activo: true
+  activo: true,
+  orden: 0,
+  recomendado: false,
+  color: '',
+  etiqueta: ''
 };
+
+/** Colores del tema disponibles para destacar un plan en el catálogo. */
+const COLORES = [
+  { valor: '', etiqueta: 'Sin color' },
+  { valor: 'primary', etiqueta: 'Azul (primary)' },
+  { valor: 'success', etiqueta: 'Verde (success)' },
+  { valor: 'warning', etiqueta: 'Naranja (warning)' },
+  { valor: 'info', etiqueta: 'Celeste (info)' },
+  { valor: 'danger', etiqueta: 'Rojo (danger)' }
+];
 
 /**
  * Administración del catálogo de planes (Administrador VT).
  */
 const PlanesMensajesContent = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const { confirmAction } = useConfirm();
 
   const [planes, setPlanes] = useState<MensajesPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +92,26 @@ const PlanesMensajesContent = () => {
     } finally {
       setGuardando(false);
     }
+  };
+
+  /**
+   * Elimina el plan. Si tiene compras asociadas el backend NO lo elimina:
+   * lo desactiva y avisa, para no romper el histórico de solicitudes.
+   */
+  const handleEliminar = (plan: MensajesPlan) => {
+    confirmAction(`¿Eliminar el plan "${plan.nombre}"?`, async () => {
+      try {
+        const respuesta = await planesMensajesService.desactivarPlan(plan.id);
+        enqueueSnackbar(respuesta.message, {
+          variant: (respuesta as any).tieneCompras ? 'warning' : 'success'
+        });
+        await fetchPlanes();
+      } catch (error: any) {
+        enqueueSnackbar(error?.response?.data?.error || 'Error al eliminar el plan.', {
+          variant: 'error'
+        });
+      }
+    });
   };
 
   const handleAlternarEstado = async (plan: MensajesPlan) => {
@@ -147,6 +183,59 @@ const PlanesMensajesContent = () => {
                 <option value="0">Inactivo</option>
               </select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="form-label font-medium">Orden de visualización</label>
+              <input
+                type="number"
+                min={0}
+                className="input input-sm"
+                value={editando.orden ?? 0}
+                onChange={(e) => setEditando({ ...editando, orden: Number(e.target.value) })}
+              />
+              <span className="text-2xs text-gray-500">
+                Menor número, aparece primero en el catálogo.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="form-label font-medium">Plan recomendado</label>
+              <select
+                className="select select-sm"
+                value={editando.recomendado ? '1' : '0'}
+                onChange={(e) => setEditando({ ...editando, recomendado: e.target.value === '1' })}
+              >
+                <option value="0">No destacar</option>
+                <option value="1">Marcar como recomendado</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="form-label font-medium">Etiqueta visual</label>
+              <input
+                type="text"
+                maxLength={60}
+                className="input input-sm"
+                placeholder="Más vendido"
+                value={editando.etiqueta ?? ''}
+                onChange={(e) => setEditando({ ...editando, etiqueta: e.target.value })}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="form-label font-medium">Color</label>
+              <select
+                className="select select-sm"
+                value={editando.color ?? ''}
+                onChange={(e) => setEditando({ ...editando, color: e.target.value })}
+              >
+                {COLORES.map((c) => (
+                  <option key={c.valor} value={c.valor}>
+                    {c.etiqueta}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="form-label font-medium">Descripción</label>
               <textarea
@@ -183,6 +272,7 @@ const PlanesMensajesContent = () => {
             <table className="table table-sm align-middle text-sm">
               <thead>
                 <tr>
+                  <th>Orden</th>
                   <th>Nombre</th>
                   <th>Mensajes</th>
                   <th>Precio</th>
@@ -194,7 +284,17 @@ const PlanesMensajesContent = () => {
               <tbody>
                 {planes.map((plan) => (
                   <tr key={plan.id}>
-                    <td className="font-semibold text-gray-900">{plan.nombre}</td>
+                    <td className="text-gray-500">{plan.orden ?? 0}</td>
+                    <td className="font-semibold text-gray-900">
+                      <div className="flex items-center gap-2">
+                        {plan.nombre}
+                        {plan.recomendado && (
+                          <span className={`badge badge-sm badge-${plan.color || 'primary'}`}>
+                            {plan.etiqueta || 'Recomendado'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td>{formatearNumero(plan.cantidadMensajes)}</td>
                     <td>{formatearPrecio(plan.precio)}</td>
                     <td className="text-xs text-gray-500">{plan.descripcion || '—'}</td>
@@ -211,6 +311,13 @@ const PlanesMensajesContent = () => {
                           onClick={() => setEditando({ ...plan })}
                         >
                           <KeenIcon icon="pencil" />
+                        </button>
+                        <button
+                          className="btn btn-xs btn-icon btn-light btn-danger"
+                          title="Eliminar"
+                          onClick={() => handleEliminar(plan)}
+                        >
+                          <KeenIcon icon="trash" />
                         </button>
                         <button
                           className="btn btn-xs btn-light"

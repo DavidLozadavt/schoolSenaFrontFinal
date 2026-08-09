@@ -13,12 +13,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['GESTION_SEGUIMIENTO_ASPIRANTES']
   },
   {
-    title: 'Planes de Mensajes',
-    icon: 'package',
-    path: '/planes-mensajes',
-    requiredPermissions: ['GESTION_PLANES_MENSAJES']
-  },
-  {
     title: 'Solicitudes de Planes',
     icon: 'dollar',
     path: '/solicitudes-planes',
