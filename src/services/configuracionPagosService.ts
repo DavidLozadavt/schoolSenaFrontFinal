@@ -48,6 +48,8 @@ export interface DiagnosticoPagos {
   configuracionCompleta: boolean;
   modoCoherente: boolean;
   webhookConfigurado: boolean;
+  /** true = la URL del webhook se detecta sola según el entorno. */
+  urlWebhookAutomatica: boolean;
   baseApi: string;
 }
 
