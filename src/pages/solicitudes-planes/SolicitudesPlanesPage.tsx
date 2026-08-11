@@ -25,11 +25,8 @@ type Tab = 'solicitudes' | 'planes' | 'dashboard' | 'historial' | 'configuracion
  */
 const SolicitudesPlanesPage = () => {
   const { currentLayout } = useLayout();
-  const { permissions } = useAuthContext();
-  const permisos = permissions ?? [];
-  const puedeVerDashboard = permisos.includes('GESTION_DASHBOARD_PLANES');
-  const puedeVerHistorial = permisos.includes('GESTION_HISTORIAL_FACTURACION');
-  const puedeVerConfiguracion = permisos.includes('GESTION_CONFIGURACION_PAGOS');
+  // Permiso ÚNICO del módulo: quien llega hasta aquí ya pasó por ProtectedRoute
+  // con GESTION_SOLICITUDES_PLANES, así que ve las cinco pestañas completas.
   const [tab, setTab] = useState<Tab>('solicitudes');
 
   return (
@@ -63,33 +60,29 @@ const SolicitudesPlanesPage = () => {
           >
             Administración de Planes
           </button>
-          {puedeVerDashboard && (
-            <button
+          <button
               type="button"
               className={clsx('tab', tab === 'dashboard' && 'active')}
               onClick={() => setTab('dashboard')}
             >
               Dashboard
             </button>
-          )}
-          {puedeVerHistorial && (
-            <button
+
+          <button
               type="button"
               className={clsx('tab', tab === 'historial' && 'active')}
               onClick={() => setTab('historial')}
             >
               Historial de Facturación
             </button>
-          )}
-          {puedeVerConfiguracion && (
-            <button
+
+          <button
               type="button"
               className={clsx('tab', tab === 'configuracion' && 'active')}
               onClick={() => setTab('configuracion')}
             >
               Configuración de Pagos
             </button>
-          )}
         </div>
 
         {tab === 'solicitudes' ? (

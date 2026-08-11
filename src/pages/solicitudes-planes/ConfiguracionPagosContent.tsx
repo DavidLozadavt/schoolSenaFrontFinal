@@ -387,14 +387,42 @@ const ConfiguracionPagosWompiContent = () => {
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
-            <label className="form-label text-xs">URL del webhook</label>
-            <input
-              type="text"
-              className="input input-sm"
-              placeholder="https://tu-dominio/api/webhooks/wompi"
-              value={configuracion.urlWebhook ?? ''}
-              onChange={(e) => setConfiguracion({ ...configuracion, urlWebhook: e.target.value })}
-            />
+            <label className="form-label text-xs">
+              URL del webhook{' '}
+              {diagnostico?.urlWebhookAutomatica && (
+                <span className="badge badge-sm badge-success ms-1">Automática</span>
+              )}
+            </label>
+
+            {/* Detectada según el backend donde corre. Solo se rellena el campo
+                para forzar una URL distinta (por ejemplo, un túnel de pruebas). */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="input input-sm grow"
+                placeholder={diagnostico?.urlWebhook ?? 'Se detecta automáticamente'}
+                value={configuracion.urlWebhook ?? ''}
+                onChange={(e) => setConfiguracion({ ...configuracion, urlWebhook: e.target.value })}
+              />
+              <button
+                type="button"
+                className="btn btn-sm btn-light flex items-center gap-1"
+                title="Copiar la URL para registrarla en el panel de Wompi"
+                onClick={() => {
+                  navigator.clipboard.writeText(diagnostico?.urlWebhook ?? '');
+                  enqueueSnackbar('URL del webhook copiada.', { variant: 'success' });
+                }}
+              >
+                <KeenIcon icon="copy" />
+                Copiar
+              </button>
+            </div>
+
+            <span className="text-2xs text-gray-500">
+              Se detecta sola según el entorno (local, preproducción o producción).
+              Déjala vacía salvo que necesites forzar otra URL. Recuerda registrarla
+              en el panel de Wompi → Eventos.
+            </span>
           </div>
         </div>
       </div>
