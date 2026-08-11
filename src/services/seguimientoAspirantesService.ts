@@ -130,8 +130,11 @@ export const seguimientoAspirantesService = {
   /**
    * Delete all records.
    */
-  eliminarTodos: async (): Promise<{ message: string }> => {
-    const response = await axios.delete<{ message: string }>(`${API_PATH}/todos`);
+  /** Elimina solo los aspirantes importados por el usuario autenticado. */
+  eliminarTodos: async (): Promise<{ message: string; eliminados: number }> => {
+    const response = await axios.delete<{ message: string; eliminados: number }>(
+      `${API_PATH}/todos`
+    );
     return response.data;
   },
 

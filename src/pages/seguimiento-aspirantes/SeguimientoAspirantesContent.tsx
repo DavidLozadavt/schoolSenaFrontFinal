@@ -249,8 +249,11 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
           // Refresh list and filter options
           fetchAspirantes(currentPage);
           fetchFilterOptions();
-        } catch (error) {
-          enqueueSnackbar('Ocurrió un error al eliminar los registros seleccionados.', { variant: 'error' });
+        } catch (error: any) {
+          enqueueSnackbar(
+            error?.response?.data?.error || 'Ocurrió un error al eliminar los registros seleccionados.',
+            { variant: 'error' }
+          );
         }
       }
     );
@@ -258,17 +261,20 @@ const SeguimientoAspirantesContent = ({ reloadTrigger, onReload }: SeguimientoAs
 
   const handleDeleteAll = () => {
     confirmAction(
-      '¿Está seguro de que desea eliminar TODA la información de aspirantes importada? Esta acción borrará la tabla completa y no se puede deshacer.',
+      '¿Eliminar todos los aspirantes que usted importó? Solo se borrarán los suyos; los de otros usuarios no se ven afectados. Esta acción no se puede deshacer.',
       async () => {
         try {
-          await seguimientoAspirantesService.eliminarTodos();
-          enqueueSnackbar('Toda la información ha sido eliminada con éxito.', { variant: 'success' });
+          const respuesta = await seguimientoAspirantesService.eliminarTodos();
+          enqueueSnackbar(respuesta.message, { variant: 'success' });
           setSelectedIds([]);
           setCurrentPage(1);
           fetchAspirantes(1);
           fetchFilterOptions();
-        } catch (error) {
-          enqueueSnackbar('Ocurrió un error al eliminar toda la información.', { variant: 'error' });
+        } catch (error: any) {
+          enqueueSnackbar(
+            error?.response?.data?.error || 'Ocurrió un error al eliminar los aspirantes.',
+            { variant: 'error' }
+          );
         }
       }
     );
