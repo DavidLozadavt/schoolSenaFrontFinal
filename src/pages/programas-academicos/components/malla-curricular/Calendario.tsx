@@ -624,11 +624,16 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
     horariosProgramados.forEach(processHorario);
 
-    // Agrupar por slot (misma fecha + misma hora + mismo idGradoMateria)
+    // Agrupar clones del mismo estado sin fusionar el histórico INTERRUMPIDO
+    // con una nueva programación activa creada en la misma franja.
     const grouped: any[] = [];
     events.forEach(ev => {
-      const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}`;
-      const existing = grouped.find(g => `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}` === key);
+      const estado = String(ev.extendedProps.estado || '').toUpperCase();
+      const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}-${estado}`;
+      const existing = grouped.find(g => {
+        const estadoAgrupado = String(g.extendedProps.estado || '').toUpperCase();
+        return `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}-${estadoAgrupado}` === key;
+      });
       if (existing) {
         const currentInstructor = instructorHorario(ev.extendedProps);
         if (currentInstructor) existing.extendedProps.allInstructors.push(currentInstructor);
@@ -831,31 +836,6 @@ export const Calendario: React.FC<CalendarioProps> = ({
         });
         return;
       }
-    }
-
-    const idGm = Number(materia?.idGradoMateria);
-    const enInterrupcion = horariosProgramados.some((h: any) => {
-      if (String(h?.estado || '').toUpperCase() !== 'INTERRUMPIDO') return false;
-      const gm = Number(h?.idGradoMateria ?? h?.gradoMateria?.id);
-      if (Number.isFinite(idGm) && idGm > 0 && Number.isFinite(gm) && gm > 0 && gm !== idGm) {
-        return false;
-      }
-      const rango = resolveRangoFechas(h);
-      if (!rango) return false;
-      const sel = parseDate(ymd);
-      if (!sel) return false;
-      sel.setHours(0, 0, 0, 0);
-      const start = new Date(rango.start);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(rango.end);
-      end.setHours(0, 0, 0, 0);
-      return sel >= start && sel <= end;
-    });
-    if (enInterrupcion) {
-      enqueueSnackbar('No se pueden crear horarios dentro de un período de interrupción', {
-        variant: 'error',
-      });
-      return;
     }
 
     onAddSchedule({ fechaInicio: ymd });
