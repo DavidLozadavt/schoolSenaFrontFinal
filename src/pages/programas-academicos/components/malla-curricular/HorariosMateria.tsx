@@ -392,7 +392,14 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       await axios.post('horarios/materia', payload);
       enqueueSnackbar('Horario guardado correctamente', { variant: 'success' });
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('horario-materia-guardado', { detail: { idFicha, idGradoMateria } }));
+        window.dispatchEvent(
+          new CustomEvent('horario-materia-guardado', {
+            detail: {
+              idFicha: idFicha != null ? Number(idFicha) : null,
+              idGradoMateria: Number(idGradoMateria),
+            },
+          })
+        );
       }
       if (onGuardado) onGuardado();
       onClose();
