@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   Calendar as CalendarIcon,
@@ -355,19 +355,19 @@ export const Calendario: React.FC<CalendarioProps> = ({
 }) => {
   const [horariosFicha, setHorariosFicha] = useState<any[]>([]);
   const [maxNumeroTrimestreApi, setMaxNumeroTrimestreApi] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [asignacionSesionModal, setAsignacionSesionModal] = useState<boolean>(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
   const [horarioAsignacionSesion, setHorarioAsignacionSesion] = useState<any>(null);
   const [idMateriaAsignacion, setIdMateriaAsignacion] = useState<number | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [modalCierreHorario, setModalCierreHorario] = useState<{
     modo: 'interrumpir' | 'finalizar';
     horario: any;
   } | null>(null);
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
 
   // Carrusel
   useEffect(() => {
@@ -378,67 +378,78 @@ export const Calendario: React.FC<CalendarioProps> = ({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  // Planeación: carga TODA la programación de la ficha.
-  // modoRmi: respeta el subconjunto ya filtrado en materia.horarios.
-  useEffect(() => {
-    let isMounted = true;
-    const cargarHorarios = async () => {
-      if (!isOpen) return;
-      setLoading(true);
-      try {
-        if (modoRmi && materia?.horarios && !Array.isArray(materia.horarios)) {
-          const horariosCombinados = [
-            ...(materia.horarios.asignados || []),
-            ...(materia.horarios.sinAsignar || []),
-          ];
-          if (isMounted) setHorariosFicha(horariosCombinados);
-        } else if (idFicha) {
-          const response = await axios.get(`horario/ficha/${idFicha}`);
-          const data = response.data?.data || [];
-          const maxApi = Number(response.data?.maxNumeroTrimestre) || 0;
-          if (isMounted) {
-            setHorariosFicha(Array.isArray(data) ? data : []);
-            setMaxNumeroTrimestreApi(maxApi > 0 ? maxApi : 0);
-          }
-        } else if (isMounted) {
-          setHorariosFicha([]);
-          setMaxNumeroTrimestreApi(0);
-        }
-      } catch {
-        if (isMounted) {
-          setHorariosFicha([]);
-          setMaxNumeroTrimestreApi(0);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-          setInitialLoadComplete(true);
-        }
-      }
-    };
-    if (isOpen) cargarHorarios();
-    return () => { isMounted = false; };
-  }, [isOpen, idFicha, refreshTrigger, modoRmi, materia]);
+  /**
+   * Recarga horarios desde API y actualiza estado local (mismo patrón que eliminar:
+   * mutar horariosFicha → fcEvents se recalcula → FullCalendar muestra el cambio).
+   * No depende de `materia` para evitar cancelar el fetch al refrescar RAPs tras crear.
+   */
+  const refrescarHorariosFromApi = useCallback(async () => {
+    if (!idFicha) {
+      setHorariosFicha([]);
+      setMaxNumeroTrimestreApi(0);
+      setInitialLoadComplete(true);
+      return;
+    }
+    try {
+      const response = await axios.get(`horario/ficha/${idFicha}`);
+      if (!isOpenRef.current) return;
+      const data = response.data?.data || [];
+      const maxApi = Number(response.data?.maxNumeroTrimestre) || 0;
+      setHorariosFicha(Array.isArray(data) ? data : []);
+      setMaxNumeroTrimestreApi(maxApi > 0 ? maxApi : 0);
+    } catch {
+      if (!isOpenRef.current) return;
+      setHorariosFicha([]);
+      setMaxNumeroTrimestreApi(0);
+    } finally {
+      if (isOpenRef.current) setInitialLoadComplete(true);
+    }
+  }, [idFicha]);
 
-  // Tras guardar desde el modal de horarios, refrescar sin recargar la página.
+  // Carga inicial / cambio de ficha (modo planeación normal).
+  useEffect(() => {
+    if (!isOpen || modoRmi) return;
+    void refrescarHorariosFromApi();
+  }, [isOpen, idFicha, modoRmi, refrescarHorariosFromApi]);
+
+  // modoRmi: sincroniza el subconjunto ya filtrado en materia.horarios.
+  useEffect(() => {
+    if (!isOpen || !modoRmi) return;
+    if (materia?.horarios && !Array.isArray(materia.horarios)) {
+      const horariosCombinados = [
+        ...(materia.horarios.asignados || []),
+        ...(materia.horarios.sinAsignar || []),
+      ];
+      setHorariosFicha(horariosCombinados);
+    } else {
+      setHorariosFicha([]);
+    }
+    setInitialLoadComplete(true);
+  }, [isOpen, modoRmi, materia]);
+
+  // Tras crear/guardar horario desde el modal: refrescar estado del calendario (sin F5).
   useEffect(() => {
     if (!isOpen) return;
     const onGuardado = (ev: Event) => {
       const detail = (ev as CustomEvent)?.detail;
       if (detail?.idFicha != null && Number(detail.idFicha) !== Number(idFicha)) return;
-      setRefreshTrigger((prev) => prev + 1);
+      if (modoRmi) {
+        // En RMI el padre debe actualizar materia.horarios; pedimos recarga de RAPs.
+        cargarRaps?.();
+        return;
+      }
+      void refrescarHorariosFromApi();
       cargarRaps?.();
     };
     window.addEventListener('horario-materia-guardado', onGuardado);
     return () => window.removeEventListener('horario-materia-guardado', onGuardado);
-  }, [isOpen, idFicha, cargarRaps]);
+  }, [isOpen, idFicha, modoRmi, refrescarHorariosFromApi, cargarRaps]);
 
   // Reset al cerrar
   useEffect(() => {
     if (!isOpen) {
       setHorariosFicha([]);
       setMaxNumeroTrimestreApi(0);
-      setLoading(true);
       setInitialLoadComplete(false);
       setTooltip(null);
     }
@@ -613,11 +624,16 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
     horariosProgramados.forEach(processHorario);
 
-    // Agrupar por slot (misma fecha + misma hora + mismo idGradoMateria)
+    // Agrupar clones del mismo estado sin fusionar el histórico INTERRUMPIDO
+    // con una nueva programación activa creada en la misma franja.
     const grouped: any[] = [];
     events.forEach(ev => {
-      const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}`;
-      const existing = grouped.find(g => `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}` === key);
+      const estado = String(ev.extendedProps.estado || '').toUpperCase();
+      const key = `${ev.start}-${ev.end}-${ev.extendedProps.idGradoMateria}-${estado}`;
+      const existing = grouped.find(g => {
+        const estadoAgrupado = String(g.extendedProps.estado || '').toUpperCase();
+        return `${g.start}-${g.end}-${g.extendedProps.idGradoMateria}-${estadoAgrupado}` === key;
+      });
       if (existing) {
         const currentInstructor = instructorHorario(ev.extendedProps);
         if (currentInstructor) existing.extendedProps.allInstructors.push(currentInstructor);
@@ -822,31 +838,6 @@ export const Calendario: React.FC<CalendarioProps> = ({
       }
     }
 
-    const idGm = Number(materia?.idGradoMateria);
-    const enInterrupcion = horariosProgramados.some((h: any) => {
-      if (String(h?.estado || '').toUpperCase() !== 'INTERRUMPIDO') return false;
-      const gm = Number(h?.idGradoMateria ?? h?.gradoMateria?.id);
-      if (Number.isFinite(idGm) && idGm > 0 && Number.isFinite(gm) && gm > 0 && gm !== idGm) {
-        return false;
-      }
-      const rango = resolveRangoFechas(h);
-      if (!rango) return false;
-      const sel = parseDate(ymd);
-      if (!sel) return false;
-      sel.setHours(0, 0, 0, 0);
-      const start = new Date(rango.start);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(rango.end);
-      end.setHours(0, 0, 0, 0);
-      return sel >= start && sel <= end;
-    });
-    if (enInterrupcion) {
-      enqueueSnackbar('No se pueden crear horarios dentro de un período de interrupción', {
-        variant: 'error',
-      });
-      return;
-    }
-
     onAddSchedule({ fechaInicio: ymd });
   };
 
@@ -953,7 +944,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
         { variant: 'success' }
       );
       setModalCierreHorario(null);
-      setRefreshTrigger((prev) => prev + 1);
+      void refrescarHorariosFromApi();
       cargarRaps?.();
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string; error?: string } } };
@@ -967,7 +958,9 @@ export const Calendario: React.FC<CalendarioProps> = ({
 
   if (!isOpen) return null;
 
-  if (loading || !initialLoadComplete) {
+  // Solo la primera carga muestra spinner completo. Los refrescos mantienen FullCalendar montado
+  // para no perder mes/semana/día ni el contexto del RAP.
+  if (!initialLoadComplete) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-hidden">
         <ModalContent className="w-full max-w-4xl h-[85vh] flex flex-col p-0 shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-600 rounded-2xl overflow-hidden">
@@ -1190,7 +1183,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
             isOpen={asignacionSesionModal}
             onClose={() => setAsignacionSesionModal(false)}
             onSuccess={() => {
-              setRefreshTrigger(prev => prev + 1);
+              void refrescarHorariosFromApi();
               cargarRaps?.();
             }}
             idMateria={materia.idMateria || materia.id}

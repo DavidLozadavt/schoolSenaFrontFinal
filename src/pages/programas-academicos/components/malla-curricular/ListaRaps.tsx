@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { AlertCircle, BookOpen, X, FileText, Plus } from 'lucide-react';
 import { CardRap } from './CardRap';
@@ -42,6 +42,8 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [agregarRap, setAgregarRap] = useState<boolean>(false);
+  /** Evita spinner de pantalla completa en refrescos: desmontar CardRap cerraba el calendario. */
+  const hasLoadedRef = useRef(false);
   const [modalHorarios, setModalHorarios] = useState<{
     open: boolean;
     idGradoMateria?: number;
@@ -65,7 +67,10 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   const cargarRaps = async () => {
     if (!isOpen || !idMateriaPadre) return;
 
-    setLoading(true);
+    // Solo bloquear UI en la primera carga; en refrescos conservar CardRap/calendario abiertos.
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -86,7 +91,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
 
       setRaps(fetchedRaps);
 
-      if (fetchedRaps.length === 0) {
+      if (fetchedRaps.length === 0 && !hasLoadedRef.current) {
         enqueueSnackbar('Cargar juicios evaluativos para mostrar RAPs asignados a la ficha', { variant: 'warning' });
       }
 
@@ -98,10 +103,12 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
       setRaps([]);
     } finally {
       setLoading(false);
+      hasLoadedRef.current = true;
     }
   };
   
   useEffect(() => {
+    hasLoadedRef.current = false;
     cargarRaps();
   }, [isOpen, idMateriaPadre]);
   
