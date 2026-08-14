@@ -23,11 +23,14 @@ const CarpetasViajeras: React.FC = () => {
   const fetchCarpetas = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get<CarpetaViajeraItem[]>('carpetas-viajeras');
-      setCarpetas(response.data || []);
+      const response = await axios.get('carpetas-viajeras');
+      const raw = response.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+      setCarpetas(list);
     } catch (error: any) {
       console.error('Error al cargar carpetas viajeras para secretaria:', error);
       enqueueSnackbar('No se pudieron obtener las carpetas viajeras', { variant: 'error' });
+      setCarpetas([]);
     } finally {
       setLoading(false);
     }
