@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, Toast } from '@/components';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import type { Actividad } from './ModalCrearActividad';
 import {
   MATERIAL_DOCUMENTO_ACCEPT,
@@ -22,6 +23,7 @@ interface MaterialApoyo {
   urlDocumento?: string;
   urlDocumentoUrl?: string;
   urlAdicional?: string;
+  enBiblioteca?: boolean;
 }
 
 interface ModalMaterialApoyoProps {
@@ -29,6 +31,8 @@ interface ModalMaterialApoyoProps {
   onClose: () => void;
   onSuccess?: (message: string) => void;
   actividad: Actividad | null;
+  /** Ficha de la clase; necesaria para registrar el material en Biblioteca del Conocimiento. */
+  idFicha?: number;
 }
 
 const getDocumentUrl = (url?: string | null): string | null => {
@@ -60,9 +64,18 @@ const getDocumentUrl = (url?: string | null): string | null => {
   return base + '/storage/' + url;
 };
 
+const swalTheme = () => {
+  const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+  const isDarkMode = theme === 'dark';
+  return {
+    background: isDarkMode ? '#1B1C22' : '#F9F9F9',
+    color: isDarkMode ? 'white' : '#4B5675',
+  };
+};
+
 const ITEMS_PER_PAGE = 10;
 
-const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad }) => {
+const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, onSuccess, actividad, idFicha }) => {
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
@@ -70,6 +83,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
   const [materiales, setMateriales] = useState<MaterialApoyo[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [agregandoBibliotecaId, setAgregandoBibliotecaId] = useState<number | null>(null);
   const [crearOpen, setCrearOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -81,11 +95,12 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descripcionRef = useRef<HTMLTextAreaElement>(null);
 
-  const fetchMateriales = async () => {
+  const fetchMateriales = useCallback(async () => {
     if (!actividad?.id) return;
     setLoading(true);
     try {
-      const res = await axios.get(`actividades/${actividad.id}/materiales-apoyo`);
+      const params = idFicha && idFicha > 0 ? { idFicha } : undefined;
+      const res = await axios.get(`actividades/${actividad.id}/materiales-apoyo`, { params });
       setMateriales(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.warn('Error cargando materiales:', e);
@@ -93,7 +108,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     } finally {
       setLoading(false);
     }
-  };
+  }, [actividad?.id, idFicha]);
 
   useEffect(() => {
     if (open && actividad?.id) {
@@ -101,8 +116,7 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
       setCrearOpen(false);
       setCurrentPage(1);
     }
-  }, [open, actividad?.id]);
-
+  }, [open, actividad?.id, fetchMateriales]);
 
   useEffect(() => {
     if (documentoFile && isPdfExtension(extensionFromFileName(documentoFile.name))) {
@@ -118,6 +132,8 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+  const desde = materiales.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const hasta = Math.min(currentPage * ITEMS_PER_PAGE, materiales.length);
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToastMessage(message);
@@ -180,6 +196,87 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
     }
   };
 
+  const confirmarAgregarBiblioteca = async (): Promise<boolean> => {
+    const { background, color } = swalTheme();
+    const result = await Swal.fire({
+      title: 'Agregar a Biblioteca del Conocimiento',
+      html: `
+        <div class="text-left space-y-3.5 mt-1">
+          <p class="text-[0.9375rem] leading-7">
+            ¿Deseas agregar este material a la Biblioteca del Conocimiento?
+          </p>
+          <p class="text-sm leading-6 opacity-90">
+            El material continuará disponible en esta actividad y también quedará asociado al RAP correspondiente en la biblioteca.
+          </p>
+        </div>
+      `,
+      icon: 'question',
+      width: 'min(92vw, 34rem)',
+      padding: '1.75rem 1.5rem',
+      showCancelButton: true,
+      confirmButtonText: 'Agregar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      customClass: {
+        popup: 'rounded-2xl',
+        title: '!text-lg sm:!text-xl !font-semibold !leading-7 !pb-1 !px-2',
+        htmlContainer: '!mt-4 !mb-0 !overflow-visible !px-1',
+        icon: '!scale-95 !my-4',
+        actions: '!gap-3 !mt-6 !flex-wrap',
+        confirmButton: 'btn btn-primary !px-5 !py-2.5 !text-sm',
+        cancelButton: 'btn btn-light !px-5 !py-2.5 !text-sm',
+      },
+      background,
+      color,
+    });
+    return result.isConfirmed;
+  };
+
+  const handleAgregarBiblioteca = async (mat: MaterialApoyo) => {
+    if (!actividad?.id || agregandoBibliotecaId != null) return;
+    if (!idFicha || idFicha <= 0) {
+      showToast('No hay ficha asociada; no se puede agregar a la Biblioteca del Conocimiento.', 'error');
+      return;
+    }
+    if (mat.enBiblioteca) {
+      showToast('Este material ya se encuentra en la Biblioteca del Conocimiento.', 'warning');
+      return;
+    }
+
+    const confirmed = await confirmarAgregarBiblioteca();
+    if (!confirmed) return;
+
+    setAgregandoBibliotecaId(mat.id);
+    try {
+      const res = await axios.post(
+        `actividades/${actividad.id}/materiales-apoyo/${mat.id}/mover-biblioteca`,
+        { idFicha }
+      );
+      const msg =
+        res.data?.message || 'Material agregado correctamente a la Biblioteca del Conocimiento.';
+      showToast(msg, 'success');
+      onSuccess?.(msg);
+      setMateriales((prev) =>
+        prev.map((m) => (m.id === mat.id ? { ...m, enBiblioteca: true } : m))
+      );
+    } catch (err: unknown) {
+      const ax = err as { response?: { status?: number; data?: { error?: string; errors?: Record<string, string[]> } } };
+      const msg =
+        ax.response?.data?.error ||
+        (ax.response?.data?.errors
+          ? Object.values(ax.response.data.errors).flat().join('\n')
+          : 'Error al agregar el material a la biblioteca');
+      showToast(msg, ax.response?.status === 409 ? 'warning' : 'error');
+      if (ax.response?.status === 409) {
+        setMateriales((prev) =>
+          prev.map((m) => (m.id === mat.id ? { ...m, enBiblioteca: true } : m))
+        );
+      }
+    } finally {
+      setAgregandoBibliotecaId(null);
+    }
+  };
+
   const resetForm = () => {
     setTitulo('');
     setDescripcion('');
@@ -191,41 +288,61 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
 
   if (!actividad) return null;
 
+  const actividadTitulo = actividad.tituloActividad?.trim() || 'Actividad';
+
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
-      <ModalContent className="max-w-3xl top-[5%] max-h-[90vh] overflow-y-auto flex flex-col p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
+      <ModalContent className="!flex w-full !max-w-[min(100vw-2rem,900px)] !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 top-[5%] max-h-[min(94dvh,920px)]">
         <Toast
           isOpen={toastOpen}
           message={toastMessage}
           type={toastType}
           onClose={() => setToastOpen(false)}
         />
-        <ModalHeader>
-          <ModalTitle>Material de la actividad</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
-            <KeenIcon icon="cross" />
+        <ModalHeader className="shrink-0 px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="min-w-0 flex-1 pr-3">
+            <ModalTitle className="text-xl font-semibold leading-snug text-gray-900 dark:text-white">
+              Material de la actividad
+            </ModalTitle>
+            <p
+              className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 mt-2 truncate"
+              title={actividadTitulo}
+            >
+              {actividadTitulo}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-icon btn-light btn-clear shrink-0 h-9 w-9"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
+            <KeenIcon icon="cross" className="text-base" />
           </button>
         </ModalHeader>
-        <ModalBody className="flex-1 overflow-y-auto px-0 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
+        <ModalBody className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 sm:py-6 [scrollbar-width:thin]">
           {crearOpen ? (
-            /* Vista Crear Material de Apoyo */
-            <form onSubmit={handleAgregar} className="space-y-4">
+            <form onSubmit={handleAgregar} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del material</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                  Título del material
+                </label>
                 <input
                   type="text"
-                  className="input w-full p-2 text-sm"
-                  placeholder="Ingrese Título del material"
+                  className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600"
+                  placeholder="Ingrese título del material"
                   value={titulo}
                   onChange={(e) => setTitulo(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción del material</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                  Descripción del material
+                </label>
                 <textarea
                   ref={descripcionRef}
-                  className="input w-full p-2 text-sm min-h-[100px] max-h-[350px] overflow-y-auto overflow-x-hidden resize-y break-words"
+                  className="input w-full min-h-[100px] max-h-[350px] overflow-y-auto resize-y break-words dark:bg-[#111827] dark:text-white dark:border-gray-600"
                   style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                   placeholder="Ingrese descripción del material"
                   value={descripcion}
@@ -233,11 +350,11 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   maxLength={3000}
                   rows={5}
                 />
-                <p className="text-[10px] text-gray-500 mt-0.5">{descripcion.length}/3000</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{descripcion.length}/3000</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Documento</label>
-                <div className="flex items-center gap-2 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">Documento</label>
+                <div className="flex flex-wrap items-center gap-3 mb-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -248,15 +365,15 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn btn-primary text-sm"
+                    className="btn btn-primary text-sm shrink-0"
                   >
                     Seleccionar archivo
                   </button>
-                  <span className="text-sm text-gray-500 dark:text-gray-200">
+                  <span className="text-sm text-gray-600 dark:text-gray-200 truncate min-w-0 flex-1">
                     {documentoFile ? documentoFile.name : 'Sin archivos seleccionados'}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-200 mt-1">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{MATERIAL_DOCUMENTO_FORMATOS_LABEL}</p>
                 {previewUrl && (
                   <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-coal-400">
                     <iframe src={previewUrl} title="Vista previa PDF" className="w-full h-[300px] border-0" />
@@ -264,46 +381,53 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enlace (página web o YouTube)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                  Enlace (página web o YouTube)
+                </label>
                 <input
                   type="url"
-                  className="input w-full p-2 text-sm"
+                  className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600"
                   placeholder="https://ejemplo.com o https://youtube.com/..."
                   value={link}
                   onChange={(e) => setLink(e.target.value)}
                 />
               </div>
-              <div className="flex justify-between gap-2 pt-4">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Guardando...' : '+ ACEPTAR'}
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-3">
+                <button type="button" className="btn btn-light px-5" onClick={resetForm}>
+                  Cancelar
                 </button>
-                <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={resetForm}>
-                  X CANCELAR
+                <button type="submit" className="btn btn-primary px-5" disabled={saving}>
+                  {saving ? 'Guardando...' : 'Guardar material'}
                 </button>
               </div>
             </form>
           ) : (
-            /* Vista Lista Material de Apoyo */
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 overflow-hidden">
+                <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[140px] shrink-0">Titulo</th>
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white">Descripcion</th>
-                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[100px] shrink-0">Acciones</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-coal-500/25">
+                      <th className="text-left py-3.5 px-4 sm:px-5 text-sm font-semibold text-gray-700 dark:text-white min-w-0 w-[40%]">
+                        Título
+                      </th>
+                      <th className="text-left py-3.5 px-4 sm:px-5 text-sm font-semibold text-gray-700 dark:text-white min-w-0">
+                        Descripción
+                      </th>
+                      <th className="text-right py-3.5 px-4 sm:px-5 text-sm font-semibold text-gray-700 dark:text-white w-[156px] shrink-0">
+                        Acciones
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={3} className="py-8 text-center">
+                        <td colSpan={3} className="py-10 text-center">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
                         </td>
                       </tr>
                     ) : paginatedMateriales.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
+                        <td colSpan={3} className="py-12 text-center text-sm leading-relaxed text-gray-600 dark:text-gray-200">
                           No hay archivos adjuntos a esta actividad
                         </td>
                       </tr>
@@ -313,67 +437,108 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                         const docExt = extensionFromFileName(
                           mat.urlDocumentoUrl || mat.urlDocumento || mat.titulo
                         );
+                        const agregando = agregandoBibliotecaId === mat.id;
+                        const verTitulo = docExt ? materialDocumentoActionLabel(docExt) : 'Ver material';
                         return (
-                          <tr key={mat.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-coal-400/50 align-top">
-                            <td className="py-3 px-3 text-sm text-gray-900 dark:text-white align-top">
-                              <div className="flex items-center gap-2 min-w-0">
+                          <tr
+                            key={mat.id}
+                            className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50/80 dark:hover:bg-coal-500/20"
+                          >
+                            <td className="py-4 px-4 sm:px-5 text-sm leading-relaxed text-gray-900 dark:text-white align-middle min-w-0">
+                              <div className="flex items-start gap-2.5 min-w-0">
                                 {docUrl ? (
                                   <KeenIcon
                                     icon={materialDocumentoKeenIcon(docExt)}
-                                    className="text-base shrink-0 text-gray-500 dark:text-gray-200"
+                                    className="text-lg shrink-0 mt-0.5 text-gray-500 dark:text-gray-300"
                                   />
-                                ) : null}
-                                <span className="truncate">{mat.titulo}</span>
-                                {docUrl && docExt ? (
-                                  <span
-                                    className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${materialDocumentoBadgeClass(docExt)}`}
-                                  >
-                                    {materialDocumentoTypeLabel(docExt)}
+                                ) : (
+                                  <KeenIcon icon="share" className="text-lg shrink-0 mt-0.5 text-gray-500 dark:text-gray-300" />
+                                )}
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                  <span className="block truncate font-semibold leading-snug" title={mat.titulo}>
+                                    {mat.titulo}
                                   </span>
-                                ) : null}
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {docUrl && docExt ? (
+                                      <span
+                                        className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium shrink-0 ${materialDocumentoBadgeClass(docExt)}`}
+                                      >
+                                        {materialDocumentoTypeLabel(docExt)}
+                                      </span>
+                                    ) : mat.urlAdicional ? (
+                                      <span className="inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium shrink-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
+                                        Enlace
+                                      </span>
+                                    ) : null}
+                                    {mat.enBiblioteca ? (
+                                      <span
+                                        className="inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium shrink-0 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                                        title="Ya agregado a Biblioteca del Conocimiento"
+                                      >
+                                        En biblioteca
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
                               </div>
                             </td>
-                            <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-200 align-top min-w-0">
-                              <div className="whitespace-pre-wrap break-words">
-                                {mat.descripcion || '-'}
-                              </div>
+                            <td className="py-4 px-4 sm:px-5 text-sm leading-relaxed text-gray-600 dark:text-gray-200 align-middle min-w-0">
+                              <span className="block line-clamp-2 break-words" title={mat.descripcion || '-'}>
+                                {mat.descripcion || '—'}
+                              </span>
                             </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1">
+                            <td className="py-4 px-4 sm:px-5 align-middle">
+                              <div className="flex items-center justify-end gap-2 shrink-0">
                                 {docUrl && (
                                   <a
-                                    href={docUrl ?? '#'}
+                                    href={docUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => {
                                       e.preventDefault();
-                                      if (docUrl) {
-                                        window.open(docUrl, '_blank', 'noopener,noreferrer');
-                                      }
+                                      window.open(docUrl, '_blank', 'noopener,noreferrer');
                                     }}
-                                    className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-300"
-                                    title={docExt ? materialDocumentoActionLabel(docExt) : 'Ver documento'}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-primary dark:border-gray-600 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-coal-400"
+                                    title={verTitulo}
                                   >
-                                    <KeenIcon icon="eye" className="text-sm" />
+                                    <KeenIcon icon="eye" className="text-base" />
                                   </a>
                                 )}
                                 {mat.urlAdicional && (
                                   <a
-                                    href={mat.urlAdicional ?? '#'}
+                                    href={mat.urlAdicional}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-600 dark:text-gray-300"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-primary dark:border-gray-600 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-coal-400"
                                     title="Abrir enlace"
                                   >
-                                    <KeenIcon icon="share" className="text-sm" />
+                                    <KeenIcon icon="share" className="text-base" />
                                   </a>
                                 )}
                                 <button
-                                  onClick={() => handleEliminar(mat)}
-                                  className="p-1.5 rounded bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600"
-                                  title="Eliminar"
+                                  type="button"
+                                  onClick={() => handleAgregarBiblioteca(mat)}
+                                  disabled={agregando || !!mat.enBiblioteca}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-primary/5 hover:text-primary hover:border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-primary/10"
+                                  title={
+                                    mat.enBiblioteca
+                                      ? 'Ya está en Biblioteca del Conocimiento'
+                                      : 'Agregar a Biblioteca del Conocimiento'
+                                  }
                                 >
-                                  <KeenIcon icon="trash" className="text-sm" />
+                                  {agregando ? (
+                                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                  ) : (
+                                    <KeenIcon icon="book" className="text-base" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEliminar(mat)}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:border-gray-600 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                                  title="Eliminar material"
+                                >
+                                  <KeenIcon icon="trash" className="text-base" />
                                 </button>
                               </div>
                             </td>
@@ -384,31 +549,32 @@ const ModalMaterialApoyo: React.FC<ModalMaterialApoyoProps> = ({ open, onClose, 
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-200">
                   <button
+                    type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
-                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-60"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-coal-500"
+                    aria-label="Página anterior"
                   >
-                    <KeenIcon icon="left" className="text-sm" />
+                    <KeenIcon icon="left" className="text-base" />
                   </button>
-                  <span className="text-xs text-gray-600 dark:text-gray-200">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, materiales.length)} de {materiales.length}
+                  <span className="min-w-[5.5rem] text-center">
+                    {desde}-{hasta} de {materiales.length}
                   </span>
                   <button
+                    type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage >= totalPages}
-                    className="p-1.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-60"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-coal-500"
+                    aria-label="Página siguiente"
                   >
-                    <KeenIcon icon="right" className="text-sm" />
+                    <KeenIcon icon="right" className="text-base" />
                   </button>
                 </div>
-                <button
-                  onClick={() => setCrearOpen(true)}
-                  className="btn btn-primary"
-                >
-                  + CREAR MATERIAL DE APOYO
+                <button type="button" onClick={() => setCrearOpen(true)} className="btn btn-primary px-5 py-2.5 text-sm shrink-0">
+                  + Crear material de apoyo
                 </button>
               </div>
             </>

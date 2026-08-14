@@ -3489,6 +3489,7 @@ const ClaseDetallePage: React.FC = () => {
         }}
         onSuccess={showToast}
         actividad={actividadParaMaterialApoyo}
+        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
       />
       <ModalMoverActividadRap
         open={modalMoverRapOpen && idFichaParaClase > 0}
