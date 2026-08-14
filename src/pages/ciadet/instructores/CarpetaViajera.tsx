@@ -48,11 +48,17 @@ const CarpetaViajera: React.FC = () => {
     try {
       const personaId = persona?.id;
       const url = personaId ? `carpetas-viajeras?persona_id=${personaId}` : 'carpetas-viajeras';
-      const response = await axios.get<CarpetaViajeraItem[]>(url);
-      setCarpetas(response.data || []);
+      const response = await axios.get(url);
+
+      // Soporta tanto array plano como { data: [...] } (Resource/paginado)
+      const raw = response.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+
+      setCarpetas(list);
     } catch (error: any) {
       console.error('Error al cargar carpetas viajeras:', error);
       enqueueSnackbar('No se pudieron cargar las carpetas viajeras', { variant: 'error' });
+      setCarpetas([]); // importante: nunca dejar carpetas en estado no-array
     } finally {
       setLoading(false);
     }
