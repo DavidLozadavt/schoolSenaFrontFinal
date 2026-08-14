@@ -11,6 +11,7 @@ import {
   compactReactSelectNoOptions,
 } from '@/components/forms/compactReactSelect';
 import Select from 'react-select';
+import { useSettings } from '@/providers';
 import {
   extensionFromPath,
   materialDocumentoActionLabel,
@@ -143,11 +144,18 @@ interface RecursosMenuState {
 }
 
 const clsLabelFiltro =
-  'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block';
+  'text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-white mb-1.5 block';
 
 const selectClassNamesBiblioteca = {
   ...compactReactSelectClassNames,
-  control: () => `${compactReactSelectClassNames.control()} dark:text-white`,
+  control: (state: { isFocused: boolean; menuIsOpen: boolean }) =>
+    clsx(
+      'min-h-9 text-sm rounded-md border bg-white text-gray-900',
+      'border-gray-300 dark:bg-coal-400 dark:text-white',
+      state.isFocused || state.menuIsOpen
+        ? 'border-primary dark:border-primary ring-1 ring-primary/20 dark:ring-primary/30'
+        : 'dark:border-gray-500 hover:dark:border-gray-400'
+    ),
   valueContainer: () => 'text-gray-900 dark:text-white text-sm',
   singleValue: () => 'text-gray-900 dark:!text-white text-sm',
   placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
@@ -164,10 +172,40 @@ const selectClassNamesBiblioteca = {
     'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white',
 };
 
-const selectStylesBiblioteca = {
+const selectStylesBibliotecaLight = {
   singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
   placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
   input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+};
+
+/** react-select aplica color inline; en oscuro forzar blanco y borde siempre visible. */
+const selectStylesBibliotecaDark = {
+  control: (base: Record<string, unknown>, state: { isFocused: boolean; menuIsOpen: boolean }) => ({
+    ...base,
+    backgroundColor: '#0F1014',
+    borderColor: state.isFocused || state.menuIsOpen ? '#6366f1' : '#6B7280',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    color: '#ffffff',
+    boxShadow: state.isFocused ? '0 0 0 1px rgba(99, 102, 241, 0.25)' : 'none',
+  }),
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.92)' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  menu: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#0F1014',
+    color: '#ffffff',
+  }),
+  menuList: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#0F1014' }),
+  option: (base: Record<string, unknown>, state: { isFocused: boolean; isSelected: boolean }) => ({
+    ...base,
+    color: '#ffffff',
+    backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#374151' : '#0F1014',
+  }),
+  dropdownIndicator: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  clearIndicator: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.9)' }),
+  indicatorSeparator: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#4B5563' }),
 };
 
 const idCompetenciaDeItem = (it: MaterialApoyoAprendizItem): number | null => {
@@ -196,6 +234,10 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
   hideGroupHeaders = false,
   modoBibliotecaGlobal = false
 }) => {
+  const { getThemeMode } = useSettings();
+  const isDarkTheme = getThemeMode() === 'dark';
+  const selectStyles = isDarkTheme ? selectStylesBibliotecaDark : selectStylesBibliotecaLight;
+
   const [items, setItems] = useState<MaterialApoyoAprendizItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -382,7 +424,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
   }
 
   const renderRows = (list: MaterialApoyoAprendizItem[]) => (
-    <div className="space-y-3 p-3">
+    <div className="space-y-4 p-4">
       {list.map((item) => {
         const docUrl = getDocumentUrl(item.urlDocumentoUrl || item.urlDocumento);
         const docExt = extensionFromPath(item.urlDocumentoUrl || item.urlDocumento || item.titulo);
@@ -416,11 +458,11 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
             label: docExt ? materialDocumentoTypeLabel(docExt) : 'Documento',
             className: docExt
               ? materialDocumentoBadgeClass(docExt)
-              : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200',
+              : 'bg-red-50 text-red-900 dark:bg-red-900/35 dark:text-red-100',
           });
         }
-        if (hasLink) chips.push({ key: 'l', label: 'Enlace', className: 'bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200' });
-        if (hasVideoRes) chips.push({ key: 'v', label: 'Video', className: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' });
+        if (hasLink) chips.push({ key: 'l', label: 'Enlace', className: 'bg-sky-50 text-sky-900 dark:bg-sky-900/35 dark:text-sky-100' });
+        if (hasVideoRes) chips.push({ key: 'v', label: 'Video', className: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/35 dark:text-emerald-100' });
 
         return (
           <div
@@ -430,26 +472,35 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
               'border-gray-200 dark:border-gray-700 border-l-4 border-l-primary'
             )}
           >
-            <div className="px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between min-w-0">
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex items-start gap-3 min-w-0">
+            <div className="px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between min-w-0">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex items-start gap-3.5 min-w-0">
                   <div className="shrink-0 pt-0.5">
                     <AvatarCreadorBiblioteca src={fotoCreador} nombre={nombreCreador} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate" title={nombreCreador}>
+                    <p
+                      className="text-sm font-bold text-gray-900 dark:text-white truncate leading-snug"
+                      title={nombreCreador}
+                    >
                       {nombreCreador}
                     </p>
                     {item.creador?.email ? (
-                      <p className="text-[10px] text-gray-500 dark:text-gray-200 truncate" title={item.creador.email}>
+                      <p
+                        className="text-xs sm:text-sm font-medium text-gray-700 dark:text-white truncate leading-relaxed mt-0.5"
+                        title={item.creador.email}
+                      >
                         {item.creador.email}
                       </p>
                     ) : null}
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mt-1 truncate" title={tituloFull}>
+                    <h4
+                      className="text-base font-bold text-gray-900 dark:text-white mt-2 leading-snug truncate"
+                      title={tituloFull}
+                    >
                       {tituloFull}
                     </h4>
                     <p
-                      className="text-xs text-gray-600 dark:text-gray-300 mt-0.5 line-clamp-3 break-words"
+                      className="text-sm font-medium leading-relaxed text-gray-700 dark:text-white mt-1.5 line-clamp-4 break-words"
                       title={descripcionFull}
                     >
                       {descripcionFull}
@@ -457,53 +508,53 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 min-w-0">
-                  <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-violet-50 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200">
+                <div className="flex flex-wrap gap-2 min-w-0">
+                  <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-900 dark:bg-violet-900/35 dark:text-violet-100">
                     {tipoMaterialDisplay(item.tipoMaterial)}
                   </span>
                   {chips.map((c) => (
                     <span
                       key={c.key}
-                      className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium', c.className)}
+                      className={clsx('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', c.className)}
                     >
                       {c.label}
                     </span>
                   ))}
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 min-w-0 text-[11px]">
+                <div className="flex flex-wrap gap-2 min-w-0 text-xs sm:text-sm">
                   {competenciaFull ? (
                     <span
-                      className="inline-flex max-w-full rounded-full px-2 py-1 bg-amber-50 text-amber-900 dark:bg-amber-900/25 dark:text-amber-100"
+                      className="inline-flex max-w-full rounded-full px-2.5 py-1.5 bg-amber-50 text-amber-950 dark:bg-amber-900/35 dark:text-amber-50 font-medium"
                       title={competenciaFull}
                     >
-                      <span className="font-medium shrink-0 mr-1">Competencia:</span>
+                      <span className="font-semibold shrink-0 mr-1">Competencia:</span>
                       <span className="truncate min-w-0">{competenciaFull}</span>
                     </span>
                   ) : null}
                   {materiaEtiqueta && materiaEtiqueta !== competenciaFull ? (
                     <span
-                      className="inline-flex max-w-full rounded-full px-2 py-1 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                      className="inline-flex max-w-full rounded-full px-2.5 py-1.5 bg-slate-100 text-slate-900 dark:bg-slate-800/80 dark:text-slate-100 font-medium"
                       title={materiaEtiqueta}
                     >
-                      <span className="font-medium shrink-0 mr-1">Materia:</span>
+                      <span className="font-semibold shrink-0 mr-1">Materia:</span>
                       <span className="truncate min-w-0">{materiaEtiqueta}</span>
                     </span>
                   ) : null}
                   <span
-                    className="inline-flex max-w-full rounded-full px-2 py-1 bg-violet-50 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200"
+                    className="inline-flex max-w-full rounded-full px-2.5 py-1.5 bg-violet-50 text-violet-900 dark:bg-violet-900/35 dark:text-violet-100 font-medium"
                     title={rapFull}
                   >
-                    <span className="font-medium shrink-0 mr-1">RAP:</span>
+                    <span className="font-semibold shrink-0 mr-1">RAP:</span>
                     <span className="truncate min-w-0">{rapFull}</span>
                   </span>
                   {!modoBibliotecaGlobal && item.fichaCodigo ? (
-                    <span className="inline-flex max-w-full rounded-full px-2 py-1 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200 text-[10px]">
+                    <span className="inline-flex max-w-full rounded-full px-2.5 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-800/80 dark:text-gray-100 text-xs font-medium">
                       Ficha {item.fichaCodigo}
                     </span>
                   ) : null}
                   {fechaTxt ? (
-                    <span className="inline-flex items-center rounded-full px-2 py-1 text-gray-600 dark:text-gray-200 text-[10px]">
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1.5 text-gray-700 dark:text-white text-xs font-medium">
                       {fechaTxt}
                     </span>
                   ) : null}
@@ -522,12 +573,14 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                       }
                       abrirMenuRecursos(item.id, e.currentTarget);
                     }}
-                    className="inline-flex justify-center px-3 py-1.5 rounded-md text-xs font-medium border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/25 dark:text-blue-200 dark:hover:bg-blue-900/40 w-full lg:w-auto"
+                    className="inline-flex justify-center px-4 py-2 rounded-lg text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/35 dark:text-blue-100 dark:hover:bg-blue-900/50 w-full lg:w-auto"
                   >
                     Ver recursos
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-500 dark:text-gray-200 text-center lg:text-right">Sin recursos</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-white text-center lg:text-right">
+                    Sin recursos
+                  </span>
                 )}
               </div>
             </div>
@@ -540,17 +593,17 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
   return (
     <div className="space-y-4">
       {!modoBibliotecaGlobal && (fichaCodigo || rapContextLabel) && (
-        <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-gray-200/90 bg-gray-50/80 px-3 py-2.5 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
+        <div className="flex flex-wrap gap-x-6 gap-y-3 rounded-xl border border-gray-200/90 bg-gray-50/80 px-4 py-3 dark:border-gray-600 dark:bg-coal-500/25 min-w-0">
           <div className="min-w-0 shrink max-w-[min(100%,220px)]">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">Ficha</p>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate" title={fichaCodigo?.trim()}>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-white">Ficha</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate mt-1" title={fichaCodigo?.trim()}>
               {fichaCodigo?.trim() || '—'}
             </p>
           </div>
           <div className="min-w-0 flex-1 basis-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200">RAP</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-white">RAP</p>
             <p
-              className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:line-clamp-1 break-words"
+              className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:line-clamp-1 break-words mt-1"
               title={rapContextLabel?.trim()}
             >
               {rapContextLabel?.trim() || '—'}
@@ -559,8 +612,8 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white p-3 dark:bg-coal-400 dark:border-gray-700 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:bg-coal-400 dark:border-gray-700 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={clsLabelFiltro}>Competencia</label>
             <Select
@@ -574,7 +627,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
               }}
               isDisabled={opcionesCompetencia.length === 0}
               classNames={selectClassNamesBiblioteca}
-              styles={selectStylesBiblioteca}
+              styles={selectStyles}
               noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
@@ -588,7 +641,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
               onChange={(opt) => setRapFiltroSel(opt?.value ?? null)}
               isDisabled={opcionesRapFiltro.length === 0}
               classNames={selectClassNamesBiblioteca}
-              styles={selectStylesBiblioteca}
+              styles={selectStyles}
               noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
@@ -597,20 +650,22 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           type="text"
-          className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-300"
+          className="input material-apoyo-aprendiz-search w-full text-sm font-medium text-gray-900 placeholder:text-gray-500 dark:bg-[#111827] dark:!text-white dark:border-gray-600"
           placeholder="Buscar por título, descripción, competencia, RAP, materia o recurso..."
         />
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
-          <KeenIcon icon="book-open" className="text-4xl text-gray-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{emptyMsg}</p>
+          <KeenIcon icon="book-open" className="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">{emptyMsg}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
-          <KeenIcon icon="magnifier" className="text-4xl text-gray-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">No se encontraron materiales con ese criterio.</p>
+          <KeenIcon icon="magnifier" className="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+            No se encontraron materiales con ese criterio.
+          </p>
         </div>
       ) : hideGroupHeaders ? (
         <div className="rounded-xl border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700">
@@ -619,8 +674,8 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       ) : (
         grouped.map((group) => (
           <section key={group.key} className="rounded-xl border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700">
-            <div className="border-b border-gray-100 dark:border-gray-700 px-4 py-3">
-              <span className="inline-flex rounded-full px-2 py-1 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs">
+            <div className="border-b border-gray-100 dark:border-gray-700 px-5 py-3.5">
+              <span className="inline-flex rounded-full px-2.5 py-1 bg-slate-100 text-slate-800 dark:bg-slate-800/80 dark:text-slate-100 text-sm font-medium">
                 Ficha de origen: {group.fichaCodigo}
               </span>
             </div>
@@ -663,14 +718,14 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
             return (
               <div
                 data-id="ma-aprendiz-recursos-menu"
-                className="fixed z-[9999] min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1"
+                className="fixed z-[9999] min-w-[240px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1.5"
                 style={{ top: recursosMenu.top, left: recursosMenu.left }}
               >
-                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600">
+                <p className="px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-white border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
                 {acciones.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-200">
+                  <div className="px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-white">
                     Sin recursos disponibles
                   </div>
                 ) : (
@@ -682,7 +737,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setRecursosMenu(null)}
-                        className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                        className="block px-3 py-2.5 text-sm font-medium text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-coal-400 rounded-md"
                       >
                         {a.label}
                       </a>
@@ -691,7 +746,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                         key={a.key}
                         type="button"
                         onClick={a.onClick}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
+                        className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-coal-400 rounded-md"
                       >
                         {a.label}
                       </button>
@@ -741,7 +796,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
               />
             )}
             {!videoResuelto && videoModalItem && (
-              <p className="text-sm text-gray-600 dark:text-gray-300">No se pudo cargar la URL del video.</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-white">No se pudo cargar la URL del video.</p>
             )}
           </ModalBody>
         </ModalContent>
