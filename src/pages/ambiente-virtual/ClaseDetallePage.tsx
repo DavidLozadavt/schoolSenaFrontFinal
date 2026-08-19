@@ -58,7 +58,8 @@ import {
   ListaActividades,
   MaterialApoyoFichaView,
   MaterialApoyoAprendiz,
-  type Actividad
+  type Actividad,
+  type ConfigCuestionariosMap
 } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
@@ -1716,6 +1717,7 @@ const ClaseDetallePage: React.FC = () => {
   const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
   const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
   const [actividadesParaAsignar, setActividadesParaAsignar] = useState<Actividad[] | null>(null);
+  const [configCuestionariosAsignacion, setConfigCuestionariosAsignacion] = useState<ConfigCuestionariosMap | null>(null);
   const [assignSuccessCounter, setAssignSuccessCounter] = useState(0);
   const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
   const [actividadParaEditar, setActividadParaEditar] = useState<Actividad | null>(null);
@@ -3149,8 +3151,9 @@ const ClaseDetallePage: React.FC = () => {
                     setCuestionarioParaEditar(null);
                     setModalCrearCuestionarioOpen(true);
                   }}
-                  onAsignarActividades={(acts) => {
+                  onAsignarActividades={(acts, configCuestionarios) => {
                     setActividadesParaAsignar(acts);
+                    setConfigCuestionariosAsignacion(configCuestionarios ?? null);
                     setActividadParaAsignar(null);
                     setModalAsignarActividadOpen(true);
                   }}
@@ -3409,17 +3412,20 @@ const ClaseDetallePage: React.FC = () => {
           setModalAsignarActividadOpen(false);
           setActividadParaAsignar(null);
           setActividadesParaAsignar(null);
+          setConfigCuestionariosAsignacion(null);
         }}
         onSave={() => {
           fetchActividades();
           setActividadesParaAsignar(null);
           setActividadParaAsignar(null);
+          setConfigCuestionariosAsignacion(null);
           setAssignSuccessCounter((c) => c + 1);
         }}
         onSuccess={showToast}
         idFicha={idFichaParaClase}
         actividad={actividadParaAsignar}
         actividades={actividadesParaAsignar}
+        configCuestionarios={configCuestionariosAsignacion}
       />
       <ModalCrearActividad
         open={modalCrearActividadOpen}

@@ -6,6 +6,8 @@ import axios from 'axios';
 import Select from 'react-select';
 import type { Actividad } from './ModalCrearActividad';
 import { compactReactSelectClassNames, compactReactSelectNoOptions, normalizeText } from '@/components/forms/compactReactSelect';
+import ModalConfigurarPreguntasCuestionario from './ModalConfigurarPreguntasCuestionario';
+import { ConfigCuestionariosMap, esCuestionario } from './cuestionarioAsignacion';
 
 const DROPDOWN_WIDTH = 180;
 const DROPDOWN_ITEM_HEIGHT = 40;
@@ -332,7 +334,7 @@ interface ListaActividadesProps {
   onAsignar?: (actividad: Actividad) => void;
   onAsignarActividad?: (actividad: Actividad) => void;
   /** Asignar varias actividades a la vez (solo en modo agregar) */
-  onAsignarActividades?: (actividades: Actividad[]) => void;
+  onAsignarActividades?: (actividades: Actividad[], configCuestionarios?: ConfigCuestionariosMap) => void;
   onQuitar?: (idPlaneacionActividad: number) => void;
   onMaterialApoyo?: (actividad: Actividad) => void;
   onEditar?: (actividad: Actividad) => void;
@@ -403,6 +405,9 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   /** Selección en la tabla principal (modo agregar, asignación masiva) */
   const [seleccionIds, setSeleccionIds] = useState<Set<number>>(new Set());
   const [confirmAsignarOpen, setConfirmAsignarOpen] = useState(false);
+  const [configPreguntasOpen, setConfigPreguntasOpen] = useState(false);
+  const [pendingActsForAssign, setPendingActsForAssign] = useState<Actividad[]>([]);
+  const [conteoPreguntasPorActividad, setConteoPreguntasPorActividad] = useState<Record<number, number>>({});
   const [avisoAsignarSinSeleccion, setAvisoAsignarSinSeleccion] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [modalEntregables, setModalEntregables] = useState<{
@@ -691,11 +696,31 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     const acts = list
       .map((item) => item.actividad || item)
       .filter((act): act is Actividad => act.id != null && seleccionIds.has(act.id));
-    if (acts.length > 0) {
+    if (acts.length === 0) return;
+
+    setConfirmAsignarOpen(false);
+    const hayCuestionarios = acts.some((a) => esCuestionario(a.tipoActividad));
+    if (hayCuestionarios) {
+      setPendingActsForAssign(acts);
+      setConfigPreguntasOpen(true);
+    } else {
       onAsignarActividades(acts);
       setSeleccionIds(new Set());
     }
-    setConfirmAsignarOpen(false);
+  };
+
+  const finalizarConfigPreguntas = (config: ConfigCuestionariosMap) => {
+    if (!onAsignarActividades || pendingActsForAssign.length === 0) return;
+    onAsignarActividades(pendingActsForAssign, config);
+    setPendingActsForAssign([]);
+    setConfigPreguntasOpen(false);
+    setSeleccionIds(new Set());
+  };
+
+  const cancelarConfigPreguntas = () => {
+    setConfigPreguntasOpen(false);
+    setPendingActsForAssign([]);
+    setConfirmAsignarOpen(true);
   };
 
   const actividadesParaConfirmar = useMemo(() => {
@@ -704,6 +729,39 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
       .map((item) => item.actividad || item)
       .filter((act): act is Actividad => act.id != null && seleccionIds.has(act.id));
   }, [actividadesFiltradas, seleccionIds]);
+
+  useEffect(() => {
+    if (!confirmAsignarOpen) {
+      setConteoPreguntasPorActividad({});
+      return;
+    }
+    const cuestionarios = actividadesParaConfirmar.filter((a) => esCuestionario(a.tipoActividad) && a.id);
+    if (cuestionarios.length === 0) return;
+
+    let cancelado = false;
+    Promise.all(
+      cuestionarios.map(async (c) => {
+        const res = await axios.get(`actividades/${c.id}`);
+        const total = Array.isArray(res.data?.preguntas) ? res.data.preguntas.length : 0;
+        return { id: c.id!, total };
+      })
+    )
+      .then((rows) => {
+        if (cancelado) return;
+        const map: Record<number, number> = {};
+        rows.forEach((r) => {
+          map[r.id] = r.total;
+        });
+        setConteoPreguntasPorActividad(map);
+      })
+      .catch(() => {
+        if (!cancelado) setConteoPreguntasPorActividad({});
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [confirmAsignarOpen, actividadesParaConfirmar.map((a) => a.id).join(',')]);
 
   const defaultEmpty =
     modo === 'agregar'
@@ -1110,6 +1168,17 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                             <p className="mb-0 mt-2.5 sm:mt-3 text-sm sm:text-base font-medium leading-relaxed text-gray-900 dark:text-white">
                               {a.tituloActividad || '—'}
                             </p>
+                            {esCuestionario(a.tipoActividad) && (
+                              <p className="mb-0 mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+                                <span className="font-semibold uppercase tracking-wide">Cuestionario</span>
+                                {a.id != null && conteoPreguntasPorActividad[a.id] != null && (
+                                  <span>
+                                    {' '}
+                                    · {conteoPreguntasPorActividad[a.id]} preguntas disponibles
+                                  </span>
+                                )}
+                              </p>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -1138,6 +1207,14 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             </div>
           </div>
         </Modal>
+      )}
+      {modo === 'agregar' && onAsignarActividades && configPreguntasOpen && (
+        <ModalConfigurarPreguntasCuestionario
+          open={configPreguntasOpen}
+          onClose={cancelarConfigPreguntas}
+          onContinuar={finalizarConfigPreguntas}
+          cuestionarios={pendingActsForAssign.filter((a) => esCuestionario(a.tipoActividad))}
+        />
       )}
       {(actividadesFiltradas?.length ?? 0) > 0 && totalPaginas > 1 && (
         <div className="flex flex-col xl:flex-row items-center justify-center mt-4 px-4 py-3 bg-white dark:bg-coal-300 border border-gray-200 dark:border-coal-100 rounded-xl shadow-sm gap-4">

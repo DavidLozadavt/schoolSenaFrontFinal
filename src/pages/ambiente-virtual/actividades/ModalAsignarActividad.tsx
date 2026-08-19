@@ -4,6 +4,7 @@ import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
 import Select from 'react-select';
 import type { Actividad } from './ModalCrearActividad';
+import type { ConfigCuestionariosMap } from './cuestionarioAsignacion';
 import {
   compactReactSelectClassNames,
   compactReactSelectNoOptions,
@@ -64,6 +65,8 @@ interface ModalAsignarActividadProps {
   actividad: Actividad | null;
   /** Varias actividades para asignar en bloque */
   actividades?: Actividad[] | null;
+  /** Subconjunto de preguntas por cuestionario (paso previo de configuración) */
+  configCuestionarios?: ConfigCuestionariosMap | null;
 }
 
 const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
@@ -73,7 +76,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   onSuccess,
   idFicha,
   actividad,
-  actividades: actividadesProp
+  actividades: actividadesProp,
+  configCuestionarios
 }) => {
   const actividadesAAsignar = actividadesProp?.length ? actividadesProp : (actividad ? [actividad] : []);
   const [aprendices, setAprendices] = useState<Aprendiz[]>([]);
@@ -103,8 +107,6 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         })
         .catch((err: unknown) => {
           const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
-          // Diagnóstico en consola (prod): antes el catch vaciaba listas sin señal de fallo de red/401.
-          console.warn('[ModalAsignarActividad] GET datos', idFicha, ax?.response?.status, ax?.response?.data);
           setAprendices([]);
           setGrupos([]);
           setActividades([]);
@@ -215,6 +217,13 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         payload.grupos = 'todos';
       } else if (gruposSeleccionados.length > 0) {
         payload.grupos = gruposSeleccionados;
+      }
+      if (configCuestionarios && Object.keys(configCuestionarios).length > 0) {
+        const cfgPayload: Record<string, { idsPreguntas: number[] }> = {};
+        Object.entries(configCuestionarios).forEach(([idAct, cfg]) => {
+          cfgPayload[idAct] = { idsPreguntas: cfg.idsPreguntas };
+        });
+        payload.configCuestionarios = cfgPayload;
       }
       const res = await axios.post(`fichas/${idFicha}/asignacion-actividades`, payload);
       const data = res?.data;

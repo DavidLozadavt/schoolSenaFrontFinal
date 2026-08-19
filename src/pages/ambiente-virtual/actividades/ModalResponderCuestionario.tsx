@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
@@ -47,15 +47,6 @@ export const getCuestionarioDocumentUrl = (path: string | undefined | null): str
   return `${base.replace(/\/$/, '')}/${storagePath}`;
 };
 
-const shuffleArray = <T,>(arr: T[]): T[] => {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
-
 const preguntaRespondida = (
   preg: Pregunta,
   respuestas: Record<number, { idRespuesta?: number; respuesta?: string }>
@@ -86,17 +77,6 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const [confirmFinalizar, setConfirmFinalizar] = useState<{ pendientes: number } | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
-  const opcionesShuffled = useMemo(() => {
-    const preguntas = actividadCompleta?.preguntas ?? [];
-    const map: Record<number, Array<{ id: number; descripcionRespuesta: string; chkCorrecta?: boolean }>> = {};
-    preguntas.forEach((p) => {
-      if (p.tipoPregunta?.tipoPregunta === 'Varias opciones' && p.respuestas?.length) {
-        map[p.id] = shuffleArray(p.respuestas);
-      }
-    });
-    return map;
-  }, [actividadCompleta?.preguntas]);
-
   useEffect(() => {
     if (!open || !actividad) {
       setActividadCompleta(null);
@@ -122,7 +102,11 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     }
     setLoading(true);
     axios
-      .get(`actividades/${actividad.idActividad}`)
+      .get(`actividades/${actividad.idActividad}`, {
+        params: actividad.idCalificacionActividad
+          ? { idCalificacionActividad: actividad.idCalificacionActividad }
+          : undefined
+      })
       .then((r) => {
         setActividadCompleta(r.data);
         setRespuestas({});
@@ -131,7 +115,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
       })
       .catch(() => setError('No se pudo cargar el cuestionario'))
       .finally(() => setLoading(false));
-  }, [open, actividad?.idActividad, actividad]);
+  }, [open, actividad?.idActividad, actividad?.idCalificacionActividad, actividad]);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -214,7 +198,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const isFirst = currentQuestionIndex === 0;
   const opciones =
     preg?.tipoPregunta?.tipoPregunta === 'Varias opciones' && preg.id
-      ? opcionesShuffled[preg.id] ?? preg.respuestas ?? []
+      ? preg.respuestas ?? []
       : [];
   const progresoPct =
     totalPreguntas > 0 ? Math.round(((currentQuestionIndex + 1) / totalPreguntas) * 100) : 0;

@@ -244,15 +244,20 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
-      <ModalContent className="max-w-2xl top-[5%] max-h-[90vh] overflow-y-auto p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
-        <ModalHeader>
-          <ModalTitle>{isEdit ? 'Editar cuestionario' : 'Crear cuestionario'}</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
-        <ModalBody className="px-0 py-5">
-          <form onSubmit={handleGuardar} className="space-y-4">
+      <div className="flex min-h-[100dvh] w-full items-center justify-center p-3 sm:px-5 sm:py-10 box-border pointer-events-none">
+        <div
+          className="pointer-events-auto w-full max-w-2xl"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 max-h-[min(94dvh,960px)]">
+            <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
+              <ModalTitle>{isEdit ? 'Editar cuestionario' : 'Crear cuestionario'}</ModalTitle>
+              <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="!flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
+              <form onSubmit={handleGuardar} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del cuestionario</label>
               <input
@@ -408,6 +413,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                             onChange={(e) =>
                               actualizarOpcion(pregunta.id, opcion.id, e.target.value, opcion.esCorrecta)
                             }
+                            data-preserve-case
                           />
                           <label className="flex items-center gap-1 shrink-0 cursor-pointer">
                             <input
@@ -443,17 +449,19 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               </div>
             ))}
 
-            <div className="flex justify-between gap-2 pt-4">
-              <button type="button" onClick={handleAñadirPregunta} className="btn btn-primary">
-                + AÑADIR PREGUNTA
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Guardando...' : isEdit ? 'Actualizar cuestionario' : '+ GUARDAR CUESTIONARIO'}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
-      </ModalContent>
+                <div className="flex justify-between gap-2 border-t border-gray-100 pt-4 dark:border-gray-600/50">
+                  <button type="button" onClick={handleAñadirPregunta} className="btn btn-primary">
+                    + AÑADIR PREGUNTA
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Guardando...' : isEdit ? 'Actualizar cuestionario' : '+ GUARDAR CUESTIONARIO'}
+                  </button>
+                </div>
+              </form>
+            </ModalBody>
+          </ModalContent>
+        </div>
+      </div>
     </Modal>
   );
 };
