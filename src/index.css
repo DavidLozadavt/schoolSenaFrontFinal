@@ -294,3 +294,12 @@ input.datetime-ampliar-actividad::-webkit-calendar-picker-indicator {
   opacity: 1;
 }
 
+/* Placeholders de Crear/Editar Actividad y Cuestionario (anula el gris global #6a6a8a) */
+.dark .modal-form-actividades input::placeholder,
+.dark .modal-form-actividades textarea::placeholder {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+
+

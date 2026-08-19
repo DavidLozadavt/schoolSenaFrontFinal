@@ -256,10 +256,10 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
-            <ModalBody className="!flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
-              <form onSubmit={handleGuardar} className="space-y-4">
+            <ModalBody className="cuestionario-modal-scroll !flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
+              <form onSubmit={handleGuardar} className="modal-form-actividades space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del cuestionario</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Título del cuestionario</label>
               <input
                 type="text"
                 className="input w-full p-2 text-sm"
@@ -271,7 +271,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Clasificación de Actividad</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Clasificación de Actividad</label>
               <select
                 className="input w-full p-2 text-sm"
                 value={clasificacion}
@@ -286,7 +286,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RAP</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">RAP</label>
               {idMateriaProp ? (
                 <div className="p-2 text-sm rounded bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                   {(() => {
@@ -311,7 +311,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción del cuestionario</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Descripción del cuestionario</label>
               <textarea
                 className="input w-full p-2 text-sm min-h-[100px] max-h-[350px] overflow-y-auto overflow-x-hidden resize-y break-words"
                 style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
@@ -330,7 +330,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-gray-50/50 dark:bg-coal-400/20"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-white">
                     Pregunta {preguntas.indexOf(pregunta) + 1}
                   </span>
                   <button
@@ -344,7 +344,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de pregunta</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Tipo de pregunta</label>
                   <select
                     className="input w-full p-2 text-sm"
                     value={pregunta.tipo}
@@ -359,7 +359,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pregunta</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Pregunta</label>
                   <input
                     type="text"
                     className="input w-full p-2 text-sm"
@@ -371,7 +371,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagen (opcional)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Imagen (opcional)</label>
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="file"
@@ -390,7 +390,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                     >
                       Seleccionar archivo
                     </button>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 dark:text-white">
                       {pregunta.fotoFile ? pregunta.fotoFile.name : 'Sin archivos seleccionados'}
                     </span>
                   </div>
@@ -401,7 +401,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
 
                 {pregunta.tipo === 'Varias opciones' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opciones</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">Opciones</label>
                     <div className="space-y-2">
                       {pregunta.opciones.map((opcion) => (
                         <div key={opcion.id} className="flex items-center gap-2">
@@ -424,7 +424,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                               }
                               className="rounded"
                             />
-                            <span className="text-xs text-gray-600 dark:text-gray-400">Correcta</span>
+                            <span className="text-xs text-gray-600 dark:text-white">Correcta</span>
                           </label>
                           <button
                             type="button"
