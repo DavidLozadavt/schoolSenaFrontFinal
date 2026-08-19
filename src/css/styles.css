@@ -5,3 +5,32 @@
 
 /* Demos */
 @import "demos/demo1";
+
+/* Texto de campos en Crear/Editar Actividad y Cuestionario (solo color, dark) */
+.dark .modal-form-actividades input.input,
+.dark .modal-form-actividades textarea.input,
+.dark .modal-form-actividades select.input,
+.dark .modal-form-actividades input.input:hover,
+.dark .modal-form-actividades textarea.input:hover,
+.dark .modal-form-actividades select.input:hover,
+.dark .modal-form-actividades input.input:focus,
+.dark .modal-form-actividades textarea.input:focus,
+.dark .modal-form-actividades select.input:focus,
+.dark .modal-form-actividades input.input:active,
+.dark .modal-form-actividades textarea.input:active,
+.dark .modal-form-actividades select.input:active {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+}
+
+.dark .modal-form-actividades input.input::placeholder,
+.dark .modal-form-actividades textarea.input::placeholder {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+
+.dark .modal-form-actividades select.input option {
+  color: #ffffff;
+}
