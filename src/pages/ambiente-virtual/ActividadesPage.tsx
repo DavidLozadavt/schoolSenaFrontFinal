@@ -19,7 +19,9 @@ const ActividadesPage: React.FC = () => {
           <Toolbar>
             <ToolbarHeading>
               <ToolbarPageTitle />
-              <ToolbarDescription>Visualiza y gestiona tus actividades asignadas</ToolbarDescription>
+              <ToolbarDescription>
+                <span className="dark:text-white">Visualiza y gestiona tus actividades asignadas</span>
+              </ToolbarDescription>
             </ToolbarHeading>
           </Toolbar>
         </Container>
