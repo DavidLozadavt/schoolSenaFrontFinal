@@ -256,7 +256,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 <KeenIcon icon="cross" />
               </button>
             </ModalHeader>
-            <ModalBody className="!flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
+            <ModalBody className="cuestionario-modal-scroll !flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
               <form onSubmit={handleGuardar} className="modal-form-actividades space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Título del cuestionario</label>
