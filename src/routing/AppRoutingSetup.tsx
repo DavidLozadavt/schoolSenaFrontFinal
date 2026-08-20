@@ -148,6 +148,8 @@ import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
 import PortafolioInstructorGeneral from '@/pages/proceso/portafolio/PortafolioInstructorGeneral';
+import SeguimientoAprendiz from '@/pages/programas-academicos/components/malla-curricular/SeguimientoAprendiz';
+import SeguimientoInstructor from '@/pages/programas-academicos/components/malla-curricular/SeguimientoInstructor';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -1286,6 +1288,22 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_ACTIVIDADES']}>
                 <ActividadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/seguimiento-aprendiz"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_SEGUIMIENTO']}>
+                <SeguimientoAprendiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/seguimiento-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_SEGUIMIENTO']}>
+                <SeguimientoInstructor />
               </ProtectedRoute>
             }
           />
