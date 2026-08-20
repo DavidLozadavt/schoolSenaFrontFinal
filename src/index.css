@@ -143,12 +143,16 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding: 4px;
   border-radius: 6px;
   transition: all 0.2s ease-in-out;
+  opacity: 1;
 }
 
 .dark input[type="date"]::-webkit-calendar-picker-indicator,
 .dark input[type="time"]::-webkit-calendar-picker-indicator,
 .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(0.8);
+  /* Icono claro y legible sobre fondos oscuros */
+  filter: invert(1) brightness(1.35) contrast(1.05);
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 input[type="date"]:hover::-webkit-calendar-picker-indicator,
@@ -158,9 +162,144 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
   transform: scale(1.1);
 }
 
-/* Forzar esquema de color en navegadores modernos */
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"] {
-  color-scheme: light dark;
+.dark input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.dark input[type="time"]:hover::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+  background: rgba(255, 255, 255, 0.14);
 }
+
+/*
+ * Esquema de color explícito: el popup nativo (Chromium/Edge/Safari) sigue el tema.
+ * Evita calendario claro sobre modal oscuro.
+ */
+html:not(.dark) input[type="date"],
+html:not(.dark) input[type="time"],
+html:not(.dark) input[type="datetime-local"] {
+  color-scheme: light;
+}
+
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Campo Ampliar actividad: área clicable completa + icono más visible */
+input.datetime-ampliar-actividad {
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+input.datetime-ampliar-actividad::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.35rem;
+}
+
+.dark input.datetime-ampliar-actividad::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.5);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
+}
+
+/* --- Parche de Visibilidad para Modo Oscuro en Formularios --- */
+.dark input.input,
+.dark select.input,
+.dark textarea.input,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark select,
+.dark textarea,
+.dark select.input option {
+  background-color: #1e1e2d !important;
+  color: #ffffff !important;
+  border-color: #323248 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled,
+.dark input[disabled],
+.dark select:disabled,
+.dark select[disabled] {
+  background-color: #151521 !important;
+  color: #a0a0c0 !important;
+  border-color: #272738 !important;
+  -webkit-text-fill-color: #a0a0c0 !important; /* Forzar color en iOS/Chrome para disabled */
+}
+
+/* Forzar que el texto digitado por el usuario sea legible (no negro) en el tema oscuro de Metronic/Keen */
+.dark .input,
+.dark input,
+.dark select,
+.dark textarea,
+.dark select.input,
+.dark select option,
+.dark .form-control {
+  background-color: #1b1b29 !important;
+  color: #ffffff !important;
+  border-color: #2b2b40 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled,
+.dark input[disabled],
+.dark select:disabled,
+.dark select[disabled] {
+  background-color: #13131f !important;
+  color: #8a8ab0 !important;
+  border-color: #20202f !important;
+  -webkit-text-fill-color: #8a8ab0 !important;
+}
+
+.dark .input::placeholder,
+.dark input::placeholder {
+  color: #6a6a8a !important;
+  -webkit-text-fill-color: #6a6a8a !important;
+}
+
+/* Reglas ultra agresivas para forzar texto blanco en inputs en modo oscuro */
+.dark input, 
+.dark select, 
+.dark textarea, 
+.dark select.input, 
+.dark input.input,
+.dark select.input option {
+  color: #ffffff !important;
+  background-color: #1e1e2d !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input:disabled, 
+.dark input[disabled],
+.dark select:disabled, 
+.dark select[disabled] {
+  color: #8f8f9f !important;
+  background-color: #1a1a24 !important;
+  -webkit-text-fill-color: #8f8f9f !important;
+}
+
+/* Biblioteca aprendiz: buscador legible en modo oscuro (texto + placeholder blancos) */
+.dark input.material-apoyo-aprendiz-search {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.dark input.material-apoyo-aprendiz-search::placeholder {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+
+/* Placeholders de Crear/Editar Actividad y Cuestionario (anula el gris global #6a6a8a) */
+.dark .modal-form-actividades input::placeholder,
+.dark .modal-form-actividades textarea::placeholder {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+
+

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle, ModalFooter } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useAuthContext } from '@/auth';
@@ -161,8 +161,13 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const idMateriaFinal = formData.idMateria || idMateria || materias[0]?.id;
-    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !idMateriaFinal || !formData.estrategia || !formData.entregables || !formData.idCompany) {
+    // Solo el RAP del contexto de clase (o el ya guardado al editar). Nunca materias[0]: asociaría otro RAP.
+    const idMateriaFinal = Number(formData.idMateria || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar la actividad.');
+      return;
+    }
+    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !formData.estrategia || !formData.entregables || !formData.idCompany) {
       return;
     }
     if (documentoFile) {
@@ -224,19 +229,20 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
-      <ModalContent className="max-w-[600px] top-[10%] max-h-[90vh] overflow-y-auto p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
-        <ModalHeader>
-          <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
-        <ModalBody className="grid gap-4 px-0 py-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <ModalContent className="w-[95vw] max-w-[840px] top-[5%] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <form onSubmit={handleSubmit} className="modal-form-actividades flex flex-col min-h-0 max-h-[90vh] flex-1">
+          <ModalHeader className="shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+            <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
+            <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
+              <KeenIcon icon="cross" />
+            </button>
+          </ModalHeader>
+
+          <ModalBody className="grid gap-4 px-4 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Actividad *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Tipo de Actividad</label>
               <select
-                className="input w-full p-2 text-sm"
+                className="input w-full p-2 text-sm dark:text-white dark:focus:text-white dark:active:text-white"
                 value={formData.tipoActividad || 'sin evidencia'}
                 onChange={(e) => handleChange('tipoActividad', e.target.value as TipoActividadEnum)}
                 required
@@ -247,11 +253,10 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título de la Actividad *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Título de la Actividad</label>
               <input
                 type="text"
-                className="input w-full p-2 text-sm"
-                placeholder="Título de la actividad"
+                className="input w-full p-2 text-sm dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
                 value={formData.tituloActividad || ''}
                 onChange={(e) => handleChange('tituloActividad', e.target.value)}
                 data-preserve-case
@@ -260,10 +265,10 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción de la Actividad *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Descripción de la Actividad</label>
               <textarea
                 ref={descripcionRef}
-                className="input w-full p-2 text-sm min-h-[80px] overflow-hidden resize-none"
+                className="input w-full p-2 text-sm min-h-[80px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
                 placeholder="Descripción de la actividad"
                 value={formData.descripcionActividad || ''}
                 onChange={(e) => handleChange('descripcionActividad', e.target.value)}
@@ -273,7 +278,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Documento base de la actividad</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Documento base de la actividad</label>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   ref={fileInputRef}
@@ -289,18 +294,18 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 >
                   Seleccionar archivo
                 </button>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-sm text-gray-500 dark:text-white">
                   {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL}</p>
+              <p className="text-xs text-gray-500 dark:text-white mt-1">{ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estrategia de la Actividad *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Estrategia de la Actividad</label>
               <textarea
                 ref={estrategiaRef}
-                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none"
+                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
                 placeholder="Estrategia pedagógica"
                 value={formData.estrategia || ''}
                 onChange={(e) => handleChange('estrategia', e.target.value)}
@@ -310,10 +315,10 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Entregables *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Entregables</label>
               <textarea
                 ref={entregablesRef}
-                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none"
+                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
                 placeholder="Entregables esperados"
                 value={formData.entregables || ''}
                 onChange={(e) => handleChange('entregables', e.target.value)}
@@ -321,17 +326,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 required
               />
             </div>
+          </ModalBody>
 
-            <div className="flex justify-between gap-2 pt-4">
-              <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={onClose}>
-                X CANCELAR
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Guardando...' : actividadEditar ? 'Actualizar' : '+ CREAR ACTIVIDAD'}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
+          <ModalFooter className="shrink-0 flex justify-between gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-500">
+            <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={onClose}>
+              X CANCELAR
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Guardando...' : actividadEditar ? 'Actualizar' : '+ CREAR ACTIVIDAD'}
+            </button>
+          </ModalFooter>
+        </form>
       </ModalContent>
     </Modal>
   );

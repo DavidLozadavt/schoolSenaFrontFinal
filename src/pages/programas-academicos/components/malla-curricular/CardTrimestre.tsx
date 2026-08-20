@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, Lock, TrendingUp } from 'lucide-react';
 import { numeroGradoDesdeTrimestre } from './utils/trimestreNumeroGrado';
 import { CardRap } from './CardRap';
 
@@ -14,6 +14,7 @@ interface CardTrimestreProps {
   onAsignacionSuccess?: () => void;
   setModalHorarios?: any;
   idFicha?: number;
+  esEditable?: boolean;
 }
 
 const formatearFecha = (fecha: Date): string => {
@@ -44,6 +45,8 @@ const obtenerClaseEstado = (estado: string) => {
   return estados[estado] || '';
 };
 
+const MSG_SOLO_ACTUAL = 'Solo puede modificarse el trimestre actual.';
+
 export const CardTrimestre: React.FC<CardTrimestreProps> = ({
   trimestre,
   index,
@@ -53,7 +56,8 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
   onEditCompetencia,
   onAsignacionSuccess,
   setModalHorarios,
-  idFicha
+  idFicha,
+  esEditable = true
 }) => {
   const [expandido, setExpandido] = useState(false);
 
@@ -85,6 +89,15 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
             />
             <span className="text-primary">#{numero}</span>
             TRIMESTRE
+            {!esEditable && (
+              <span
+                className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-gray-100 dark:bg-coal-400 text-gray-500 dark:text-gray-400"
+                title={MSG_SOLO_ACTUAL}
+              >
+                <Lock size={12} aria-hidden />
+                Histórico
+              </span>
+            )}
           </h3>
           <span
             className={`self-start sm:self-auto rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide ${obtenerClaseEstado(
@@ -152,6 +165,7 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
                         setModalHorarios={setModalHorarios}
                         idFicha={idFicha || trimestre.idFicha}
                         materiasLength={materiasArray.length}
+                        esEditable={esEditable}
                       />
                     ))
                   ) : (
@@ -166,18 +180,30 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAbrirMaterias(trimestre.idGradoPrograma);
-                  setSelectedNivelId(trimestre.grado.idGradoPrograma);
-                }}
-                className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
-              >
-                <i className="mr-2 ki-outline ki-plus"></i>
-                Agregar Competencia
-              </button>
+              {esEditable ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAbrirMaterias(trimestre.idGradoPrograma);
+                    setSelectedNivelId(trimestre.grado.idGradoPrograma);
+                  }}
+                  className="w-full py-3 mt-4 font-bold text-gray-600 dark:text-gray-300 uppercase transition-all border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary hover:text-white hover:bg-primary text-sm hover:shadow-lg active:scale-95"
+                >
+                  <i className="mr-2 ki-outline ki-plus"></i>
+                  Agregar Competencia
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title={MSG_SOLO_ACTUAL}
+                  className="w-full py-3 mt-4 font-bold text-gray-400 dark:text-gray-500 uppercase border-2 border-gray-200 dark:border-gray-700 border-dashed rounded-lg text-sm cursor-not-allowed opacity-70 flex items-center justify-center gap-2"
+                >
+                  <Lock size={14} aria-hidden />
+                  Agregar Competencia
+                </button>
+              )}
             </div>
           </motion.div>
         ) : null}

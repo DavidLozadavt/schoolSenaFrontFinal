@@ -8,7 +8,7 @@ import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import { Calendario } from './components/malla-curricular/Calendario';
 import { useAuthContext } from '@/auth';
-import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
+import ModalJuiciosEvaluativos from '@/pages/shared/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
@@ -130,7 +130,8 @@ export const ProgramacionFichasPage = () => {
 
   const { centroF, roles } = authContext;
 
-  const esInstructorSena = roles?.includes('INSTRUCTOR SENA');
+  const esAdministrador = roles?.includes('ADMINISTRADOR VT') || roles?.includes('ADMIN REGIONAL') || roles?.includes('ADMIN CENTRO');
+  const esInstructorSena = roles?.includes('INSTRUCTOR SENA') && !esAdministrador;
 
   const loadProgram = async () => {
     if (!programId) return;
@@ -330,7 +331,7 @@ export const ProgramacionFichasPage = () => {
         />
 
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
-          <nav className="text-sm text-gray-600 dark:text-gray-400">
+          <nav className="text-sm text-gray-600 dark:text-white">
             <span
               className="hover:text-primary cursor-pointer"
               onClick={() => navigate('/gestion-academica/configuracion/programas')}
@@ -380,7 +381,7 @@ export const ProgramacionFichasPage = () => {
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
                 Programación de Fichas
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-white">
                 {esInstructorSena
                   ? 'Fichas asignadas a ti y fichas disponibles para asignarte'
                   : 'Gestiona las fichas del programa y asigna líderes'}
@@ -430,7 +431,7 @@ export const ProgramacionFichasPage = () => {
           ) : fichas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-coal-600 rounded-lg border border-gray-200 dark:border-coal-100">
               <i className="mb-4 text-5xl text-gray-400 ki-outline ki-file-deleted"></i>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-white">
                 {esInstructorSena
                   ? 'No tienes fichas asignadas en este programa'
                   : 'No hay fichas registradas para este programa'}
@@ -520,7 +521,7 @@ export const ProgramacionFichasPage = () => {
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-white">
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-calendar text-xs"></i>
                                   <span>
@@ -563,7 +564,7 @@ export const ProgramacionFichasPage = () => {
                                 )
                               ) : (
                                 <>
-                                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                                  <span className="text-sm text-gray-500 dark:text-white">
                                     Sin líder asignado
                                   </span>
                                   {esInstructorSena ? (
@@ -617,7 +618,7 @@ export const ProgramacionFichasPage = () => {
                             <button
                               type="button"
                               onClick={() => toggleExpandirFicha(ficha.id)}
-                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:text-white dark:hover:text-white/80 transition-colors"
                             >
                               <i
                                 className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}
@@ -631,26 +632,26 @@ export const ProgramacionFichasPage = () => {
                         <div className="px-4 pb-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
                           <div className="pt-4 grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Sede
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.sede?.nombre || '—'}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Jornada
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.jornada?.nombreJornada || '—'}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Fecha de inicio
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.asignacion?.fechaInicialClases
                                   ? new Date(
                                       ficha.asignacion.fechaInicialClases
@@ -659,20 +660,20 @@ export const ProgramacionFichasPage = () => {
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Fecha de Finalización
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.asignacion?.fechaFinalClases
                                   ? new Date(ficha.asignacion.fechaFinalClases).toLocaleDateString()
                                   : '—'}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Regional
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.regional?.razonSocial || '—'}
                               </p>
                             </div>
@@ -680,7 +681,7 @@ export const ProgramacionFichasPage = () => {
 
                           {ficha.documento ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
-                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-white mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
                                 Documento de la Ficha
                               </h4>
@@ -693,7 +694,7 @@ export const ProgramacionFichasPage = () => {
                                     <p className="text-sm font-medium text-gray-800 dark:text-white">
                                       Documento Principal
                                     </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <p className="text-xs text-gray-500 dark:text-white mt-1">
                                       Formato PDF
                                     </p>
                                   </div>
@@ -712,12 +713,12 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           ) : (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
-                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-white mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
                                 Documento de la Ficha
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
-                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
+                                <p className="text-sm text-gray-500 dark:text-white text-center py-2 flex items-center justify-center gap-2">
                                   <i className="ki-outline ki-information-2"></i>
                                   No hay documento adjunto para esta ficha
                                 </p>
@@ -819,7 +820,7 @@ export const ProgramacionFichasPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-600 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <span className="text-xs font-medium text-gray-600 dark:text-white">
                       Mostrando
                     </span>
                     <select
@@ -828,7 +829,7 @@ export const ProgramacionFichasPage = () => {
                         setItemsPerPage(Number(e.target.value));
                         setCurrentPage(1);
                       }}
-                      className="px-2 py-1 text-xs border border-gray-300 dark:border-coal-100 rounded bg-white dark:bg-coal-400 text-gray-700 dark:text-gray-200"
+                      className="px-2 py-1 text-xs border border-gray-300 dark:border-coal-100 rounded bg-white dark:bg-coal-400 text-gray-700 dark:text-white"
                     >
                       <option value={10}>10 por página</option>
                       <option value={20}>20 por página</option>
@@ -837,20 +838,20 @@ export const ProgramacionFichasPage = () => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <span className="text-xs font-medium text-gray-600 dark:text-white">
                       {startIndex + 1} - {Math.min(endIndex, fichas.length)} de {fichas.length}
                     </span>
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
                     >
                       <i className="text-sm ki-outline ki-left"></i>
                     </button>
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
                     >
                       <i className="text-sm ki-outline ki-right"></i>
                     </button>

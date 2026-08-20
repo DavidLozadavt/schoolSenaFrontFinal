@@ -14,6 +14,7 @@ import { ModalSeguimientoPractica } from './ModalSeguimientoPractica';
 import { useTrimestres } from './UseTrimestres';
 import {
   compararTrimestresPorNumeroGrado,
+  esTrimestreActual,
   maxNumeroGradoTrimestres
 } from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
@@ -72,6 +73,10 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     totalHoras?: number;
     horasActuales?: number;
     horasFaltantes?: number;
+    fechaInicioPrefill?: string;
+    horaInicioPrefill?: string;
+    horaFinPrefill?: string;
+    fechaFinalRap?: string;
   }>({
     open: false,
     idGradoMateria: undefined,
@@ -330,6 +335,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                           setModalHorarios={setModalHorarios}
                           idFicha={ficha?.id}
                           onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
+                          esEditable={esTrimestreActual(trimestre, trimestres)}
                         />
                       </div>
                     ))
@@ -415,10 +421,18 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           nombreCompetencia={selectedCompetenciaNombre}
           idFicha={ficha?.id}
           programId={program?.id}
+          program={program}
+          ficha={ficha}
           nivelId={selectedNivelId ?? 0}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           onEditCompetencia={handleEditCompetencia}
           onUpdate={() => ficha && cargarTrimestres(ficha?.id)}
+          esEditable={esTrimestreActual(
+            trimestres.find(
+              (t) => (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId
+            ),
+            trimestres
+          )}
         />
       )}
 
@@ -442,6 +456,19 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
+          jornada={ficha?.jornada?.nombreJornada}
+          fechaInicioPrefill={modalHorarios.fechaInicioPrefill}
+          horaInicioPrefill={
+            modalHorarios.horaInicioPrefill ||
+            (ficha?.jornada?.horaInicial
+              ? String(ficha.jornada.horaInicial).slice(0, 5)
+              : undefined)
+          }
+          horaFinPrefill={
+            modalHorarios.horaFinPrefill ||
+            (ficha?.jornada?.horaFinal ? String(ficha.jornada.horaFinal).slice(0, 5) : undefined)
+          }
+          fechaFinalRap={modalHorarios.fechaFinalRap}
           onGuardado={() => {
             if (ficha?.id) cargarTrimestres(ficha?.id);
           }}

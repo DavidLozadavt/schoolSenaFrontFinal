@@ -1,6 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { 
+  Users, 
+  Table, 
+  User, 
+  Download, 
+  Inbox, 
+  Trash2, 
+  ChevronRight, 
+  ArrowRight, 
+  ArrowLeft, 
+  FileText, 
+  Eye, 
+  X 
+} from 'lucide-react';
 
 interface Props {
   formularioId: string | number;
@@ -44,8 +58,10 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return pregunta?.titulo || `Pregunta ${idPregunta}`;
   };
 
-  /** Resolve full name from user object — handles accessor, flat name, or nested persona */
-  const getUserName = (usuario: any): string => {
+  const getUserName = (usuario: any, respuesta?: any): string => {
+    if (!usuario && (respuesta?.nexiEmail || respuesta?.usuario?.email)) {
+      return respuesta?.nexiEmail || respuesta?.usuario?.email;
+    }
     if (!usuario) return 'Anónimo';
     // Backend may already compute name via accessor or map()
     if (usuario.name && usuario.name.trim()) return usuario.name.trim();
@@ -59,13 +75,27 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
     return usuario.email?.split('@')[0] || 'Anónimo';
   };
 
-  const getUserInitials = (usuario: any): string => {
-    const name = getUserName(usuario);
+  const getUserInitials = (usuario: any, respuesta?: any): string => {
+    const name = getUserName(usuario, respuesta);
     if (name === 'Anónimo') return '?';
+    if (usuario?.isNexiUser || respuesta?.nexiEmail) return name.split('@')[0].slice(0, 2).toUpperCase();
     const words = name.trim().split(' ');
     return words.length >= 2
       ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
       : name[0].toUpperCase();
+  };
+
+  const deleteResponse = async (id: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!window.confirm('¿Eliminar esta respuesta? Esta acción no se puede deshacer.')) return;
+    try {
+      await axios.delete(`formularios/${formularioId}/respuestas/${id}`);
+      setRespuestas(prev => prev.filter(r => r.id !== id));
+      if (selectedResponse?.id === id) setSelectedResponse(null);
+    } catch (error) {
+      console.error('Error eliminando respuesta', error);
+      alert('No se pudo eliminar la respuesta.');
+    }
   };
 
   const exportToExcel = () => {
@@ -111,13 +141,12 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
 
   return (
     <div className="flex flex-col gap-6 mt-6">
-
       {/* Header bar */}
       <div className="bg-white dark:bg-neutral-900 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-xl p-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* Count badge */}
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl" style={{ backgroundColor: `${accentColor}12` }}>
-            <i className="bi bi-people-fill fs-4" style={{ color: accentColor }}></i>
+            <Users className="w-5 h-5" style={{ color: accentColor }} />
             <span className="text-2xl font-black" style={{ color: accentColor }}>{respuestas.length}</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
               {respuestas.length === 1 ? 'respuesta' : 'respuestas'}
@@ -130,13 +159,13 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
               className={`text-[9px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'tabla' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-600'}`}
               onClick={() => { setViewMode('tabla'); setSelectedResponse(null); }}
             >
-              <i className="bi bi-table text-xs"></i> Resumen
+              <Table className="w-3.5 h-3.5" /> Resumen
             </button>
             <button
               className={`text-[9px] font-black uppercase tracking-widest py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'individual' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-600'}`}
               onClick={() => setViewMode('individual')}
             >
-              <i className="bi bi-person text-xs"></i> Individual
+              <User className="w-3.5 h-3.5" /> Individual
             </button>
           </div>
         </div>
@@ -147,7 +176,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
           onClick={exportToExcel}
           disabled={respuestas.length === 0}
         >
-          <i className="bi bi-file-earmark-excel fs-5"></i>
+          <Download className="w-4 h-4" />
           Exportar a Excel
         </button>
       </div>
@@ -158,7 +187,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
           {respuestas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4 text-neutral-400">
               <div className="w-16 h-16 rounded-2xl bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center">
-                <i className="bi bi-inbox fs-1 text-neutral-300 dark:text-neutral-700"></i>
+                <Inbox className="w-8 h-8 text-neutral-300 dark:text-neutral-700" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-black uppercase tracking-widest text-neutral-400">Sin respuestas aún</p>
@@ -169,41 +198,36 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
             <div className="overflow-x-auto">
               <table className="w-full min-w-max">
                 <thead>
-                  <tr className="border-b border-neutral-100 dark:border-white/5">
-                    <th className="text-left text-[9px] font-black uppercase tracking-widest text-neutral-400 px-6 py-4 w-10">#</th>
-                    <th className="text-left text-[9px] font-black uppercase tracking-widest text-neutral-400 px-4 py-4 min-w-[130px]">Fecha</th>
-                    <th className="text-left text-[9px] font-black uppercase tracking-widest text-neutral-400 px-4 py-4 min-w-[160px]">Usuario</th>
+                  <tr className="border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-neutral-800/30">
+                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-neutral-400">Participante</th>
                     {formulario?.preguntas?.map((p: any) => (
-                      <th key={p.id} className="text-left text-[9px] font-black uppercase tracking-widest text-neutral-400 px-4 py-4 min-w-[160px] max-w-[220px]">
+                      <th key={p.id} className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-neutral-400 max-w-[220px]">
                         <span className="block truncate" title={p.titulo}>{p.titulo}</span>
                       </th>
                     ))}
-                    <th className="px-4 py-4 w-10"></th>
+                    <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-neutral-400">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-50 dark:divide-white/3">
+                <tbody className="divide-y divide-neutral-100 dark:divide-white/5">
                   {respuestas.map((r, idx) => (
                     <tr
-                      key={r.id}
-                      className="hover:bg-neutral-50/60 dark:hover:bg-white/3 cursor-pointer transition-colors group"
+                      key={r.id || idx}
+                      className="hover:bg-neutral-50/80 dark:hover:bg-neutral-800/20 transition-colors cursor-pointer group"
                       onClick={() => { setSelectedResponse(r); setViewMode('individual'); }}
                     >
-                      <td className="px-6 py-4 text-xs font-bold text-neutral-350 dark:text-neutral-600">{idx + 1}</td>
-                      <td className="px-4 py-4">
-                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-250">{new Date(r.created_at).toLocaleDateString()}</p>
-                        <p className="text-[10px] text-neutral-400 mt-0.5">{new Date(r.created_at).toLocaleTimeString()}</p>
-                      </td>
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shrink-0"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0"
                             style={{ backgroundColor: accentColor }}
                           >
                             {getUserInitials(r.usuario)}
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario)}</span>
-                            {r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>}
+                            <span className="text-xs font-bold text-neutral-800 dark:text-white truncate">
+                              {getUserName(r.usuario)}
+                            </span>
+                            <span className="text-[10px] text-neutral-400">{new Date(r.created_at).toLocaleString()}</span>
                           </div>
                         </div>
                       </td>
@@ -221,8 +245,17 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         );
                       })}
                       <td className="px-4 py-4">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all opacity-0 group-hover:opacity-100">
-                          <i className="bi bi-chevron-right text-xs"></i>
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={(e) => deleteResponse(r.id, e)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 transition-colors"
+                            title="Eliminar respuesta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all">
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -237,13 +270,12 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
       {/* ─── INDIVIDUAL VIEW ─── */}
       {viewMode === 'individual' && (
         <div className="flex flex-col gap-5">
-          {/* Back / list of cards */}
           {!selectedResponse && (
             <>
               {respuestas.length === 0 ? (
                 <div className="bg-white dark:bg-neutral-900 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-xl flex flex-col items-center justify-center py-24 gap-4 text-neutral-400">
                   <div className="w-16 h-16 rounded-2xl bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center">
-                    <i className="bi bi-inbox fs-1 text-neutral-300 dark:text-neutral-700"></i>
+                    <Inbox className="w-8 h-8 text-neutral-300 dark:text-neutral-700" />
                   </div>
                   <p className="text-sm font-black uppercase tracking-widest text-neutral-400">Sin respuestas aún</p>
                 </div>
@@ -273,7 +305,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                         <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400">
                           {Array.isArray(r.respuestas) ? `${r.respuestas.length} respuestas` : '0 respuestas'}
                         </span>
-                        <i className="bi bi-arrow-right text-neutral-300 group-hover:text-neutral-600 transition-colors"></i>
+                        <ArrowRight className="w-4 h-4 text-neutral-300 group-hover:text-neutral-600 transition-colors" />
                       </div>
                     </button>
                   ))}
@@ -289,7 +321,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                 className="self-start flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-neutral-800 dark:hover:text-white transition-colors py-2.5 px-4 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"
                 onClick={() => setSelectedResponse(null)}
               >
-                <i className="bi bi-arrow-left text-xs"></i> Volver a la lista
+                <ArrowLeft className="w-3.5 h-3.5" /> Volver a la lista
               </button>
 
               {/* User header card */}
@@ -301,16 +333,29 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                   >
                     {getUserInitials(selectedResponse.usuario)}
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col flex-1 min-w-0">
                     <span className="text-base font-black text-neutral-800 dark:text-white">
                       {getUserName(selectedResponse.usuario)}
                     </span>
                     <span className="text-xs text-neutral-400 flex items-center gap-2 flex-wrap">
                       {selectedResponse.usuario?.email && <span>{selectedResponse.usuario.email}</span>}
                       <span className="text-neutral-300 hidden sm:inline">·</span>
-                      <span>{new Date(selectedResponse.created_at).toLocaleString()}</span>
+                      <span>Inscrito: {new Date(selectedResponse.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      {selectedResponse.updated_at && selectedResponse.updated_at !== selectedResponse.created_at && (
+                        <>
+                          <span className="text-neutral-300 hidden sm:inline">·</span>
+                          <span className="text-amber-500">Editado: {new Date(selectedResponse.updated_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </>
+                      )}
                     </span>
                   </div>
+                  <button
+                    onClick={() => deleteResponse(selectedResponse.id)}
+                    className="shrink-0 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-800/40 hover:text-red-600 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar</span>
+                  </button>
                 </div>
 
                 {/* Answer items */}
@@ -323,6 +368,9 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                       <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-250">
                         {(() => {
                           if (Array.isArray(item.valor)) {
+                            if (item.valor.length === 0) {
+                              return <span className="italic text-neutral-350 dark:text-neutral-600 text-xs">Sin respuesta</span>;
+                            }
                             return (
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {item.valor.map((v, vi) => (
@@ -343,7 +391,6 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                             return <span className="italic text-neutral-350 dark:text-neutral-600 text-xs">Sin respuesta</span>;
                           }
 
-                          // Check if the value is a JSON array or a comma-separated list of URLs
                           let urls: string[] = [];
                           try {
                             if (valorStr.startsWith('[') && valorStr.endsWith(']')) {
@@ -366,7 +413,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                                 {urls.map((url, uidx) => {
                                   const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(url);
                                   return (
-                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/20 border border-neutral-100/50 max-w-lg shadow-inner">
+                                    <div key={uidx} className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50 dark:bg-coal-400 border border-neutral-100/50 max-w-lg shadow-inner">
                                       <div 
                                         className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-neutral-200/20 bg-neutral-100 flex items-center justify-center ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                         onClick={() => isImage && setActiveLightboxUrl(url)}
@@ -374,7 +421,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                                         {isImage ? (
                                           <img src={url} alt="Archivo" className="w-full h-full object-cover" />
                                         ) : (
-                                          <i className="bi bi-file-earmark-pdf fs-2 text-rose-500"></i>
+                                          <FileText className="w-6 h-6 text-rose-500" />
                                         )}
                                       </div>
                                       <div className="flex flex-col min-w-0">
@@ -383,7 +430,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                                         </span>
                                         <span className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate max-w-[250px] mb-1.5">{url.split('/').pop()}</span>
                                         <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1.5 mt-0.5">
-                                          <i className="bi bi-eye"></i> Ver archivo completo
+                                          <Eye className="w-3.5 h-3.5" /> Ver archivo completo
                                         </a>
                                       </div>
                                     </div>
@@ -414,7 +461,7 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
             className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg cursor-pointer border-0"
             onClick={() => setActiveLightboxUrl(null)}
           >
-            <i className="bi bi-x-lg text-lg"></i>
+            <X className="w-6 h-6" />
           </button>
           <div className="max-w-[90vw] max-h-[90vh] relative p-2" onClick={(e) => e.stopPropagation()}>
             <img 

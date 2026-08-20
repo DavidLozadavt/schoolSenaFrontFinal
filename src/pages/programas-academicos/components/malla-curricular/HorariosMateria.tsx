@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
@@ -26,6 +26,13 @@ interface HorariosMateriaProps {
   horasFaltantes?: number;
   porcentajeEjecucion?: number;
   onGuardado?: () => void;
+  /** Fecha precargada al abrir desde el calendario (YYYY-MM-DD). */
+  fechaInicioPrefill?: string;
+  /** Horas del RAP / jornada a aplicar al día seleccionado. */
+  horaInicioPrefill?: string;
+  horaFinPrefill?: string;
+  /** Límite: no permitir fecha inicio posterior a la fecha final del RAP. */
+  fechaFinalRap?: string;
 }
 
 // Schema de validación con Yup
@@ -74,7 +81,11 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   horasActuales,
   horasFaltantes,
   onGuardado,
-  porcentajeEjecucion
+  porcentajeEjecucion,
+  fechaInicioPrefill,
+  horaInicioPrefill,
+  horaFinPrefill,
+  fechaFinalRap
 }) => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -93,6 +104,8 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   const [loadingDias, setLoadingDias] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [cargandoHorario, setCargandoHorario] = useState(false);
+  /** Evita que el sync por fechaInicio pise la carga inicial desde calendario. */
+  const inicializandoRef = useRef(false);
 
   // Para aplicar misma hora a varios días
   const [horaGlobalInicio, setHoraGlobalInicio] = useState('');
@@ -118,6 +131,13 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
 
   const { values, setFieldValue, handleChange, handleSubmit, errors, touched } = formik;
 
+  const normalizeHoraPrefill = (raw?: string): string => {
+    if (!raw) return '';
+    const m = String(raw).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return '';
+    return `${m[1].padStart(2, '0')}:${m[2]}`;
+  };
+
   const festivosSet = useMemo(() => {
     const baseYear = values.fechaInicio
       ? new Date(values.fechaInicio + 'T00:00:00').getFullYear()
@@ -125,132 +145,190 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     return getColombianHolidayDateSet(baseYear, baseYear + 2);
   }, [values.fechaInicio]);
 
-  // Cargar días disponibles al abrir el modal
+  // Cargar días y precargas al abrir el modal
   useEffect(() => {
-    if (open) {
-      cargarDias();
-      cargarHorarioExistente();
-    } else {
-      // Limpiar formulario al cerrar
+    if (!open) {
       formik.resetForm();
       setHoraGlobalInicio('');
       setHoraGlobalFin('');
       setIncluirFestivos(false);
+      inicializandoRef.current = false;
+      return;
     }
-  }, [open]);
 
-  // Seleccionar automáticamente el día cuando cambia la fecha de inicio
+    let cancelled = false;
+    inicializandoRef.current = true;
+
+    const init = async () => {
+      setLoadingDias(true);
+      setCargandoHorario(true);
+      try {
+        const response = await axios.get('dias');
+        if (cancelled) return;
+        const dias = response.data || [];
+        let horariosIniciales: HorarioDia[] = dias.map((dia: any) => ({
+          idDia: dia.id,
+          nombreDia: dia.dia,
+          horaInicio: '',
+          horaFin: '',
+          activo: false
+        }));
+
+        let horaIni = normalizeHoraPrefill(horaInicioPrefill);
+        let horaFin = normalizeHoraPrefill(horaFinPrefill);
+        let fechaIni = fechaInicioPrefill || '';
+        let observacion = '';
+
+        // Intentar horas/fecha desde API (puede no existir); no pisa prefill de calendario.
+        try {
+          if (idGradoMateria) {
+            const resExistente = await axios.get(`horarios/materia/${idGradoMateria}`);
+            const data = resExistente.data?.data;
+            if (data) {
+              if (!fechaInicioPrefill && data.fechaInicio) {
+                fechaIni = data.fechaInicio;
+              }
+              if (data.observacion) observacion = data.observacion;
+              if (Array.isArray(data.horarios) && data.horarios.length > 0) {
+                if (!horaIni) {
+                  horaIni = normalizeHoraPrefill(data.horarios[0].horaInicio);
+                }
+                if (!horaFin) {
+                  horaFin = normalizeHoraPrefill(data.horarios[0].horaFin);
+                }
+                if (!fechaInicioPrefill) {
+                  horariosIniciales = horariosIniciales.map((h) => {
+                    const guardado = data.horarios.find((hg: any) => Number(hg.idDia) === Number(h.idDia));
+                    if (guardado) {
+                      return {
+                        ...h,
+                        horaInicio: normalizeHoraPrefill(guardado.horaInicio) || guardado.horaInicio,
+                        horaFin: normalizeHoraPrefill(guardado.horaFin) || guardado.horaFin,
+                        activo: true
+                      };
+                    }
+                    return h;
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // Sin horario previo: continuar con prefill / días vacíos
+        }
+
+        if (fechaInicioPrefill && fechaIni) {
+          const fecha = new Date(fechaIni + 'T00:00:00');
+          const diaSemana = fecha.getDay();
+          const diaBD = diaSemana === 0 ? 7 : diaSemana;
+          horariosIniciales = horariosIniciales.map((h) => ({
+            ...h,
+            activo: h.idDia === diaBD,
+            horaInicio: h.idDia === diaBD ? horaIni : '',
+            horaFin: h.idDia === diaBD ? horaFin : ''
+          }));
+          setHoraGlobalInicio(horaIni);
+          setHoraGlobalFin(horaFin);
+        } else if (horaIni && horaFin) {
+          setHoraGlobalInicio(horaIni);
+          setHoraGlobalFin(horaFin);
+        }
+
+        if (cancelled) return;
+        setFieldValue('horarios', horariosIniciales);
+        setFieldValue('fechaInicio', fechaIni);
+        setFieldValue('observacion', observacion);
+      } catch {
+        if (!cancelled) enqueueSnackbar('Error al cargar los días', { variant: 'error' });
+      } finally {
+        if (!cancelled) {
+          setLoadingDias(false);
+          setCargandoHorario(false);
+          // Liberar sync de fecha tras el ciclo de render de los setFieldValue
+          setTimeout(() => {
+            inicializandoRef.current = false;
+          }, 0);
+        }
+      }
+    };
+
+    void init();
+    return () => {
+      cancelled = true;
+    };
+    // Solo al abrir / cambiar prefill de entrada
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fechaInicioPrefill, idGradoMateria]);
+
+  // Seleccionar automáticamente el día cuando cambia la fecha de inicio (usuario edita el campo)
   useEffect(() => {
-    if (values.fechaInicio && values.horarios.length > 0) {
+    if (inicializandoRef.current) return;
+    if (!values.fechaInicio || values.horarios.length === 0 || loadingDias) return;
+
+    const fecha = new Date(values.fechaInicio + 'T00:00:00');
+    const diaSemana = fecha.getDay();
+    const diaBD = diaSemana === 0 ? 7 : diaSemana;
+
+    const diaExiste = values.horarios.some((h: HorarioDia) => h.idDia === diaBD);
+    if (!diaExiste) {
+      enqueueSnackbar('La fecha inicial no coincide con ningún día configurado en el sistema', {
+        variant: 'warning'
+      });
+      return;
+    }
+
+    const yaActivoCorrecto =
+      values.horarios.filter((h) => h.activo).length === 1 &&
+      values.horarios.some((h) => h.activo && h.idDia === diaBD);
+    if (yaActivoCorrecto) return;
+
+    const horaFallbackIni = normalizeHoraPrefill(horaInicioPrefill) || horaGlobalInicio;
+    const horaFallbackFin = normalizeHoraPrefill(horaFinPrefill) || horaGlobalFin;
+
+    const horariosActualizados = values.horarios.map((h: HorarioDia) => ({
+      ...h,
+      activo: h.idDia === diaBD,
+      horaInicio:
+        h.idDia === diaBD ? h.horaInicio || horaFallbackIni || '' : '',
+      horaFin: h.idDia === diaBD ? h.horaFin || horaFallbackFin || '' : ''
+    }));
+
+    setFieldValue('horarios', horariosActualizados);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values.fechaInicio, values.horarios.length, loadingDias]);
+
+  // Activar/desactivar un día
+  const toggleDia = (index: number) => {
+    const horarios = [...values.horarios];
+    const diaActual = horarios[index];
+
+    // Obtener el día de la fecha inicial
+    if (values.fechaInicio) {
       const fecha = new Date(values.fechaInicio + 'T00:00:00');
       const diaSemana = fecha.getDay();
       const diaBD = diaSemana === 0 ? 7 : diaSemana;
 
-      const diaExiste = values.horarios.some((h: HorarioDia) => h.idDia === diaBD);
-    
-      if (!diaExiste) {
-        enqueueSnackbar('La fecha inicial no coincide con ningún día configurado en el sistema', { variant: 'warning' });
+      // Si intenta desmarcar el día que coincide con la fecha inicial
+      if (diaActual.activo && diaActual.idDia === diaBD) {
+        enqueueSnackbar('No puedes desmarcar el día que corresponde a la fecha inicial', {
+          variant: 'warning'
+        });
         return;
       }
-
-      const horariosActualizados = values.horarios.map((h: HorarioDia) => ({
-        ...h,
-        activo: h.idDia === diaBD,
-        horaInicio: h.idDia === diaBD ? h.horaInicio : '',
-        horaFin: h.idDia === diaBD ? h.horaFin : ''
-      }));
-
-      setFieldValue('horarios', horariosActualizados);
     }
-  }, [values.fechaInicio, values.horarios.length, loadingDias]);
 
-  // Cargar días desde la API
-  const cargarDias = async () => {
-    setLoadingDias(true);
-    try {
-      const response = await axios.get('dias');
-      const dias = response.data || [];
-      // Inicializar horarios con los días disponibles (todos inactivos)
-      const horariosIniciales = dias.map((dia: any) => ({
-        idDia: dia.id,
-        nombreDia: dia.dia,
-        horaInicio: '',
-        horaFin: '',
-        activo: false
-      }));
-      setFieldValue('horarios', horariosIniciales);
-    } catch (error) {
-      enqueueSnackbar('Error al cargar los días', { variant: 'error' });
-    } finally {
-      setLoadingDias(false);
+    horarios[index].activo = !horarios[index].activo;
+    if (!horarios[index].activo) {
+      horarios[index].horaInicio = '';
+      horarios[index].horaFin = '';
+    } else {
+      const horaIni = normalizeHoraPrefill(horaInicioPrefill) || horaGlobalInicio;
+      const horaFin = normalizeHoraPrefill(horaFinPrefill) || horaGlobalFin;
+      if (horaIni && !horarios[index].horaInicio) horarios[index].horaInicio = horaIni;
+      if (horaFin && !horarios[index].horaFin) horarios[index].horaFin = horaFin;
     }
+    setFieldValue('horarios', horarios);
   };
-
-  // Cargar horario existente si lo hay
-  const cargarHorarioExistente = async () => {
-    if (!idGradoMateria) return;
-
-    setCargandoHorario(true);
-    try {
-      const response = await axios.get(`horarios/materia/${idGradoMateria}`);
-      const data = response.data.data;
-
-      if (data) {
-        setFieldValue('fechaInicio', data.fechaInicio || '');
-        setFieldValue('observacion', data.observacion || '');
-
-        // Si hay horarios guardados, actualizar los días activos
-        if (data.horarios && Array.isArray(data.horarios)) {
-          const horariosGuardados = data.horarios;
-          const horariosActualizados = values.horarios.map((h: HorarioDia) => {
-            const guardado = horariosGuardados.find((hg: any) => hg.idDia === h.idDia);
-            if (guardado) {
-              return {
-                ...h,
-                horaInicio: guardado.horaInicio,
-                horaFin: guardado.horaFin,
-                activo: true
-              };
-            }
-            return h;
-          });
-          setFieldValue('horarios', horariosActualizados);
-        }
-      }
-    } catch (error) {
-      // Si no hay horario, no pasa nada
-    } finally {
-      setCargandoHorario(false);
-    }
-  };
-
-// Activar/desactivar un día
-const toggleDia = (index: number) => {
-  const horarios = [...values.horarios];
-  const diaActual = horarios[index];
-  
-  // Obtener el día de la fecha inicial
-  if (values.fechaInicio) {
-    const fecha = new Date(values.fechaInicio + 'T00:00:00');
-    const diaSemana = fecha.getDay();
-    const diaBD = diaSemana === 0 ? 7 : diaSemana;
-    
-    // Si intenta desmarcar el día que coincide con la fecha inicial
-    if (diaActual.activo && diaActual.idDia === diaBD) {
-      enqueueSnackbar('No puedes desmarcar el día que corresponde a la fecha inicial', { 
-        variant: 'warning' 
-      });
-      return;
-    }
-  }
-  
-  horarios[index].activo = !horarios[index].activo;
-  if (!horarios[index].activo) {
-    horarios[index].horaInicio = '';
-    horarios[index].horaFin = '';
-  }
-  setFieldValue('horarios', horarios);
-};
 
   // Aplicar misma hora a múltiples días
   const aplicarHoraGlobal = () => {
@@ -283,6 +361,17 @@ const toggleDia = (index: number) => {
       return;
     }
 
+    if (fechaFinalRap && values.fechaInicio) {
+      const finRap = new Date(String(fechaFinalRap).split('T')[0] + 'T00:00:00');
+      const inicio = new Date(values.fechaInicio + 'T00:00:00');
+      if (!isNaN(finRap.getTime()) && !isNaN(inicio.getTime()) && inicio.getTime() > finRap.getTime()) {
+        enqueueSnackbar('No se pueden crear horarios después de la fecha final del RAP', {
+          variant: 'error'
+        });
+        return;
+      }
+    }
+
     const payload = {
       idGradoMateria,
       idFicha,
@@ -302,6 +391,16 @@ const toggleDia = (index: number) => {
     try {
       await axios.post('horarios/materia', payload);
       enqueueSnackbar('Horario guardado correctamente', { variant: 'success' });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('horario-materia-guardado', {
+            detail: {
+              idFicha: idFicha != null ? Number(idFicha) : null,
+              idGradoMateria: Number(idGradoMateria),
+            },
+          })
+        );
+      }
       if (onGuardado) onGuardado();
       onClose();
     } catch (error: any) {
@@ -471,6 +570,7 @@ const toggleDia = (index: number) => {
                     name="fechaInicio"
                     disabled={loadingDias}
                     value={values.fechaInicio}
+                    max={fechaFinalRap ? String(fechaFinalRap).split('T')[0] : undefined}
                     onChange={handleChange}
                     className={`input w-full p-2 border rounded-md ${errors.fechaInicio && touched.fechaInicio ? 'border-red-500' : ''
                       }`}

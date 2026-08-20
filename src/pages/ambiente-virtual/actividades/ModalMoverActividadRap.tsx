@@ -15,6 +15,9 @@ export interface RapOpcion {
   id: number;
   nombreMateria?: string;
   codigo?: string | null;
+  idCompetencia?: number | null;
+  competenciaNombre?: string | null;
+  numeroRap?: number | null;
 }
 
 interface ModalMoverActividadRapProps {
@@ -106,6 +109,9 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
               if (!r || typeof r !== 'object') return null;
               const id = Number((r as { id?: unknown }).id);
               if (!Number.isFinite(id) || id <= 0) return null;
+              const numeroRaw = (r as { numeroRap?: unknown }).numeroRap;
+              const numeroRap =
+                typeof numeroRaw === 'number' && Number.isFinite(numeroRaw) ? numeroRaw : null;
               return {
                 id,
                 nombreMateria:
@@ -115,10 +121,25 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
                 codigo:
                   (r as RapOpcion).codigo == null
                     ? null
-                    : String((r as RapOpcion).codigo)
+                    : String((r as RapOpcion).codigo),
+                idCompetencia:
+                  (r as RapOpcion).idCompetencia != null
+                    ? Number((r as RapOpcion).idCompetencia)
+                    : null,
+                competenciaNombre:
+                  typeof (r as RapOpcion).competenciaNombre === 'string'
+                    ? (r as RapOpcion).competenciaNombre
+                    : null,
+                numeroRap
               } as RapOpcion;
             })
             .filter((r: RapOpcion | null): r is RapOpcion => r != null)
+            .sort((a: RapOpcion, b: RapOpcion) => {
+              const na = a.numeroRap ?? Number.MAX_SAFE_INTEGER;
+              const nb = b.numeroRap ?? Number.MAX_SAFE_INTEGER;
+              if (na !== nb) return na - nb;
+              return rapLabelCompleto(a).localeCompare(rapLabelCompleto(b));
+            })
         );
       })
       .catch(() => {

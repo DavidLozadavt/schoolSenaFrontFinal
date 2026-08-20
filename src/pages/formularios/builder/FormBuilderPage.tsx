@@ -4,6 +4,22 @@ import axios from 'axios';
 import { FormData, FormQuestion } from './formBuilderTypes';
 import QuestionCard from './QuestionCard';
 import FormResponsesTab from './FormResponsesTab';
+import { 
+  ArrowLeft, 
+  Link as LinkIcon, 
+  Copy, 
+  CheckCircle2, 
+  AlertCircle, 
+  ListTodo, 
+  Eye, 
+  BarChart2, 
+  Globe, 
+  Lock, 
+  Save, 
+  Palette, 
+  Plus, 
+  UploadCloud 
+} from 'lucide-react';
 
 const FormBuilderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -186,34 +202,53 @@ const FormBuilderPage: React.FC = () => {
             },
             { 
               id: `q-2`, 
+              tipo: 'desplegable', 
+              titulo: '🪪 Tipo de documento de identidad', 
+              descripcion: 'Selecciona tu tipo de documento.',
+              esObligatoria: true, 
+              orden: 2, 
+              opciones: [
+                { id: 'dt1', texto: 'Cédula de Ciudadanía (CC)', orden: 1 },
+                { id: 'dt2', texto: 'Tarjeta de Identidad (TI)', orden: 2 },
+                { id: 'dt3', texto: 'Registro Civil (RC)', orden: 3 },
+                { id: 'dt4', texto: 'Cédula de Extranjería (CE)', orden: 4 },
+                { id: 'dt5', texto: 'Permiso Especial de Permanencia (PEP)', orden: 5 }
+              ] 
+            },
+            { 
+              id: `q-3`, 
+              tipo: 'texto_corto', 
+              titulo: '🔢 Número de documento', 
+              descripcion: 'Escribe tu número de identificación sin puntos ni espacios.',
+              esObligatoria: true, 
+              orden: 3, 
+              opciones: [] 
+            },
+            { 
+              id: `q-4`, 
               tipo: 'texto_corto', 
               titulo: '📧 Correo electrónico institucional o personal de contacto', 
               descripcion: 'Aquí te enviaremos las credenciales de acceso a la sala virtual y memorias del evento.',
               esObligatoria: true, 
-              orden: 2, 
+              orden: 4, 
               opciones: [] 
             },
             { 
-              id: `q-3`, 
-              tipo: 'desplegable', 
-              titulo: '💼 ¿A qué perfil o área sectorial perteneces actualmente?', 
-              descripcion: 'Esto nos permite adaptar los enfoques prácticos de la sesión.',
+              id: `q-5`, 
+              tipo: 'texto_corto', 
+              titulo: '📞 Teléfono de contacto', 
+              descripcion: 'Escribe tu número telefónico o celular principal.',
               esObligatoria: true, 
-              orden: 3, 
-              opciones: [
-                { id: 'o1', texto: 'Estudiante en formación académica 🎓', orden: 1 }, 
-                { id: 'o2', texto: 'Docente / Instructor / Tutor educativo 🏫', orden: 2 }, 
-                { id: 'o3', texto: 'Profesional activo de la industria 🏢', orden: 3 }, 
-                { id: 'o4', texto: 'Emprendedor / Director / Consultor independiente 🚀', orden: 4 }
-              ] 
+              orden: 5, 
+              opciones: [] 
             },
             { 
-              id: `q-4`, 
+              id: `q-6`, 
               tipo: 'casillas', 
               titulo: '📢 ¿Cómo te enteraste de la convocatoria para este evento?', 
               descripcion: 'Nos ayuda a saber qué medios de comunicación son más efectivos.',
               esObligatoria: false, 
-              orden: 4, 
+              orden: 6, 
               opciones: [
                 { id: 'o5', texto: 'Publicación oficial en Redes Sociales (Facebook, Instagram, LinkedIn) 📱', orden: 1 }, 
                 { id: 'o6', texto: 'Boletín de novedades enviado por Correo Electrónico ✉️', orden: 2 }, 
@@ -222,12 +257,60 @@ const FormBuilderPage: React.FC = () => {
               ] 
             },
             { 
-              id: `q-5`, 
-              tipo: 'fecha', 
-              titulo: '📅 Fecha recomendada para tu sesión introductoria opcional', 
-              descripcion: 'Si deseas una sesión rápida de inducción técnica a la plataforma, elige la fecha ideal.',
-              esObligatoria: false, 
-              orden: 5, 
+              id: `q-7`, 
+              tipo: 'opcion_multiple', 
+              titulo: '🔞 ¿Eres menor de edad (menor de 18 años)?', 
+              descripcion: 'Si eres menor de edad, requerimos obligatoriamente la información de tu tutor.',
+              esObligatoria: true, 
+              orden: 7, 
+              opciones: [
+                { id: 'me1', texto: 'Sí', orden: 1 },
+                { id: 'me2', texto: 'No', orden: 2 }
+              ] 
+            },
+            { 
+              id: `q-8`, 
+              tipo: 'texto_corto', 
+              titulo: '👤 Nombre completo del tutor / acudiente', 
+              descripcion: 'Nombre completo de la persona adulta responsable.',
+              esObligatoria: true, 
+              orden: 8, 
+              opciones: [] 
+            },
+            { 
+              id: `q-9`, 
+              tipo: 'texto_corto', 
+              titulo: '🔢 Documento de identidad del tutor / acudiente', 
+              descripcion: 'Número de documento de identidad del acudiente.',
+              esObligatoria: true, 
+              orden: 9, 
+              opciones: [] 
+            },
+            { 
+              id: `q-10`, 
+              tipo: 'texto_corto', 
+              titulo: '📧 Correo electrónico del tutor / acudiente', 
+              descripcion: 'Dirección de correo electrónico de tu tutor o acudiente.',
+              esObligatoria: true, 
+              orden: 10, 
+              opciones: [] 
+            },
+            { 
+              id: `q-11`, 
+              tipo: 'texto_corto', 
+              titulo: '📞 Teléfono del tutor / acudiente', 
+              descripcion: 'Número celular o de contacto de tu acudiente.',
+              esObligatoria: true, 
+              orden: 11, 
+              opciones: [] 
+            },
+            { 
+              id: `q-12`, 
+              tipo: 'archivo', 
+              titulo: '📂 Cargar certificados de estudio', 
+              descripcion: 'Sube tu último certificado de estudios o documentos necesarios en formato PDF o Imagen.',
+              esObligatoria: true, 
+              orden: 12, 
               opciones: [] 
             }
           ]
@@ -365,7 +448,7 @@ const FormBuilderPage: React.FC = () => {
       {/* Simple Toast */}
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl transition-all duration-300 transform scale-100 border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 backdrop-blur-xl animate-bounce-short">
-          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} fs-5`}></i>
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span className="text-xs font-black uppercase tracking-wider">{toast.message}</span>
         </div>
       )}
@@ -373,14 +456,14 @@ const FormBuilderPage: React.FC = () => {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <button className="btn btn-sm btn-light font-black uppercase tracking-widest text-[9px] py-3.5 px-6 rounded-xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all border border-neutral-150 dark:border-white/5" onClick={() => navigate('/formularios')}>
-          <i className="bi bi-arrow-left"></i> Volver a formularios
+          <ArrowLeft className="w-4 h-4" /> Volver a formularios
         </button>
 
         {formData.estado === 'publicado' && (
           <div className="flex items-center gap-2 bg-emerald-500/10 border border-dashed border-emerald-500/25 rounded-2xl px-5 py-3 cursor-pointer hover:scale-[1.01] transition-all text-emerald-600 dark:text-emerald-400" onClick={copyPublicLink} title="Copiar enlace">
-            <i className="bi bi-link-45deg fs-4"></i>
+            <LinkIcon className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">Enlace público: /formulario/{id}</span>
-            <i className="bi bi-clipboard fs-6 ms-2"></i>
+            <Copy className="w-4 h-4 ms-2" />
           </div>
         )}
       </div>
@@ -396,23 +479,23 @@ const FormBuilderPage: React.FC = () => {
               {/* Tab Selector inside builder */}
               <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200/20 shadow-inner">
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('editor')}
                 >
-                  <i className="bi bi-ui-checks me-1"></i> Preguntas
+                  <ListTodo className="w-3.5 h-3.5" /> Preguntas
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('vista_previa')}
                 >
-                  <i className="bi bi-eye me-1"></i> Vista Previa
+                  <Eye className="w-3.5 h-3.5" /> Vista Previa
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('respuestas')}
                   disabled={!id}
                 >
-                  <i className="bi bi-bar-chart me-1"></i> Respuestas
+                  <BarChart2 className="w-3.5 h-3.5" /> Respuestas
                 </button>
               </div>
 
@@ -422,16 +505,16 @@ const FormBuilderPage: React.FC = () => {
                 disabled={!id} 
                 title="Vista previa"
               >
-                <i className="bi bi-eye fs-5"></i>
+                <Eye className="w-4 h-4" />
               </button>
 
               <button 
-                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
+                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border flex items-center gap-1.5 ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
                 onClick={toggleEstado}
                 disabled={saving || !id}
               >
-                <i className={`bi ${formData.estado === 'publicado' ? 'bi-globe2' : 'bi-lock'} me-1.5`}></i>
-                {formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}
+                {formData.estado === 'publicado' ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                <span>{formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}</span>
               </button>
 
               <button 
@@ -442,7 +525,7 @@ const FormBuilderPage: React.FC = () => {
                 {saving ? (
                   <div className="w-3.5 h-3.5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
                 ) : (
-                  <i className="bi bi-save"></i>
+                  <Save className="w-3.5 h-3.5" />
                 )}
                 <span>Guardar</span>
               </button>
@@ -485,7 +568,7 @@ const FormBuilderPage: React.FC = () => {
                  <div className="flex items-center justify-between p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
                    <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-800 shadow-sm">
-                        <i className="bi bi-palette-fill fs-4" style={{ color: formData.colorTema }}></i>
+                        <Palette className="w-5 h-5" style={{ color: formData.colorTema }} />
                      </div>
                      <div className="flex flex-col">
                         <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white">Color del tema</label>
@@ -545,7 +628,7 @@ const FormBuilderPage: React.FC = () => {
           {/* Floating action button for new question */}
           <div className="flex justify-center mt-8 mb-10 pb-10">
             <button className="w-14 h-14 rounded-full shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center transition-all duration-300" onClick={addQuestion} title="Agregar pregunta" style={{ backgroundColor: formData.colorTema }}>
-              <i className="bi bi-plus fs-1 text-white"></i>
+              <Plus className="w-7 h-7 text-white" />
             </button>
           </div>
         </div>
@@ -591,14 +674,21 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
         const scaleConfig = q.configuracion || { min: 1, max: 5, minLabel: '', maxLabel: '' };
         const scaleArray = Array.from({ length: scaleConfig.max - scaleConfig.min + 1 }, (_, i) => scaleConfig.min + i);
 
+        const isTutorQ = q.titulo?.toLowerCase().includes('tutor') || q.titulo?.toLowerCase().includes('acudiente');
         return (
           <div 
             key={q.id || idx}
             className="bg-white dark:bg-neutral-900 p-8 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-lg"
             style={{ borderLeft: `6px solid ${data.colorTema}30` }}
           >
-            <h3 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed">
-              {q.titulo || 'Pregunta sin título'} {q.esObligatoria && <span className="text-rose-500 ml-1">*</span>}
+            <h3 className="text-xs font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2 leading-relaxed flex items-center flex-wrap gap-2">
+              <span>{q.titulo || 'Pregunta sin título'}</span>
+              {q.esObligatoria && <span className="text-rose-500">*</span>}
+              {isTutorQ && (
+                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/10">
+                  Condicional Tutor
+                </span>
+              )}
             </h3>
             {q.descripcion && <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mb-4">{q.descripcion}</p>}
             
@@ -607,7 +697,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
                 <input 
                   type="text" 
                   disabled
-                  className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  className="w-full max-w-md bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 text-xs font-semibold rounded-2xl outline-none text-neutral-800 dark:text-white"
                   placeholder="Respuesta corta..."
                 />
               )}
@@ -615,7 +705,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'texto_largo' && (
                 <textarea 
                   disabled
-                  className="w-full bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 text-xs font-semibold rounded-2xl outline-none"
+                  className="w-full bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 text-xs font-semibold rounded-2xl outline-none text-neutral-800 dark:text-white"
                   rows={3}
                   placeholder="Respuesta larga..."
                 />
@@ -624,7 +714,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'opcion_multiple' && (
                 <div className="flex flex-col gap-2">
                   {(q.opciones || []).map(opt => (
-                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-coal-400 border border-neutral-100/50">
                       <input type="radio" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
                       <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
                     </div>
@@ -635,7 +725,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'casillas' && (
                 <div className="flex flex-col gap-2">
                   {(q.opciones || []).map(opt => (
-                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-neutral-850/10 border border-neutral-100/50">
+                    <div key={opt.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50/50 dark:bg-coal-400 border border-neutral-100/50">
                       <input type="checkbox" disabled className="w-4 h-4" style={{ accentColor: data.colorTema }} />
                       <span className="text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300">{opt.texto}</span>
                     </div>
@@ -644,7 +734,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               )}
 
               {q.tipo === 'desplegable' && (
-                <select disabled className="w-full max-w-xs bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider">
+                <select disabled className="w-full max-w-xs bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider text-neutral-800 dark:text-white">
                   <option>Selecciona una opción...</option>
                   {(q.opciones || []).map(opt => (
                     <option key={opt.id}>{opt.texto}</option>
@@ -653,14 +743,14 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               )}
 
               {q.tipo === 'escala_lineal' && (
-                <div className="flex flex-col gap-4 py-4 px-6 bg-neutral-50/50 dark:bg-neutral-800/10 rounded-2xl border border-neutral-100/50">
+                <div className="flex flex-col gap-4 py-4 px-6 bg-neutral-50/50 dark:bg-coal-400 rounded-2xl border border-neutral-100/50 dark:border-white/5">
                   <div className="flex items-center gap-2 flex-wrap">
                     {scaleArray.map(n => (
                       <button
                         key={n}
                         type="button"
                         disabled
-                        className="w-10 h-10 rounded-full font-black text-xs flex items-center justify-center border border-neutral-200/50 bg-white dark:bg-neutral-800"
+                        className="w-10 h-10 rounded-full font-black text-xs flex items-center justify-center border border-neutral-200/50 bg-white dark:bg-coal-300 text-neutral-800 dark:text-white"
                       >
                         {n}
                       </button>
@@ -677,14 +767,14 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
                 <input 
                   type="date" 
                   disabled
-                  className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-250 dark:border-neutral-800 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider"
+                  className="bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 rounded-2xl text-xs font-bold uppercase tracking-wider text-neutral-800 dark:text-white"
                 />
               )}
 
               {q.tipo === 'archivo' && (
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-neutral-800 rounded-3xl cursor-not-allowed bg-neutral-50/20">
-                  <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-neutral-800/50 flex items-center justify-center mb-3">
-                    <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-coal-200 rounded-3xl cursor-not-allowed bg-neutral-50/20 dark:bg-coal-400/20">
+                  <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-coal-300 flex items-center justify-center mb-3">
+                    <UploadCloud className="w-6 h-6 text-neutral-400" />
                   </div>
                   <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>
                   <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">Arrastra aquí o haz clic (Máx 5MB)</span>

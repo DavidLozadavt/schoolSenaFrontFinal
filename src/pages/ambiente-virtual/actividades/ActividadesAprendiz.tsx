@@ -5,6 +5,7 @@ import { KeenIcon, ImageZoomModal, Toast } from '@/components';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
+import ModalRevisarIntentoCuestionario from './ModalRevisarIntentoCuestionario';
 import {
   actOnMaterialDocumento,
   ENTREGA_EVIDENCIA_ACCEPT,
@@ -73,6 +74,7 @@ interface ActividadAprendiz {
   activa?: boolean;
   esGrupal?: boolean;
   idGrupo?: number | null;
+  tieneRespuestasCuestionario?: boolean;
   preguntas?: Array<{
     id: number;
     descripcion: string;
@@ -82,13 +84,13 @@ interface ActividadAprendiz {
   }>;
 }
 
-/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar Ã¡rea de conocimiento aquÃ­. */
+/** Nombre del RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar área de conocimiento aquí. */
 const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.trim();
   }
-  return 'Sin materia asignada';
+  return 'Sin RAP asignado';
 };
 
 const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÃ“N]';
@@ -230,7 +232,7 @@ const MaterialApoyoActividadLista: React.FC<{
   const list = materiales.filter(materialApoyoTieneRecurso);
   if (list.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-white">
         No hay material de apoyo
       </div>
     );
@@ -262,7 +264,7 @@ const MaterialApoyoActividadLista: React.FC<{
                 {docUrl ? (
                   <KeenIcon
                     icon={materialDocumentoKeenIcon(docExt)}
-                    className="text-gray-600 dark:text-gray-300 shrink-0 w-4 h-4"
+                    className="text-gray-600 dark:text-white shrink-0 w-4 h-4"
                   />
                 ) : (
                   <KeenIcon icon="exit-up-right" className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4" />
@@ -272,13 +274,13 @@ const MaterialApoyoActividadLista: React.FC<{
                     className={
                       compact
                         ? 'text-xs text-gray-900 dark:text-white truncate'
-                        : 'text-sm font-medium text-gray-800 dark:text-gray-200 truncate'
+                        : 'text-sm font-medium text-gray-800 dark:text-white truncate'
                     }
                   >
                     {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Material de apoyo'}
                   </p>
                   {!compact && material.descripcion ? (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-0.5">{material.descripcion}</p>
+                    <p className="text-xs text-gray-600 dark:text-white line-clamp-2 mt-0.5">{material.descripcion}</p>
                   ) : null}
                   <div className="flex flex-wrap gap-1 mt-1">
                     {docExt ? (
@@ -317,7 +319,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   }}
                   className={
                     compact
-                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary disabled:opacity-50'
+                      ? 'text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary disabled:opacity-50'
                       : 'btn btn-sm btn-primary text-xs disabled:opacity-60'
                   }
                   title={docExt ? materialDocumentoActionLabel(docExt) : 'Descargar archivo'}
@@ -338,7 +340,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   rel="noopener noreferrer"
                   className={
                     compact
-                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary'
+                      ? 'text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary'
                       : 'btn btn-sm btn-light text-xs'
                   }
                   title="Abrir enlace"
@@ -394,7 +396,7 @@ const estadoBadgeMap: Record<
 /** Color de nota segÃºn resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya estÃ¡ calificada. */
 const getScoreColorClass = (score: number | null, estadoVisual: string): string => {
   if (score === null) {
-    return 'text-gray-500 dark:text-gray-400';
+    return 'text-gray-500 dark:text-white';
   }
   if (score <= 3.5) return 'text-red-600 dark:text-red-400 font-medium';
   if (score > 3.5 && score < 4.0) return 'text-amber-600 dark:text-amber-400 font-medium';
@@ -424,8 +426,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       setIsDragging(false);
     }
   }, [open, actividad]);
-
-  if (!open) return null;
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -518,27 +518,32 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     [applySelectedFile]
   );
 
-  // Extraer informaciÃ³n de proyecto y materia/RAP (misma lÃ³gica que la lista principal)
+  // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
   const projectInfo = useMemo(() => {
-    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin materia asignada' };
+    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
     return {
       proyecto: title || 'Sin proyecto',
       rap: etiquetaMateriaActividadAprendiz(actividad)
     };
   }, [actividad]);
+
   const maxChars = 500;
   const charsRemaining = maxChars - comentario.length;
-
   const tieneArchivoActual = !!actividad?.archivoEntregaUrl;
   const tituloModal = tieneArchivoActual ? 'Actualizar Entrega' : 'Responder Actividad';
+
+  // Todos los hooks deben ejecutarse antes de cualquier return condicional.
+  if (!open) return null;
 
   if (!actividad) {
     return (
       <Modal open={open} onClose={onClose} zIndex={110}>
         <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
           <div className="bg-primary px-5 py-3 flex items-center justify-between">
-            <ModalTitle className="text-white text-base font-semibold">Cargando...</ModalTitle>
+            <ModalTitle className="text-white text-base font-semibold">
+              <span>Cargando...</span>
+            </ModalTitle>
             <button
               className="text-white hover:text-gray-200 transition-colors"
               onClick={onClose}
@@ -562,7 +567,9 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
         {/* Header azul */}
         <div className="bg-primary px-5 py-3 flex items-center justify-between">
-          <ModalTitle className="text-white text-base font-semibold">{tituloModal}</ModalTitle>
+          <ModalTitle className="text-white text-base font-semibold">
+            <span>{tituloModal}</span>
+          </ModalTitle>
           <button
             className="text-white hover:text-gray-200 transition-colors"
             onClick={onClose}
@@ -573,25 +580,31 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* InformaciÃ³n de la actividad */}
+          {/* Información de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
-              Proyecto: {projectInfo.proyecto}
+              <span>Proyecto: </span>
+              <span>{projectInfo.proyecto}</span>
             </p>
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              Materia: {projectInfo.rap}
+              <span>RAP: </span>
+              <span>{projectInfo.rap}</span>
             </p>
           </div>
 
           {/* Material de Apoyo */}
           <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Material de Apoyo</p>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Material de Apoyo</span>
+            </p>
             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
           {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
           <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Documento de la actividad</p>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Documento de la actividad</span>
+            </p>
             {actividadTieneDocumentoOficial(actividad) ? (
               <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -623,6 +636,16 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                 <p className="text-xs text-gray-500 dark:text-gray-400">No hay documento de la actividad adjunto</p>
               </div>
             )}
+          </div>
+
+          {/* Entregable definido por el instructor */}
+          <div>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Entregable</span>
+            </p>
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
+              {actividad.entregables?.trim() || 'No disponible'}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -843,6 +866,7 @@ const ActividadesAprendiz: React.FC = () => {
   const [filtro, setFiltro] = useState<EstadoActividad>('TODOS');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actividadResponder, setActividadResponder] = useState<ActividadAprendiz | null>(null);
+  const [actividadRevisar, setActividadRevisar] = useState<ActividadAprendiz | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -913,7 +937,7 @@ const ActividadesAprendiz: React.FC = () => {
     <>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">ESTADO:</span>
+          <span className="text-xs font-semibold text-gray-500 dark:text-white">ESTADO:</span>
           {filtros.map((item) => (
             <button
               key={item.id}
@@ -923,7 +947,7 @@ const ActividadesAprendiz: React.FC = () => {
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                 filtro === item.id
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-gray-300 dark:border-gray-600'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-white dark:border-gray-600'
               )}
             >
               {item.label}
@@ -933,9 +957,9 @@ const ActividadesAprendiz: React.FC = () => {
 
         {actividadesFiltradas.length === 0 && !loading ? (
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
-            <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
+            <KeenIcon icon="check-squared" className="text-4xl text-gray-400 dark:text-white mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">No hay actividades para este filtro</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Prueba con otro estado.</p>
+            <p className="text-xs text-gray-500 dark:text-white mt-1">Prueba con otro estado.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -996,7 +1020,7 @@ const ActividadesAprendiz: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <p className="text-xs text-gray-500 dark:text-white mt-0.5">
                               {etiquetaMateriaActividadAprendiz(actividad)}
                             </p>
                           </div>
@@ -1008,7 +1032,7 @@ const ActividadesAprendiz: React.FC = () => {
                           <div
                             className={clsx(
                               'inline-flex items-center gap-1 text-xs',
-                              actividad.fechaVencida ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+                              actividad.fechaVencida ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-white'
                             )}
                           >
                             <KeenIcon icon="calendar" className="text-xs" />
@@ -1028,7 +1052,7 @@ const ActividadesAprendiz: React.FC = () => {
                           )}>
                             {score !== null ? score.toFixed(1) : '-'}
                           </div>
-                          <div className="text-[9px] text-gray-400">/5.0</div>
+                          <div className="text-[9px] text-gray-400 dark:text-white">/5.0</div>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -1039,7 +1063,21 @@ const ActividadesAprendiz: React.FC = () => {
                               className="btn btn-sm btn-primary h-7 px-2 text-[10px]"
                             >
                               <KeenIcon icon="notepad-edit" className="text-[10px]" />
-                              Responder
+                              <span>Responder</span>
+                            </button>
+                          )}
+                          {actividad.tipoActividad === 'cuestionario' &&
+                            (actividad.tieneRespuestasCuestionario ||
+                              actividad.comentarioEstudiante === 'Cuestionario respondido' ||
+                              actividad.estadoVisual === 'POR_EVALUAR' ||
+                              actividad.estadoVisual === 'CALIFICADO') && (
+                            <button
+                              type="button"
+                              onClick={() => setActividadRevisar(actividad)}
+                              className="btn btn-sm btn-light h-7 px-2 text-[10px] dark:text-white dark:[&_i]:text-white"
+                            >
+                              <KeenIcon icon="eye" className="text-[10px]" />
+                              <span>Revisar intento</span>
                             </button>
                           )}
                           <button
@@ -1051,7 +1089,7 @@ const ActividadesAprendiz: React.FC = () => {
                             }
                             className="bg-transparent border-0 hover:bg-transparent p-1 h-7 w-7 flex items-center justify-center"
                           >
-                            <KeenIcon icon={isExpanded ? 'up' : 'down'} className="text-xs text-gray-500 dark:text-gray-400" />
+                            <KeenIcon icon={isExpanded ? 'up' : 'down'} className="text-xs text-gray-500 dark:text-white" />
                           </button>
                         </div>
                       </div>
@@ -1063,20 +1101,29 @@ const ActividadesAprendiz: React.FC = () => {
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         <div className="space-y-4">
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               DescripciÃ³n
                             </p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                            <p className="text-sm text-gray-700 dark:text-white">
                               {actividad.descripcionActividad || 'Sin descripciÃ³n'}
                             </p>
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Estrategia de Aprendizaje
                             </p>
                             <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
                               {actividad.estrategia || 'No disponible'}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
+                              Entregable
+                            </p>
+                            <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                              {actividad.entregables?.trim() || 'No disponible'}
                             </div>
                           </div>
 
@@ -1088,7 +1135,7 @@ const ActividadesAprendiz: React.FC = () => {
                           )}
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Observaciones del Instructor
                             </p>
                             {actividad.estadoVisual === 'SIN_ENTREGAR' ? (
@@ -1115,14 +1162,14 @@ const ActividadesAprendiz: React.FC = () => {
 
                         <div className="space-y-4">
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Material de Apoyo
                             </p>
                             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} />
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Documento de la actividad
                             </p>
                             <div className="space-y-2">
@@ -1138,7 +1185,7 @@ const ActividadesAprendiz: React.FC = () => {
                                       className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4"
                                     />
                                     <div className="min-w-0">
-                                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                      <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                         {getFileName(actividad.pathDocumentoActividad || actividad.documentoActividadUrl)}
                                       </p>
                                       <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -1161,7 +1208,7 @@ const ActividadesAprendiz: React.FC = () => {
                                   </a>
                                 </div>
                               ) : (
-                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-white">
                                   No hay documento de la actividad adjunto
                                 </div>
                               )}
@@ -1169,7 +1216,7 @@ const ActividadesAprendiz: React.FC = () => {
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Mi Entrega
                             </p>
                             <div className="rounded-lg bg-emerald-50 px-3 py-3 dark:bg-emerald-900/10">
@@ -1239,7 +1286,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar PDF"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
@@ -1250,6 +1297,16 @@ const ActividadesAprendiz: React.FC = () => {
                                       <p className="text-sm text-emerald-700 dark:text-emerald-300">
                                         {actividad.comentarioEstudiante}
                                       </p>
+                                      {actividad.tipoActividad === 'cuestionario' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setActividadRevisar(actividad)}
+                                          className="mt-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                                        >
+                                          <KeenIcon icon="eye" className="w-3 h-3" />
+                                          <span>Revisar intento</span>
+                                        </button>
+                                      )}
                                       <div className="flex items-center justify-between mt-2">
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
@@ -1268,7 +1325,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar entrega"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
@@ -1294,7 +1351,7 @@ const ActividadesAprendiz: React.FC = () => {
 
         {pagination.total > pagination.perPage && (
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-white">
               Mostrando {(pagination.currentPage - 1) * pagination.perPage + 1} -{' '}
               {Math.min(pagination.currentPage * pagination.perPage, pagination.total)} de {pagination.total}
             </p>
@@ -1303,18 +1360,18 @@ const ActividadesAprendiz: React.FC = () => {
                 type="button"
                 onClick={() => setPagination((p) => ({ ...p, currentPage: Math.max(1, p.currentPage - 1) }))}
                 disabled={pagination.currentPage <= 1 || loading}
-                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50 dark:text-white"
               >
                 Anterior
               </button>
-              <span className="text-xs text-gray-600 dark:text-gray-300 px-2">
+              <span className="text-xs text-gray-600 dark:text-white px-2">
                 PÃ¡gina {pagination.currentPage} de {pagination.lastPage}
               </span>
               <button
                 type="button"
                 onClick={() => setPagination((p) => ({ ...p, currentPage: Math.min(p.lastPage, p.currentPage + 1) }))}
                 disabled={pagination.currentPage >= pagination.lastPage || loading}
-                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50 dark:text-white"
               >
                 Siguiente
               </button>
@@ -1330,6 +1387,18 @@ const ActividadesAprendiz: React.FC = () => {
           onClose={() => setActividadResponder(null)}
           onSaved={() => fetchActividades(pagination.currentPage)}
           onSuccess={showToast}
+          onCompleted={(act) => {
+            setActividadResponder(null);
+            setActividadRevisar(act as ActividadAprendiz);
+          }}
+        />
+      )}
+      {actividadRevisar && (
+        <ModalRevisarIntentoCuestionario
+          open={true}
+          idCalificacionActividad={actividadRevisar.idCalificacionActividad}
+          tituloFallback={actividadRevisar.tituloActividad}
+          onClose={() => setActividadRevisar(null)}
         />
       )}
       {actividadResponder && actividadResponder.tipoActividad !== 'cuestionario' && (

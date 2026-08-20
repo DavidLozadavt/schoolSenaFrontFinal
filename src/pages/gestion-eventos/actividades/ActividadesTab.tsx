@@ -49,13 +49,6 @@ const getSwalTheme = () => {
 };
 
 const DOT_COLORS = ['bg-primary', 'bg-info', 'bg-success', 'bg-warning', 'bg-danger'];
-const BADGE_COLORS = [
-  'badge-primary',
-  'badge-info',
-  'badge-success',
-  'badge-warning',
-  'badge-danger'
-];
 
 interface TimelineCardProps {
   item: Item;
@@ -76,7 +69,6 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
 }) => {
   const dur = duracionMin(item.hora_inicio, item.hora_fin);
   const dotColor = DOT_COLORS[index % DOT_COLORS.length];
-  const badgeColor = BADGE_COLORS[index % BADGE_COLORS.length];
 
   return (
     <div className="flex gap-4 sm:gap-6 group">
@@ -177,11 +169,14 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
   );
 };
 
+const PAGE_SIZE = 6;
+
 export const ActividadesTab: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [buscar, setBuscar] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [itemEditar, setItemEditar] = useState<Item | null>(null);
 
@@ -247,6 +242,13 @@ export const ActividadesTab: React.FC = () => {
       });
   }, [items, buscar]);
 
+  const totalPages = Math.max(1, Math.ceil(itemsFiltrados.length / PAGE_SIZE));
+  const itemsPaginados = itemsFiltrados.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [buscar, idEventoSeleccionado]);
+
   const totalMinutos = items.reduce((acc, i) => acc + duracionMin(i.hora_inicio, i.hora_fin), 0);
 
   const handleEliminar = (id: number) => {
@@ -293,86 +295,78 @@ export const ActividadesTab: React.FC = () => {
   };
 
   return (
-    <div className="py-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-[0_10px_20px_rgba(249,115,22,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
-              <KeenIcon icon="calendar-tick" className="text-xl" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Total Actividades">Total Actividades</p>
-              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">{items.length}</p>
-            </div>
+    <div className="py-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white dark:bg-zinc-900/90 rounded-2xl px-4 py-3.5 border border-neutral-100 dark:border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
+            <KeenIcon icon="calendar-tick" className="text-base" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight truncate">Total</p>
+            <p className="text-lg font-black text-neutral-800 dark:text-white leading-none">{items.length}</p>
           </div>
         </div>
 
-        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-warning text-white flex items-center justify-center shadow-[0_10px_20px_rgba(245,158,11,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
-              <KeenIcon icon="timer" className="text-xl" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Duración Total">Duración Total</p>
-              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
-                {Math.floor(totalMinutos / 60)}h {totalMinutos % 60}m
-              </p>
-            </div>
+        <div className="bg-white dark:bg-zinc-900/90 rounded-2xl px-4 py-3.5 border border-neutral-100 dark:border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+            <KeenIcon icon="timer" className="text-base" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight truncate">Duración</p>
+            <p className="text-lg font-black text-neutral-800 dark:text-white leading-none">
+              {Math.floor(totalMinutos / 60)}h {totalMinutos % 60}m
+            </p>
           </div>
         </div>
 
-        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-info text-white flex items-center justify-center shadow-[0_10px_20px_rgba(6,182,212,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
-              <KeenIcon icon="time" className="text-xl" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Con Horario">Con Horario</p>
-              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
-                {items.filter((i) => i.hora_inicio).length}
-              </p>
-            </div>
+        <div className="bg-white dark:bg-zinc-900/90 rounded-2xl px-4 py-3.5 border border-neutral-100 dark:border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center shrink-0">
+            <KeenIcon icon="time" className="text-base" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight truncate">Con Horario</p>
+            <p className="text-lg font-black text-neutral-800 dark:text-white leading-none">
+              {items.filter((i) => i.hora_inicio).length}
+            </p>
           </div>
         </div>
 
-        <div className="group relative bg-white dark:bg-zinc-900/90 rounded-[2rem] p-6 border border-neutral-100 dark:border-white/5 shadow-sm hover:shadow-[0_20px_50px_rgba(249,115,22,0.06)] hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-success text-white flex items-center justify-center shadow-[0_10px_20px_rgba(16,185,129,0.2)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-300 shrink-0">
-              <KeenIcon icon="verify" className="text-xl" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5 leading-tight truncate" title="Programadas">Programadas</p>
-              <p className="text-2xl font-black text-neutral-800 dark:text-white italic leading-none">
-                {items.filter((i) => i.hora_inicio).length > 0
-                  ? Math.round((items.filter((i) => i.hora_inicio).length / items.length) * 100)
-                  : 0}%
-              </p>
-            </div>
+        <div className="bg-white dark:bg-zinc-900/90 rounded-2xl px-4 py-3.5 border border-neutral-100 dark:border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <KeenIcon icon="verify" className="text-base" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight truncate">Programadas</p>
+            <p className="text-lg font-black text-neutral-800 dark:text-white leading-none">
+              {items.filter((i) => i.hora_inicio).length > 0
+                ? Math.round((items.filter((i) => i.hora_inicio).length / items.length) * 100)
+                : 0}%
+            </p>
           </div>
         </div>
       </div>
 
       {/* barra de acciones */}
-      <div className="bg-white dark:bg-zinc-900/90 rounded-[2rem] border border-neutral-100 dark:border-white/5 shadow-sm p-6 mb-8">
+      <div className="bg-white dark:bg-zinc-900/90 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm p-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="relative flex-1 min-w-[240px]">
             <KeenIcon
               icon="magnifier"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
             />
             <input
               type="text"
-              placeholder="Buscar actividad por nombre o descripción…"
+              placeholder="Buscar actividad…"
               value={buscar}
               onChange={(e) => setBuscar(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
             />
           </div>
-          <div className="relative flex-1 min-w-[260px]" ref={eventSelectRef}>
+          <div className="relative flex-1 min-w-[220px]" ref={eventSelectRef}>
             <button
               type="button"
               onClick={() => setIsOpenEventSelect(!isOpenEventSelect)}
-              className="w-full pl-4 pr-10 py-3 text-left text-sm rounded-2xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 cursor-pointer flex items-center justify-between"
+              className="w-full pl-3 pr-8 py-2 text-left text-sm rounded-xl border border-gray-150 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 cursor-pointer flex items-center justify-between"
             >
               <span className="truncate">
                 {idEventoSeleccionado 
@@ -424,14 +418,11 @@ export const ActividadesTab: React.FC = () => {
             )}
           </div>
           <button
-            className="group/btn relative h-12 px-6 bg-orange-500 text-white font-black rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto"
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl flex items-center gap-1.5 shrink-0 transition-all active:scale-95 shadow-sm shadow-orange-500/20 w-full sm:w-auto justify-center"
             onClick={handleNuevo}
           >
-            <div className="absolute inset-0 bg-orange-600 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-            <div className="relative z-10 flex items-center gap-2">
-              <KeenIcon icon="plus" className="text-base group-hover/btn:scale-110 transition-transform" />
-              <span className="text-[10px] uppercase tracking-[0.2em] font-black">Nueva actividad</span>
-            </div>
+            <KeenIcon icon="plus" className="text-sm" />
+            Nueva actividad
           </button>
         </div>
       </div>
@@ -451,19 +442,60 @@ export const ActividadesTab: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="relative pl-1 sm:pl-2">
-          {itemsFiltrados.map((item, index) => (
-            <TimelineCard
-              key={item.id}
-              item={item}
-              index={index}
-              isLast={index === itemsFiltrados.length - 1}
-              onEditar={handleEditar}
-              onEliminar={handleEliminar}
-              onVerEstado={handleVerEstado}
-            />
-          ))}
-        </div>
+        <>
+          <div className="relative pl-1 sm:pl-2">
+            {itemsPaginados.map((item, index) => (
+              <TimelineCard
+                key={item.id}
+                item={item}
+                index={(currentPage - 1) * PAGE_SIZE + index}
+                isLast={index === itemsPaginados.length - 1}
+                onEditar={handleEditar}
+                onEliminar={handleEliminar}
+                onVerEstado={handleVerEstado}
+              />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center gap-3 mt-2 mb-4">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, itemsFiltrados.length)} de {itemsFiltrados.length} actividades
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500 hover:text-white hover:border-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <KeenIcon icon="arrow-left" className="text-sm" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black transition-all duration-200 ${
+                      page === currentPage
+                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                        : 'border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-neutral-500 hover:bg-orange-500 hover:text-white hover:border-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <KeenIcon icon="arrow-right" className="text-sm" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal Formulario */}

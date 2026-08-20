@@ -7,6 +7,24 @@ export const MENU_SIDEBAR: TMenuConfig = [
     path: '/'
   },
   {
+    title: 'Seguimiento Aspirantes',
+    icon: 'user-tick',
+    path: '/seguimiento-aspirantes',
+    requiredPermissions: ['GESTION_SEGUIMIENTO_ASPIRANTES']
+  },
+  {
+    title: 'Solicitudes de Planes',
+    icon: 'dollar',
+    path: '/solicitudes-planes',
+    requiredPermissions: ['GESTION_SOLICITUDES_PLANES']
+  },
+  {
+    title: 'Configuración WhatsApp',
+    icon: 'whatsapp',
+    path: '/telecom-config',
+    requiredPermissions: ['GESTION_TELECOM_CONFIG']
+  },
+  {
     title: 'Horario',
     icon: 'calendar-tick',
     path: '/ambiente-virtual/horario',

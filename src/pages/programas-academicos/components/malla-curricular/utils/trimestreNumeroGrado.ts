@@ -48,3 +48,35 @@ export function ultimoTrimestrePersistido<T extends TrimestreConNumero>(trimestr
   if (persistidos.length === 0) return null;
   return [...persistidos].sort(compararTrimestresPorNumeroGrado)[persistidos.length - 1] ?? null;
 }
+
+export function esTrimestreActual(
+  trimestre: TrimestreConNumero | null | undefined,
+  trimestres: TrimestreConNumero[]
+): boolean {
+  const n = numeroGradoDesdeTrimestre(trimestre);
+  const max = maxNumeroGradoTrimestres(trimestres);
+  return n != null && max > 0 && n === max;
+}
+
+export function numeroTrimestreDesdeHorario(horario: any): number | null {
+  if (!horario) return null;
+
+  const directo = parseNumeroGrado(
+    horario.numeroTrimestre ?? horario.numero_trimestre ?? horario.numeroGrado
+  );
+  if (directo != null) return directo;
+
+  const gm = horario.gradoMateria ?? horario.grado_materia;
+  const gp = gm?.gradoPrograma ?? gm?.grado_programa;
+  const grado = gp?.grado ?? null;
+
+  return parseNumeroGrado(grado?.numeroGrado ?? grado?.numero_grado);
+}
+
+export function esHorarioDeTrimestreActual(
+  horario: any,
+  maxNumeroGrado: number
+): boolean {
+  const n = numeroTrimestreDesdeHorario(horario);
+  return n != null && maxNumeroGrado > 0 && n === maxNumeroGrado;
+}
