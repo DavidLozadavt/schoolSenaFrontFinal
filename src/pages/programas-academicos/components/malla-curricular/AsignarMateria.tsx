@@ -68,9 +68,26 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
     return (materiasActuales || []).some(m => (m.idMateria || m.id) === materia.id);
   };
 
+  const isEtapaPractica = (materia: any) => {
+    const nombre = (materia.nombreMateria || '').toLowerCase();
+    return nombre.includes('etapa practica') || nombre.includes('etapa productiva');
+  };
+
+  const checkTodasCompetenciasFinalizadas = () => {
+    return materiasDisponibles.every((m: any) => {
+      if (isEtapaPractica(m)) return true;
+      return m.isCompleta;
+    });
+  };
+
   const toggleMateria = (materia: any) => {
     // Si ya está asignada, no permitimos cambiar su estado (bloqueada)
     if (isAlreadyAssigned(materia)) return;
+
+    if (isEtapaPractica(materia) && !checkTodasCompetenciasFinalizadas()) {
+      enqueueSnackbar("No se puede asignar la etapa práctica hasta que todas las demás competencias estén finalizadas.", { variant: "warning" });
+      return;
+    }
 
     const yaSeleccionada = materiasSeleccionadas.some(m => (m.idMateria || m.id) === materia.id);
 
@@ -246,17 +263,26 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                   return itemsFiltered.map((materia) => {
                     const seleccionada = estaSeleccionada(materia);
                     const yaAsignada = isAlreadyAssigned(materia);
+                    const isPracticaDisabled = isEtapaPractica(materia) && !checkTodasCompetenciasFinalizadas();
                     const estadoClase = materia.isCompleta
                       ? 'bg-green-50/80 border-green-500 ring-1 ring-green-500/15 dark:bg-green-900/20 dark:border-green-500 dark:ring-green-500/20'
-                      : (seleccionada || yaAsignada
-                        ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
-                        : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300');
+                      : (isPracticaDisabled 
+                          ? 'bg-gray-100 dark:bg-coal-500 border-gray-200 dark:border-gray-600 opacity-60'
+                          : (seleccionada || yaAsignada
+                            ? 'bg-primary/5 border-primary ring-1 ring-primary/10'
+                            : 'border-gray-100 dark:border-gray-700 hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-coal-300'));
 
                     return (
                       <div
                         key={materia.id}
-                        onClick={() => !materia.isCompleta && !yaAsignada && toggleMateria(materia)}
-                        className={`group flex flex-col p-3 border rounded-xl transition-all duration-200 ${estadoClase} ${yaAsignada ? 'cursor-default' : 'cursor-pointer'}`}
+                        onClick={() => {
+                          if (isPracticaDisabled) {
+                            enqueueSnackbar("Todas las competencias deben estar finalizadas para asignar la etapa práctica.", { variant: "warning" });
+                            return;
+                          }
+                          !materia.isCompleta && !yaAsignada && toggleMateria(materia)
+                        }}
+                        className={`group flex flex-col p-3 border rounded-xl transition-all duration-200 ${estadoClase} ${yaAsignada || isPracticaDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-3 flex-1 min-w-0">

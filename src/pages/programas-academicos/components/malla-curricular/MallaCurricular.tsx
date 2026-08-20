@@ -8,12 +8,13 @@ import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { AsignarMateria } from './AsignarMateria';
 import { ListaRaps } from './ListaRaps';
 import { FormCompetencia } from './FormCompetencia';
+import { ModalSeguimientoPractica } from './ModalSeguimientoPractica';
 
 // Hook personalizado
 import { useTrimestres } from './UseTrimestres';
 import {
   compararTrimestresPorNumeroGrado,
-  maxNumeroGradoTrimestres,
+  maxNumeroGradoTrimestres
 } from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
 import { HorariosMateria } from './HorariosMateria';
@@ -25,7 +26,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Estados para modal de RAPs - NUEVO
+  // Estados para modal de RAPs
   const [isRapsModalOpen, setIsRapsModalOpen] = useState(false);
   const [selectedCompetenciaId, setSelectedCompetenciaId] = useState<number | null>(null);
   const [selectedCompetenciaNombre, setSelectedCompetenciaNombre] = useState<string>('');
@@ -35,11 +36,8 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
   const [postEditCallback, setPostEditCallback] = useState<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (ficha?.id) {
-      cargarTrimestres(ficha?.id);
-    }
-  }, [ficha?.id]);
+  // Modal Seguimiento Etapa Practica
+  const [isSeguimientoModalOpen, setIsSeguimientoModalOpen] = useState(false);
 
   // Hook de trimestres
   const {
@@ -59,6 +57,12 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     setToast,
     loadingTrimestres
   } = useTrimestres(ficha?.id, program?.id);
+
+  useEffect(() => {
+    if (ficha?.id) {
+      cargarTrimestres(ficha?.id);
+    }
+  }, [ficha?.id]);
 
   // Estados para modal de Horarios
   const [modalHorarios, setModalHorarios] = useState<{
@@ -92,12 +96,16 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
 
   const handleMateriasSeleccionadas = async (data: {
     idGradoPrograma: number;
-    materias: any[]
+    materias: any[];
   }) => {
     if (nuevoTrimestre) {
       actualizarMaterias(data.materias);
     } else if (ficha?.id) {
-      const success = await asignarCompetenciasTrimestre(data.idGradoPrograma, data.materias, ficha.id);
+      const success = await asignarCompetenciasTrimestre(
+        data.idGradoPrograma,
+        data.materias,
+        ficha.id
+      );
       if (success) {
         await cargarTrimestres(ficha?.id);
         setIsMateriaModalOpen(false);
@@ -105,18 +113,19 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     }
   };
 
-
   const handleGuardarTrimestre = async () => {
     if (!ficha) {
       enqueueSnackbar('Debes seleccionar una ficha', { variant: 'error' });
       return;
     }
-
     await crearTrimestre(ficha);
   };
 
-  // para abrir modal de RAPs
-  const handleOpenRaps = (competenciaId: number, competenciaNombre: string, idTrimestre: number) => {
+  const handleOpenRaps = (
+    competenciaId: number,
+    competenciaNombre: string,
+    idTrimestre: number
+  ) => {
     setSelectedCompetenciaId(competenciaId);
     setSelectedCompetenciaNombre(competenciaNombre);
     setSelectedNivelId(idTrimestre);
@@ -139,16 +148,27 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     }
   };
 
+  const tieneEtapaPractica = trimestres.some((t) =>
+    (t.materias || []).some(
+      (m: any) =>
+        (m.nombre || m.nombreMateria || '').toLowerCase().includes('etapa practica') ||
+        (m.nombre || m.nombreMateria || '').toLowerCase().includes('etapa productiva')
+    )
+  );
+
   if (!isOpen || !program) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-x-hidden bg-black/60 backdrop-blur-sm animate-fade-in">
+      {/* Modal container */}
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-
         {/* Header con Banner */}
         <div className="relative flex-shrink-0 w-full overflow-hidden">
           <img
-            src={program.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600'}
+            src={
+              program.imageUrl ||
+              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600'
+            }
             className="absolute inset-0 object-cover w-full h-full brightness-[0.4]"
             alt="Banner del programa"
           />
@@ -190,14 +210,15 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
 
         {/* Contenido Principal */}
         <div className="flex-grow min-h-96 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-
           <div className="mb-8">
+            {/* Controles de Trimestres */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-              {/* Controles de Trimestres */}
               {ficha && (
                 <div className="flex w-full items-center gap-3 px-4 justify-between">
-                  <div className='flex items-center'>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">Trimestres:</span>
+                  <div className="flex items-center">
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+                      Trimestres:
+                    </span>
                     <span className="text-sm font-bold text-primary min-w-[2rem] text-center">
                       {trimestres.length}
                     </span>
@@ -207,115 +228,129 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
                     >
                       {sortOrder === 'asc' ? (
-                        <ArrowDownAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                        <ArrowDownAZ
+                          size={20}
+                          className="text-primary group-hover:scale-110 transition-transform"
+                        />
                       ) : (
-                        <ArrowUpAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                        <ArrowUpAZ
+                          size={20}
+                          className="text-primary group-hover:scale-110 transition-transform"
+                        />
                       )}
                       <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
                         {sortOrder === 'asc' ? 'Asc' : 'Desc'}
                       </span>
                     </button>
                   </div>
-                  <button
-                    onClick={handleAgregarTrimestre}
-                    disabled={
-                      nuevoTrimestre !== null ||
-                      (trimestres.length > 0 && (
-                        (program.nivel?.toUpperCase() === 'TECNICO' && maxNumeroGradoTrimestres(trimestres) >= 3) ||
-                        (program.nivel?.toUpperCase() === 'TECNOLOGO' && maxNumeroGradoTrimestres(trimestres) >= 7)
-                      )) ||
-                      trimestres.length >= 9
-                    }
-                    className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
-                      <i className="text-lg ki-filled ki-plus"></i>
-                    </div>
-                    <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
-                      {
-                        trimestres.length > 0 && (
-                          (program.nivel?.toUpperCase() === 'TECNICO' && maxNumeroGradoTrimestres(trimestres) >= 3) ||
-                          (program.nivel?.toUpperCase() === 'TECNOLOGO' && maxNumeroGradoTrimestres(trimestres) >= 7)
-                        )
-                          ? 'Límite alcanzado'
-                          : 'Añadir Trimestre'
+
+                  <div className="flex gap-2">
+                    {tieneEtapaPractica && (
+                      <button
+                        onClick={() => setIsSeguimientoModalOpen(true)}
+                        className="group relative flex items-center justify-start h-[46px] px-4 bg-green-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 hover:bg-green-700"
+                        title="Seguimiento Etapa Práctica"
+                      >
+                        <i className="text-lg ki-filled ki-people mr-2"></i>
+                        <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:block">
+                          Seguimiento
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      onClick={handleAgregarTrimestre}
+                      disabled={
+                        nuevoTrimestre !== null ||
+                        (trimestres.length > 0 &&
+                          ((program.nivel?.toUpperCase() === 'TECNICO' &&
+                            maxNumeroGradoTrimestres(trimestres) >= 3) ||
+                            (program.nivel?.toUpperCase() === 'TECNOLOGO' &&
+                              maxNumeroGradoTrimestres(trimestres) >= 7))) ||
+                        trimestres.length >= 9
                       }
-                    </span>
-                  </button>
+                      className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                        <i className="text-lg ki-filled ki-plus"></i>
+                      </div>
+                      <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                        {trimestres.length > 0 &&
+                        ((program.nivel?.toUpperCase() === 'TECNICO' &&
+                          maxNumeroGradoTrimestres(trimestres) >= 3) ||
+                          (program.nivel?.toUpperCase() === 'TECNOLOGO' &&
+                            maxNumeroGradoTrimestres(trimestres) >= 7))
+                          ? 'Límite alcanzado'
+                          : 'Añadir Trimestre'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
-            <>
-              {!ficha && (
-                <div className="py-8 rounded-lg text-center bg-white dark:bg-coal-400">
-                  <Search size={48} className="mx-auto text-gray-400 mb-3" />
-                  <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
-                    selecciona una ficha para continuar
-                  </p>
-                </div>
-              )}
+            {/* Sin ficha seleccionada */}
+            {!ficha && (
+              <div className="py-8 rounded-lg text-center bg-white dark:bg-coal-400">
+                <Search size={48} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                  selecciona una ficha para continuar
+                </p>
+              </div>
+            )}
 
-              {/* Contenido: Trimestres o Calendario */}
-              {ficha &&
-                <div className="space-y-5">
-                  {
-                    !loadingTrimestres ?
-
-                      <div className="flex justify-center py-8">
-                        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+            {/* Contenido: Trimestres o Spinner */}
+            {ficha && (
+              <div className="space-y-5">
+                {loadingTrimestres ? (
+                  trimestres.length > 0 ? (
+                    (sortOrder === 'asc'
+                      ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
+                      : [...trimestres].sort((a, b) => compararTrimestresPorNumeroGrado(b, a))
+                    ).map((trimestre, index) => (
+                      <div
+                        key={
+                          trimestre.grado?.idGradoPrograma ??
+                          trimestre.idGradoPrograma ??
+                          trimestre.id ??
+                          `grado-${trimestre.grado?.numeroGrado ?? trimestre.numeroGrado ?? index}`
+                        }
+                        className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
+                          trimestre.esNuevo
+                            ? 'border-primary animate-pulse-slow'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
+                        }`}
+                      >
+                        <CardTrimestre
+                          trimestre={trimestre}
+                          index={index}
+                          onAbrirMaterias={handleOpenMateriaFromTrimestre}
+                          setSelectedNivelId={setSelectedNivelId}
+                          onVerRaps={handleOpenRaps}
+                          onEditCompetencia={handleEditCompetencia}
+                          setModalHorarios={setModalHorarios}
+                          idFicha={ficha?.id}
+                          onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
+                        />
                       </div>
-                      :
-                      (
-                        trimestres.length > 0 ? (
-                        (sortOrder === 'asc'
-                            ? [...trimestres].sort(compararTrimestresPorNumeroGrado)
-                            : [...trimestres].sort((a, b) =>
-                                compararTrimestresPorNumeroGrado(b, a)
-                              )
-                          ).map((trimestre, index) => (
-                              <div
-                                key={
-                                  trimestre.grado?.idGradoPrograma ??
-                                  trimestre.idGradoPrograma ??
-                                  trimestre.id ??
-                                  `grado-${trimestre.grado?.numeroGrado ?? trimestre.numeroGrado ?? index}`
-                                }
-                                className={`p-6 bg-white dark:bg-coal-300 border-2 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
-                                  trimestre.esNuevo
-                                    ? 'border-primary animate-pulse-slow'
-                                    : 'border-gray-200 dark:border-gray-600 hover:border-primary/50'
-                                }`}
-                              >
-                                <CardTrimestre
-                                  trimestre={trimestre}
-                                  index={index}
-                                  onAbrirMaterias={handleOpenMateriaFromTrimestre}
-                                  setSelectedNivelId={setSelectedNivelId}
-                                  onVerRaps={handleOpenRaps}
-                                  onEditCompetencia={handleEditCompetencia}
-                                  setModalHorarios={setModalHorarios}
-                                  idFicha={ficha?.id}
-                                  onAsignacionSuccess={() => ficha && cargarTrimestres(ficha.id)}
-                                />
-                              </div>
-                            ))
-                        ) : (
-                          <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
-                            <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
-                            <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
-                              No hay trimestres configurados
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Utiliza los controles superiores para agregar trimestres
-                            </p>
-                          </div>
-                        )
-                      )}
-                </div>
-              }
-            </>
-
+                    ))
+                  ) : (
+                    <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                      <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
+                        No hay trimestres configurados
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Utiliza los controles superiores para agregar trimestres
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex justify-center py-8">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -365,7 +400,9 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
         materiasActuales={
           nuevoTrimestre
             ? nuevoTrimestre.materias
-            : trimestres.find(t => (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId)?.materias || []
+            : trimestres.find(
+                (t) => (t.idGradoPrograma || t.grado?.idGradoPrograma) === selectedNivelId
+              )?.materias || []
         }
       />
 
@@ -395,13 +432,10 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
       />
 
       {/* Modal Horarios */}
-      {modalHorarios.open &&
+      {modalHorarios.open && (
         <HorariosMateria
           open={modalHorarios.open}
-          onClose={() => setModalHorarios({
-            open: false,
-            idGradoMateria: undefined
-          })}
+          onClose={() => setModalHorarios({ open: false, idGradoMateria: undefined })}
           idGradoMateria={modalHorarios.idGradoMateria ?? 0}
           idFicha={modalHorarios.idFicha || ficha?.id || 0}
           totalHoras={modalHorarios.totalHoras}
@@ -412,9 +446,19 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
             if (ficha?.id) cargarTrimestres(ficha?.id);
           }}
         />
-      }
+      )}
 
-      <Toast message='Operación realizada correctamente' isOpen={toast} onClose={() => setToast(false)} />
+      <ModalSeguimientoPractica
+        isOpen={isSeguimientoModalOpen}
+        onClose={() => setIsSeguimientoModalOpen(false)}
+        idFicha={ficha?.id ?? 0}
+      />
+
+      <Toast
+        message="Operación realizada correctamente"
+        isOpen={toast}
+        onClose={() => setToast(false)}
+      />
     </div>
   );
 };
