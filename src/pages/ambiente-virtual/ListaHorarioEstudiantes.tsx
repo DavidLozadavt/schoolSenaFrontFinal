@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import GraficaAsistencia from '../asistencias/GraficaAsistencia';
 import TakeAttendanceModal from '../asistencias/TakeAttendanceModal';
@@ -134,9 +134,11 @@ interface StudentListProps {
     idHorarioMateria?: number;
     ficha_codigo?: string;
   };
+  /** Incrementar al reentrar a Estudiantes para forzar refetch sin F5. */
+  refreshToken?: number;
 }
 
-const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
+const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData, refreshToken = 0 }) => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,18 +208,24 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     }
   };
 
-  // Función para obtener estudiantes
-  const fetchStudents = async () => {
+  // Función para obtener estudiantes (siempre reemplaza el state; no concatena).
+  const fetchStudents = useCallback(async () => {
+    const idMateriaRaw = materiaData?.idMateria;
+    const idFichaRaw = materiaData?.idFicha;
+    const idMateriaNum =
+      typeof idMateriaRaw === 'string' ? parseInt(idMateriaRaw, 10) : Number(idMateriaRaw);
+    const idFichaNum = Number(idFichaRaw);
+    if (!Number.isFinite(idMateriaNum) || idMateriaNum <= 0 || !Number.isFinite(idFichaNum) || idFichaNum <= 0) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       const requestData: Record<string, any> = {
-        idMateria:
-          typeof materiaData.idMateria === 'string'
-            ? parseInt(materiaData.idMateria)
-            : materiaData.idMateria,
-        idFicha: materiaData.idFicha
+        idMateria: idMateriaNum,
+        idFicha: idFichaNum
       };
 
       // Incluir el horario exacto para que el backend cree la sesión correcta
@@ -225,29 +233,14 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
         requestData.idHorarioMateria = materiaData.idHorarioMateria;
       }
 
-      console.log('🎯 [StudentList] Enviando datos al backend:', requestData);
-      console.log('🎯 [StudentList] Estado de la clase recibido:', materiaData.estadoClase);
-      console.log(
-        '🎯 [StudentList] URL completa:',
-        `get_student_by_id_materia?data_encoded=${encodeURIComponent(JSON.stringify(requestData))}`
-      );
-
       const dataEncoded = encodeData(requestData);
 
       const response = await axios.get('get_student_by_id_materia', {
-        params: { data_encoded: dataEncoded, ts: new Date().getTime() }
+        params: { data_encoded: dataEncoded, ts: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
       });
 
-      console.log('[StudentList] Respuesta del backend:', response.data);
-      console.log(
-        '[StudentList] Tipo de respuesta:',
-        Array.isArray(response.data) ? 'array' : typeof response.data
-      );
-      console.log('[StudentList] Cantidad de estudiantes:', response.data?.length || 0);
-
       if (Array.isArray(response.data)) {
-        console.log('[StudentList] Primer estudiante:', response.data[0]);
-
         // Obtener la fecha de hoy en formato YYYY-MM-DD local
         const hoy = new Date();
         const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
@@ -306,27 +299,21 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       }
     } catch (err: any) {
       console.error('[StudentList] Error fetching students:', err);
-      console.error('[StudentList] Mensaje:', err.message);
-      console.error('[StudentList] Respuesta:', err.response?.data);
-
       setError(
         err.response?.data?.message ||
           err.message ||
           'Error al cargar los estudiantes'
       );
-
-      setStudents([]);
+      // No vaciar el listado anterior si ya había datos y falla un refetch.
     } finally {
       setLoading(false);
     }
-  };
-
-  // useEffect para cargar datos cuando cambia materiaData
-  useEffect(() => {
-    if (materiaData?.idMateria && materiaData?.idFicha) {
-      fetchStudents();
-    }
   }, [materiaData.idMateria, materiaData.idFicha, materiaData.idHorarioMateria]);
+
+  // Cargar / refrescar al montar, al cambiar contexto o al reentrar a Estudiantes
+  useEffect(() => {
+    void fetchStudents();
+  }, [fetchStudents, refreshToken]);
 
   // Cerrar menú de exportación al hacer clic afuera o presionar Escape
   useEffect(() => {

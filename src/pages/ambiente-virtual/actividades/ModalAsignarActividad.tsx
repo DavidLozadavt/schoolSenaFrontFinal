@@ -95,30 +95,43 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => {
-    if (open && idFicha) {
-      setLoading(true);
-      axios
-        .get(`fichas/${idFicha}/asignacion-actividades/datos`)
-        .then((res) => {
-          setError('');
-          setAprendices(res.data?.aprendices ?? []);
-          setGrupos(res.data?.grupos ?? []);
-          setActividades(res.data?.actividades ?? []);
-        })
-        .catch((err: unknown) => {
-          const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
-          setAprendices([]);
-          setGrupos([]);
-          setActividades([]);
-          const msg =
-            ax?.response?.data?.message ||
-            ax?.response?.data?.error ||
-            (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
-            'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
-          setError(msg);
-        })
-        .finally(() => setLoading(false));
+    if (!open || !idFicha) {
+      return;
     }
+    let cancelled = false;
+    setLoading(true);
+    axios
+      .get(`fichas/${idFicha}/asignacion-actividades/datos`, {
+        params: { ts: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setError('');
+        // Reemplazar siempre (nunca concatenar) para evitar duplicados y datos viejos.
+        setAprendices(Array.isArray(res.data?.aprendices) ? res.data.aprendices : []);
+        setGrupos(Array.isArray(res.data?.grupos) ? res.data.grupos : []);
+        setActividades(Array.isArray(res.data?.actividades) ? res.data.actividades : []);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+        setAprendices([]);
+        setGrupos([]);
+        setActividades([]);
+        const msg =
+          ax?.response?.data?.message ||
+          ax?.response?.data?.error ||
+          (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
+          'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
+        setError(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, idFicha]);
 
   useEffect(() => {
@@ -128,6 +141,13 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       setFechaInicial(ahoraDatetimeLocal());
       setFechaFinal('');
       setError('');
+      setMostrarPickerEstudiantes(false);
+      setMostrarPickerGrupos(false);
+    } else {
+      // Al cerrar, limpiar para que la próxima apertura no muestre datos cacheados.
+      setAprendices([]);
+      setGrupos([]);
+      setActividades([]);
     }
   }, [open]);
 
@@ -300,7 +320,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
           >
             <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-0 max-h-[min(94dvh,960px)]">
             <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
-              <ModalTitle>Asignar actividad</ModalTitle>
+              <ModalTitle className="dark:text-white">Asignar actividad</ModalTitle>
               <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose} title="Cerrar">
                 <KeenIcon icon="cross" />
               </button>
@@ -315,10 +335,10 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                 <div className="px-5 py-4 sm:px-6 sm:py-5">
                   {actividadesAAsignar.length > 0 && (
                     <div className="mb-5 rounded-lg border border-gray-100 bg-gray-50/80 px-3.5 py-2.5 dark:border-gray-600/50 dark:bg-coal-500/20">
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-white">
                         {actividadesAAsignar.length === 1 ? (
                           <>
-                            <span className="font-medium text-gray-500 dark:text-gray-400">Actividad: </span>
+                            <span className="font-medium text-gray-500 dark:text-white">Actividad: </span>
                             <span className="font-semibold text-gray-900 dark:text-white">{actividadesAAsignar[0].tituloActividad}</span>
                           </>
                         ) : (
@@ -338,7 +358,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                     )}
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar estudiantes</label>
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-white">Seleccionar estudiantes</label>
                       <Select
                         inputId="asignar-actividad-aprendices"
                         isMulti
@@ -402,7 +422,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                               )}
                               <div className="min-w-0">
                                 <div className="truncate text-sm font-semibold">{opt.label}</div>
-                                <div className="truncate text-[11px] text-gray-500 dark:text-gray-300">
+                                <div className="truncate text-[11px] text-gray-500 dark:text-white">
                                   {doc ? doc : 'Sin documento'}
                                 </div>
                               </div>
@@ -415,7 +435,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         }}
                       />
                       <div className="mt-2 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoEstudiantes}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-white">{textoEstudiantes}</p>
                         <button
                           type="button"
                           onClick={toggleTodosEstudiantes}
@@ -463,7 +483,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                           className="h-10 w-10 sm:h-11 sm:w-11 cursor-zoom-in rounded-full border-2 border-gray-100 object-cover transition-opacity hover:opacity-90 dark:border-gray-600"
                                         />
                                       </button>
-                                      <label htmlFor={idInput} className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug text-gray-800 dark:text-gray-100">
+                                      <label htmlFor={idInput} className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug text-gray-800 dark:text-white">
                                         {a.nombre}
                                       </label>
                                     </div>
@@ -477,7 +497,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar grupos</label>
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-white">Seleccionar grupos</label>
                       <Select
                         inputId="asignar-actividad-grupos"
                         isMulti
@@ -499,7 +519,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         }}
                       />
                       <div className="mt-2 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoGrupos}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-white">{textoGrupos}</p>
                         <button
                           type="button"
                           onClick={toggleTodosGrupos}
@@ -529,9 +549,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                     checked={gruposSeleccionados.includes(g.id)}
                                     onChange={() => toggleGrupo(g.id)}
                                   />
-                                  <span className="text-sm text-gray-800 dark:text-gray-200">
+                                  <span className="text-sm text-gray-800 dark:text-white">
                                     {g.nombreGrupo}{' '}
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-gray-500 dark:text-white">
                                       ({g.integrantesActuales ?? 0}/{g.cantidadParticipantes})
                                     </span>
                                   </span>
@@ -545,7 +565,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora inicial</label>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-white">Fecha y hora inicial</label>
                         <input
                           type="datetime-local"
                           value={fechaInicial}
@@ -554,7 +574,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora límite</label>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-white">Fecha y hora límite</label>
                         <input
                           type="datetime-local"
                           value={fechaFinal}
@@ -568,7 +588,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       <button
                         type="button"
                         onClick={onClose}
-                        className="w-full min-w-[8rem] rounded-lg border border-transparent bg-gray-200/90 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-600 dark:text-gray-100 sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-500"
+                        className="w-full min-w-[8rem] rounded-lg border border-transparent bg-gray-200/90 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-600 dark:text-white sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-500"
                       >
                         Cancelar
                       </button>

@@ -1131,7 +1131,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
             >
             <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/80 bg-white !shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-[min(100%,32rem)] md:min-w-[40rem] max-h-[min(94dvh,960px)] !p-0">
               <ModalHeader className="border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
-                <ModalTitle>Confirma la asignación a la ficha</ModalTitle>
+                <ModalTitle className="dark:text-white">Confirma la asignación a la ficha</ModalTitle>
                 <button type="button" className="btn btn-sm btn-icon btn-light btn-clear" onClick={() => setConfirmAsignarOpen(false)}>
                   <KeenIcon icon="cross" />
                 </button>
@@ -1139,18 +1139,18 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
               <div className="min-h-0 max-h-[min(80dvh,820px)] overflow-y-auto [scrollbar-gutter:stable]">
                 <ModalBody className="!p-0">
                   <div className="space-y-3 px-5 sm:px-6 pt-5 sm:pt-6 pb-4">
-                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-white">
                   Has seleccionado <strong className="text-base text-gray-900 dark:text-white">{actividadesParaConfirmar.length}</strong>{' '}
                   {actividadesParaConfirmar.length === 1 ? 'actividad' : 'actividades'}.
                   A continuación podrás elegir <strong>estudiantes</strong>, <strong>grupos</strong> y <strong>fechas</strong>.
                 </p>
-                <p className="text-xs sm:text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                <p className="text-xs sm:text-sm leading-relaxed text-gray-500 dark:text-white">
                   Si un aprendiz ya recibió la actividad, el sistema <strong>no la duplicará</strong> al mismo destinatario; podrás seguir asignando a quienes falten.
                 </p>
                   </div>
                 {actividadesParaConfirmar.length > 0 && (
                   <div className="border-t border-gray-100 dark:border-gray-600/50 px-5 sm:px-6 pb-5 sm:pb-6 pt-4">
-                    <p className="mb-3 sm:mb-4 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                    <p className="mb-3 sm:mb-4 text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-white">
                       Resumen de actividades
                     </p>
                     <div
@@ -1162,14 +1162,14 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                             key={a.id ?? i}
                             className="border-b border-dotted border-gray-200/90 pb-5 last:mb-0 last:border-0 last:pb-0 dark:border-gray-500/80"
                           >
-                            <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-white">
                               Código: {codigoVistaActividad(a, i)}
                             </p>
                             <p className="mb-0 mt-2.5 sm:mt-3 text-sm sm:text-base font-medium leading-relaxed text-gray-900 dark:text-white">
                               {a.tituloActividad || '—'}
                             </p>
                             {esCuestionario(a.tipoActividad) && (
-                              <p className="mb-0 mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+                              <p className="mb-0 mt-1.5 text-xs text-gray-600 dark:text-white">
                                 <span className="font-semibold uppercase tracking-wide">Cuestionario</span>
                                 {a.id != null && conteoPreguntasPorActividad[a.id] != null && (
                                   <span>
@@ -1191,7 +1191,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                   <button
                     type="button"
                     onClick={() => setConfirmAsignarOpen(false)}
-                    className="w-full min-w-[7.5rem] rounded-lg border border-transparent bg-gray-200/90 px-5 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100 sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-600"
+                    className="w-full min-w-[7.5rem] rounded-lg border border-transparent bg-gray-200/90 px-5 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-700 dark:text-white sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-600"
                   >
                     Cancelar
                   </button>
