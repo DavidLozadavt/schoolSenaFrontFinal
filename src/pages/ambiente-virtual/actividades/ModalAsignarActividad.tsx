@@ -95,30 +95,43 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => {
-    if (open && idFicha) {
-      setLoading(true);
-      axios
-        .get(`fichas/${idFicha}/asignacion-actividades/datos`)
-        .then((res) => {
-          setError('');
-          setAprendices(res.data?.aprendices ?? []);
-          setGrupos(res.data?.grupos ?? []);
-          setActividades(res.data?.actividades ?? []);
-        })
-        .catch((err: unknown) => {
-          const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
-          setAprendices([]);
-          setGrupos([]);
-          setActividades([]);
-          const msg =
-            ax?.response?.data?.message ||
-            ax?.response?.data?.error ||
-            (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
-            'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
-          setError(msg);
-        })
-        .finally(() => setLoading(false));
+    if (!open || !idFicha) {
+      return;
     }
+    let cancelled = false;
+    setLoading(true);
+    axios
+      .get(`fichas/${idFicha}/asignacion-actividades/datos`, {
+        params: { ts: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setError('');
+        // Reemplazar siempre (nunca concatenar) para evitar duplicados y datos viejos.
+        setAprendices(Array.isArray(res.data?.aprendices) ? res.data.aprendices : []);
+        setGrupos(Array.isArray(res.data?.grupos) ? res.data.grupos : []);
+        setActividades(Array.isArray(res.data?.actividades) ? res.data.actividades : []);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+        setAprendices([]);
+        setGrupos([]);
+        setActividades([]);
+        const msg =
+          ax?.response?.data?.message ||
+          ax?.response?.data?.error ||
+          (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
+          'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
+        setError(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, idFicha]);
 
   useEffect(() => {
@@ -128,6 +141,13 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       setFechaInicial(ahoraDatetimeLocal());
       setFechaFinal('');
       setError('');
+      setMostrarPickerEstudiantes(false);
+      setMostrarPickerGrupos(false);
+    } else {
+      // Al cerrar, limpiar para que la próxima apertura no muestre datos cacheados.
+      setAprendices([]);
+      setGrupos([]);
+      setActividades([]);
     }
   }, [open]);
 

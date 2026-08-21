@@ -1719,6 +1719,8 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadesParaAsignar, setActividadesParaAsignar] = useState<Actividad[] | null>(null);
   const [configCuestionariosAsignacion, setConfigCuestionariosAsignacion] = useState<ConfigCuestionariosMap | null>(null);
   const [assignSuccessCounter, setAssignSuccessCounter] = useState(0);
+  /** Fuerza refetch del listado de estudiantes al (re)entrar al menú Estudiantes. */
+  const [estudiantesRefreshToken, setEstudiantesRefreshToken] = useState(0);
   const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
   const [actividadParaEditar, setActividadParaEditar] = useState<Actividad | null>(null);
   const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
@@ -2074,13 +2076,29 @@ const ClaseDetallePage: React.FC = () => {
       }`;
 
       const [disponiblesRes, asignadasRes, coberturaRes] = await Promise.allSettled([
-        axios.get('actividades', { params }).catch(() => ({ data: [] })),
-        axios.get(planeacionUrl).catch(() => ({ data: [] })),
-        axios.get(`fichas/${idFichaParaClase}/asignacion-actividades/cobertura`).catch(() => ({ data: null }))
+        axios
+          .get('actividades', {
+            params: { ...params, ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(planeacionUrl, {
+            params: { ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(`fichas/${idFichaParaClase}/asignacion-actividades/cobertura`, {
+            params: { ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: null }))
       ]);
       const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
       const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
-      setActividadesDisponibles(disp);
+      // Reemplazar listados (no concatenar) para reflejar el estado actual.
+      setActividadesDisponibles(Array.isArray(disp) ? disp : []);
       setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
       if (coberturaRes.status === 'fulfilled' && coberturaRes.value?.data) {
         const d = coberturaRes.value.data;
@@ -2123,6 +2141,26 @@ const ClaseDetallePage: React.FC = () => {
       fetchActividades();
     }
   }, [activeMenu, fetchActividades, idFichaParaClase]);
+
+  /** Cambia de sección y, si ya estamos en ella, fuerza refetch (sin F5). */
+  const irAMenuClase = useCallback(
+    (menu: MenuOption) => {
+      if (menu === activeMenu) {
+        if (menu === 'estudiantes') {
+          setEstudiantesRefreshToken((n) => n + 1);
+        }
+        if (
+          (menu === 'agregar-actividades' || menu === 'actividades-asignadas') &&
+          idFichaParaClase > 0
+        ) {
+          void fetchActividades();
+        }
+        return;
+      }
+      setActiveMenu(menu);
+    },
+    [activeMenu, fetchActividades, idFichaParaClase]
+  );
 
   const idsActividadesAsignadas = useMemo(() => {
     const set = new Set<number>();
@@ -2944,7 +2982,7 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Estudiantes"
-                  onClick={() => setActiveMenu('estudiantes')}
+                  onClick={() => irAMenuClase('estudiantes')}
                   className={claseBotonItemMenu(activeMenu === 'estudiantes')}
                 >
                   <KeenIcon
@@ -2959,7 +2997,7 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Crear actividad"
-                  onClick={() => setActiveMenu('agregar-actividades')}
+                  onClick={() => irAMenuClase('agregar-actividades')}
                   className={claseBotonItemMenu(activeMenu === 'agregar-actividades')}
                 >
                   <KeenIcon
@@ -2974,7 +3012,7 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Calificar actividad"
-                  onClick={() => setActiveMenu('actividades-asignadas')}
+                  onClick={() => irAMenuClase('actividades-asignadas')}
                   className={claseBotonItemMenu(activeMenu === 'actividades-asignadas')}
                 >
                   <KeenIcon
@@ -3117,6 +3155,8 @@ const ClaseDetallePage: React.FC = () => {
               {/* Estudiantes Section */}
               {activeMenu === 'estudiantes' && (
                 <StudentListByMateria
+                  key={`estudiantes-${idFichaParaClase}-${idMateriaClaseProp}-${idHorarioMateriaRuta ?? ''}`}
+                  refreshToken={estudiantesRefreshToken}
                   materiaData={{
                     idMateria: idMateriaClaseProp,
                     idFicha: idFichaParaClase,
