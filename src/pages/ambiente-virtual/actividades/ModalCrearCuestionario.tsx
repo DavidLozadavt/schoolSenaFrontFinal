@@ -19,6 +19,7 @@ interface Pregunta {
   id: string;
   tipo: TipoPregunta;
   titulo: string;
+  explicacionRespuesta: string;
   fotoFile: File | null;
   opciones: OpcionPregunta[];
 }
@@ -29,7 +30,13 @@ interface CuestionarioEditar {
   descripcionActividad?: string;
   autor?: string;
   idMateria?: number;
-  preguntas?: { id?: number; descripcion?: string; tipoPregunta?: { tipoPregunta: string }; respuestas?: { descripcionRespuesta: string; chkCorrecta: boolean }[] }[];
+  preguntas?: {
+    id?: number;
+    descripcion?: string;
+    explicacionRespuesta?: string | null;
+    tipoPregunta?: { tipoPregunta: string };
+    respuestas?: { descripcionRespuesta: string; chkCorrecta: boolean }[];
+  }[];
 }
 
 interface ModalCrearCuestionarioProps {
@@ -94,6 +101,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
           id: generarId(),
           tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
+          explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
           opciones: (p.respuestas || []).map((r: any) => ({
             id: generarId(),
@@ -110,6 +118,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
           id: generarId(),
           tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
+          explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
           opciones: (p.respuestas || []).map((r) => ({
             id: generarId(),
@@ -140,6 +149,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       const preguntasPayload = preguntas.map((p) => ({
         tipo: p.tipo,
         titulo: p.titulo,
+        explicacionRespuesta: p.explicacionRespuesta.trim() || null,
         opciones: p.tipo === 'Varias opciones' ? p.opciones.map((o) => ({ texto: o.texto, esCorrecta: o.esCorrecta })) : []
       }));
 
@@ -187,6 +197,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         id: generarId(),
         tipo: 'Varias opciones',
         titulo: '',
+        explicacionRespuesta: '',
         fotoFile: null,
         opciones: [
           { id: generarId(), texto: '', esCorrecta: false },
@@ -446,6 +457,23 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                     </button>
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">
+                    Explicación de la respuesta correcta
+                  </label>
+                  <textarea
+                    className="input w-full p-2 text-sm min-h-[80px] max-h-[250px] overflow-y-auto overflow-x-hidden resize-y break-words"
+                    style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
+                    placeholder="Explique por qué la respuesta seleccionada es correcta..."
+                    value={pregunta.explicacionRespuesta}
+                    onChange={(e) =>
+                      actualizarPregunta(pregunta.id, { explicacionRespuesta: e.target.value })
+                    }
+                    data-preserve-case
+                    rows={3}
+                  />
+                </div>
               </div>
             ))}
 

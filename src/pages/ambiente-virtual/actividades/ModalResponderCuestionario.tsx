@@ -219,10 +219,10 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white">
                       {currentQuestionIndex + 1} / {totalPreguntas}
                     </span>
-                    <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                    <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-white">
                       {preg?.tipoPregunta?.tipoPregunta || 'Párrafo'}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                    <span className="text-xs text-gray-500 dark:text-white tabular-nums">
                       {respondidasCount} respondidas
                     </span>
                   </>
@@ -245,7 +245,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                     style={{ width: `${progresoPct}%` }}
                   />
                 </div>
-                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 tabular-nums w-9 text-right">
+                <span className="text-[11px] font-semibold text-gray-500 dark:text-white tabular-nums w-9 text-right">
                   {progresoPct}%
                 </span>
               </div>
@@ -274,7 +274,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   <div className="space-y-5">
                     {/* Enunciado */}
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-white mb-1.5">
                         Pregunta {currentQuestionIndex + 1}
                       </p>
                       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-snug">
@@ -297,7 +297,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                             alt="Imagen de la pregunta"
                             className={`${CUESTIONARIO_IMG_CLASS} cursor-zoom-in group-hover:opacity-95 transition-opacity`}
                           />
-                          <span className="mt-1.5 block text-center text-[10px] text-gray-400">
+                          <span className="mt-1.5 block text-center text-[10px] text-gray-400 dark:text-white">
                             Clic para ampliar
                           </span>
                         </button>
@@ -329,7 +329,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                                   className={`text-sm sm:text-[15px] leading-relaxed ${
                                     selected
                                       ? 'text-gray-900 dark:text-white font-medium'
-                                      : 'text-gray-700 dark:text-gray-300'
+                                      : 'text-gray-700 dark:text-white'
                                   }`}
                                 >
                                   {r.descripcionRespuesta}
@@ -344,7 +344,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                         value={respuestas[preg.id]?.respuesta ?? ''}
                         onChange={(e) => handleRespuestaTexto(preg.id, e.target.value)}
                         placeholder="Escribe tu respuesta aquí..."
-                        className="input w-full text-sm sm:text-[15px] min-h-[140px] rounded-xl border-2 border-gray-200 dark:border-gray-600 focus:border-blue-500 p-4 leading-relaxed"
+                        className="input w-full text-sm sm:text-[15px] min-h-[140px] rounded-xl border-2 border-gray-200 dark:border-gray-600 focus:border-blue-500 p-4 leading-relaxed dark:text-white dark:placeholder:text-white"
                         rows={5}
                       />
                     )}
@@ -357,7 +357,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   </div>
                 </div>
               ) : actividadCompleta && !actividadCompleta.preguntas?.length ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400 py-12 text-center">
+                <p className="text-sm text-gray-500 dark:text-white py-12 text-center">
                   No hay preguntas en este cuestionario.
                 </p>
               ) : null}
@@ -371,7 +371,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   >
                     Cancelar
                   </button>
@@ -379,7 +379,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                     <button
                       type="button"
                       onClick={irAnterior}
-                      className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
                       Anterior
                     </button>
@@ -417,7 +417,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
             <h4 className="text-base font-bold text-gray-900 dark:text-white">
               Preguntas sin responder
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-white leading-relaxed">
               Tienes <span className="font-bold text-gray-900 dark:text-white">{confirmFinalizar.pendientes}</span>{' '}
               {confirmFinalizar.pendientes === 1 ? 'pregunta' : 'preguntas'} sin responder.
               ¿Deseas finalizar de todas formas?
@@ -426,7 +426,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
               <button
                 type="button"
                 onClick={() => setConfirmFinalizar(null)}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Volver al cuestionario
               </button>

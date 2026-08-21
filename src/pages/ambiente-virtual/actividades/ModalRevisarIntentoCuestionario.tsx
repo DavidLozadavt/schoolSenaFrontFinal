@@ -21,6 +21,7 @@ interface PreguntaRevision {
   tipoPregunta: string;
   urlDocumento?: string | null;
   urlDocumentoUrl?: string | null;
+  explicacionRespuesta?: string | null;
   estado: 'correcta' | 'incorrecta' | 'pendiente' | 'calificada' | string;
   puntaje: number | null;
   retroalimentacion: string | null;
@@ -147,9 +148,9 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0 flex-1 text-sm">
                   <span className="font-bold text-gray-900 dark:text-white tabular-nums">
                     {data.notaFinal !== null ? data.notaFinal.toFixed(1) : '—'}
-                    <span className="text-gray-400 font-medium text-xs"> /5</span>
+                    <span className="text-gray-400 dark:text-white font-medium text-xs"> /5</span>
                   </span>
-                  <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+                  <span className="text-gray-500 dark:text-white tabular-nums">
                     {data.porcentaje !== null ? `${data.porcentaje}%` : '—'}
                   </span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">
@@ -163,12 +164,12 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                       Pend. {data.resumen.pendientes}
                     </span>
                   )}
-                  <span className="text-gray-400 text-xs tabular-nums">
+                  <span className="text-gray-400 dark:text-white text-xs tabular-nums">
                     {data.resumen.totalPreguntas} preg.
                   </span>
                 </div>
               ) : (
-                <span className="text-sm text-gray-500">Cargando resultados…</span>
+                <span className="text-sm text-gray-500 dark:text-white">Cargando resultados…</span>
               )}
               <button
                 type="button"
@@ -201,7 +202,7 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                     <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-0.5">
                       Observación del instructor
                     </p>
-                    <p className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
+                    <p className="text-sm text-gray-700 dark:text-white leading-snug">
                       {data.comentarioDocente}
                     </p>
                   </div>
@@ -232,12 +233,12 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-white mb-1">
                               Pregunta {index + 1}
-                              <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
+                              <span className="mx-1.5 text-gray-300 dark:text-white">·</span>
                               {preg.tipoPregunta}
                             </p>
-                            <p className="text-sm sm:text-[15px] font-medium text-gray-900 dark:text-gray-100 leading-snug">
+                            <p className="text-sm sm:text-[15px] font-medium text-gray-900 dark:text-white leading-snug">
                               {preg.descripcion}
                             </p>
                           </div>
@@ -304,7 +305,7 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                                     )}
                                   </span>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-gray-800 dark:text-gray-100 leading-snug">{op.texto}</p>
+                                    <p className="text-gray-800 dark:text-white leading-snug">{op.texto}</p>
                                     <div className="flex flex-wrap gap-2 mt-1">
                                       {esSeleccionada && esCorrecta && (
                                         <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
@@ -330,12 +331,12 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                         ) : (
                           <div className="space-y-2">
                             <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-coal-500/30 px-3.5 py-2.5">
-                              <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">
+                              <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white mb-1">
                                 Tu respuesta
                               </p>
-                              <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap leading-snug">
+                              <p className="text-sm text-gray-800 dark:text-white whitespace-pre-wrap leading-snug">
                                 {preg.respuestaAprendiz?.texto || (
-                                  <span className="italic text-gray-400">Sin respuesta</span>
+                                  <span className="italic text-gray-400 dark:text-white">Sin respuesta</span>
                                 )}
                               </p>
                             </div>
@@ -361,6 +362,17 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
                             )}
                           </div>
                         )}
+
+                        {preg.explicacionRespuesta && preg.explicacionRespuesta.trim() !== '' && (
+                          <div className="rounded-xl border border-indigo-200 dark:border-indigo-700/60 bg-indigo-50/70 dark:bg-indigo-900/20 px-3.5 py-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-600 dark:text-white mb-1">
+                              ¿Por qué esta es la respuesta correcta?
+                            </p>
+                            <p className="text-sm text-indigo-900 dark:text-white whitespace-pre-wrap leading-snug">
+                              {preg.explicacionRespuesta}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -373,7 +385,7 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               Cerrar
             </button>

@@ -211,7 +211,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
         >
           <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 max-h-[min(94dvh,960px)]">
             <ModalHeader className="shrink-0 border-b border-gray-100 px-5 py-3.5 dark:border-gray-600/80 sm:px-6">
-              <ModalTitle>Configurar preguntas del cuestionario</ModalTitle>
+              <ModalTitle className="dark:text-white">Configurar preguntas del cuestionario</ModalTitle>
               <button type="button" className="btn btn-sm btn-icon btn-light btn-clear" onClick={onClose}>
                 <KeenIcon icon="cross" />
               </button>
@@ -222,23 +222,23 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                 {tituloUnico ? (
                   <>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{tituloUnico}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-white">
                       {porCuestionario[cuestionarios[0]?.id ?? 0]?.preguntas.length ?? '—'} preguntas disponibles
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gray-600 dark:text-white">
                     {cuestionarios.length} cuestionario(s) · {resumenGlobal} preguntas en total
                   </p>
                 )}
-                <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                <p className="text-xs leading-relaxed text-gray-500 dark:text-white">
                   El banco original del cuestionario no se modifica; solo defines el subconjunto para esta asignación.
                 </p>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] px-5 py-4 sm:px-6">
                 {cargando && (
-                  <div className="flex items-center gap-2 py-8 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 py-8 text-sm text-gray-500 dark:text-white">
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-b-transparent border-primary" />
                     Cargando preguntas...
                   </div>
@@ -265,7 +265,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">
                               {c.tituloActividad || 'Cuestionario'}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{total} preguntas disponibles</p>
+                            <p className="text-xs text-gray-500 dark:text-white">{total} preguntas disponibles</p>
                           </div>
                         )}
 
@@ -276,7 +276,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                               st.modo === 'manual'
                                 ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-coal-300'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-white dark:hover:bg-coal-300'
                             }`}
                           >
                             Seleccionar preguntas
@@ -287,7 +287,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                               st.modo === 'aleatorio'
                                 ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-coal-300'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-white dark:hover:bg-coal-300'
                             }`}
                           >
                             Preguntas aleatorias
@@ -297,7 +297,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                         {st.modo === 'manual' && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              <span className="text-xs font-medium text-gray-700 dark:text-white">
                                 Selecciona las preguntas
                               </span>
                               <span className="text-xs font-semibold text-primary">
@@ -315,16 +315,16 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                                         checked={st.idsSeleccionados.includes(p.id)}
                                         onChange={() => togglePregunta(c.id!, p.id)}
                                       />
-                                      <span className="min-w-0 flex-1 break-words text-sm leading-snug text-gray-800 dark:text-gray-100">
-                                        <span className="font-medium text-gray-500 dark:text-gray-400">{idx + 1}. </span>
+                                      <span className="min-w-0 flex-1 break-words text-sm leading-snug text-gray-800 dark:text-white">
+                                        <span className="font-medium text-gray-500 dark:text-white">{idx + 1}. </span>
                                         {(p.descripcion || '').trim() || `Pregunta ${idx + 1}`}
                                         {p.tipoPregunta ? (
-                                          <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                                          <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-white">
                                             ({p.tipoPregunta})
                                           </span>
                                         ) : null}
                                         {p.urlDocumento ? (
-                                          <span className="ml-1 text-xs text-gray-400">(con imagen)</span>
+                                          <span className="ml-1 text-xs text-gray-400 dark:text-white">(con imagen)</span>
                                         ) : null}
                                       </span>
                                     </label>
@@ -338,7 +338,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                         {st.modo === 'aleatorio' && (
                           <div className="space-y-3">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">
                                 Cantidad a asignar
                               </label>
                               <input
@@ -353,9 +353,9 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                                   });
                                 }}
                                 onBlur={() => activarModoAleatorio(c.id!)}
-                                className="input w-full max-w-[8rem] p-2 text-sm"
+                                className="input w-full max-w-[8rem] p-2 text-sm dark:text-white dark:placeholder:text-white"
                               />
-                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              <p className="mt-1 text-xs text-gray-500 dark:text-white">
                                 Entre 1 y {total} preguntas distintas.
                               </p>
                             </div>
@@ -363,7 +363,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                             {st.idsAleatoriosPreview.length > 0 && (
                               <div className="space-y-2">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  <p className="text-xs font-medium text-gray-700 dark:text-white">
                                     {st.idsAleatoriosPreview.length} preguntas seleccionadas aleatoriamente
                                   </p>
                                   <button
@@ -381,11 +381,11 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                                     return (
                                       <li
                                         key={idPreg}
-                                        className="flex gap-2 py-1 text-sm leading-snug text-gray-800 dark:text-gray-100"
+                                        className="flex gap-2 py-1 text-sm leading-snug text-gray-800 dark:text-white"
                                       >
                                         <KeenIcon icon="check" className="mt-0.5 shrink-0 text-xs text-green-600" />
                                         <span className="min-w-0 break-words">
-                                          <span className="font-medium text-gray-500">{idx + 1}. </span>
+                                          <span className="font-medium text-gray-500 dark:text-white">{idx + 1}. </span>
                                           {(p?.descripcion || '').trim() || `Pregunta ${idx + 1}`}
                                         </span>
                                       </li>
@@ -411,7 +411,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full min-w-[7.5rem] rounded-lg border border-transparent bg-gray-200/90 px-5 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100 sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-600"
+                  className="w-full min-w-[7.5rem] rounded-lg border border-transparent bg-gray-200/90 px-5 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-700 dark:text-white sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-600"
                 >
                   Atrás
                 </button>
