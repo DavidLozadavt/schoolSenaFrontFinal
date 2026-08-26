@@ -3,19 +3,20 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
+import { ConfigCuestionariosMap } from './cuestionarioAsignacion';
 import {
-  ConfigCuestionariosMap,
-  ModoPreguntasCuestionario,
-  PreguntaCuestionarioResumen,
-  seleccionarPreguntasAleatorias
-} from './cuestionarioAsignacion';
+  aMinutosReintento,
+  desdeMinutosReintento,
+  UNIDADES_REINTENTO,
+  type UnidadReintento
+} from './intervaloReintentoCuestionario';
 
 interface EstadoCuestionario {
-  preguntas: PreguntaCuestionarioResumen[];
-  modo: ModoPreguntasCuestionario | null;
-  idsSeleccionados: number[];
-  cantidadAleatoria: number;
-  idsAleatoriosPreview: number[];
+  totalBanco: number;
+  cantidadPreguntas: string;
+  preguntasMinimasAprobar: string;
+  intervaloCantidad: string;
+  intervaloUnidad: UnidadReintento;
 }
 
 interface ModalConfigurarPreguntasCuestionarioProps {
@@ -50,20 +51,24 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
       cuestionarios.map(async (c) => {
         if (!c.id) return null;
         const res = await axios.get(`actividades/${c.id}`);
-        const preguntas: PreguntaCuestionarioResumen[] = (res.data?.preguntas ?? []).map(
-          (p: {
-            id: number;
-            descripcion?: string;
-            urlDocumento?: string | null;
-            tipoPregunta?: { tipoPregunta?: string };
-          }) => ({
-            id: p.id,
-            descripcion: p.descripcion ?? '',
-            urlDocumento: p.urlDocumento ?? null,
-            tipoPregunta: p.tipoPregunta?.tipoPregunta ?? null
-          })
-        );
-        return { id: c.id, preguntas };
+        const totalBanco = Array.isArray(res.data?.preguntas) ? res.data.preguntas.length : 0;
+        const iv = desdeMinutosReintento(res.data?.intervaloReintento);
+        // Mínimo legacy inválido (> banco) no se precarga; el campo es opcional.
+        const minPrev =
+          res.data?.preguntasMinimasAprobar != null ? Number(res.data.preguntasMinimasAprobar) : null;
+        const minOk =
+          minPrev != null && Number.isInteger(minPrev) && minPrev >= 1 && minPrev <= totalBanco
+            ? String(minPrev)
+            : '';
+        return {
+          id: c.id,
+          totalBanco,
+          // Por defecto: todo el banco (orden/combinación varían por aprendiz).
+          cantidadPreguntas: totalBanco > 0 ? String(totalBanco) : '',
+          preguntasMinimasAprobar: minOk,
+          intervaloCantidad: iv.cantidad,
+          intervaloUnidad: iv.unidad
+        };
       })
     )
       .then((resultados) => {
@@ -72,11 +77,11 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
         resultados.forEach((item) => {
           if (!item?.id) return;
           map[item.id] = {
-            preguntas: item.preguntas,
-            modo: null,
-            idsSeleccionados: item.preguntas.map((p) => p.id),
-            cantidadAleatoria: item.preguntas.length || 1,
-            idsAleatoriosPreview: []
+            totalBanco: item.totalBanco,
+            cantidadPreguntas: item.cantidadPreguntas,
+            preguntasMinimasAprobar: item.preguntasMinimasAprobar,
+            intervaloCantidad: item.intervaloCantidad,
+            intervaloUnidad: item.intervaloUnidad
           };
         });
         setPorCuestionario(map);
@@ -100,92 +105,87 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
     }));
   }, []);
 
-  const activarModoManual = (idActividad: number) => {
-    const st = porCuestionario[idActividad];
-    if (!st) return;
-    actualizar(idActividad, {
-      modo: 'manual',
-      idsSeleccionados: st.idsSeleccionados.length ? st.idsSeleccionados : st.preguntas.map((p) => p.id),
-      idsAleatoriosPreview: []
-    });
-  };
-
-  const activarModoAleatorio = (idActividad: number) => {
-    const st = porCuestionario[idActividad];
-    if (!st) return;
-    const total = st.preguntas.length;
-    const cantidad = Math.min(Math.max(st.cantidadAleatoria || total || 1, 1), total || 1);
-    const ids = seleccionarPreguntasAleatorias(
-      st.preguntas.map((p) => p.id),
-      cantidad
-    );
-    actualizar(idActividad, {
-      modo: 'aleatorio',
-      cantidadAleatoria: cantidad,
-      idsAleatoriosPreview: ids
-    });
-  };
-
-  const regenerarAleatorias = (idActividad: number) => {
-    activarModoAleatorio(idActividad);
-  };
-
-  const togglePregunta = (idActividad: number, idPregunta: number) => {
-    const st = porCuestionario[idActividad];
-    if (!st) return;
-    const set = new Set(st.idsSeleccionados);
-    if (set.has(idPregunta)) set.delete(idPregunta);
-    else set.add(idPregunta);
-    actualizar(idActividad, { idsSeleccionados: Array.from(set) });
-  };
-
   const validar = (): string | null => {
     for (const c of cuestionarios) {
       if (!c.id) continue;
       const st = porCuestionario[c.id];
       const titulo = c.tituloActividad || 'Cuestionario';
-      if (!st || st.preguntas.length === 0) {
-        return `"${titulo}" no tiene preguntas disponibles.`;
+      if (!st || st.totalBanco <= 0) {
+        return `"${titulo}" no tiene preguntas disponibles en el banco.`;
       }
-      if (st.modo === null) {
-        return `Elige selección manual o preguntas aleatorias para "${titulo}".`;
+      const cantRaw = st.cantidadPreguntas.trim();
+      const cant = Number(cantRaw);
+      if (cantRaw === '' || !Number.isInteger(cant) || cant < 1 || cant > st.totalBanco) {
+        return `"${titulo}": la cantidad de preguntas por intento debe ser un entero entre 1 y ${st.totalBanco}.`;
       }
-      if (st.modo === 'manual') {
-        if (st.idsSeleccionados.length === 0) {
-          return `Selecciona al menos una pregunta para "${titulo}".`;
+
+      const minRaw = st.preguntasMinimasAprobar.trim();
+      if (minRaw !== '') {
+        const minVal = Number(minRaw);
+        if (!Number.isInteger(minVal) || minVal < 1 || minVal > cant) {
+          return `"${titulo}": preguntas mínimas para aprobar debe ser un entero entre 1 y ${cant} (preguntas de cada intento).`;
         }
-      } else {
-        const total = st.preguntas.length;
-        const cant = st.cantidadAleatoria;
-        if (!Number.isFinite(cant) || cant < 1 || cant > total) {
-          return `Cantidad inválida para "${titulo}". Debe estar entre 1 y ${total}.`;
-        }
-        if (st.idsAleatoriosPreview.length === 0) {
-          return `Genera la selección aleatoria para "${titulo}".`;
+      }
+      const intervaloRaw = st.intervaloCantidad.trim();
+      if (intervaloRaw !== '') {
+        const intervaloVal = Number(intervaloRaw);
+        if (!Number.isInteger(intervaloVal) || intervaloVal < 1) {
+          return `"${titulo}": el intervalo de reintento debe ser un entero mayor o igual a 1.`;
         }
       }
     }
     return null;
   };
 
-  const handleContinuar = () => {
+  const handleContinuar = async () => {
     setError('');
     const err = validar();
     if (err) {
       setError(err);
       return;
     }
-    const config: ConfigCuestionariosMap = {};
-    cuestionarios.forEach((c) => {
-      if (!c.id) return;
-      const st = porCuestionario[c.id];
-      if (!st) return;
-      config[c.id] = {
-        modo: st.modo!,
-        idsPreguntas: st.modo === 'manual' ? st.idsSeleccionados : st.idsAleatoriosPreview
-      };
-    });
-    onContinuar(config);
+    try {
+      setCargando(true);
+      await Promise.all(
+        cuestionarios.map(async (c) => {
+          if (!c.id) return;
+          const st = porCuestionario[c.id];
+          if (!st) return;
+          const minRaw = st.preguntasMinimasAprobar.trim();
+          const intervaloRaw = st.intervaloCantidad.trim();
+          const intervaloMinutos =
+            intervaloRaw === '' ? null : aMinutosReintento(Number(intervaloRaw), st.intervaloUnidad);
+          await axios.put(`cuestionarios/${c.id}/reglas-evaluacion`, {
+            preguntasMinimasAprobar: minRaw === '' ? null : Number(minRaw),
+            intervaloReintento: intervaloMinutos,
+            // Contexto para validar mínimo ≤ N (no contra el banco M).
+            cantidadPreguntasPorIntento: Number(st.cantidadPreguntas.trim())
+          });
+        })
+      );
+
+      const config: ConfigCuestionariosMap = {};
+      cuestionarios.forEach((c) => {
+        if (!c.id) return;
+        const st = porCuestionario[c.id];
+        if (!st) return;
+        config[c.id] = {
+          cantidadPreguntas: Number(st.cantidadPreguntas.trim())
+        };
+      });
+      onContinuar(config);
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { error?: string; errors?: Record<string, string[]> } } };
+      const msg =
+        ax.response?.data?.error ||
+        (ax.response?.data?.errors
+          ? Object.values(ax.response.data.errors).flat().join(' ')
+          : null) ||
+        'No se pudieron guardar las reglas de evaluación del cuestionario.';
+      setError(msg);
+    } finally {
+      setCargando(false);
+    }
   };
 
   const tituloUnico = cuestionarios.length === 1 ? cuestionarios[0]?.tituloActividad : null;
@@ -194,7 +194,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
     let totalPreguntas = 0;
     cuestionarios.forEach((c) => {
       if (c.id && porCuestionario[c.id]) {
-        totalPreguntas += porCuestionario[c.id].preguntas.length;
+        totalPreguntas += porCuestionario[c.id].totalBanco;
       }
     });
     return totalPreguntas;
@@ -211,7 +211,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
         >
           <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 max-h-[min(94dvh,960px)]">
             <ModalHeader className="shrink-0 border-b border-gray-100 px-5 py-3.5 dark:border-gray-600/80 sm:px-6">
-              <ModalTitle className="dark:text-white">Configurar preguntas del cuestionario</ModalTitle>
+              <ModalTitle className="dark:text-white">Configurar cuestionario</ModalTitle>
               <button type="button" className="btn btn-sm btn-icon btn-light btn-clear" onClick={onClose}>
                 <KeenIcon icon="cross" />
               </button>
@@ -223,16 +223,19 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                   <>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{tituloUnico}</p>
                     <p className="text-xs text-gray-500 dark:text-white">
-                      {porCuestionario[cuestionarios[0]?.id ?? 0]?.preguntas.length ?? '—'} preguntas disponibles
+                      Banco disponible:{' '}
+                      {porCuestionario[cuestionarios[0]?.id ?? 0]?.totalBanco ?? '—'} preguntas
                     </p>
                   </>
                 ) : (
                   <p className="text-sm text-gray-600 dark:text-white">
-                    {cuestionarios.length} cuestionario(s) · {resumenGlobal} preguntas en total
+                    {cuestionarios.length} cuestionario(s) · {resumenGlobal} preguntas en el banco
                   </p>
                 )}
                 <p className="text-xs leading-relaxed text-gray-500 dark:text-white">
-                  El banco original del cuestionario no se modifica; solo defines el subconjunto para esta asignación.
+                  Indica cuántas preguntas tendrá cada intento. Cada aprendiz recibirá esa cantidad
+                  seleccionada automáticamente desde todo el banco. Las preguntas y opciones se
+                  presentarán en diferente orden; en un reintento puede generarse otra combinación.
                 </p>
               </div>
 
@@ -240,7 +243,7 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                 {cargando && (
                   <div className="flex items-center gap-2 py-8 text-sm text-gray-500 dark:text-white">
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-b-transparent border-primary" />
-                    Cargando preguntas...
+                    Cargando cuestionario...
                   </div>
                 )}
 
@@ -249,11 +252,18 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                     if (!c.id) return null;
                     const st = porCuestionario[c.id];
                     if (!st) return null;
-                    const total = st.preguntas.length;
-                    const seleccionadas =
-                      st.modo === 'manual'
-                        ? st.idsSeleccionados.length
-                        : st.idsAleatoriosPreview.length;
+                    const total = st.totalBanco;
+                    const cant = Number(st.cantidadPreguntas.trim());
+                    const cantValida = Number.isInteger(cant) && cant >= 1 && cant <= total ? cant : null;
+                    const minRawUi = st.preguntasMinimasAprobar.trim();
+                    const minNum = minRawUi === '' ? null : Number(minRawUi);
+                    const minValido =
+                      minNum != null &&
+                      Number.isInteger(minNum) &&
+                      cantValida != null &&
+                      minNum >= 1 &&
+                      minNum <= cantValida;
+                    const intervaloRawUi = st.intervaloCantidad.trim();
 
                     return (
                       <div
@@ -265,137 +275,123 @@ const ModalConfigurarPreguntasCuestionario: React.FC<ModalConfigurarPreguntasCue
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">
                               {c.tituloActividad || 'Cuestionario'}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-white">{total} preguntas disponibles</p>
+                            <p className="text-xs text-gray-500 dark:text-white">
+                              Banco disponible: {total} preguntas
+                            </p>
                           </div>
                         )}
 
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => activarModoManual(c.id!)}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                              st.modo === 'manual'
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-white dark:hover:bg-coal-300'
-                            }`}
-                          >
-                            Seleccionar preguntas
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => activarModoAleatorio(c.id!)}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                              st.modo === 'aleatorio'
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-coal-500 dark:text-white dark:hover:bg-coal-300'
-                            }`}
-                          >
-                            Preguntas aleatorias
-                          </button>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">
+                            Cantidad de preguntas por intento
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={Math.max(total, 1)}
+                            value={st.cantidadPreguntas}
+                            onChange={(e) => {
+                              const nextCant = e.target.value;
+                              const nextN = Number(nextCant.trim());
+                              const minActual = st.preguntasMinimasAprobar.trim();
+                              const cambios: Partial<EstadoCuestionario> = {
+                                cantidadPreguntas: nextCant
+                              };
+                              // Si el mínimo queda por encima de la nueva cantidad, vaciarlo (es opcional).
+                              if (
+                                minActual !== '' &&
+                                Number.isInteger(nextN) &&
+                                nextN >= 1 &&
+                                Number(minActual) > nextN
+                              ) {
+                                cambios.preguntasMinimasAprobar = '';
+                              }
+                              actualizar(c.id!, cambios);
+                            }}
+                            className="input w-full max-w-xs p-2 text-sm dark:text-white"
+                            placeholder={`1 – ${total}`}
+                          />
+                          {cantValida != null && (
+                            <p className="mt-1.5 text-xs leading-relaxed text-gray-500 dark:text-white">
+                              Cada aprendiz recibirá {cantValida} preguntas seleccionadas automáticamente
+                              del banco completo de {total}. Las preguntas y opciones se presentarán en
+                              diferente orden.
+                            </p>
+                          )}
                         </div>
 
-                        {st.modo === 'manual' && (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-medium text-gray-700 dark:text-white">
-                                Selecciona las preguntas
-                              </span>
-                              <span className="text-xs font-semibold text-primary">
-                                {seleccionadas} de {total} preguntas seleccionadas
-                              </span>
-                            </div>
-                            <div className="max-h-[min(40dvh,16rem)] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600/60">
-                              <ul className="m-0 list-none divide-y divide-gray-100 dark:divide-gray-600/40">
-                                {st.preguntas.map((p, idx) => (
-                                  <li key={p.id}>
-                                    <label className="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-gray-50/80 dark:hover:bg-white/5">
-                                      <input
-                                        type="checkbox"
-                                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary dark:border-gray-500"
-                                        checked={st.idsSeleccionados.includes(p.id)}
-                                        onChange={() => togglePregunta(c.id!, p.id)}
-                                      />
-                                      <span className="min-w-0 flex-1 break-words text-sm leading-snug text-gray-800 dark:text-white">
-                                        <span className="font-medium text-gray-500 dark:text-white">{idx + 1}. </span>
-                                        {(p.descripcion || '').trim() || `Pregunta ${idx + 1}`}
-                                        {p.tipoPregunta ? (
-                                          <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-white">
-                                            ({p.tipoPregunta})
-                                          </span>
-                                        ) : null}
-                                        {p.urlDocumento ? (
-                                          <span className="ml-1 text-xs text-gray-400 dark:text-white">(con imagen)</span>
-                                        ) : null}
-                                      </span>
-                                    </label>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-
-                        {st.modo === 'aleatorio' && (
-                          <div className="space-y-3">
+                        <div className="space-y-3 rounded-lg border border-gray-200 bg-white/70 p-3 dark:border-gray-600/50 dark:bg-coal-400/20">
+                          <p className="text-xs font-semibold text-gray-800 dark:text-white">
+                            Reglas de evaluación
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-white">
+                            Preguntas de cada intento: {cantValida ?? '—'}
+                          </p>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">
-                                Cantidad a asignar
+                                Preguntas mínimas para aprobar (opcional)
                               </label>
                               <input
                                 type="number"
                                 min={1}
-                                max={total}
-                                value={st.cantidadAleatoria}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value, 10);
-                                  actualizar(c.id!, {
-                                    cantidadAleatoria: Number.isFinite(val) ? val : 1
-                                  });
-                                }}
-                                onBlur={() => activarModoAleatorio(c.id!)}
-                                className="input w-full max-w-[8rem] p-2 text-sm dark:text-white dark:placeholder:text-white"
+                                max={Math.max(cantValida || 1, 1)}
+                                value={st.preguntasMinimasAprobar}
+                                onChange={(e) =>
+                                  actualizar(c.id!, { preguntasMinimasAprobar: e.target.value })
+                                }
+                                className="input w-full p-2 text-sm dark:text-white"
+                                placeholder="Opcional"
                               />
-                              <p className="mt-1 text-xs text-gray-500 dark:text-white">
-                                Entre 1 y {total} preguntas distintas.
+                              <p className="mt-1 text-[11px] text-gray-500 dark:text-white">
+                                {minRawUi === ''
+                                  ? 'Sin regla personalizada de mínimo.'
+                                  : minValido
+                                    ? `Cantidad de respuestas correctas necesarias para aplicar una regla personalizada de aprobación (${minNum} de ${cantValida}).`
+                                    : cantValida != null
+                                      ? `El mínimo debe ser un entero entre 1 y ${cantValida}.`
+                                      : 'Cantidad de respuestas correctas necesarias para aplicar una regla personalizada de aprobación.'}
                               </p>
                             </div>
-
-                            {st.idsAleatoriosPreview.length > 0 && (
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-xs font-medium text-gray-700 dark:text-white">
-                                    {st.idsAleatoriosPreview.length} preguntas seleccionadas aleatoriamente
-                                  </p>
-                                  <button
-                                    type="button"
-                                    onClick={() => regenerarAleatorias(c.id!)}
-                                    className="text-xs font-medium text-primary hover:underline"
-                                  >
-                                    Generar nuevamente
-                                  </button>
-                                </div>
-                                <ul className="max-h-[min(28dvh,12rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-600/60 dark:bg-coal-400/30">
-                                  {st.idsAleatoriosPreview.map((idPreg) => {
-                                    const p = st.preguntas.find((x) => x.id === idPreg);
-                                    const idx = st.preguntas.findIndex((x) => x.id === idPreg);
-                                    return (
-                                      <li
-                                        key={idPreg}
-                                        className="flex gap-2 py-1 text-sm leading-snug text-gray-800 dark:text-white"
-                                      >
-                                        <KeenIcon icon="check" className="mt-0.5 shrink-0 text-xs text-green-600" />
-                                        <span className="min-w-0 break-words">
-                                          <span className="font-medium text-gray-500 dark:text-white">{idx + 1}. </span>
-                                          {(p?.descripcion || '').trim() || `Pregunta ${idx + 1}`}
-                                        </span>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">
+                                Intervalo entre intentos (opcional)
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={st.intervaloCantidad}
+                                  onChange={(e) =>
+                                    actualizar(c.id!, { intervaloCantidad: e.target.value })
+                                  }
+                                  className="input w-full p-2 text-sm dark:text-white"
+                                  placeholder="Opcional"
+                                />
+                                <select
+                                  className="input w-full max-w-[8.5rem] p-2 text-sm dark:text-white"
+                                  value={st.intervaloUnidad}
+                                  onChange={(e) =>
+                                    actualizar(c.id!, {
+                                      intervaloUnidad: e.target.value as UnidadReintento
+                                    })
+                                  }
+                                >
+                                  {UNIDADES_REINTENTO.map((u) => (
+                                    <option key={u.value} value={u.value}>
+                                      {u.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                            )}
+                              <p className="mt-1 text-[11px] text-gray-500 dark:text-white">
+                                {intervaloRawUi === ''
+                                  ? 'Sin configuración personalizada de intervalo; se conserva el comportamiento actual.'
+                                  : 'Tiempo mínimo de espera entre intentos.'}
+                              </p>
+                            </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}

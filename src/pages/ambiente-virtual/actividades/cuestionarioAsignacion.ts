@@ -1,5 +1,4 @@
-/** Configuración temporal de preguntas por cuestionario (solo frontend → POST asignar). */
-export type ModoPreguntasCuestionario = 'manual' | 'aleatorio';
+/** Configuración de preguntas por cuestionario (frontend → POST asignar). */
 
 export interface PreguntaCuestionarioResumen {
   id: number;
@@ -9,21 +8,15 @@ export interface PreguntaCuestionarioResumen {
 }
 
 export interface ConfigCuestionarioAsignacion {
-  modo: ModoPreguntasCuestionario;
-  idsPreguntas: number[];
+  /**
+   * Cantidad de preguntas que recibirá cada aprendiz por intento,
+   * seleccionadas automáticamente desde TODO el banco del cuestionario.
+   */
+  cantidadPreguntas: number;
 }
 
 /** Mapa idActividad → configuración confirmada */
 export type ConfigCuestionariosMap = Record<number, ConfigCuestionarioAsignacion>;
-
-export const seleccionarPreguntasAleatorias = (ids: number[], cantidad: number): number[] => {
-  const pool = [...ids];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, Math.min(cantidad, pool.length));
-};
 
 export const esCuestionario = (tipoActividad?: string | null): boolean =>
   (tipoActividad || '').toLowerCase() === 'cuestionario';

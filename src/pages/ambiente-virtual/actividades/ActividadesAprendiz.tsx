@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { KeenIcon, ImageZoomModal, Toast } from '@/components';
@@ -6,6 +6,7 @@ import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAv
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
 import ModalRevisarIntentoCuestionario from './ModalRevisarIntentoCuestionario';
+import CuentaRegresivaReintento from './CuentaRegresivaReintento';
 import {
   actOnMaterialDocumento,
   ENTREGA_EVIDENCIA_ACCEPT,
@@ -56,7 +57,7 @@ interface ActividadAprendiz {
   autor?: {
     nombreCompleto?: string | null;
     rutaFotoUrl?: string | null;
-    /** Ruta sin dominio si el backend la envÃ­a en crudo */
+    /** Ruta sin dominio si el backend la envía en crudo */
     rutaFoto?: string | null;
   };
   materialesApoyo?: Array<{
@@ -75,16 +76,22 @@ interface ActividadAprendiz {
   esGrupal?: boolean;
   idGrupo?: number | null;
   tieneRespuestasCuestionario?: boolean;
+  preguntasMinimasAprobar?: number | null;
+  intervaloReintento?: number | null;
+  ultimoIntentoEn?: string | null;
+  proximoIntentoDisponibleEn?: string | null;
+  cumpleMinimoCuestionario?: boolean | null;
+  resultadoPerfectoCuestionario?: boolean | null;
   preguntas?: Array<{
     id: number;
     descripcion: string;
     tipoPregunta?: { tipoPregunta?: string };
     urlDocumento?: string | null;
-    respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta: boolean }>;
+    respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta?: boolean }>;
   }>;
 }
 
-/** Nombre del RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar área de conocimiento aquí. */
+/** Nombre del RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar �rea de conocimiento aqu�. */
 const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
   if (typeof raw === 'string' && raw.trim().length > 0) {
@@ -93,7 +100,7 @@ const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   return 'Sin RAP asignado';
 };
 
-const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÃ“N]';
+const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÓN]';
 
 const textoComentarioDocenteVisible = (c: string | null | undefined): string => {
   const s = (c ?? '').trim();
@@ -105,7 +112,7 @@ const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'TODOS', label: 'Todos' },
   { id: 'CALIFICADO', label: 'Calificado' },
   { id: 'POR_EVALUAR', label: 'Por Evaluar' },
-  { id: 'CORRECCION_SOLICITADA', label: 'CorrecciÃ³n solicitada' },
+  { id: 'CORRECCION_SOLICITADA', label: 'Corrección solicitada' },
   { id: 'PENDIENTE', label: 'Pendiente' },
   { id: 'SIN_ENTREGAR', label: 'Sin Entregar' }
 ];
@@ -133,10 +140,8 @@ const formatearFecha = (value?: string | null, incluirHora = false) => {
 
 const getFileName = (path?: string | null): string => {
   if (!path) return 'Archivo';
-  // Extraer el nombre del archivo de la ruta
   const parts = path.split('/');
   const fileName = parts[parts.length - 1];
-  // Si tiene extensiÃ³n, devolverlo tal cual, sino agregar extensiÃ³n genÃ©rica
   return fileName || 'Archivo entregado';
 };
 
@@ -183,7 +188,7 @@ const getPerfilPublicUrl = (path?: string | null): string | null => {
   return `${base.replace(/\/$/, '')}/${storagePath}`;
 };
 
-/** Primera foto no vacÃ­a enviada en `autor` (camel/snake/API). Solo creador/instructor â€” no usar campos del aprendiz. */
+/** Primera foto no vacía enviada en `autor` (camel/snake/API). Solo creador/instructor — no usar campos del aprendiz. */
 const pickAutorFotoParaMostrar = (autor?: ActividadAprendiz['autor']): string | null => {
   if (!autor) return null;
   const raw = autor as Record<string, unknown>;
@@ -223,7 +228,7 @@ type MaterialApoyoActividadItem = NonNullable<ActividadAprendiz['materialesApoyo
 const materialApoyoTieneRecurso = (m: MaterialApoyoActividadItem): boolean =>
   Boolean(m.urlDocumento || m.urlDocumentoUrl || m.urlAdicional);
 
-/** Lista de material de apoyo de la actividad (documento + enlace por ítem). */
+/** Lista de material de apoyo de la actividad (documento + enlace por �tem). */
 const MaterialApoyoActividadLista: React.FC<{
   materiales: MaterialApoyoActividadItem[];
   compact?: boolean;
@@ -327,7 +332,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   {compact ? (
                     <KeenIcon icon={materialDocumentoActionIcon(docExt)} className="w-4 h-4" />
                   ) : downloadingId === material.id ? (
-                    'Descargando…'
+                    'Descargando�'
                   ) : (
                     materialDocumentoActionLabel(docExt)
                   )}
@@ -379,7 +384,7 @@ const estadoBadgeMap: Record<
     score: 'text-slate-500 dark:text-slate-300'
   },
   CORRECCION_SOLICITADA: {
-    label: 'CorrecciÃ³n solicitada',
+    label: 'Corrección solicitada',
     chip:
       'bg-red-100 text-red-900 font-semibold ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-800',
     line: 'border-l-red-600',
@@ -393,7 +398,7 @@ const estadoBadgeMap: Record<
   }
 };
 
-/** Color de nota segÃºn resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya estÃ¡ calificada. */
+/** Color de nota según resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya está calificada. */
 const getScoreColorClass = (score: number | null, estadoVisual: string): string => {
   if (score === null) {
     return 'text-gray-500 dark:text-white';
@@ -518,7 +523,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     [applySelectedFile]
   );
 
-  // Extraer información de proyecto y materia/RAP (misma lógica que la lista principal)
   const projectInfo = useMemo(() => {
     if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
@@ -565,8 +569,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
-        {/* Header azul */}
-        <div className="bg-primary px-5 py-3 flex items-center justify-between">
+                <div className="bg-primary px-5 py-3 flex items-center justify-between">
           <ModalTitle className="text-white text-base font-semibold">
             <span>{tituloModal}</span>
           </ModalTitle>
@@ -580,7 +583,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* Información de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
               <span>Proyecto: </span>
@@ -592,16 +594,14 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
             </p>
           </div>
 
-          {/* Material de Apoyo */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Material de Apoyo</span>
             </p>
             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
-          {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Documento de la actividad</span>
             </p>
@@ -625,7 +625,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                     const url = getActividadDocumentoUrl(actividad);
                     if (url) window.open(url, '_blank', 'noopener,noreferrer');
                   }}
-                  className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary shrink-0"
+                  className="text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary shrink-0"
                   title="Abrir documento"
                 >
                   <KeenIcon icon="exit-up-right" className="w-4 h-4" />
@@ -633,13 +633,12 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-coal-300 px-3 py-2.5 text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">No hay documento de la actividad adjunto</p>
+                <p className="text-xs text-gray-500 dark:text-white">No hay documento de la actividad adjunto</p>
               </div>
             )}
           </div>
 
-          {/* Entregable definido por el instructor */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Entregable</span>
             </p>
@@ -649,10 +648,9 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Respuesta del Estudiante */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
-                Respuesta del Estudiante <span className="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
+                Respuesta del Estudiante <span className="text-gray-500 dark:text-white font-normal">(opcional)</span>
               </label>
               <textarea
                 value={comentario}
@@ -666,14 +664,13 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                 placeholder="Ej: Hago entrega de la actividad correspondiente al taller..."
               />
               <div className="flex justify-end mt-0.5">
-                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                <span className="text-[10px] text-gray-500 dark:text-white">
                   {comentario.length}/{maxChars}
                 </span>
               </div>
             </div>
 
-            {/* Archivo Actual (si existe) */}
-            {tieneArchivoActual && !archivo && (
+                        {tieneArchivoActual && !archivo && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
                 <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1.5">
                   Archivo Actual:
@@ -723,8 +720,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Adjuntar Archivo */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
                 {tieneArchivoActual ? 'Nuevo Archivo' : 'Adjuntar Archivo'}
               </label>
@@ -748,27 +744,27 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   className="hidden"
                   accept={ENTREGA_EVIDENCIA_ACCEPT}
                 />
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                <p className="text-xs font-medium text-gray-700 dark:text-white mb-0.5">
                   {archivo ? (
                     <span className="text-primary">{archivo.name}</span>
                   ) : (
                     <>
                       {tieneArchivoActual ? (
                         <>
-                          Arrastra el nuevo archivo aquÃ­ o{' '}
+                          Arrastra el nuevo archivo aquí o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       ) : (
                         <>
-                          Arrastra tu archivo aquÃ­ o{' '}
+                          Arrastra tu archivo aquí o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       )}
                     </>
                   )}
                 </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  {ENTREGA_EVIDENCIA_FORMATOS_LABEL}. Máximo {MAX_FILE_SIZE_MB} MB.
+                <p className="text-[10px] text-gray-500 dark:text-white">
+                  {ENTREGA_EVIDENCIA_FORMATOS_LABEL}. M�ximo {MAX_FILE_SIZE_MB} MB.
                 </p>
               </div>
               {archivo && (
@@ -796,8 +792,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Botones */}
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
@@ -880,17 +875,23 @@ const ActividadesAprendiz: React.FC = () => {
     total: 0,
     lastPage: 1,
   });
+  /** Evita refetch duplicados al vencer varios contadores. */
+  const reintentoRefetchPendiente = useRef<Set<number>>(new Set());
 
-  const fetchActividades = useCallback(async (page = 1) => {
+  const fetchActividades = useCallback(async (page = 1, opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) {
+        setLoading(true);
+      }
       setError(null);
       const response = await axios.get('actividades-aprendiz', {
         params: { page, per_page: 15 },
       });
       const data = response.data?.data || response.data || [];
       setActividades(Array.isArray(data) ? data : []);
-      setExpanded(null);
+      if (!opts?.silent) {
+        setExpanded(null);
+      }
       const meta = response.data?.meta || {};
       setPagination((prev) => ({
         ...prev,
@@ -902,11 +903,32 @@ const ActividadesAprendiz: React.FC = () => {
     } catch (err: any) {
       const errorMessage = err?.response?.data?.error || err?.message || 'No fue posible cargar tus actividades';
       setError(errorMessage);
-      setActividades([]);
+      if (!opts?.silent) {
+        setActividades([]);
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
+
+  const refetchTrasCuentaRegresiva = useCallback(
+    (idCalificacionActividad: number) => {
+      // Evitar ráfagas si varias tarjetas llegan a cero casi a la vez.
+      if (reintentoRefetchPendiente.current.has(idCalificacionActividad)) return;
+      reintentoRefetchPendiente.current.add(idCalificacionActividad);
+      void fetchActividades(pagination.currentPage, { silent: true }).finally(() => {
+        // Segundo intento suave por posibles desfaces de reloj con el backend.
+        window.setTimeout(() => {
+          void fetchActividades(pagination.currentPage, { silent: true }).finally(() => {
+            reintentoRefetchPendiente.current.delete(idCalificacionActividad);
+          });
+        }, 2500);
+      });
+    },
+    [fetchActividades, pagination.currentPage]
+  );
 
   useEffect(() => {
     fetchActividades(pagination.currentPage);
@@ -1056,14 +1078,48 @@ const ActividadesAprendiz: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {actividad.puedeResponder && actividad.activa !== false && !actividad.fechaVencida && (
+                          {actividad.tipoActividad === 'cuestionario' &&
+                            actividad.intervaloReintento != null && (
+                            <span className="inline text-[10px] text-gray-500 dark:text-white whitespace-nowrap max-w-[14rem]">
+                              {actividad.resultadoPerfectoCuestionario
+                                ? 'Resultado perfecto (100%)'
+                                : actividad.proximoIntentoDisponibleEn &&
+                                    !actividad.puedeResponder &&
+                                    !actividad.fechaVencida &&
+                                    actividad.activa !== false
+                                  ? (
+                                    <CuentaRegresivaReintento
+                                      proximoIntentoDisponibleEn={actividad.proximoIntentoDisponibleEn}
+                                      fechaFinal={actividad.fechaFinal}
+                                      onElapsed={() =>
+                                        refetchTrasCuentaRegresiva(actividad.idCalificacionActividad)
+                                      }
+                                    />
+                                  )
+                                  : actividad.puedeResponder && actividad.ultimoIntentoEn
+                                    ? 'Puedes realizar un nuevo intento'
+                                    : actividad.fechaVencida
+                                      ? null
+                                      : `Reintento cada ${actividad.intervaloReintento} min`}
+                              {!actividad.resultadoPerfectoCuestionario &&
+                              actividad.cumpleMinimoCuestionario === true
+                                ? ' · Min. cumplido'
+                                : ''}
+                            </span>
+                          )}
+                          {actividad.puedeResponder &&
+                            !actividad.resultadoPerfectoCuestionario &&
+                            actividad.activa !== false &&
+                            !actividad.fechaVencida && (
                             <button
                               type="button"
                               onClick={() => setActividadResponder(actividad)}
                               className="btn btn-sm btn-primary h-7 px-2 text-[10px]"
                             >
                               <KeenIcon icon="notepad-edit" className="text-[10px]" />
-                              <span>Responder</span>
+                              <span>
+                                {actividad.ultimoIntentoEn ? 'Reintentar' : 'Responder'}
+                              </span>
                             </button>
                           )}
                           {actividad.tipoActividad === 'cuestionario' &&
@@ -1102,10 +1158,10 @@ const ActividadesAprendiz: React.FC = () => {
                         <div className="space-y-4">
                           <div>
                             <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
-                              DescripciÃ³n
+                              Descripción
                             </p>
                             <p className="text-sm text-gray-700 dark:text-white">
-                              {actividad.descripcionActividad || 'Sin descripciÃ³n'}
+                              {actividad.descripcionActividad || 'Sin descripción'}
                             </p>
                           </div>
 
@@ -1129,7 +1185,7 @@ const ActividadesAprendiz: React.FC = () => {
 
                           {actividad.estadoVisual === 'CORRECCION_SOLICITADA' && (
                             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/35 dark:text-red-100">
-                              El instructor solicitÃ³ corregir esta entrega. Actualiza tu evidencia segÃºn lo acordado con tu
+                              El instructor solicitó corregir esta entrega. Actualiza tu evidencia según lo acordado con tu
                               instructor.
                             </div>
                           )}
@@ -1143,18 +1199,18 @@ const ActividadesAprendiz: React.FC = () => {
                                 <KeenIcon icon="information" className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <span>
                                   {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                    'No se recibiÃ³ la entrega. Comunicarse con el instructor.'}
+                                    'No se recibió la entrega. Comunicarse con el instructor.'}
                                 </span>
                               </div>
                             ) : actividad.estadoVisual === 'CORRECCION_SOLICITADA' &&
                               !textoComentarioDocenteVisible(actividad.comentarioDocente) ? (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                El instructor solicitÃ³ corregir esta entrega.
+                                El instructor solicitó corregir esta entrega.
                               </div>
                             ) : (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                  'AÃºn no hay observaciones del instructor.'}
+                                  'Aún no hay observaciones del instructor.'}
                               </div>
                             )}
                           </div>
@@ -1334,7 +1390,7 @@ const ActividadesAprendiz: React.FC = () => {
                                 </div>
                               ) : (
                                 <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                  AÃºn no has enviado una entrega.
+                                  Aún no has enviado una entrega.
                                 </p>
                               )}
                             </div>
@@ -1365,7 +1421,7 @@ const ActividadesAprendiz: React.FC = () => {
                 Anterior
               </button>
               <span className="text-xs text-gray-600 dark:text-white px-2">
-                PÃ¡gina {pagination.currentPage} de {pagination.lastPage}
+                Página {pagination.currentPage} de {pagination.lastPage}
               </span>
               <button
                 type="button"

@@ -99,7 +99,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         setIdMateria(data.idMateria || 0);
         setPreguntas((data.preguntas || []).map((p: any) => ({
           id: generarId(),
-          tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
+          tipo: (p.tipoPregunta?.tipoPregunta || p.tipo_pregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
           explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
@@ -144,6 +144,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       alert('No se identificó el RAP de la clase. No se puede guardar el cuestionario.');
       return;
     }
+
     setSaving(true);
     try {
       const preguntasPayload = preguntas.map((p) => ({

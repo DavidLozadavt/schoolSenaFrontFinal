@@ -35,27 +35,32 @@
   color: #ffffff;
 }
 
-/* Scrollbar del modal Crear/Editar cuestionario — solo dark mode */
-.dark .cuestionario-modal-scroll {
+/* Scrollbar oscuro acotado (cuestionario / asignar actividad) — solo dark mode */
+.dark .cuestionario-modal-scroll,
+.dark .asignar-actividad-scroll {
   color-scheme: dark;
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1e1e2d;
 }
 
-.dark .cuestionario-modal-scroll::-webkit-scrollbar {
+.dark .cuestionario-modal-scroll::-webkit-scrollbar,
+.dark .asignar-actividad-scroll::-webkit-scrollbar {
   width: 8px;
 }
 
-.dark .cuestionario-modal-scroll::-webkit-scrollbar-track {
+.dark .cuestionario-modal-scroll::-webkit-scrollbar-track,
+.dark .asignar-actividad-scroll::-webkit-scrollbar-track {
   background: #1e1e2d;
 }
 
-.dark .cuestionario-modal-scroll::-webkit-scrollbar-thumb {
+.dark .cuestionario-modal-scroll::-webkit-scrollbar-thumb,
+.dark .asignar-actividad-scroll::-webkit-scrollbar-thumb {
   background: #4b5563;
   border-radius: 4px;
 }
 
-.dark .cuestionario-modal-scroll::-webkit-scrollbar-thumb:hover {
+.dark .cuestionario-modal-scroll::-webkit-scrollbar-thumb:hover,
+.dark .asignar-actividad-scroll::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
 
