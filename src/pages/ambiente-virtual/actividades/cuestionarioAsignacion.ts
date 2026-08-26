@@ -1,4 +1,4 @@
-/** Configuración temporal de preguntas por cuestionario (solo frontend → POST asignar). */
+/** Configuración de preguntas por cuestionario (frontend → POST asignar). */
 
 export interface PreguntaCuestionarioResumen {
   id: number;

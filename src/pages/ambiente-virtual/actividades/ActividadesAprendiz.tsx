@@ -140,10 +140,8 @@ const formatearFecha = (value?: string | null, incluirHora = false) => {
 
 const getFileName = (path?: string | null): string => {
   if (!path) return 'Archivo';
-  // Extraer el nombre del archivo de la ruta
   const parts = path.split('/');
   const fileName = parts[parts.length - 1];
-  // Si tiene extensión, devolverlo tal cual, sino agregar extensión genérica
   return fileName || 'Archivo entregado';
 };
 
@@ -525,7 +523,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     [applySelectedFile]
   );
 
-  // Extraer informaci�n de proyecto y materia/RAP (misma l�gica que la lista principal)
   const projectInfo = useMemo(() => {
     if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
@@ -572,8 +569,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
-        {/* Header azul */}
-        <div className="bg-primary px-5 py-3 flex items-center justify-between">
+                <div className="bg-primary px-5 py-3 flex items-center justify-between">
           <ModalTitle className="text-white text-base font-semibold">
             <span>{tituloModal}</span>
           </ModalTitle>
@@ -587,7 +583,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* Informaci�n de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
               <span>Proyecto: </span>
@@ -599,16 +594,14 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
             </p>
           </div>
 
-          {/* Material de Apoyo */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Material de Apoyo</span>
             </p>
             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
-          {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Documento de la actividad</span>
             </p>
@@ -645,8 +638,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
             )}
           </div>
 
-          {/* Entregable definido por el instructor */}
-          <div>
+                    <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
               <span>Entregable</span>
             </p>
@@ -656,8 +648,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Respuesta del Estudiante */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
                 Respuesta del Estudiante <span className="text-gray-500 dark:text-white font-normal">(opcional)</span>
               </label>
@@ -679,8 +670,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             </div>
 
-            {/* Archivo Actual (si existe) */}
-            {tieneArchivoActual && !archivo && (
+                        {tieneArchivoActual && !archivo && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
                 <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1.5">
                   Archivo Actual:
@@ -730,8 +720,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Adjuntar Archivo */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
                 {tieneArchivoActual ? 'Nuevo Archivo' : 'Adjuntar Archivo'}
               </label>
@@ -803,8 +792,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Botones */}
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}

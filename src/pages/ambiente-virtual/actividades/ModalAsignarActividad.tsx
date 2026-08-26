@@ -271,9 +271,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       }
     }
 
-    setSaving(true);
+      setSaving(true);
     try {
-      // Añadir cada actividad a planeación si aplica
       try {
         const planeacionRes = await axios.get(`planeacion/ficha/${idFicha}`);
         const data = planeacionRes.data;

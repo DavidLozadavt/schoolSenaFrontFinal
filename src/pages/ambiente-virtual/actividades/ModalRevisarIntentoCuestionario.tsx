@@ -145,7 +145,6 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
     <>
       <Modal open={open} onClose={onClose} zIndex={120}>
         <ModalContent className="w-[min(96vw,52rem)] max-w-3xl max-h-[92vh] flex flex-col shadow-2xl rounded-2xl">
-          {/* Encabezado limpio: sin "Revisión del intento" */}
           <ModalHeader className="border-b border-gray-100 dark:border-gray-700/50 py-3 px-4 sm:px-5 shrink-0">
             <div className="flex items-center justify-between gap-3 w-full">
               <ModalTitle className="sr-only">Resultados del cuestionario</ModalTitle>

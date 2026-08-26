@@ -268,7 +268,6 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     <>
       <Modal open={open} onClose={onClose} zIndex={115}>
         <ModalContent className="w-[min(96vw,52rem)] max-w-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl rounded-2xl">
-          {/* Encabezado limpio: sin nombre del cuestionario */}
           <ModalHeader className="border-b border-gray-100 dark:border-gray-700/50 py-3 px-4 sm:px-5 shrink-0">
             <div className="flex items-center justify-between gap-3 w-full">
               <ModalTitle className="sr-only">Cuestionario</ModalTitle>
@@ -346,7 +345,6 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   }}
                 >
                   <div className="space-y-5">
-                    {/* Enunciado */}
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-white mb-1.5">
                         Pregunta {currentQuestionIndex + 1}
@@ -356,7 +354,6 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                       </h3>
                     </div>
 
-                    {/* Imagen equilibrada */}
                     {imagenUrl && (
                       <div className="flex justify-center">
                         <button
@@ -378,7 +375,6 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                       </div>
                     )}
 
-                    {/* Opciones / textarea */}
                     {esVariasOpciones(preg) && opciones.length > 0 ? (
                       <ul className="space-y-2.5">
                         {opciones.map((r) => {
