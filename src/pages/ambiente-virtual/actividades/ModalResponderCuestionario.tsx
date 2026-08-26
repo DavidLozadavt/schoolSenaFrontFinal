@@ -6,15 +6,72 @@ import axios from 'axios';
 interface Pregunta {
   id: number;
   descripcion: string;
-  tipoPregunta?: { tipoPregunta?: string };
+  idTipoPregunta?: number | null;
+  /** Relación camelCase (payload normalizado). */
+  tipoPregunta?: { id?: number; tipoPregunta?: string } | null;
+  /** Relación snake_case (serialización Eloquent cruda). */
+  tipo_pregunta?: { id?: number; tipoPregunta?: string } | null;
   urlDocumento?: string | null;
   respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta?: boolean }>;
 }
+
+/** Nombre del tipo desde idTipoPregunta / relación (sin fallback que oculte pérdida de datos). */
+const nombreTipoPregunta = (preg: Pregunta | null | undefined): string => {
+  if (!preg) return 'Párrafo';
+  const desdeRel =
+    preg.tipoPregunta?.tipoPregunta?.trim() ||
+    preg.tipo_pregunta?.tipoPregunta?.trim() ||
+    '';
+  if (desdeRel) return desdeRel;
+  return 'Párrafo';
+};
+
+const esVariasOpciones = (preg: Pregunta | null | undefined): boolean =>
+  nombreTipoPregunta(preg).toLowerCase() === 'varias opciones';
+
+/** Aplica el orden de presentación del intento; nunca reordena por id. */
+const resolverPreguntasIntento = (data: {
+  preguntas?: Pregunta[] | Record<string, Pregunta>;
+  ordenPreguntasIds?: number[];
+}): Pregunta[] => {
+  const rawUnknown = data?.preguntas;
+  const raw: Pregunta[] = Array.isArray(rawUnknown)
+    ? rawUnknown
+    : rawUnknown && typeof rawUnknown === 'object'
+      ? (Object.values(rawUnknown) as Pregunta[])
+      : [];
+
+  const ordenIds = Array.isArray(data?.ordenPreguntasIds)
+    ? data.ordenPreguntasIds.map((id) => Number(id)).filter((id) => id > 0)
+    : [];
+
+  if (ordenIds.length > 0) {
+    const byId = new Map(raw.map((p) => [Number(p.id), p]));
+    const ordered: Pregunta[] = [];
+    const used = new Set<number>();
+    for (const id of ordenIds) {
+      const p = byId.get(id);
+      if (p) {
+        ordered.push(p);
+        used.add(id);
+      }
+    }
+    // Conservar cualquier pregunta extra en el orden recibido (sin sort por id).
+    for (const p of raw) {
+      const id = Number(p.id);
+      if (!used.has(id)) ordered.push(p);
+    }
+    return ordered;
+  }
+
+  return raw.slice();
+};
 
 interface ActividadCuestionario {
   id: number;
   tituloActividad?: string;
   preguntas?: Pregunta[];
+  ordenPreguntasIds?: number[];
 }
 
 interface ActividadAprendiz {
@@ -23,6 +80,12 @@ interface ActividadAprendiz {
   tituloActividad?: string;
   tipoActividad?: string | null;
   preguntas?: Pregunta[];
+  intervaloReintento?: number | null;
+  ultimoIntentoEn?: string | null;
+  proximoIntentoDisponibleEn?: string | null;
+  preguntasMinimasAprobar?: number | null;
+  cumpleMinimoCuestionario?: boolean | null;
+  puedeResponder?: boolean;
 }
 
 interface ModalResponderCuestionarioProps {
@@ -53,7 +116,7 @@ const preguntaRespondida = (
 ): boolean => {
   const r = respuestas[preg.id];
   if (!r) return false;
-  if (preg.tipoPregunta?.tipoPregunta === 'Varias opciones') {
+  if (esVariasOpciones(preg)) {
     return typeof r.idRespuesta === 'number' && r.idRespuesta > 0;
   }
   return Boolean(r.respuesta && r.respuesta.trim().length > 0);
@@ -77,7 +140,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const [confirmFinalizar, setConfirmFinalizar] = useState<{ pendientes: number } | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!open || !actividad) {
       setActividadCompleta(null);
       setRespuestas({});
@@ -86,21 +149,13 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
       setConfirmFinalizar(null);
       return;
     }
-    const actividadConPreguntas = actividad as ActividadAprendiz & { preguntas?: Pregunta[] };
-    if (actividadConPreguntas.preguntas && actividadConPreguntas.preguntas.length > 0) {
-      setActividadCompleta({
-        id: actividad.idActividad,
-        tituloActividad: actividad.tituloActividad,
-        preguntas: actividadConPreguntas.preguntas
-      });
-      setRespuestas({});
-      setError(null);
-      setCurrentQuestionIndex(0);
-      setConfirmFinalizar(null);
-      setLoading(false);
-      return;
-    }
+    // Siempre recargar desde el backend con idCalificacionActividad:
+    // ahí se asegura el subconjunto del intento (estable en el mismo intento; nuevo en reintento).
     setLoading(true);
+    setError(null);
+    setRespuestas({});
+    setCurrentQuestionIndex(0);
+    setConfirmFinalizar(null);
     axios
       .get(`actividades/${actividad.idActividad}`, {
         params: actividad.idCalificacionActividad
@@ -108,10 +163,16 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
           : undefined
       })
       .then((r) => {
-        setActividadCompleta(r.data);
-        setRespuestas({});
-        setCurrentQuestionIndex(0);
-        setConfirmFinalizar(null);
+        const data = r.data ?? {};
+        const preguntas = resolverPreguntasIntento(data);
+        setActividadCompleta({
+          id: data.id,
+          tituloActividad: data.tituloActividad,
+          preguntas,
+          ordenPreguntasIds: Array.isArray(data.ordenPreguntasIds)
+            ? data.ordenPreguntasIds.map((id: number) => Number(id))
+            : preguntas.map((p) => p.id)
+        });
       })
       .catch(() => setError('No se pudo cargar el cuestionario'))
       .finally(() => setLoading(false));
@@ -196,14 +257,12 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const preg = preguntas[currentQuestionIndex];
   const isLast = totalPreguntas > 0 && currentQuestionIndex === totalPreguntas - 1;
   const isFirst = currentQuestionIndex === 0;
-  const opciones =
-    preg?.tipoPregunta?.tipoPregunta === 'Varias opciones' && preg.id
-      ? preg.respuestas ?? []
-      : [];
+  const opciones = esVariasOpciones(preg) && preg.id ? preg.respuestas ?? [] : [];
   const progresoPct =
     totalPreguntas > 0 ? Math.round(((currentQuestionIndex + 1) / totalPreguntas) * 100) : 0;
   const respondidasCount = preguntas.filter((p) => preguntaRespondida(p, respuestas)).length;
   const imagenUrl = preg?.urlDocumento ? getCuestionarioDocumentUrl(preg.urlDocumento) : null;
+  const tipoVisible = nombreTipoPregunta(preg);
 
   return (
     <>
@@ -220,7 +279,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                       {currentQuestionIndex + 1} / {totalPreguntas}
                     </span>
                     <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-white">
-                      {preg?.tipoPregunta?.tipoPregunta || 'Párrafo'}
+                      {tipoVisible}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-white tabular-nums">
                       {respondidasCount} respondidas
@@ -249,6 +308,21 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   {progresoPct}%
                 </span>
               </div>
+            )}
+            {actividad?.intervaloReintento != null && (
+              <p className="mt-2 text-xs text-gray-600 dark:text-white">
+                {actividad.ultimoIntentoEn
+                  ? `Último intento: ${actividad.ultimoIntentoEn}`
+                  : 'Aún no has finalizado un intento'}
+                {actividad.proximoIntentoDisponibleEn && !actividad.puedeResponder
+                  ? ` · Podrás intentarlo nuevamente: ${actividad.proximoIntentoDisponibleEn}`
+                  : actividad.ultimoIntentoEn
+                    ? ' · Puedes realizar un nuevo intento'
+                    : ''}
+                {actividad.preguntasMinimasAprobar != null
+                  ? ` · Mín. correctas para aprobar: ${actividad.preguntasMinimasAprobar}`
+                  : ''}
+              </p>
             )}
           </ModalHeader>
 
@@ -305,7 +379,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                     )}
 
                     {/* Opciones / textarea */}
-                    {preg.tipoPregunta?.tipoPregunta === 'Varias opciones' && opciones.length > 0 ? (
+                    {esVariasOpciones(preg) && opciones.length > 0 ? (
                       <ul className="space-y-2.5">
                         {opciones.map((r) => {
                           const selected = respuestas[preg.id]?.idRespuesta === r.id;

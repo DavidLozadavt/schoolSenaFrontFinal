@@ -44,6 +44,11 @@ interface RevisionCuestionario {
   porcentaje: number | null;
   comentarioDocente: string | null;
   mostrarRespuestasCorrectas: boolean;
+  /** true mientras fechaFinal de la asignación no se ha superado */
+  asignacionActiva?: boolean;
+  /** false = solo detalle de correctas; true = revisión completa */
+  revisionCompleta?: boolean;
+  fechaFinalAsignacion?: string | null;
   resumen: {
     totalPreguntas: number;
     correctas: number;
@@ -197,6 +202,18 @@ const ModalRevisarIntentoCuestionario: React.FC<ModalRevisarIntentoCuestionarioP
 
             {!loading && data && (
               <>
+                {data.revisionCompleta === false && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    Mientras la actividad siga activa solo puedes revisar el detalle de las preguntas
+                    que respondiste correctamente. Las incorrectas y sus soluciones se mostrarán
+                    cuando finalice la fecha límite.
+                  </div>
+                )}
+                {data.preguntas.length === 0 && data.revisionCompleta === false && (
+                  <p className="text-sm text-gray-500 dark:text-white py-6 text-center">
+                    Aún no hay preguntas correctas para revisar en detalle.
+                  </p>
+                )}
                 {data.comentarioDocente && (
                   <div className="rounded-xl border border-blue-100 dark:border-blue-800/50 bg-blue-50/60 dark:bg-blue-900/15 px-3.5 py-2.5">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-0.5">

@@ -48,6 +48,8 @@ export interface Actividad {
   idClasificacion?: number;
   estrategia?: string;
   entregables?: string;
+  preguntasMinimasAprobar?: number | null;
+  intervaloReintento?: number | null;
   persona?: PersonaCreador;
   materia?: MateriaRef;
   estado?: EstadoRef;

@@ -3,6 +3,7 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
 import Select from 'react-select';
+import { useSettings } from '@/providers';
 import type { Actividad } from './ModalCrearActividad';
 import type { ConfigCuestionariosMap } from './cuestionarioAsignacion';
 import {
@@ -12,6 +13,72 @@ import {
 } from '@/components/forms/compactReactSelect';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
+
+/** Selects Asignar actividad: texto/placeholder blancos en dark (react-select usa color inline). */
+const selectClassNamesAsignar = {
+  ...compactReactSelectClassNames,
+  control: () => `${compactReactSelectClassNames.control()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
+  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
+  multiValueLabel: () => 'text-gray-900 dark:!text-white text-sm',
+  placeholder: () => 'text-gray-400 dark:!text-white text-sm',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () =>
+    `${compactReactSelectClassNames.menuList()} dark:text-white asignar-actividad-scroll`,
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white'
+};
+
+const selectStylesAsignarLight = {
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  multiValueLabel: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  option: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' })
+};
+
+const selectStylesAsignarDark = {
+  control: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    borderColor: '#323248',
+    color: '#ffffff',
+    boxShadow: 'none'
+  }),
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  multiValue: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#323248'
+  }),
+  multiValueLabel: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  menu: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    color: '#ffffff'
+  }),
+  menuList: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    colorScheme: 'dark' as const
+  }),
+  option: (base: Record<string, unknown>, state: { isFocused: boolean; isSelected: boolean }) => ({
+    ...base,
+    color: '#ffffff',
+    backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#2b2b40' : '#1e1e2d'
+  }),
+  dropdownIndicator: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  clearIndicator: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.9)' }),
+  indicatorSeparator: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#4B5563' })
+};
 
 /** Valor para input datetime-local en hora local del navegador (YYYY-MM-DDTHH:mm). */
 const ahoraDatetimeLocal = (): string => {
@@ -79,6 +146,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   actividades: actividadesProp,
   configCuestionarios
 }) => {
+  const { getThemeMode } = useSettings();
+  const isDarkTheme = getThemeMode() === 'dark';
+  const selectStylesAsignar = isDarkTheme ? selectStylesAsignarDark : selectStylesAsignarLight;
   const actividadesAAsignar = actividadesProp?.length ? actividadesProp : (actividad ? [actividad] : []);
   const [aprendices, setAprendices] = useState<Aprendiz[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -239,9 +309,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         payload.grupos = gruposSeleccionados;
       }
       if (configCuestionarios && Object.keys(configCuestionarios).length > 0) {
-        const cfgPayload: Record<string, { idsPreguntas: number[] }> = {};
+        const cfgPayload: Record<string, { cantidadPreguntas: number }> = {};
         Object.entries(configCuestionarios).forEach(([idAct, cfg]) => {
-          cfgPayload[idAct] = { idsPreguntas: cfg.idsPreguntas };
+          cfgPayload[idAct] = { cantidadPreguntas: cfg.cantidadPreguntas };
         });
         payload.configCuestionarios = cfgPayload;
       }
@@ -318,9 +388,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
             className="pointer-events-auto w-full max-w-2xl sm:max-w-3xl md:max-w-4xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-0 max-h-[min(94dvh,960px)]">
+            <ModalContent className="modal-form-actividades !flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 dark:[color-scheme:dark] sm:min-w-0 max-h-[min(94dvh,960px)]">
             <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
-              <ModalTitle className="dark:text-white">Asignar actividad</ModalTitle>
+              <ModalTitle className="text-gray-900 dark:text-white">Asignar actividad</ModalTitle>
               <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose} title="Cerrar">
                 <KeenIcon icon="cross" />
               </button>
@@ -369,7 +439,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         value={valueAprendices}
                         placeholder="Buscar o seleccionar estudiantes..."
                         classNamePrefix="react-select-ciudad-exp"
-                        classNames={compactReactSelectClassNames}
+                        classNames={selectClassNamesAsignar}
+                        styles={selectStylesAsignar}
                         noOptionsMessage={compactReactSelectNoOptions}
                         filterOption={(candidate, input) => {
                           const a = aprendices.find((x) => String(x.id) === candidate.value);
@@ -421,7 +492,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold">{opt.label}</div>
+                                <div className="truncate text-sm font-semibold text-gray-900 dark:text-white">{opt.label}</div>
                                 <div className="truncate text-[11px] text-gray-500 dark:text-white">
                                   {doc ? doc : 'Sin documento'}
                                 </div>
@@ -446,7 +517,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       </div>
                       {mostrarPickerEstudiantes && (
                         <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-inner dark:border-gray-600 dark:bg-coal-500/20">
-                          <div className="max-h-[min(52dvh,20rem)] overflow-y-auto p-1 sm:max-h-[min(50dvh,22rem)]">
+                          <div className="asignar-actividad-scroll max-h-[min(52dvh,20rem)] overflow-y-auto p-1 sm:max-h-[min(50dvh,22rem)]">
                             <div className="sticky top-0 z-10 -mx-1 -mt-1 mb-2 flex justify-end border-b border-gray-100 bg-white/95 px-2 py-2 dark:border-gray-600 dark:bg-coal-400/95">
                               <button
                                 type="button"
@@ -508,7 +579,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         value={valueGrupos}
                         placeholder="Buscar o seleccionar grupos..."
                         classNamePrefix="react-select-ciudad-exp"
-                        classNames={compactReactSelectClassNames}
+                        classNames={selectClassNamesAsignar}
+                        styles={selectStylesAsignar}
                         noOptionsMessage={compactReactSelectNoOptions}
                         filterOption={(candidate, input) => {
                           return filterOptionNormalized([candidate.label, candidate.value], input);
@@ -529,7 +601,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         </button>
                       </div>
                       {mostrarPickerGrupos && (
-                        <div className="mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
+                        <div className="asignar-actividad-scroll mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
                           <div className="mb-2 flex justify-end">
                             <button
                               type="button"
@@ -570,7 +642,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                           type="datetime-local"
                           value={fechaInicial}
                           onChange={(e) => setFechaInicial(e.target.value)}
-                          className="input w-full !min-h-[2.6rem] text-sm"
+                          style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                          className="input w-full !min-h-[2.6rem] text-sm text-gray-900 dark:text-white"
                         />
                       </div>
                       <div>
@@ -579,7 +652,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                           type="datetime-local"
                           value={fechaFinal}
                           onChange={(e) => setFechaFinal(e.target.value)}
-                          className="input w-full !min-h-[2.6rem] text-sm"
+                          style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                          className="input w-full !min-h-[2.6rem] text-sm text-gray-900 dark:text-white"
                         />
                       </div>
                     </div>
