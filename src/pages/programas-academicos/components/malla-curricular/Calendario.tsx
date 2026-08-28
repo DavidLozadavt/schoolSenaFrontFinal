@@ -365,6 +365,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [modalCierreHorario, setModalCierreHorario] = useState<{
     modo: 'interrumpir' | 'finalizar';
     horario: any;
+    fechaOcurrencia?: string;
   } | null>(null);
   const isOpenRef = useRef(isOpen);
   isOpenRef.current = isOpen;
@@ -769,7 +770,11 @@ export const Calendario: React.FC<CalendarioProps> = ({
                       enqueueSnackbar('Solo puede modificarse el trimestre actual.', { variant: 'warning' });
                       return;
                     }
-                    setModalCierreHorario({ modo: 'interrumpir', horario: ev });
+                    setModalCierreHorario({
+                      modo: 'interrumpir',
+                      horario: ev,
+                      fechaOcurrencia: ev._dateStr,
+                    });
                   }}
                   className="rounded-full bg-gray-500/10 w-5 h-5 flex items-center justify-center text-gray-600 hover:text-gray-800 transition"
                   title="Interrumpir horario"
@@ -784,7 +789,11 @@ export const Calendario: React.FC<CalendarioProps> = ({
                       enqueueSnackbar('Solo puede modificarse el trimestre actual.', { variant: 'warning' });
                       return;
                     }
-                    setModalCierreHorario({ modo: 'finalizar', horario: ev });
+                    setModalCierreHorario({
+                      modo: 'finalizar',
+                      horario: ev,
+                      fechaOcurrencia: ev._dateStr,
+                    });
                   }}
                   className="rounded-full bg-black/10 w-5 h-5 flex items-center justify-center text-gray-700 hover:text-gray-900 transition"
                   title="Finalizar horario"
@@ -903,7 +912,8 @@ export const Calendario: React.FC<CalendarioProps> = ({
       throw new Error('No se pudo identificar el horario');
     }
 
-    const fechaFinal = fecha.includes('T') ? fecha.split('T')[0] : fecha;
+    const fechaClickeada = toDateInputValue(modalCierreHorario.fechaOcurrencia);
+    const fechaFinal = (fecha.includes('T') ? fecha.split('T')[0] : fecha) || fechaClickeada;
     const fechaFinalActual = toDateInputValue(
       modalCierreHorario.horario?.fechaFinal ?? modalCierreHorario.horario?.fechaFin
     );
@@ -928,14 +938,6 @@ export const Calendario: React.FC<CalendarioProps> = ({
         fechaFinal,
         observacion: observacion.trim() || undefined,
       });
-      const nuevoEstado = modalCierreHorario.modo === 'interrumpir' ? 'INTERRUMPIDO' : 'FINALIZADO';
-      setHorariosFicha((prev) =>
-        prev.map((h) =>
-          Number(h.id) === idHorario
-            ? { ...h, fechaFinal, estado: nuevoEstado }
-            : h
-        )
-      );
       enqueueSnackbar(
         res.data?.message ||
           (modalCierreHorario.modo === 'interrumpir'
@@ -1204,14 +1206,17 @@ export const Calendario: React.FC<CalendarioProps> = ({
             }
             fechaLabel={
               modalCierreHorario.modo === 'interrumpir'
-                ? 'Fecha hasta la cual permanecerá interrumpido'
-                : 'Fecha efectiva de finalización'
+                ? 'Fecha de la clase a interrumpir'
+                : 'Fecha de la clase a finalizar'
             }
             descripcionLabel="Motivo / observación"
             descripcionPlaceholder="Indique el motivo del cambio..."
             fechaInputType="date"
             initialFecha={toDateInputValue(
-              modalCierreHorario.horario?.fechaFinal ?? modalCierreHorario.horario?.fechaFin
+              modalCierreHorario.fechaOcurrencia
+                ?? modalCierreHorario.horario?._dateStr
+                ?? modalCierreHorario.horario?.fechaFinal
+                ?? modalCierreHorario.horario?.fechaFin
             )}
             submitButtonText="+ ACEPTAR"
             onSubmit={async (fecha, descripcion) => {
