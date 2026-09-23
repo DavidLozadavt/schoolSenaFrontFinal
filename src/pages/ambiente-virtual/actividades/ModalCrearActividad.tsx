@@ -50,6 +50,7 @@ export interface Actividad {
   entregables?: string;
   preguntasMinimasAprobar?: number | null;
   intervaloReintento?: number | null;
+  tiempoCuestionario?: number | null;
   persona?: PersonaCreador;
   materia?: MateriaRef;
   estado?: EstadoRef;

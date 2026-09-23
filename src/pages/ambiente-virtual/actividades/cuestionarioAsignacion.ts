@@ -13,6 +13,11 @@ export interface ConfigCuestionarioAsignacion {
    * seleccionadas automáticamente desde TODO el banco del cuestionario.
    */
   cantidadPreguntas: number;
+  /**
+   * Tiempo límite opcional para resolver el cuestionario, en minutos.
+   * null = sin límite.
+   */
+  tiempoCuestionario?: number | null;
 }
 
 /** Mapa idActividad → configuración confirmada */

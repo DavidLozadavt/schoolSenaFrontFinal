@@ -84,7 +84,7 @@ const badgeEstado = (estado: string) => {
       };
     default:
       return {
-        label: 'Pendiente',
+        label: 'Sin respuesta',
         className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
       };
   }
