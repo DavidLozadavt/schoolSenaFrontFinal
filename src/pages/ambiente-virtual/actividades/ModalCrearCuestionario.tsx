@@ -11,12 +11,14 @@ type TipoPregunta = (typeof TIPO_PREGUNTA_OPCIONES)[number];
 
 interface OpcionPregunta {
   id: string;
+  idRespuesta?: number;
   texto: string;
   esCorrecta: boolean;
 }
 
 interface Pregunta {
   id: string;
+  idPregunta?: number;
   tipo: TipoPregunta;
   titulo: string;
   explicacionRespuesta: string;
@@ -35,8 +37,17 @@ interface CuestionarioEditar {
     descripcion?: string;
     explicacionRespuesta?: string | null;
     tipoPregunta?: { tipoPregunta: string };
-    respuestas?: { descripcionRespuesta: string; chkCorrecta: boolean }[];
+    respuestas?: { id?: number; descripcionRespuesta: string; chkCorrecta: boolean }[];
   }[];
+}
+
+interface PreguntaApi {
+  id?: number;
+  descripcion?: string;
+  explicacionRespuesta?: string | null;
+  tipoPregunta?: { tipoPregunta: string };
+  tipo_pregunta?: { tipoPregunta: string };
+  respuestas?: { id?: number; descripcionRespuesta?: string; chkCorrecta?: boolean }[];
 }
 
 interface ModalCrearCuestionarioProps {
@@ -49,6 +60,11 @@ interface ModalCrearCuestionarioProps {
 }
 
 const generarId = () => Math.random().toString(36).slice(2, 11);
+
+const toNumericId = (value: unknown): number | undefined => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
 
 const ImagenPreviewPregunta: React.FC<{ file: File }> = ({ file }) => {
   const [url, setUrl] = useState<string>('');
@@ -97,14 +113,16 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         setClasificacion((data.autor || '') as ClasificacionCuestionario | '');
         setDescripcion(data.descripcionActividad || '');
         setIdMateria(data.idMateria || 0);
-        setPreguntas((data.preguntas || []).map((p: any) => ({
+        setPreguntas((data.preguntas || []).map((p: PreguntaApi) => ({
           id: generarId(),
+          idPregunta: toNumericId(p.id),
           tipo: (p.tipoPregunta?.tipoPregunta || p.tipo_pregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
           explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
-          opciones: (p.respuestas || []).map((r: any) => ({
+          opciones: (p.respuestas || []).map((r) => ({
             id: generarId(),
+            idRespuesta: toNumericId(r.id),
             texto: r.descripcionRespuesta || '',
             esCorrecta: !!r.chkCorrecta
           }))
@@ -116,12 +134,14 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         setIdMateria(cuestionarioEditar.idMateria || 0);
         setPreguntas((cuestionarioEditar.preguntas || []).map((p) => ({
           id: generarId(),
+          idPregunta: toNumericId(p.id),
           tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
           explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
           opciones: (p.respuestas || []).map((r) => ({
             id: generarId(),
+            idRespuesta: toNumericId(r.id),
             texto: r.descripcionRespuesta || '',
             esCorrecta: !!r.chkCorrecta
           }))
@@ -148,10 +168,17 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
     setSaving(true);
     try {
       const preguntasPayload = preguntas.map((p) => ({
+        id: p.idPregunta,
         tipo: p.tipo,
         titulo: p.titulo,
         explicacionRespuesta: p.explicacionRespuesta.trim() || null,
-        opciones: p.tipo === 'Varias opciones' ? p.opciones.map((o) => ({ texto: o.texto, esCorrecta: o.esCorrecta })) : []
+        opciones: p.tipo === 'Varias opciones'
+          ? p.opciones.map((o) => ({
+              id: o.idRespuesta,
+              texto: o.texto,
+              esCorrecta: o.esCorrecta
+            }))
+          : []
       }));
 
       const fd = new FormData();
@@ -176,9 +203,15 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       onSave?.();
       onClose();
       resetForm();
-    } catch (err: any) {
-      console.error('Error guardando cuestionario:', err);
-      alert(err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join('\n') : err.response?.data?.error || 'Error al guardar');
+    } catch (err: unknown) {
+      const ax = err as {
+        response?: { data?: { error?: string; errors?: Record<string, string[] | string> } };
+      };
+      const errors = ax.response?.data?.errors;
+      const fromErrors = errors
+        ? Object.values(errors).flat().join('\n')
+        : '';
+      alert(fromErrors || ax.response?.data?.error || 'No se pudo guardar el cuestionario. Intente de nuevo.');
     } finally {
       setSaving(false);
     }

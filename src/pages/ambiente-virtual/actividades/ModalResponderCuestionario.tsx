@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
+import {
+  formatearCuentaRegresivaCuestionario,
+  MSG_TIEMPO_GUARDADO,
+  type IntentoCuestionarioPayload
+} from './tiempoCuestionario';
 
 interface Pregunta {
   id: number;
@@ -86,6 +91,7 @@ interface ActividadAprendiz {
   preguntasMinimasAprobar?: number | null;
   cumpleMinimoCuestionario?: boolean | null;
   puedeResponder?: boolean;
+  tiempoCuestionario?: number | null;
 }
 
 interface ModalResponderCuestionarioProps {
@@ -138,7 +144,25 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [zoomImagen, setZoomImagen] = useState<{ src: string; alt: string } | null>(null);
   const [confirmFinalizar, setConfirmFinalizar] = useState<{ pendientes: number } | null>(null);
+  const [intento, setIntento] = useState<IntentoCuestionarioPayload | null>(null);
+  const [textoTiempo, setTextoTiempo] = useState<string | null>(null);
+  const [avisoTiempo, setAvisoTiempo] = useState(false);
+  const [bloqueadoPorTiempo, setBloqueadoPorTiempo] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const autoCierreRef = useRef(false);
+  const enviandoLockRef = useRef(false);
+  const respuestasRef = useRef(respuestas);
+  respuestasRef.current = respuestas;
+  const actividadCompletaRef = useRef(actividadCompleta);
+  actividadCompletaRef.current = actividadCompleta;
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const onCompletedRef = useRef(onCompleted);
+  onCompletedRef.current = onCompleted;
 
     useEffect(() => {
     if (!open || !actividad) {
@@ -147,6 +171,11 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
       setError(null);
       setCurrentQuestionIndex(0);
       setConfirmFinalizar(null);
+      setIntento(null);
+      setTextoTiempo(null);
+      setAvisoTiempo(false);
+      setBloqueadoPorTiempo(false);
+      autoCierreRef.current = false;
       return;
     }
     // Siempre recargar desde el backend con idCalificacionActividad:
@@ -156,6 +185,11 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     setRespuestas({});
     setCurrentQuestionIndex(0);
     setConfirmFinalizar(null);
+    setIntento(null);
+    setTextoTiempo(null);
+    setAvisoTiempo(false);
+    setBloqueadoPorTiempo(false);
+    autoCierreRef.current = false;
     axios
       .get(`actividades/${actividad.idActividad}`, {
         params: actividad.idCalificacionActividad
@@ -164,7 +198,15 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
       })
       .then((r) => {
         const data = r.data ?? {};
+        const intentoPayload = (data.intentoCuestionario ?? null) as IntentoCuestionarioPayload | null;
+        if (intentoPayload?.finalizado && intentoPayload.cierrePorTiempo) {
+          onSuccessRef.current?.(MSG_TIEMPO_GUARDADO);
+          onSavedRef.current();
+          onCloseRef.current();
+          return;
+        }
         const preguntas = resolverPreguntasIntento(data);
+        setIntento(intentoPayload);
         setActividadCompleta({
           id: data.id,
           tituloActividad: data.tituloActividad,
@@ -183,25 +225,31 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   }, [currentQuestionIndex]);
 
   const handleRespuestaOpcion = useCallback((idPregunta: number, idRespuesta: number) => {
+    if (bloqueadoPorTiempo) return;
     setRespuestas((prev) => ({
       ...prev,
       [idPregunta]: { idRespuesta, respuesta: undefined }
     }));
-  }, []);
+  }, [bloqueadoPorTiempo]);
 
   const handleRespuestaTexto = useCallback((idPregunta: number, texto: string) => {
+    if (bloqueadoPorTiempo) return;
     setRespuestas((prev) => ({
       ...prev,
       [idPregunta]: { respuesta: texto }
     }));
-  }, []);
+  }, [bloqueadoPorTiempo]);
 
-  const enviarRespuestas = useCallback(async () => {
-    if (!actividad?.idCalificacionActividad || !actividadCompleta?.preguntas?.length) return;
+  const enviarRespuestas = useCallback(async (opts?: { porTiempo?: boolean }) => {
+    if (!actividad?.idCalificacionActividad || !actividadCompletaRef.current?.preguntas?.length) return;
+    if (enviandoLockRef.current) return;
+    enviandoLockRef.current = true;
 
-    const payload = actividadCompleta.preguntas
+    const preguntasActuales = actividadCompletaRef.current.preguntas;
+    const respuestasActuales = respuestasRef.current;
+    const payload = preguntasActuales
       .map((p) => {
-        const r = respuestas[p.id];
+        const r = respuestasActuales[p.id];
         if (!r) return null;
         if (r.idRespuesta) return { idPregunta: p.id, idRespuesta: r.idRespuesta };
         const texto = (r.respuesta ?? '').trim();
@@ -213,21 +261,34 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     setSaving(true);
     setError(null);
     setConfirmFinalizar(null);
+    if (opts?.porTiempo) {
+      setBloqueadoPorTiempo(true);
+    }
     try {
-      await axios.post(
+      const res = await axios.post(
         `actividades-aprendiz/${actividad.idCalificacionActividad}/respuesta-cuestionario`,
         { respuestas: payload }
       );
-      onSuccess?.('Cuestionario respondido correctamente');
-      onSaved();
-      onCompleted?.(actividad);
-      onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'No fue posible enviar las respuestas');
+      const porTiempo = Boolean(opts?.porTiempo || res.data?.cierrePorTiempo);
+      onSuccessRef.current?.(
+        porTiempo ? MSG_TIEMPO_GUARDADO : (res.data?.message || 'Cuestionario respondido correctamente')
+      );
+      onSavedRef.current();
+      onCompletedRef.current?.(actividad);
+      onCloseRef.current();
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(ax.response?.data?.message || ax.response?.data?.error || 'No fue posible enviar las respuestas');
+      setBloqueadoPorTiempo(false);
+      autoCierreRef.current = false;
     } finally {
+      enviandoLockRef.current = false;
       setSaving(false);
     }
-  }, [actividad, actividadCompleta?.preguntas, respuestas, onSaved, onClose, onSuccess, onCompleted]);
+  }, [actividad]);
+
+  const enviarRespuestasRef = useRef(enviarRespuestas);
+  enviarRespuestasRef.current = enviarRespuestas;
 
   const solicitarFinalizar = useCallback(() => {
     const preguntas = actividadCompleta?.preguntas ?? [];
@@ -239,6 +300,40 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     }
     void enviarRespuestas();
   }, [actividadCompleta?.preguntas, respuestas, enviarRespuestas]);
+
+  useEffect(() => {
+    if (!open || intento?.finalizado || intento?.segundosRestantes == null) {
+      setTextoTiempo(null);
+      return;
+    }
+    const inicial = Math.max(0, Math.floor(intento.segundosRestantes));
+    const loadedAt = Date.now();
+    autoCierreRef.current = false;
+
+    const tick = (): boolean => {
+      const restMs = inicial * 1000 - (Date.now() - loadedAt);
+      const rest = Math.max(0, restMs);
+      setTextoTiempo(formatearCuentaRegresivaCuestionario(rest));
+      if (inicial > 0 && rest <= 60_000) {
+        setAvisoTiempo(true);
+      }
+      if (rest <= 0) {
+        setBloqueadoPorTiempo(true);
+        if (!autoCierreRef.current) {
+          autoCierreRef.current = true;
+          void enviarRespuestasRef.current({ porTiempo: true });
+        }
+        return false;
+      }
+      return true;
+    };
+
+    if (!tick()) return;
+    const id = window.setInterval(() => {
+      if (!tick()) window.clearInterval(id);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [open, intento?.segundosRestantes, intento?.finalizado]);
 
   const irSiguiente = useCallback(() => {
     setConfirmFinalizar(null);
@@ -258,9 +353,13 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
   const isLast = totalPreguntas > 0 && currentQuestionIndex === totalPreguntas - 1;
   const isFirst = currentQuestionIndex === 0;
   const opciones = esVariasOpciones(preg) && preg.id ? preg.respuestas ?? [] : [];
+  // Una entrada por pregunta: solo cuentan las respuestas guardadas por el usuario.
+  const respondidasCount = Object.values(respuestas).filter(
+    ({ idRespuesta, respuesta }) =>
+      (typeof idRespuesta === 'number' && idRespuesta > 0) || Boolean(respuesta?.trim())
+  ).length;
   const progresoPct =
-    totalPreguntas > 0 ? Math.round(((currentQuestionIndex + 1) / totalPreguntas) * 100) : 0;
-  const respondidasCount = preguntas.filter((p) => preguntaRespondida(p, respuestas)).length;
+    totalPreguntas > 0 ? Math.round((respondidasCount / totalPreguntas) * 100) : 0;
   const imagenUrl = preg?.urlDocumento ? getCuestionarioDocumentUrl(preg.urlDocumento) : null;
   const tipoVisible = nombreTipoPregunta(preg);
 
@@ -268,28 +367,53 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
     <>
       <Modal open={open} onClose={onClose} zIndex={115}>
         <ModalContent className="w-[min(96vw,52rem)] max-w-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl rounded-2xl">
-          <ModalHeader className="border-b border-gray-100 dark:border-gray-700/50 py-3 px-4 sm:px-5 shrink-0">
-            <div className="flex items-center justify-between gap-3 w-full">
+          <ModalHeader className="block border-b border-gray-100 dark:border-gray-700/50 py-3 px-4 sm:px-5 shrink-0">
+            <div
+              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 w-full ${
+                textoTiempo ? 'sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : ''
+              }`}
+            >
               <ModalTitle className="sr-only">Cuestionario</ModalTitle>
-              <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 {preguntas.length > 0 && (
                   <>
                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white">
-                      {currentQuestionIndex + 1} / {totalPreguntas}
+                      {`${currentQuestionIndex + 1} / ${totalPreguntas}`}
                     </span>
                     <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-white">
                       {tipoVisible}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-white tabular-nums">
-                      {respondidasCount} respondidas
+                      {`${respondidasCount} ${respondidasCount === 1 ? 'respondida' : 'respondidas'}`}
                     </span>
                   </>
                 )}
               </div>
+              {textoTiempo && (
+                <div
+                  className={`col-span-2 row-start-2 justify-self-center flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-center sm:col-span-1 sm:col-start-2 sm:row-start-1 ${
+                    avisoTiempo
+                      ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-white">
+                    Tiempo restante
+                  </span>
+                  <span
+                    className={`font-mono tabular-nums text-sm font-bold ${
+                      avisoTiempo ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'
+                    }`}
+                  >
+                    {textoTiempo}
+                  </span>
+                </div>
+              )}
               <button
                 type="button"
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors shrink-0"
+                className="col-start-[-2] row-start-1 justify-self-end p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors shrink-0"
                 onClick={onClose}
+                disabled={bloqueadoPorTiempo}
                 aria-label="Cerrar"
               >
                 <KeenIcon icon="cross" className="w-5 h-5" />
@@ -304,9 +428,14 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   />
                 </div>
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-white tabular-nums w-9 text-right">
-                  {progresoPct}%
+                  {`${progresoPct}%`}
                 </span>
               </div>
+            )}
+            {avisoTiempo && textoTiempo && textoTiempo !== '00:00:00' && (
+              <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-300">
+                El tiempo del cuestionario está por terminar.
+              </p>
             )}
             {actividad?.intervaloReintento != null && (
               <p className="mt-2 text-xs text-gray-600 dark:text-white">
@@ -392,6 +521,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                                   type="radio"
                                   name={`preg-${preg.id}`}
                                   checked={selected}
+                                  disabled={bloqueadoPorTiempo || saving}
                                   onChange={() => handleRespuestaOpcion(preg.id, r.id)}
                                   className="w-5 h-5 shrink-0 rounded-full border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
@@ -414,6 +544,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                         value={respuestas[preg.id]?.respuesta ?? ''}
                         onChange={(e) => handleRespuestaTexto(preg.id, e.target.value)}
                         placeholder="Escribe tu respuesta aquí..."
+                        disabled={bloqueadoPorTiempo || saving}
                         className="input w-full text-sm sm:text-[15px] min-h-[140px] rounded-xl border-2 border-gray-200 dark:border-gray-600 focus:border-blue-500 p-4 leading-relaxed dark:text-white dark:placeholder:text-white"
                         rows={5}
                       />
@@ -441,6 +572,7 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
+                    disabled={bloqueadoPorTiempo || saving}
                     className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   >
                     Cancelar
@@ -468,10 +600,10 @@ const ModalResponderCuestionario: React.FC<ModalResponderCuestionarioProps> = ({
                     <button
                       type="button"
                       onClick={solicitarFinalizar}
-                      disabled={saving}
+                      disabled={saving || bloqueadoPorTiempo}
                       className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm disabled:opacity-50 transition-colors"
                     >
-                      {saving ? 'Enviando...' : 'Finalizar'}
+                      {saving || bloqueadoPorTiempo ? 'Enviando...' : 'Finalizar'}
                     </button>
                   )}
                 </div>

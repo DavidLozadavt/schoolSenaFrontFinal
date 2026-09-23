@@ -6,11 +6,16 @@ import Select from 'react-select';
 import { useSettings } from '@/providers';
 import type { Actividad } from './ModalCrearActividad';
 import type { ConfigCuestionariosMap } from './cuestionarioAsignacion';
+import { esCuestionario } from './cuestionarioAsignacion';
 import {
   compactReactSelectClassNames,
   compactReactSelectNoOptions,
   filterOptionNormalized
 } from '@/components/forms/compactReactSelect';
+import {
+  minutosDesdeCamposTiempo,
+  validarCamposTiempo
+} from './tiempoCuestionario';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
@@ -163,6 +168,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+  const [tiempoCuestionarioMinutos, setTiempoCuestionarioMinutos] = useState('');
+  const [tiempoCuestionarioHoras, setTiempoCuestionarioHoras] = useState('');
 
   useEffect(() => {
     if (!open || !idFicha) {
@@ -210,6 +217,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       setGruposSeleccionados([]);
       setFechaInicial(ahoraDatetimeLocal());
       setFechaFinal('');
+      setTiempoCuestionarioMinutos('');
+      setTiempoCuestionarioHoras('');
       setError('');
       setMostrarPickerEstudiantes(false);
       setMostrarPickerGrupos(false);
@@ -271,7 +280,16 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       }
     }
 
-      setSaving(true);
+    const tieneCuestionarios = actividadesAAsignar.some((a) => esCuestionario(a.tipoActividad));
+    if (tieneCuestionarios) {
+      const tiempoErr = validarCamposTiempo(tiempoCuestionarioMinutos, tiempoCuestionarioHoras);
+      if (tiempoErr) {
+        setError(tiempoErr);
+        return;
+      }
+    }
+
+    setSaving(true);
     try {
       try {
         const planeacionRes = await axios.get(`planeacion/ficha/${idFicha}`);
@@ -308,11 +326,31 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         payload.grupos = gruposSeleccionados;
       }
       if (configCuestionarios && Object.keys(configCuestionarios).length > 0) {
-        const cfgPayload: Record<string, { cantidadPreguntas: number }> = {};
+        const cfgPayload: Record<string, { cantidadPreguntas: number; tiempoCuestionario?: number | null }> = {};
         Object.entries(configCuestionarios).forEach(([idAct, cfg]) => {
-          cfgPayload[idAct] = { cantidadPreguntas: cfg.cantidadPreguntas };
+          cfgPayload[idAct] = {
+            cantidadPreguntas: cfg.cantidadPreguntas,
+            tiempoCuestionario: cfg.tiempoCuestionario ?? null
+          };
         });
         payload.configCuestionarios = cfgPayload;
+      }
+
+      const tiempoCuestionarioMinutosAsignacion = minutosDesdeCamposTiempo(
+        tiempoCuestionarioMinutos,
+        tiempoCuestionarioHoras
+      );
+      if (tieneCuestionarios) {
+        const cfgPayload: Record<string, { cantidadPreguntas: number; tiempoCuestionario?: number | null }> = {};
+        actividadesAAsignar.forEach((a) => {
+          if (!a.id || !esCuestionario(a.tipoActividad)) return;
+          const cfg = configCuestionarios?.[a.id] ?? { cantidadPreguntas: 1 };
+          cfgPayload[String(a.id)] = {
+            cantidadPreguntas: cfg.cantidadPreguntas,
+            tiempoCuestionario: tiempoCuestionarioMinutosAsignacion
+          };
+        });
+        payload.configCuestionarios = { ...(payload.configCuestionarios || {}), ...cfgPayload };
       }
       const res = await axios.post(`fichas/${idFicha}/asignacion-actividades`, payload);
       const data = res?.data;
@@ -633,6 +671,48 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         </div>
                       )}
                     </div>
+
+                    {actividadesAAsignar.some((a) => esCuestionario(a.tipoActividad)) && (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50/90 p-4 dark:border-gray-600/70 dark:bg-coal-500/20">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <label className="block text-sm font-medium text-gray-800 dark:text-white">
+                            Tiempo límite del cuestionario
+                          </label>
+                          <span className="text-[11px] font-medium text-gray-500 dark:text-white/80">
+                            Opcional
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">Minutos</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={tiempoCuestionarioMinutos}
+                              onChange={(e) => setTiempoCuestionarioMinutos(e.target.value)}
+                              className="input w-full !min-h-[2.6rem] p-2 text-sm text-gray-900 dark:text-white"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">Horas</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={tiempoCuestionarioHoras}
+                              onChange={(e) => setTiempoCuestionarioHoras(e.target.value)}
+                              className="input w-full !min-h-[2.6rem] p-2 text-sm text-gray-900 dark:text-white"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-white">
+                          {tiempoCuestionarioMinutos.trim() === '' && tiempoCuestionarioHoras.trim() === ''
+                            ? 'Sin límite: el cuestionario queda disponible sin temporizador.'
+                            : 'El sistema convierte el total a minutos y lo aplica al estudiante al iniciar el intento.'}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                       <div>

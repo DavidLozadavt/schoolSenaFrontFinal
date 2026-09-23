@@ -11,6 +11,7 @@ import {
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 import ModalVerRespuestaYCalificar from './ModalVerRespuestaYCalificar';
+import { formatearHoraIntento, formatearLimiteCuestionario, formatearTiempoUtilizado } from './tiempoCuestionario';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
@@ -47,6 +48,12 @@ export interface AprendizCalificacion {
   estado: 'PENDIENTE' | 'ENVIADO' | 'CALIFICADO' | 'CORRECCION_SOLICITADA';
   fechaFinal?: string | null;
   email?: string | null;
+  fechaInicioIntento?: string | null;
+  fechaFinIntento?: string | null;
+  tiempoUtilizadoSegundos?: number | null;
+  cierrePorTiempo?: boolean;
+  estadoCierre?: string | null;
+  tiempoLimiteMinutos?: number | null;
 }
 
 interface ModalAprendicesProps {
@@ -84,6 +91,7 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
   const [guardandoMasiva, setGuardandoMasiva] = useState(false);
 
   const idActividad = actividad?.id;
+  const esCuestionario = (actividad?.tipoActividad ?? '') === 'cuestionario';
 
   const esActividadGrupal = React.useMemo(() => {
     const conGrupo = aprendices.filter((a) => a.idGrupo != null);
@@ -405,11 +413,20 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                           <table className="w-full min-w-0 table-fixed" style={{ tableLayout: 'fixed' }}>
                             <colgroup>
                               <col style={{ width: 44 }} />
-                              <col style={{ width: esActividadGrupal ? '26%' : '32%' }} />
-                              {esActividadGrupal && <col style={{ width: '11%' }} />}
-                              <col style={{ width: esActividadGrupal ? '14%' : '16%' }} />
-                              <col style={{ width: esActividadGrupal ? '10%' : '12%' }} />
-                              <col style={{ width: esActividadGrupal ? '16%' : '20%' }} />
+                              <col style={{ width: esActividadGrupal ? '22%' : '26%' }} />
+                              {esActividadGrupal && <col style={{ width: '10%' }} />}
+                              <col style={{ width: esCuestionario ? '12%' : esActividadGrupal ? '14%' : '16%' }} />
+                              <col style={{ width: esCuestionario ? '9%' : esActividadGrupal ? '10%' : '12%' }} />
+                              {esCuestionario ? (
+                                <>
+                                  <col style={{ width: '8%' }} />
+                                  <col style={{ width: '8%' }} />
+                                  <col style={{ width: '9%' }} />
+                                  <col style={{ width: '8%' }} />
+                                </>
+                              ) : (
+                                <col style={{ width: esActividadGrupal ? '16%' : '20%' }} />
+                              )}
                               <col style={{ width: esActividadGrupal ? '12%' : '14%' }} />
                               <col style={{ width: '6.5rem' }} />
                             </colgroup>
@@ -438,9 +455,26 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                                 <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
                                   Calificación
                                 </th>
-                                <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
-                                  Estándar
-                                </th>
+                                {esCuestionario ? (
+                                  <>
+                                    <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                      Inicio
+                                    </th>
+                                    <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                      Finalización
+                                    </th>
+                                    <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                      Tiempo usado
+                                    </th>
+                                    <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                      Tiempo límite
+                                    </th>
+                                  </>
+                                ) : (
+                                  <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
+                                    Estándar
+                                  </th>
+                                )}
                                 <th className="text-left py-2.5 px-2 sm:px-3 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-gray-400 tracking-wider uppercase">
                                   Estado
                                 </th>
@@ -527,27 +561,52 @@ const ModalAprendices: React.FC<ModalAprendicesProps> = ({
                                       <span className="text-red-600 dark:text-red-400 font-medium">Sin calificar</span>
                                     )}
                                   </td>
-                                  <td className="py-3 px-2 sm:px-3 align-middle min-w-0 overflow-hidden">
-                                    <span
-                                      className="text-sm text-gray-600 dark:text-gray-400 truncate block"
-                                      title={a.calificacionEstandart || 'Sin configuración de calificaciones'}
-                                    >
-                                      {a.calificacionEstandart || 'Sin configuración'}
-                                    </span>
-                                  </td>
+                                  {esCuestionario ? (
+                                    <>
+                                      <td className="py-3 px-2 sm:px-3 align-middle text-sm text-gray-700 dark:text-gray-300 tabular-nums">
+                                        {formatearHoraIntento(a.fechaInicioIntento)}
+                                      </td>
+                                      <td className="py-3 px-2 sm:px-3 align-middle text-sm text-gray-700 dark:text-gray-300 tabular-nums">
+                                        {formatearHoraIntento(a.fechaFinIntento)}
+                                      </td>
+                                      <td className="py-3 px-2 sm:px-3 align-middle text-sm text-gray-700 dark:text-gray-300">
+                                        {formatearTiempoUtilizado(a.tiempoUtilizadoSegundos)}
+                                      </td>
+                                      <td className="py-3 px-2 sm:px-3 align-middle text-sm text-gray-700 dark:text-gray-300">
+                                        {formatearLimiteCuestionario(a.tiempoLimiteMinutos)}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <td className="py-3 px-2 sm:px-3 align-middle min-w-0 overflow-hidden">
+                                      <span
+                                        className="text-sm text-gray-600 dark:text-gray-400 truncate block"
+                                        title={a.calificacionEstandart || 'Sin configuración de calificaciones'}
+                                      >
+                                        {a.calificacionEstandart || 'Sin configuración'}
+                                      </span>
+                                    </td>
+                                  )}
                                   <td className="py-3 px-2 sm:px-3 align-middle">
                                     <span
                                       className={`inline-flex max-w-full px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                                        a.estado === 'CALIFICADO'
-                                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                          : a.estado === 'ENVIADO'
+                                        a.estadoCierre === 'TIEMPO AGOTADO'
+                                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                                          : a.estadoCierre === 'EN CURSO'
                                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                            : a.estado === 'CORRECCION_SOLICITADA'
-                                              ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200'
-                                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                            : a.estado === 'CALIFICADO' || a.estadoCierre === 'FINALIZADO'
+                                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                              : a.estado === 'ENVIADO'
+                                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                                : a.estado === 'CORRECCION_SOLICITADA'
+                                                  ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200'
+                                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
                                       }`}
                                     >
-                                      {a.estado === 'CORRECCION_SOLICITADA' ? 'Corrección' : a.estado}
+                                      {a.estadoCierre
+                                        ? a.estadoCierre
+                                        : a.estado === 'CORRECCION_SOLICITADA'
+                                          ? 'Corrección'
+                                          : a.estado}
                                     </span>
                                   </td>
                                   <td className="py-3 px-2 sm:px-3 align-middle text-center">
