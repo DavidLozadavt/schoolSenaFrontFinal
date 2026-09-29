@@ -66,6 +66,58 @@ function normalizeMenu(items: any[]): TMenuConfig {
     }));
 }
 
+/** Garantiza el ítem debajo de Horario (visible si tiene horario o planeación). */
+function ensurePlaneacionPedagogicaMenu(menu: TMenuConfig): TMenuConfig {
+  const path = '/ambiente-virtual/planeacion-pedagogica';
+  const item = {
+    title: 'Planeación pedagógica',
+    icon: 'notepad-edit',
+    path,
+    requiredPermissions: [
+      'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+      'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+      'AULA_VIRTUAL_INSTRUCTOR'
+    ]
+  };
+
+  const idxExisting = menu.findIndex((i) => i.path === path);
+  let next = [...menu];
+  if (idxExisting >= 0) {
+    next[idxExisting] = { ...next[idxExisting], ...item };
+  } else {
+    const horarioIdx = next.findIndex((i) => i.path === '/ambiente-virtual/horario');
+    if (horarioIdx >= 0) {
+      next.splice(horarioIdx + 1, 0, item);
+    } else {
+      next = [item, ...next];
+    }
+  }
+
+  // Colocar justo debajo de Horario
+  const h = next.findIndex((i) => i.path === '/ambiente-virtual/horario');
+  const p = next.findIndex((i) => i.path === path);
+  if (h >= 0 && p >= 0 && p !== h + 1) {
+    const [moved] = next.splice(p, 1);
+    const h2 = next.findIndex((i) => i.path === '/ambiente-virtual/horario');
+    next.splice(h2 + 1, 0, moved);
+  }
+
+  return next;
+}
+
+/** Mis formaciones (instructor) se muestra como Mis clases. */
+function ensureMisClasesMenuLabel(menu: TMenuConfig): TMenuConfig {
+  const path = '/ambiente-virtual/historial-raps';
+  return menu.map((item) => {
+    const next = { ...item };
+    if (next.path === path) next.title = 'Mis clases';
+    if (next.children?.length) {
+      next.children = ensureMisClasesMenuLabel(next.children);
+    }
+    return next;
+  });
+}
+
 // Creating context for the layout provider with initial properties
 const Demo1LayoutContext = createContext<IDemo1LayoutProviderProps>(initalLayoutProps);
 
@@ -83,13 +135,16 @@ const Demo1LayoutProvider = ({ children }: PropsWithChildren) => {
   (async () => {
     try {
       const raw = await fetchPermissionsMenu();
-      const menu = raw ? normalizeMenu(raw) : MENU_SIDEBAR;
+      const menu = ensureMisClasesMenuLabel(
+        ensurePlaneacionPedagogicaMenu(raw ? normalizeMenu(raw) : MENU_SIDEBAR)
+      );
       if (!mounted) return;
       setMenuConfig('primary', menu);
       setMenuConfig('secondary', menu);
     } catch (err) {
-      setMenuConfig('primary', MENU_SIDEBAR);
-      setMenuConfig('secondary', MENU_SIDEBAR);
+      const fallback = ensureMisClasesMenuLabel(ensurePlaneacionPedagogicaMenu(MENU_SIDEBAR));
+      setMenuConfig('primary', fallback);
+      setMenuConfig('secondary', fallback);
     }
   })();
   return () => { mounted = false; };

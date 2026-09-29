@@ -17,11 +17,27 @@ const Breadcrumbs = () => {
       let title =
         formatPagosRouteSegmentTitle(segment) ??
         segment.charAt(0).toUpperCase() + segment.slice(1);
+  if (segment === 'historial-raps') {
+        title = 'Mis clases';
+      }
       if (segment === 'horario' && segments[0] === 'ambiente-virtual') {
         title = 'Horario';
       }
+      if (segment === 'planeacion-pedagogica' || segment === 'planeación-pedagogica') {
+        title = 'Planeación pedagógica';
+      }
+      if (segment === 'nueva' && segments.includes('planeacion-pedagogica')) {
+        title = 'Nueva';
+      }
       if (index > 0 && segments[index - 1] === 'clase' && /^\d+$/.test(segment)) {
         title = 'Detalle'; // Ocultar el ID, mostrar "Detalle"
+      }
+      if (
+        index > 0 &&
+        segments[index - 1] === 'planeacion-pedagogica' &&
+        /^\d+$/.test(segment)
+      ) {
+        title = 'Editar';
       }
       
       return {

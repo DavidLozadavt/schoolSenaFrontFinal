@@ -25,10 +25,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, ch
   const instructorSenaBypass =
     Array.isArray(roles) &&
     roles.includes('INSTRUCTOR SENA') &&
-    requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
+    (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
+
+  const docenteUpBypass =
+    Array.isArray(roles) &&
+    roles.includes('DOCENTEUP') &&
+    (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
 
   const allowed =
-    userHasAnyPermission(requiredPermissions, safePermissions) || instructorSenaBypass;
+    userHasAnyPermission(requiredPermissions, safePermissions) ||
+    instructorSenaBypass ||
+    docenteUpBypass;
 
   if (!allowed) {
     return <Navigate to="/" replace />;

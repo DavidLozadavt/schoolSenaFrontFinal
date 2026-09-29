@@ -46,9 +46,18 @@ const SidebarMenu = () => {
     const instructorSenaBypass =
       Array.isArray(userRoles) &&
       userRoles.includes('INSTRUCTOR SENA') &&
-      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
+      (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
 
-    return isAllowedByPermission || instructorSenaBypass;
+    const docenteUpBypass =
+      Array.isArray(userRoles) &&
+      userRoles.includes('DOCENTEUP') &&
+      (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
+
+    return isAllowedByPermission || instructorSenaBypass || docenteUpBypass;
   };
 
   const linkPl = 'ps-[10px]';

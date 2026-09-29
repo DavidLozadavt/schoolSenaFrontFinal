@@ -130,7 +130,9 @@ textarea[data-preserve-case] {
 #root input[data-no-uppercase],
 #root textarea[data-no-uppercase],
 input[data-no-uppercase],
-textarea[data-no-uppercase] {
+textarea[data-no-uppercase],
+#root [data-no-uppercase] input,
+#root [data-no-uppercase] textarea {
   text-transform: none !important;
 }
 

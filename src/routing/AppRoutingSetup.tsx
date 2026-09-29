@@ -128,6 +128,8 @@ import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import MisActividadesInstructorPage from '@/pages/ambiente-virtual/MisActividadesInstructorPage';
 import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
+import PlaneacionPedagogicaPage from '@/pages/ambiente-virtual/PlaneacionPedagogicaPage';
+import PlaneacionPedagogicaEditorPage from '@/pages/ambiente-virtual/PlaneacionPedagogicaEditorPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
 import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
@@ -1308,6 +1310,48 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_HORARIO']}>
                 <HorarioInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/planeacion-pedagogica"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/planeacion-pedagogica/nueva"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/planeacion-pedagogica/:id"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaEditorPage />
               </ProtectedRoute>
             }
           />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
@@ -9,6 +9,7 @@ import {
   compactReactSelectNoOptions,
   filterOptionNormalized
 } from '@/components/forms/compactReactSelect';
+import { ModalCrearGrupo } from '../grupos';
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
 
@@ -53,6 +54,11 @@ interface ModalAsignarActividadProps {
   onClose: () => void;
   onSave: () => void;
   onSuccess?: (message: string) => void;
+  /** Fechas del taller (datetime-local) precargadas. */
+  fechaInicialDefault?: string | null;
+  fechaFinalDefault?: string | null;
+  /** Notifica las fechas usadas al asignar. */
+  onAssigned?: (fechas: { fechaInicial: string; fechaFinal: string }) => void;
   idFicha: number;
   actividad: Actividad | null;
   /** Varias actividades para asignar en bloque */
@@ -64,6 +70,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   onClose,
   onSave,
   onSuccess,
+  fechaInicialDefault,
+  fechaFinalDefault,
+  onAssigned,
   idFicha,
   actividad,
   actividades: actividadesProp
@@ -82,45 +91,50 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+  const [modalCrearGrupoOpen, setModalCrearGrupoOpen] = useState(false);
+
+  const cargarDatos = useCallback(() => {
+    if (!idFicha) return;
+    setLoading(true);
+    axios
+      .get(`fichas/${idFicha}/asignacion-actividades/datos`)
+      .then((res) => {
+        setError('');
+        setAprendices(res.data?.aprendices ?? []);
+        setGrupos(res.data?.grupos ?? []);
+        setActividades(res.data?.actividades ?? []);
+      })
+      .catch((err: unknown) => {
+        const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+        console.warn('[ModalAsignarActividad] GET datos', idFicha, ax?.response?.status, ax?.response?.data);
+        setAprendices([]);
+        setGrupos([]);
+        setActividades([]);
+        const msg =
+          ax?.response?.data?.message ||
+          ax?.response?.data?.error ||
+          (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
+          'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
+        setError(msg);
+      })
+      .finally(() => setLoading(false));
+  }, [idFicha]);
 
   useEffect(() => {
     if (open && idFicha) {
-      setLoading(true);
-      axios
-        .get(`fichas/${idFicha}/asignacion-actividades/datos`)
-        .then((res) => {
-          setError('');
-          setAprendices(res.data?.aprendices ?? []);
-          setGrupos(res.data?.grupos ?? []);
-          setActividades(res.data?.actividades ?? []);
-        })
-        .catch((err: unknown) => {
-          const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
-          // Diagnóstico en consola (prod): antes el catch vaciaba listas sin señal de fallo de red/401.
-          console.warn('[ModalAsignarActividad] GET datos', idFicha, ax?.response?.status, ax?.response?.data);
-          setAprendices([]);
-          setGrupos([]);
-          setActividades([]);
-          const msg =
-            ax?.response?.data?.message ||
-            ax?.response?.data?.error ||
-            (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
-            'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
-          setError(msg);
-        })
-        .finally(() => setLoading(false));
+      cargarDatos();
     }
-  }, [open, idFicha]);
+  }, [open, idFicha, cargarDatos]);
 
   useEffect(() => {
     if (open) {
       setAprendicesSeleccionados([]);
       setGruposSeleccionados([]);
-      setFechaInicial('');
-      setFechaFinal('');
+      setFechaInicial(fechaInicialDefault || '');
+      setFechaFinal(fechaFinalDefault || '');
       setError('');
     }
-  }, [open]);
+  }, [open, fechaInicialDefault, fechaFinalDefault]);
 
   const toggleAprendiz = (id: number) => {
     setAprendicesSeleccionados((prev) =>
@@ -218,6 +232,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         return;
       }
       onSuccess?.('Actividad asignada correctamente');
+      onAssigned?.({ fechaInicial, fechaFinal });
       onSave();
       onClose();
     } catch (err: any) {
@@ -297,13 +312,27 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
               )}
               {!loading && (
                 <div className="px-5 py-4 sm:px-6 sm:py-5">
+                  {actividadesAAsignar.length === 0 && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      No hay actividad para asignar. Cierra y vuelve a pulsar <strong>Asignar</strong> tras
+                      crear o traer la actividad.
+                    </div>
+                  )}
+                  {!error && aprendices.length === 0 && grupos.length === 0 && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      Esta ficha no tiene estudiantes ni grupos cargados. Revisa matrículas en la ficha
+                      o elige otro grupo en Semana.
+                    </div>
+                  )}
                   {actividadesAAsignar.length > 0 && (
                     <div className="mb-5 rounded-lg border border-gray-100 bg-gray-50/80 px-3.5 py-2.5 dark:border-gray-600/50 dark:bg-coal-500/20">
                       <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                         {actividadesAAsignar.length === 1 ? (
                           <>
                             <span className="font-medium text-gray-500 dark:text-gray-400">Actividad: </span>
-                            <span className="font-semibold text-gray-900 dark:text-white">{actividadesAAsignar[0].tituloActividad}</span>
+                            <span className="font-semibold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
+                              {actividadesAAsignar[0].tituloActividad}
+                            </span>
                           </>
                         ) : (
                           <>
@@ -461,38 +490,72 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar grupos</label>
-                      <Select
-                        inputId="asignar-actividad-grupos"
-                        isMulti
-                        isClearable
-                        isSearchable
-                        closeMenuOnSelect={false}
-                        options={optionsGrupos}
-                        value={valueGrupos}
-                        placeholder="Buscar o seleccionar grupos..."
-                        classNamePrefix="react-select-ciudad-exp"
-                        classNames={compactReactSelectClassNames}
-                        noOptionsMessage={compactReactSelectNoOptions}
-                        filterOption={(candidate, input) => {
-                          return filterOptionNormalized([candidate.label, candidate.value], input);
-                        }}
-                        onChange={(opts) => {
-                          const arr = Array.isArray(opts) ? opts : [];
-                          setGruposSeleccionados(arr.map((o) => Number(o.value)).filter((n) => Number.isFinite(n)));
-                        }}
-                      />
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoGrupos}</p>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                          Seleccionar grupos
+                        </label>
                         <button
                           type="button"
-                          onClick={toggleTodosGrupos}
-                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={() => setModalCrearGrupoOpen(true)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                         >
-                          {gruposSeleccionados.length === grupos.length && grupos.length > 0 ? 'Quitar todos' : 'Seleccionar todos'}
+                          <KeenIcon icon="plus" className="text-xs" />
+                          Crear grupo
                         </button>
                       </div>
-                      {mostrarPickerGrupos && (
+
+                      {grupos.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-sky-200 bg-sky-50/60 px-3 py-3 text-xs text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
+                          Esta ficha aún no tiene grupos en la base de datos. Puedes asignar por
+                          estudiantes o{' '}
+                          <button
+                            type="button"
+                            className="font-semibold underline"
+                            onClick={() => setModalCrearGrupoOpen(true)}
+                          >
+                            crear un grupo
+                          </button>{' '}
+                          ahora (elige cupo e integrantes).
+                        </div>
+                      ) : (
+                        <>
+                          <Select
+                            inputId="asignar-actividad-grupos"
+                            isMulti
+                            isClearable
+                            isSearchable
+                            closeMenuOnSelect={false}
+                            options={optionsGrupos}
+                            value={valueGrupos}
+                            placeholder="Buscar o seleccionar grupos..."
+                            classNamePrefix="react-select-ciudad-exp"
+                            classNames={compactReactSelectClassNames}
+                            noOptionsMessage={compactReactSelectNoOptions}
+                            filterOption={(candidate, input) => {
+                              return filterOptionNormalized([candidate.label, candidate.value], input);
+                            }}
+                            onChange={(opts) => {
+                              const arr = Array.isArray(opts) ? opts : [];
+                              setGruposSeleccionados(
+                                arr.map((o) => Number(o.value)).filter((n) => Number.isFinite(n))
+                              );
+                            }}
+                          />
+                          <div className="mt-2 flex items-center justify-between gap-3">
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoGrupos}</p>
+                            <button
+                              type="button"
+                              onClick={toggleTodosGrupos}
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              {gruposSeleccionados.length === grupos.length && grupos.length > 0
+                                ? 'Quitar todos'
+                                : 'Seleccionar todos'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {mostrarPickerGrupos && grupos.length > 0 && (
                         <div className="mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
                           <div className="mb-2 flex justify-end">
                             <button
@@ -558,8 +621,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       </button>
                       <button
                         type="submit"
-                        disabled={saving || loading}
-                        className="inline-flex w-full min-w-[8rem] items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-white sm:w-auto disabled:opacity-50"
+                        disabled={saving || loading || actividadesAAsignar.length === 0}
+                        className="inline-flex w-full min-w-[10.5rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white sm:w-auto disabled:opacity-50"
                       >
                         {saving ? (
                           <>
@@ -591,6 +654,19 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
           title={zoomFoto.alt}
         />
       )}
+      <ModalCrearGrupo
+        open={modalCrearGrupoOpen}
+        onClose={() => setModalCrearGrupoOpen(false)}
+        onSave={() => {
+          cargarDatos();
+          onSuccess?.('Grupo creado. Ya puedes seleccionarlo para asignar.');
+        }}
+        idFicha={idFicha}
+        aprendicesDisponibles={aprendices.map((a) => ({
+          id: a.id,
+          nombre: a.nombre || a.nombreCompleto || `Matrícula ${a.id}`
+        }))}
+      />
     </>
   );
 };

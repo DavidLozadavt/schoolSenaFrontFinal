@@ -188,7 +188,7 @@ const ResetPasswordModal = ({ isOpen, onClose, userEmail, identification, isAppr
       await axios.post(`${VITE_APP_API_URL}password/send-otp`, {
         email: emailForReset.trim().toLowerCase()
       });
-      enqueueSnackbar('Código reenviado. Revisa tu correo.', { variant: 'success' });
+      enqueueSnackbar('Código reenviado. Usa solo el del correo más reciente; los anteriores ya no sirven.', { variant: 'success' });
       setCountdown(60);
       setOtpCode(['', '', '', '', '', '']);
     } catch (error: any) {

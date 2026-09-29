@@ -41,6 +41,9 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newAreaName, setNewAreaName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [editingAreaId, setEditingAreaId] = useState<number | null>(null);
+  const [editingAreaName, setEditingAreaName] = useState('');
+  const [updating, setUpdating] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -324,6 +327,44 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
       } finally {
         setSaving(false);
       }
+    }
+  };
+
+  /**
+   * Actualiza el nombre de un área de conocimiento existente.
+   */
+  const handleUpdateArea = async () => {
+    if (editingAreaId == null) return;
+    const trimmedName = editingAreaName.trim();
+    if (!trimmedName) {
+      enqueueSnackbar('Por favor ingrese un nombre para el área de conocimiento', {
+        variant: 'warning'
+      });
+      return;
+    }
+    const uppercasedName = toUpperCase(trimmedName);
+    try {
+      setUpdating(true);
+      await axios.put(`areas-conocimiento/${editingAreaId}`, {
+        nombreAreaConocimiento: uppercasedName
+      });
+      setAreas((prev) =>
+        prev.map((a) =>
+          a.id === editingAreaId ? { ...a, nombreAreaConocimiento: uppercasedName } : a
+        )
+      );
+      setEditingAreaId(null);
+      setEditingAreaName('');
+      enqueueSnackbar('Área de conocimiento actualizada', { variant: 'success' });
+      if (onSave) onSave();
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.nombreAreaConocimiento?.[0] ||
+        'No se pudo actualizar el área de conocimiento';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -636,6 +677,7 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
                 <div className="grid grid-cols-2 gap-2 pb-1">
                   {areas.map((area) => {
                     const isSelected = selectedAreas.includes(area.id);
+                    const isEditing = editingAreaId === area.id;
                     return (
                       <div
                         key={area.id}
@@ -645,16 +687,73 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
                             : 'bg-transparent dark:bg-transparent border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                         }`}
                       >
-                        <span className={`text-xs font-medium break-words flex-1 ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {area.nombreAreaConocimiento}
-                        </span>
-                        <label className="switch switch-sm flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleArea(area.id)}
-                          />
-                        </label>
+                        {isEditing ? (
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <input
+                              type="text"
+                              value={editingAreaName}
+                              onChange={(e) => setEditingAreaName(e.target.value.toUpperCase())}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !updating) handleUpdateArea();
+                                if (e.key === 'Escape') {
+                                  setEditingAreaId(null);
+                                  setEditingAreaName('');
+                                }
+                              }}
+                              className="input w-full text-xs"
+                              disabled={updating}
+                              autoFocus
+                            />
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={handleUpdateArea}
+                                disabled={updating || !editingAreaName.trim()}
+                                className="rounded px-2 py-0.5 text-[10px] font-semibold text-white bg-primary disabled:opacity-50"
+                              >
+                                {updating ? '...' : 'Guardar'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingAreaId(null);
+                                  setEditingAreaName('');
+                                }}
+                                disabled={updating}
+                                className="rounded px-2 py-0.5 text-[10px] font-medium text-gray-600 border border-gray-300"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <span
+                              className={`text-xs font-medium break-words flex-1 ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}
+                            >
+                              {area.nombreAreaConocimiento}
+                            </span>
+                            <button
+                              type="button"
+                              title="Actualizar área de conocimiento"
+                              onClick={() => {
+                                setShowCreateForm(false);
+                                setEditingAreaId(area.id);
+                                setEditingAreaName(area.nombreAreaConocimiento);
+                              }}
+                              className="flex-shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-primary dark:hover:bg-coal-500"
+                            >
+                              <KeenIcon icon="pencil" className="text-xs" />
+                            </button>
+                            <label className="switch switch-sm flex-shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleArea(area.id)}
+                              />
+                            </label>
+                          </>
+                        )}
                       </div>
                     );
                   })}
