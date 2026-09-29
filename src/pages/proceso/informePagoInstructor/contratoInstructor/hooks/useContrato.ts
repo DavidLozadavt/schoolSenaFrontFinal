@@ -10,6 +10,7 @@ const getInitialFormData = (contrato: Contrato | null): ContratoFormData => ({
   formaDePago: contrato?.formaDePago ?? 'NORMAL',
   ciudadExpedicionId: contrato?.persona?.ciudad_expedicion_rel?.id ?? '',
   siif: contrato?.siif ?? null,
+  numeroContrato: contrato?.numeroContrato ?? '',
   descripcionFormaPago: contrato?.descripcionFormaPago ?? ''
 });
 

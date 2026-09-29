@@ -85,7 +85,9 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
           : []
       );
       if (acta.idFicha) {
-        fetchContratos(acta.idFicha.toString());
+        const fechaIni = acta.fechaInicialFormacion ? acta.fechaInicialFormacion.split('T')[0] : undefined;
+        const fechaFin = acta.fechaFinalFormacion ? acta.fechaFinalFormacion.split('T')[0] : undefined;
+        fetchContratos(acta.idFicha.toString(), fechaIni, fechaFin);
       }
     } else {
       setAsistencias([]);
@@ -94,10 +96,10 @@ const ActaAsistenciasModal: React.FC<ActaAsistenciasModalProps> = ({
     }
   }, [isOpen, acta]);
 
-  const fetchContratos = async (idFicha: string) => {
+  const fetchContratos = async (idFicha: string, fechaInicial?: string, fechaFinal?: string) => {
     try {
       const response = await axios.get(`actas/ficha-data`, {
-        params: { idFicha }
+        params: { idFicha, fechaInicial, fechaFinal }
       });
       setContratosFicha(response.data);
     } catch (error) {

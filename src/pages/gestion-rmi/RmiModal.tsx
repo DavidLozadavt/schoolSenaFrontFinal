@@ -114,6 +114,99 @@ const RmiModal: React.FC<RmiModalProps> = ({
     }
   };
 
+  // nuevos helpers para correccion de reeemplazos en el excel
+  const toNum = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return y * 10000 + m * 100 + d;
+  };
+
+  const intersectar = (aIni: number, aFin: number, bIni: number, bFin: number) => {
+    const ini = Math.max(aIni, bIni);
+    const fin = Math.min(aFin, bFin);
+    return ini <= fin ? { ini, fin } : null;
+  };
+
+  type Segmento = {
+    horario: any;
+    desde: number; // yyyymmdd
+    hasta: number;
+    origen: 'DIRECTO' | 'COMPARTIDO' | 'REEMPLAZO';
+    reemplazaA?: string;
+  };
+
+  const construirSegmentos = (
+    todos: any[],
+    idGradoMateria: number,
+    idContratoInstructor: number
+  ): Segmento[] => {
+    const segmentos: Segmento[] = [];
+
+    const horariosDelGrado = todos.filter(
+      (h: any) => Number(h.idGradoMateria) === Number(idGradoMateria) && h.estado !== 'PENDIENTE'
+    );
+
+    horariosDelGrado.forEach((h: any) => {
+      const fIniHorario = toNum(h.fechaInicial || h.fechaInicio);
+      const fFinHorario = toNum(h.fechaFinal || h.fechaFin);
+      const asignaciones = h.asignacionSesion || [];
+
+      const esTitular = Number(h.idContrato) === Number(idContratoInstructor);
+
+      if (esTitular) {
+        // Restamos los tramos donde OTRO contrato lo reemplazó
+        const reemplazosDeOtros = asignaciones.filter(
+          (a: any) =>
+            a.tipoAsignacion === 'REEMPLAZO' && Number(a.idContrato) !== Number(idContratoInstructor)
+        );
+
+        let libres: { ini: number; fin: number }[] = [{ ini: fIniHorario, fin: fFinHorario }];
+
+        reemplazosDeOtros.forEach((a: any) => {
+          const rIni = toNum(a.fechaInicio);
+          const rFin = toNum(a.fechaFin);
+          const nuevos: { ini: number; fin: number }[] = [];
+          libres.forEach(({ ini, fin }) => {
+            if (rFin < ini || rIni > fin) {
+              nuevos.push({ ini, fin });
+              return;
+            }
+            if (rIni > ini) nuevos.push({ ini, fin: rIni - 1 });
+            if (rFin < fin) nuevos.push({ ini: rFin + 1, fin });
+          });
+          libres = nuevos;
+        });
+
+        libres.forEach(({ ini, fin }) => {
+          if (ini <= fin) segmentos.push({ horario: h, desde: ini, hasta: fin, origen: 'DIRECTO' });
+        });
+      }
+
+      // Tramos donde el instructor participa como compartido o reemplazo
+      asignaciones
+        .filter((a: any) => Number(a.idContrato) === Number(idContratoInstructor))
+        .forEach((a: any) => {
+          const rango = intersectar(toNum(a.fechaInicio), toNum(a.fechaFin), fIniHorario, fFinHorario);
+          if (!rango) return;
+
+          let reemplazaA: string | undefined;
+          if (a.tipoAsignacion === 'REEMPLAZO' && h.contrato?.persona) {
+            const p = h.contrato.persona;
+            reemplazaA = `${p.nombre1} ${p.apellido1}`.trim();
+          }
+
+          segmentos.push({
+            horario: h,
+            desde: rango.ini,
+            hasta: rango.fin,
+            origen: a.tipoAsignacion === 'REEMPLAZO' ? 'REEMPLAZO' : 'COMPARTIDO',
+            reemplazaA
+          });
+        });
+    });
+
+    return segmentos;
+  };
+
   const handleExportExcel = useCallback(async () => {
     try {
       const workbook = new ExcelJS.Workbook();
@@ -547,46 +640,39 @@ const RmiModal: React.FC<RmiModalProps> = ({
 
         // ── Horarios ──
         const todos = horariosPorFicha[ficha.idFicha] || [];
-        const filtrados = todos.filter(
-          (h: any) =>
-            Number(h.idGradoMateria) === Number(r.idGradoMateria) &&
-            Number(h.idContrato) === Number(instructor.idContrato) &&
-            h.estado !== 'PENDIENTE'
-        );
+
+        const segmentos = construirSegmentos(todos, r.idGradoMateria, instructor.idContrato);
+        
         let horasMesTotal = 0;
         const classDates = new Set<number>();
         const horariosPorDia: Record<string, string[]> = {};
 
-        filtrados.forEach((h: any) => {
+        segmentos.forEach((seg) => {
+          const h = seg.horario;
           const horaIni = h.horaInicio || h.horaInicial;
           const horaFin = h.horaFin || h.horaFinal;
           if (!horaIni || !horaFin) return;
-
+        
           const colDia = mapDiaCols[h.idDia];
           if (colDia) {
             if (!horariosPorDia[colDia]) horariosPorDia[colDia] = [];
-            horariosPorDia[colDia].push(`${horaIni} - ${horaFin}`);
+            const etiqueta = `${horaIni} - ${horaFin}`;
+            if (!horariosPorDia[colDia].includes(etiqueta)) {
+              horariosPorDia[colDia].push(etiqueta);
+            }
           }
-
+        
           const [hI, mI] = horaIni.toString().split(':').map(Number);
           const [hF, mF] = horaFin.toString().split(':').map(Number);
           const sessionHours = (hF * 60 + mF - (hI * 60 + mI)) / 60;
-
-          const fIniStr = h.fechaInicial || h.fechaInicio;
-          const fFinStr = h.fechaFinal || h.fechaFin;
-          if (fIniStr && fFinStr) {
-            const [yI, mI_str, dI] = fIniStr.split('-').map(Number);
-            const [yF, mF_str, dF] = fFinStr.split('-').map(Number);
-            const jsDayRequired = Number(h.idDia) === 7 ? 0 : Number(h.idDia);
-            for (let i = 1; i <= daysInMonth; i++) {
-              const isDay = new Date(targetYear, targetMonth - 1, i).getDay() === jsDayRequired;
-              const cur = targetYear * 10000 + targetMonth * 100 + i;
-              const ini = yI * 10000 + mI_str * 100 + dI;
-              const fin = yF * 10000 + mF_str * 100 + dF;
-              if (isDay && cur >= ini && cur <= fin) {
-                classDates.add(i);
-                horasMesTotal += sessionHours;
-              }
+        
+          const jsDayRequired = Number(h.idDia) === 7 ? 0 : Number(h.idDia);
+          for (let i = 1; i <= daysInMonth; i++) {
+            const isDay = new Date(targetYear, targetMonth - 1, i).getDay() === jsDayRequired;
+            const cur = targetYear * 10000 + targetMonth * 100 + i;
+            if (isDay && cur >= seg.desde && cur <= seg.hasta) {
+              classDates.add(i);
+              horasMesTotal += sessionHours;
             }
           }
         });

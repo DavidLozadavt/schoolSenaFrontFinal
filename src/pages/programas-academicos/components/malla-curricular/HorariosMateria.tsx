@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
@@ -25,6 +25,13 @@ interface HorariosMateriaProps {
   horasFaltantes?: number;
   porcentajeEjecucion?: number;
   onGuardado?: () => void;
+  /** Fecha precargada al abrir desde el calendario (YYYY-MM-DD). */
+  fechaInicioPrefill?: string;
+  /** Horas del RAP / jornada a aplicar al día seleccionado. */
+  horaInicioPrefill?: string;
+  horaFinPrefill?: string;
+  /** Límite: no permitir fecha inicio posterior a la fecha final del RAP. */
+  fechaFinalRap?: string;
 }
 
 // Schema de validación con Yup
@@ -73,6 +80,14 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   idFicha,
   jornada,
   onGuardado,
+<<<<<<< HEAD
+=======
+  porcentajeEjecucion,
+  fechaInicioPrefill,
+  horaInicioPrefill,
+  horaFinPrefill,
+  fechaFinalRap
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 }) => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -91,6 +106,8 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   const [loadingDias, setLoadingDias] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [cargandoHorario, setCargandoHorario] = useState(false);
+  /** Evita que el sync por fechaInicio pise la carga inicial desde calendario. */
+  const inicializandoRef = useRef(false);
 
   // Fechas de apertura obtenidas de la ficha
   const [fechaAperturaInicio, setFechaAperturaInicio] = useState('');
@@ -120,6 +137,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
 
   const { values, setFieldValue, handleChange, handleSubmit, errors, touched } = formik;
 
+<<<<<<< HEAD
   // Cargar días disponibles y datos de apertura al abrir el modal
   useEffect(() => {
     if (open) {
@@ -127,15 +145,39 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       cargarFicha();
     } else {
       // Limpiar formulario al cerrar
+=======
+  const normalizeHoraPrefill = (raw?: string): string => {
+    if (!raw) return '';
+    const m = String(raw).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return '';
+    return `${m[1].padStart(2, '0')}:${m[2]}`;
+  };
+
+  const festivosSet = useMemo(() => {
+    const baseYear = values.fechaInicio
+      ? new Date(values.fechaInicio + 'T00:00:00').getFullYear()
+      : new Date().getFullYear();
+    return getColombianHolidayDateSet(baseYear, baseYear + 2);
+  }, [values.fechaInicio]);
+
+  // Cargar días y precargas al abrir el modal
+  useEffect(() => {
+    if (!open) {
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       formik.resetForm();
       setHoraGlobalInicio('');
       setHoraGlobalFin('');
       setIncluirFestivos(false);
+<<<<<<< HEAD
       setFechaAperturaInicio('');
       setFechaAperturaFin('');
+=======
+      inicializandoRef.current = false;
+      return;
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
     }
-  }, [open]);
 
+<<<<<<< HEAD
   // Cuando se obtienen las fechas de apertura, aplicarlas al formulario
   useEffect(() => {
     if (fechaAperturaInicio) {
@@ -177,29 +219,183 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
       enqueueSnackbar(error.response?.data?.message || 'Error al cargar datos de la ficha', { variant: 'error' });
     }
   };
+=======
+    let cancelled = false;
+    inicializandoRef.current = true;
 
-  // Cargar días desde la API
-  const cargarDias = async () => {
-    setLoadingDias(true);
-    try {
-      const response = await axios.get('dias');
-      const dias = response.data || [];
-      // Inicializar horarios con los días disponibles (todos inactivos)
-      const horariosIniciales = dias.map((dia: any) => ({
-        idDia: dia.id,
-        nombreDia: dia.dia,
-        horaInicio: '',
-        horaFin: '',
-        activo: false
-      }));
-      setFieldValue('horarios', horariosIniciales);
-    } catch (error) {
-      enqueueSnackbar('Error al cargar los días', { variant: 'error' });
-    } finally {
-      setLoadingDias(false);
+    const init = async () => {
+      setLoadingDias(true);
+      setCargandoHorario(true);
+      try {
+        const response = await axios.get('dias');
+        if (cancelled) return;
+        const dias = response.data || [];
+        let horariosIniciales: HorarioDia[] = dias.map((dia: any) => ({
+          idDia: dia.id,
+          nombreDia: dia.dia,
+          horaInicio: '',
+          horaFin: '',
+          activo: false
+        }));
+
+        let horaIni = normalizeHoraPrefill(horaInicioPrefill);
+        let horaFin = normalizeHoraPrefill(horaFinPrefill);
+        let fechaIni = fechaInicioPrefill || '';
+        let observacion = '';
+
+        // Intentar horas/fecha desde API (puede no existir); no pisa prefill de calendario.
+        try {
+          if (idGradoMateria) {
+            const resExistente = await axios.get(`horarios/materia/${idGradoMateria}`);
+            const data = resExistente.data?.data;
+            if (data) {
+              if (!fechaInicioPrefill && data.fechaInicio) {
+                fechaIni = data.fechaInicio;
+              }
+              if (data.observacion) observacion = data.observacion;
+              if (Array.isArray(data.horarios) && data.horarios.length > 0) {
+                if (!horaIni) {
+                  horaIni = normalizeHoraPrefill(data.horarios[0].horaInicio);
+                }
+                if (!horaFin) {
+                  horaFin = normalizeHoraPrefill(data.horarios[0].horaFin);
+                }
+                if (!fechaInicioPrefill) {
+                  horariosIniciales = horariosIniciales.map((h) => {
+                    const guardado = data.horarios.find((hg: any) => Number(hg.idDia) === Number(h.idDia));
+                    if (guardado) {
+                      return {
+                        ...h,
+                        horaInicio: normalizeHoraPrefill(guardado.horaInicio) || guardado.horaInicio,
+                        horaFin: normalizeHoraPrefill(guardado.horaFin) || guardado.horaFin,
+                        activo: true
+                      };
+                    }
+                    return h;
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // Sin horario previo: continuar con prefill / días vacíos
+        }
+
+        if (fechaInicioPrefill && fechaIni) {
+          const fecha = new Date(fechaIni + 'T00:00:00');
+          const diaSemana = fecha.getDay();
+          const diaBD = diaSemana === 0 ? 7 : diaSemana;
+          horariosIniciales = horariosIniciales.map((h) => ({
+            ...h,
+            activo: h.idDia === diaBD,
+            horaInicio: h.idDia === diaBD ? horaIni : '',
+            horaFin: h.idDia === diaBD ? horaFin : ''
+          }));
+          setHoraGlobalInicio(horaIni);
+          setHoraGlobalFin(horaFin);
+        } else if (horaIni && horaFin) {
+          setHoraGlobalInicio(horaIni);
+          setHoraGlobalFin(horaFin);
+        }
+
+        if (cancelled) return;
+        setFieldValue('horarios', horariosIniciales);
+        setFieldValue('fechaInicio', fechaIni);
+        setFieldValue('observacion', observacion);
+      } catch {
+        if (!cancelled) enqueueSnackbar('Error al cargar los días', { variant: 'error' });
+      } finally {
+        if (!cancelled) {
+          setLoadingDias(false);
+          setCargandoHorario(false);
+          // Liberar sync de fecha tras el ciclo de render de los setFieldValue
+          setTimeout(() => {
+            inicializandoRef.current = false;
+          }, 0);
+        }
+      }
+    };
+
+    void init();
+    return () => {
+      cancelled = true;
+    };
+    // Solo al abrir / cambiar prefill de entrada
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fechaInicioPrefill, idGradoMateria]);
+
+  // Seleccionar automáticamente el día cuando cambia la fecha de inicio (usuario edita el campo)
+  useEffect(() => {
+    if (inicializandoRef.current) return;
+    if (!values.fechaInicio || values.horarios.length === 0 || loadingDias) return;
+
+    const fecha = new Date(values.fechaInicio + 'T00:00:00');
+    const diaSemana = fecha.getDay();
+    const diaBD = diaSemana === 0 ? 7 : diaSemana;
+
+    const diaExiste = values.horarios.some((h: HorarioDia) => h.idDia === diaBD);
+    if (!diaExiste) {
+      enqueueSnackbar('La fecha inicial no coincide con ningún día configurado en el sistema', {
+        variant: 'warning'
+      });
+      return;
     }
+
+    const yaActivoCorrecto =
+      values.horarios.filter((h) => h.activo).length === 1 &&
+      values.horarios.some((h) => h.activo && h.idDia === diaBD);
+    if (yaActivoCorrecto) return;
+
+    const horaFallbackIni = normalizeHoraPrefill(horaInicioPrefill) || horaGlobalInicio;
+    const horaFallbackFin = normalizeHoraPrefill(horaFinPrefill) || horaGlobalFin;
+
+    const horariosActualizados = values.horarios.map((h: HorarioDia) => ({
+      ...h,
+      activo: h.idDia === diaBD,
+      horaInicio:
+        h.idDia === diaBD ? h.horaInicio || horaFallbackIni || '' : '',
+      horaFin: h.idDia === diaBD ? h.horaFin || horaFallbackFin || '' : ''
+    }));
+
+    setFieldValue('horarios', horariosActualizados);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values.fechaInicio, values.horarios.length, loadingDias]);
+
+  // Activar/desactivar un día
+  const toggleDia = (index: number) => {
+    const horarios = [...values.horarios];
+    const diaActual = horarios[index];
+
+    // Obtener el día de la fecha inicial
+    if (values.fechaInicio) {
+      const fecha = new Date(values.fechaInicio + 'T00:00:00');
+      const diaSemana = fecha.getDay();
+      const diaBD = diaSemana === 0 ? 7 : diaSemana;
+
+      // Si intenta desmarcar el día que coincide con la fecha inicial
+      if (diaActual.activo && diaActual.idDia === diaBD) {
+        enqueueSnackbar('No puedes desmarcar el día que corresponde a la fecha inicial', {
+          variant: 'warning'
+        });
+        return;
+      }
+    }
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
+
+    horarios[index].activo = !horarios[index].activo;
+    if (!horarios[index].activo) {
+      horarios[index].horaInicio = '';
+      horarios[index].horaFin = '';
+    } else {
+      const horaIni = normalizeHoraPrefill(horaInicioPrefill) || horaGlobalInicio;
+      const horaFin = normalizeHoraPrefill(horaFinPrefill) || horaGlobalFin;
+      if (horaIni && !horarios[index].horaInicio) horarios[index].horaInicio = horaIni;
+      if (horaFin && !horarios[index].horaFin) horarios[index].horaFin = horaFin;
+    }
+    setFieldValue('horarios', horarios);
   };
 
+<<<<<<< HEAD
 // Activar/desactivar un día
 const toggleDia = (index: number) => {
   const horarios = [...values.horarios];
@@ -211,6 +407,8 @@ const toggleDia = (index: number) => {
   setFieldValue('horarios', horarios);
 };
 
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   // Aplicar misma hora a múltiples días
   const aplicarHoraGlobal = () => {
     if (!horaGlobalInicio || !horaGlobalFin) {
@@ -242,6 +440,17 @@ const toggleDia = (index: number) => {
       return;
     }
 
+    if (fechaFinalRap && values.fechaInicio) {
+      const finRap = new Date(String(fechaFinalRap).split('T')[0] + 'T00:00:00');
+      const inicio = new Date(values.fechaInicio + 'T00:00:00');
+      if (!isNaN(finRap.getTime()) && !isNaN(inicio.getTime()) && inicio.getTime() > finRap.getTime()) {
+        enqueueSnackbar('No se pueden crear horarios después de la fecha final del RAP', {
+          variant: 'error'
+        });
+        return;
+      }
+    }
+
     const payload = {
       idMateria,
       idFicha,
@@ -261,6 +470,16 @@ const toggleDia = (index: number) => {
     try {
       await axios.post('horarios/materia', payload);
       enqueueSnackbar('Horario guardado correctamente', { variant: 'success' });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('horario-materia-guardado', {
+            detail: {
+              idFicha: idFicha != null ? Number(idFicha) : null,
+              idGradoMateria: Number(idGradoMateria),
+            },
+          })
+        );
+      }
       if (onGuardado) onGuardado();
       onClose();
     } catch (error: any) {
@@ -275,6 +494,136 @@ const toggleDia = (index: number) => {
   // Contar días activos
   const diasActivos = values.horarios.filter((h: HorarioDia) => h.activo).length;
 
+<<<<<<< HEAD
+=======
+  // Calcular proyección de fecha fin y estadísticas
+  useEffect(() => {
+    calcularProyeccion();
+  }, [
+    values.fechaInicio, 
+    // IMPORTANTE: No incluir values.fechaFin aquí para evitar ciclos
+    JSON.stringify(values.horarios.map(h => ({
+      idDia: h.idDia,
+      activo: h.activo,
+      horaInicio: h.horaInicio,
+      horaFin: h.horaFin
+    }))),
+    totalHoras, 
+    horasActuales, 
+    horasFaltantes,
+    porcentajeEjecucion,
+    incluirFestivos,
+    festivosSet
+  ]);
+
+ const calcularProyeccion = () => {
+  const diasActivos = values.horarios.filter(h => h.activo).length;
+
+  const horasSemana = values.horarios
+    .filter(h => h.activo && h.horaInicio && h.horaFin)
+    .reduce((total, h) => {
+      const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
+      const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
+      const minutos = (hFin * 60 + mFin) - (hIni * 60 + mIni);
+      return total + (minutos / 60);
+    }, 0);
+
+  // Proyección de Fecha Fin
+  let fechaFinEstimada = '';
+  let horasProgramadas = 0;
+  let sesionesPasadas = 0;
+  let totalSesiones = 0;
+  let sesionesRestantes = 0;
+
+  const horasObjetivo = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
+  const horasPendientes = Math.max(0, horasObjetivo - (horasActuales || 0));
+
+  // --- Trabajamos en MINUTOS ENTEROS para evitar errores de decimales ---
+  const minutosPendientes = Math.round(horasPendientes * 60);
+
+  if (values.fechaInicio && diasActivos > 0 && horasSemana > 0 && minutosPendientes > 0) {
+
+    let minutosAcumulados = 0;
+    const fechaIteracion = new Date(values.fechaInicio + 'T00:00:00');
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const mapaHorarios = values.horarios.reduce((acc: any, h) => {
+      if (h.activo && h.horaInicio && h.horaFin) {
+        const jsDay = h.idDia === 7 ? 0 : h.idDia;
+        const [hIni, mIni] = h.horaInicio.toString().split(':').map(Number);
+        const [hFin, mFin] = h.horaFin.toString().split(':').map(Number);
+        // Duración en minutos, entero exacto (sin dividir entre 60 todavía)
+        const duracionMin = (hFin * 60 + mFin) - (hIni * 60 + mIni);
+        acc[jsDay] = duracionMin;
+      }
+      return acc;
+    }, {});
+
+    // Límite de iteraciones para evitar bucles infinitos
+    let iteraciones = 0;
+    const MAX_ITERACIONES = 365 * 2;
+
+    const fechaFinCalculada = new Date(fechaIteracion);
+    const fechasSesiones: Date[] = [];
+
+    while (minutosAcumulados < minutosPendientes && iteraciones < MAX_ITERACIONES) {
+      const diaSemana = fechaFinCalculada.getDay();
+      const hayHorarioEnDia = mapaHorarios[diaSemana] !== undefined;
+
+      if (hayHorarioEnDia) {
+        const cuentaComoSesion =
+          incluirFestivos || !isColombianHoliday(fechaFinCalculada, festivosSet);
+
+        if (cuentaComoSesion) {
+          const minutosRestantes = minutosPendientes - minutosAcumulados;
+          // Regla: si lo que falta es más de 60 min (1h), sí agrega la sesión completa.
+          // Si falta 1h o menos, NO agrega otra sesión (evita sumar de más).
+          const debeAgregarSesion = minutosAcumulados === 0 || minutosRestantes > 60;
+
+          if (debeAgregarSesion) {
+            minutosAcumulados += mapaHorarios[diaSemana];
+            fechasSesiones.push(new Date(fechaFinCalculada));
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (minutosAcumulados < minutosPendientes) {
+        fechaFinCalculada.setDate(fechaFinCalculada.getDate() + 1);
+      }
+      iteraciones++;
+    }
+
+    horasProgramadas = minutosAcumulados / 60;
+    fechaFinEstimada = fechaFinCalculada.toISOString().split('T')[0];
+
+    // Calcular sesiones basadas en las fechas reales
+    totalSesiones = fechasSesiones.length;
+    sesionesPasadas = fechasSesiones.filter(fecha => fecha < hoy).length;
+    sesionesRestantes = totalSesiones - sesionesPasadas;
+
+    // Actualizar fecha fin en formik solo si es diferente
+    if (fechaFinEstimada && values.fechaFin !== fechaFinEstimada) {
+      setTimeout(() => {
+        setFieldValue('fechaFin', fechaFinEstimada);
+      }, 0);
+    }
+  }
+
+  setEstadisticas({
+    diasPorSemana: diasActivos,
+    horasSemana: parseFloat(horasSemana.toFixed(2)),
+    horasProgramadas: parseFloat(horasProgramadas.toFixed(2)),
+    fechaFinEstimada,
+    sesionesPasadas,
+    totalSesiones,
+    sesionesRestantes
+  });
+};
+
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   return (
     <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 animate-fade-in'>
       <ModalContent className="w-full max-w-7xl p-4 max-h-[95vh]">
@@ -303,6 +652,7 @@ const toggleDia = (index: number) => {
                     name="fechaInicio"
                     disabled={loadingDias}
                     value={values.fechaInicio}
+                    max={fechaFinalRap ? String(fechaFinalRap).split('T')[0] : undefined}
                     onChange={handleChange}
                     className={`input w-full p-2 border rounded-md ${errors.fechaInicio && touched.fechaInicio ? 'border-red-500' : ''
                       }`}

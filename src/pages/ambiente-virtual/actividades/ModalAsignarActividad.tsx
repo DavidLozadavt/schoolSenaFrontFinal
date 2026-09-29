@@ -3,15 +3,98 @@ import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/compo
 import { KeenIcon, ImageZoomModal } from '@/components';
 import axios from 'axios';
 import Select from 'react-select';
+import { useSettings } from '@/providers';
 import type { Actividad } from './ModalCrearActividad';
+import type { ConfigCuestionariosMap } from './cuestionarioAsignacion';
+import { esCuestionario } from './cuestionarioAsignacion';
 import {
   compactReactSelectClassNames,
   compactReactSelectNoOptions,
   filterOptionNormalized
 } from '@/components/forms/compactReactSelect';
+<<<<<<< HEAD
 import { ModalCrearGrupo } from '../grupos';
+=======
+import {
+  minutosDesdeCamposTiempo,
+  validarCamposTiempo
+} from './tiempoCuestionario';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 const AVATAR_DEFAULT = '/media/avatars/blank.png';
+
+/** Selects Asignar actividad: texto/placeholder blancos en dark (react-select usa color inline). */
+const selectClassNamesAsignar = {
+  ...compactReactSelectClassNames,
+  control: () => `${compactReactSelectClassNames.control()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
+  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
+  multiValueLabel: () => 'text-gray-900 dark:!text-white text-sm',
+  placeholder: () => 'text-gray-400 dark:!text-white text-sm',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () =>
+    `${compactReactSelectClassNames.menuList()} dark:text-white asignar-actividad-scroll`,
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white'
+};
+
+const selectStylesAsignarLight = {
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  multiValueLabel: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  option: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' })
+};
+
+const selectStylesAsignarDark = {
+  control: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    borderColor: '#323248',
+    color: '#ffffff',
+    boxShadow: 'none'
+  }),
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  multiValue: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#323248'
+  }),
+  multiValueLabel: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  menu: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    color: '#ffffff'
+  }),
+  menuList: (base: Record<string, unknown>) => ({
+    ...base,
+    backgroundColor: '#1e1e2d',
+    colorScheme: 'dark' as const
+  }),
+  option: (base: Record<string, unknown>, state: { isFocused: boolean; isSelected: boolean }) => ({
+    ...base,
+    color: '#ffffff',
+    backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#2b2b40' : '#1e1e2d'
+  }),
+  dropdownIndicator: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
+  clearIndicator: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.9)' }),
+  indicatorSeparator: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#4B5563' })
+};
+
+/** Valor para input datetime-local en hora local del navegador (YYYY-MM-DDTHH:mm). */
+const ahoraDatetimeLocal = (): string => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 const getDocumentUrl = (path: string | undefined): string | null => {
   if (!path) return null;
@@ -63,6 +146,8 @@ interface ModalAsignarActividadProps {
   actividad: Actividad | null;
   /** Varias actividades para asignar en bloque */
   actividades?: Actividad[] | null;
+  /** Subconjunto de preguntas por cuestionario (paso previo de configuración) */
+  configCuestionarios?: ConfigCuestionariosMap | null;
 }
 
 const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
@@ -75,8 +160,12 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   onAssigned,
   idFicha,
   actividad,
-  actividades: actividadesProp
+  actividades: actividadesProp,
+  configCuestionarios
 }) => {
+  const { getThemeMode } = useSettings();
+  const isDarkTheme = getThemeMode() === 'dark';
+  const selectStylesAsignar = isDarkTheme ? selectStylesAsignarDark : selectStylesAsignarLight;
   const actividadesAAsignar = actividadesProp?.length ? actividadesProp : (actividad ? [actividad] : []);
   const [aprendices, setAprendices] = useState<Aprendiz[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -91,6 +180,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
+<<<<<<< HEAD
   const [modalCrearGrupoOpen, setModalCrearGrupoOpen] = useState(false);
 
   const cargarDatos = useCallback(() => {
@@ -125,14 +215,72 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       cargarDatos();
     }
   }, [open, idFicha, cargarDatos]);
+=======
+  const [tiempoCuestionarioMinutos, setTiempoCuestionarioMinutos] = useState('');
+  const [tiempoCuestionarioHoras, setTiempoCuestionarioHoras] = useState('');
+
+  useEffect(() => {
+    if (!open || !idFicha) {
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    axios
+      .get(`fichas/${idFicha}/asignacion-actividades/datos`, {
+        params: { ts: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setError('');
+        // Reemplazar siempre (nunca concatenar) para evitar duplicados y datos viejos.
+        setAprendices(Array.isArray(res.data?.aprendices) ? res.data.aprendices : []);
+        setGrupos(Array.isArray(res.data?.grupos) ? res.data.grupos : []);
+        setActividades(Array.isArray(res.data?.actividades) ? res.data.actividades : []);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const ax = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+        setAprendices([]);
+        setGrupos([]);
+        setActividades([]);
+        const msg =
+          ax?.response?.data?.message ||
+          ax?.response?.data?.error ||
+          (ax?.response?.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : null) ||
+          'No se pudieron cargar estudiantes ni grupos. Revisa la conexión o intenta de nuevo.';
+        setError(msg);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, idFicha]);
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
   useEffect(() => {
     if (open) {
       setAprendicesSeleccionados([]);
       setGruposSeleccionados([]);
+<<<<<<< HEAD
       setFechaInicial(fechaInicialDefault || '');
       setFechaFinal(fechaFinalDefault || '');
+=======
+      setFechaInicial(ahoraDatetimeLocal());
+      setFechaFinal('');
+      setTiempoCuestionarioMinutos('');
+      setTiempoCuestionarioHoras('');
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       setError('');
+      setMostrarPickerEstudiantes(false);
+      setMostrarPickerGrupos(false);
+    } else {
+      // Al cerrar, limpiar para que la próxima apertura no muestre datos cacheados.
+      setAprendices([]);
+      setGrupos([]);
+      setActividades([]);
     }
   }, [open, fechaInicialDefault, fechaFinalDefault]);
 
@@ -186,9 +334,17 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
       }
     }
 
+    const tieneCuestionarios = actividadesAAsignar.some((a) => esCuestionario(a.tipoActividad));
+    if (tieneCuestionarios) {
+      const tiempoErr = validarCamposTiempo(tiempoCuestionarioMinutos, tiempoCuestionarioHoras);
+      if (tiempoErr) {
+        setError(tiempoErr);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      // Añadir cada actividad a planeación si aplica
       try {
         const planeacionRes = await axios.get(`planeacion/ficha/${idFicha}`);
         const data = planeacionRes.data;
@@ -222,6 +378,33 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         payload.grupos = 'todos';
       } else if (gruposSeleccionados.length > 0) {
         payload.grupos = gruposSeleccionados;
+      }
+      if (configCuestionarios && Object.keys(configCuestionarios).length > 0) {
+        const cfgPayload: Record<string, { cantidadPreguntas: number; tiempoCuestionario?: number | null }> = {};
+        Object.entries(configCuestionarios).forEach(([idAct, cfg]) => {
+          cfgPayload[idAct] = {
+            cantidadPreguntas: cfg.cantidadPreguntas,
+            tiempoCuestionario: cfg.tiempoCuestionario ?? null
+          };
+        });
+        payload.configCuestionarios = cfgPayload;
+      }
+
+      const tiempoCuestionarioMinutosAsignacion = minutosDesdeCamposTiempo(
+        tiempoCuestionarioMinutos,
+        tiempoCuestionarioHoras
+      );
+      if (tieneCuestionarios) {
+        const cfgPayload: Record<string, { cantidadPreguntas: number; tiempoCuestionario?: number | null }> = {};
+        actividadesAAsignar.forEach((a) => {
+          if (!a.id || !esCuestionario(a.tipoActividad)) return;
+          const cfg = configCuestionarios?.[a.id] ?? { cantidadPreguntas: 1 };
+          cfgPayload[String(a.id)] = {
+            cantidadPreguntas: cfg.cantidadPreguntas,
+            tiempoCuestionario: tiempoCuestionarioMinutosAsignacion
+          };
+        });
+        payload.configCuestionarios = { ...(payload.configCuestionarios || {}), ...cfgPayload };
       }
       const res = await axios.post(`fichas/${idFicha}/asignacion-actividades`, payload);
       const data = res?.data;
@@ -297,9 +480,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
             className="pointer-events-auto w-full max-w-2xl sm:max-w-3xl md:max-w-4xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 sm:min-w-0 max-h-[min(94dvh,960px)]">
+            <ModalContent className="modal-form-actividades !flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 dark:[color-scheme:dark] sm:min-w-0 max-h-[min(94dvh,960px)]">
             <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
-              <ModalTitle>Asignar actividad</ModalTitle>
+              <ModalTitle className="text-gray-900 dark:text-white">Asignar actividad</ModalTitle>
               <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose} title="Cerrar">
                 <KeenIcon icon="cross" />
               </button>
@@ -326,13 +509,18 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                   )}
                   {actividadesAAsignar.length > 0 && (
                     <div className="mb-5 rounded-lg border border-gray-100 bg-gray-50/80 px-3.5 py-2.5 dark:border-gray-600/50 dark:bg-coal-500/20">
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-white">
                         {actividadesAAsignar.length === 1 ? (
                           <>
+<<<<<<< HEAD
                             <span className="font-medium text-gray-500 dark:text-gray-400">Actividad: </span>
                             <span className="font-semibold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
                               {actividadesAAsignar[0].tituloActividad}
                             </span>
+=======
+                            <span className="font-medium text-gray-500 dark:text-white">Actividad: </span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{actividadesAAsignar[0].tituloActividad}</span>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                           </>
                         ) : (
                           <>
@@ -351,7 +539,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                     )}
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">Seleccionar estudiantes</label>
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-white">Seleccionar estudiantes</label>
                       <Select
                         inputId="asignar-actividad-aprendices"
                         isMulti
@@ -362,7 +550,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         value={valueAprendices}
                         placeholder="Buscar o seleccionar estudiantes..."
                         classNamePrefix="react-select-ciudad-exp"
-                        classNames={compactReactSelectClassNames}
+                        classNames={selectClassNamesAsignar}
+                        styles={selectStylesAsignar}
                         noOptionsMessage={compactReactSelectNoOptions}
                         filterOption={(candidate, input) => {
                           const a = aprendices.find((x) => String(x.id) === candidate.value);
@@ -414,8 +603,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold">{opt.label}</div>
-                                <div className="truncate text-[11px] text-gray-500 dark:text-gray-300">
+                                <div className="truncate text-sm font-semibold text-gray-900 dark:text-white">{opt.label}</div>
+                                <div className="truncate text-[11px] text-gray-500 dark:text-white">
                                   {doc ? doc : 'Sin documento'}
                                 </div>
                               </div>
@@ -428,7 +617,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                         }}
                       />
                       <div className="mt-2 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{textoEstudiantes}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-white">{textoEstudiantes}</p>
                         <button
                           type="button"
                           onClick={toggleTodosEstudiantes}
@@ -439,7 +628,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       </div>
                       {mostrarPickerEstudiantes && (
                         <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-inner dark:border-gray-600 dark:bg-coal-500/20">
-                          <div className="max-h-[min(52dvh,20rem)] overflow-y-auto p-1 sm:max-h-[min(50dvh,22rem)]">
+                          <div className="asignar-actividad-scroll max-h-[min(52dvh,20rem)] overflow-y-auto p-1 sm:max-h-[min(50dvh,22rem)]">
                             <div className="sticky top-0 z-10 -mx-1 -mt-1 mb-2 flex justify-end border-b border-gray-100 bg-white/95 px-2 py-2 dark:border-gray-600 dark:bg-coal-400/95">
                               <button
                                 type="button"
@@ -476,7 +665,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                           className="h-10 w-10 sm:h-11 sm:w-11 cursor-zoom-in rounded-full border-2 border-gray-100 object-cover transition-opacity hover:opacity-90 dark:border-gray-600"
                                         />
                                       </button>
-                                      <label htmlFor={idInput} className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug text-gray-800 dark:text-gray-100">
+                                      <label htmlFor={idInput} className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug text-gray-800 dark:text-white">
                                         {a.nombre}
                                       </label>
                                     </div>
@@ -490,10 +679,37 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                     </div>
 
                     <div>
+<<<<<<< HEAD
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">
                           Seleccionar grupos
                         </label>
+=======
+                      <label className="mb-2 block text-sm font-medium text-gray-800 dark:text-white">Seleccionar grupos</label>
+                      <Select
+                        inputId="asignar-actividad-grupos"
+                        isMulti
+                        isClearable
+                        isSearchable
+                        closeMenuOnSelect={false}
+                        options={optionsGrupos}
+                        value={valueGrupos}
+                        placeholder="Buscar o seleccionar grupos..."
+                        classNamePrefix="react-select-ciudad-exp"
+                        classNames={selectClassNamesAsignar}
+                        styles={selectStylesAsignar}
+                        noOptionsMessage={compactReactSelectNoOptions}
+                        filterOption={(candidate, input) => {
+                          return filterOptionNormalized([candidate.label, candidate.value], input);
+                        }}
+                        onChange={(opts) => {
+                          const arr = Array.isArray(opts) ? opts : [];
+                          setGruposSeleccionados(arr.map((o) => Number(o.value)).filter((n) => Number.isFinite(n)));
+                        }}
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <p className="text-[11px] text-gray-500 dark:text-white">{textoGrupos}</p>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                         <button
                           type="button"
                           onClick={() => setModalCrearGrupoOpen(true)}
@@ -503,6 +719,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                           Crear grupo
                         </button>
                       </div>
+<<<<<<< HEAD
 
                       {grupos.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-sky-200 bg-sky-50/60 px-3 py-3 text-xs text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
@@ -557,6 +774,10 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       )}
                       {mostrarPickerGrupos && grupos.length > 0 && (
                         <div className="mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
+=======
+                      {mostrarPickerGrupos && (
+                        <div className="asignar-actividad-scroll mt-3 max-h-[min(48dvh,18rem)] overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-600 dark:bg-coal-500/20">
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                           <div className="mb-2 flex justify-end">
                             <button
                               type="button"
@@ -576,9 +797,9 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                                     checked={gruposSeleccionados.includes(g.id)}
                                     onChange={() => toggleGrupo(g.id)}
                                   />
-                                  <span className="text-sm text-gray-800 dark:text-gray-200">
+                                  <span className="text-sm text-gray-800 dark:text-white">
                                     {g.nombreGrupo}{' '}
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-gray-500 dark:text-white">
                                       ({g.integrantesActuales ?? 0}/{g.cantidadParticipantes})
                                     </span>
                                   </span>
@@ -590,23 +811,67 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       )}
                     </div>
 
+                    {actividadesAAsignar.some((a) => esCuestionario(a.tipoActividad)) && (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50/90 p-4 dark:border-gray-600/70 dark:bg-coal-500/20">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <label className="block text-sm font-medium text-gray-800 dark:text-white">
+                            Tiempo límite del cuestionario
+                          </label>
+                          <span className="text-[11px] font-medium text-gray-500 dark:text-white/80">
+                            Opcional
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">Minutos</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={tiempoCuestionarioMinutos}
+                              onChange={(e) => setTiempoCuestionarioMinutos(e.target.value)}
+                              className="input w-full !min-h-[2.6rem] p-2 text-sm text-gray-900 dark:text-white"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-white">Horas</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={tiempoCuestionarioHoras}
+                              onChange={(e) => setTiempoCuestionarioHoras(e.target.value)}
+                              className="input w-full !min-h-[2.6rem] p-2 text-sm text-gray-900 dark:text-white"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-white">
+                          {tiempoCuestionarioMinutos.trim() === '' && tiempoCuestionarioHoras.trim() === ''
+                            ? 'Sin límite: el cuestionario queda disponible sin temporizador.'
+                            : 'El sistema convierte el total a minutos y lo aplica al estudiante al iniciar el intento.'}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora inicial</label>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-white">Fecha y hora inicial</label>
                         <input
                           type="datetime-local"
                           value={fechaInicial}
                           onChange={(e) => setFechaInicial(e.target.value)}
-                          className="input w-full !min-h-[2.6rem] text-sm"
+                          style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                          className="input w-full !min-h-[2.6rem] text-sm text-gray-900 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Fecha y hora límite</label>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-white">Fecha y hora límite</label>
                         <input
                           type="datetime-local"
                           value={fechaFinal}
                           onChange={(e) => setFechaFinal(e.target.value)}
-                          className="input w-full !min-h-[2.6rem] text-sm"
+                          style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                          className="input w-full !min-h-[2.6rem] text-sm text-gray-900 dark:text-white"
                         />
                       </div>
                     </div>
@@ -615,7 +880,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
                       <button
                         type="button"
                         onClick={onClose}
-                        className="w-full min-w-[8rem] rounded-lg border border-transparent bg-gray-200/90 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-600 dark:text-gray-100 sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-500"
+                        className="w-full min-w-[8rem] rounded-lg border border-transparent bg-gray-200/90 py-2.5 text-sm font-medium text-gray-800 dark:bg-gray-600 dark:text-white sm:w-auto hover:bg-gray-300 dark:hover:bg-gray-500"
                       >
                         Cancelar
                       </button>

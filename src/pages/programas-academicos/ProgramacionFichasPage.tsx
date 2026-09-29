@@ -8,13 +8,17 @@ import MallaCurricular from './components/malla-curricular/MallaCurricular';
 import { AsignarInstructorLiderModal } from './components/AsignarInstructorLiderModal';
 import { Calendario } from './components/malla-curricular/Calendario';
 import { useAuthContext } from '@/auth';
-import ModalJuiciosEvaluativos from './components/ModalJuiciosEvaluativos';
+import ModalJuiciosEvaluativos from '@/pages/shared/ModalJuiciosEvaluativos';
 import CrearEditarFicha from './components/CrearEditarFicha';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
 import { User } from 'lucide-react';
 import SolicitudInstructorForm from '../solicitud-instructor/SolicitudInstructorForm';
+<<<<<<< HEAD
 import CrearGrupos from './components/CrearGrupos';
+=======
+import ProyectoFormativo from './components/malla-curricular/ProyectoFormativo';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 interface Ficha {
   id: number;
@@ -23,6 +27,7 @@ interface Ficha {
   idInstructorLider?: number | null;
   documento?: string | null;
   rutaDocumentoUrl: string | null;
+  idProyectoFormativo?: number | null;
 
   sede?: {
     id: number;
@@ -92,6 +97,7 @@ export const ProgramacionFichasPage = () => {
   const [fichaAsignarLider, setFichaAsignarLider] = useState<Ficha | null>(null);
   const [verHorariosFicha, setVerHorariosFicha] = useState<Ficha | null>(null);
   const [verMallaCurricular, setVerMallaCurricular] = useState<boolean>(false);
+  const [verProyectoFormativo, setVerProyectoFormativo] = useState<boolean>(false);
   const [fichaSelected, setFichaSelected] = useState<any | null>(null);
   const [solicitud, setSolicitud] = useState<boolean>(false);
 
@@ -126,7 +132,8 @@ export const ProgramacionFichasPage = () => {
 
   const { centroF, roles } = authContext;
 
-  const esInstructorSena = roles?.includes('INSTRUCTOR SENA');
+  const esAdministrador = roles?.includes('ADMINISTRADOR VT') || roles?.includes('ADMIN REGIONAL') || roles?.includes('ADMIN CENTRO');
+  const esInstructorSena = roles?.includes('INSTRUCTOR SENA') && !esAdministrador;
 
   const loadProgram = async () => {
     if (!programId) return;
@@ -325,9 +332,48 @@ export const ProgramacionFichasPage = () => {
           idGrado={idGrado}
         />
 
+<<<<<<< HEAD
       <div className="flex flex-col md:flex-row md:justify-between px-6 py-2 shadow-sm">
         <div>
           <div className="flex items-center gap-3">
+=======
+        <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
+          <nav className="text-sm text-gray-600 dark:text-white">
+            <span
+              className="hover:text-primary cursor-pointer"
+              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+            >
+              Planeación
+            </span>
+            <span className="mx-2">/</span>
+            <span
+              className="hover:text-primary cursor-pointer"
+              onClick={() => navigate('/gestion-academica/configuracion/programas')}
+            >
+              Gestión de planeación
+            </span>
+            <span className="mx-2">/</span>
+            <span className="text-gray-800 dark:text-white font-medium">
+              {program?.name ?? 'Programa'}
+            </span>
+          </nav>
+        </div>
+
+        <div className="px-6 py-4 bg-blue-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold">
+                {program?.codigo} {program?.name}
+              </h1>
+              <div className="flex items-center gap-4 mt-2 text-sm">
+                <span>{program?.formacion}</span>
+                <span>•</span>
+                <span>{program?.nivel}</span>
+                <span>•</span>
+                <span>Presencial</span>
+              </div>
+            </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             <button
               onClick={() => navigate(-1)}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-coal-400 dark:hover:bg-coal-300 transition-colors"
@@ -344,6 +390,7 @@ export const ProgramacionFichasPage = () => {
           </p>
         </div>
 
+<<<<<<< HEAD
         <div className="flex items-center">
           <button
             onClick={() => setCrearGrupoModal(true)}
@@ -354,6 +401,29 @@ export const ProgramacionFichasPage = () => {
           </button>
         </div>
       </div>
+=======
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                Programación de Fichas
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-white">
+                {esInstructorSena
+                  ? 'Fichas asignadas a ti y fichas disponibles para asignarte'
+                  : 'Gestiona las fichas del programa y asigna líderes'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <i className="ki-outline ki-plus text-lg"></i>
+              Crear Ficha
+            </button>
+          </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
         <div className="flex-1 overflow-y-auto p-6">
           
@@ -391,7 +461,7 @@ export const ProgramacionFichasPage = () => {
           ) : fichas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-coal-600 rounded-lg border border-gray-200 dark:border-coal-100">
               <i className="mb-4 text-5xl text-gray-400 ki-outline ki-file-deleted"></i>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-white">
                 {esInstructorSena
                   ? 'No tienes grados asignados en este nivel académico'
                   : 'No hay grados registrados para este nivel académico'}
@@ -481,7 +551,7 @@ export const ProgramacionFichasPage = () => {
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-white">
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-calendar text-xs"></i>
                                   <span>
@@ -524,7 +594,7 @@ export const ProgramacionFichasPage = () => {
                                 )
                               ) : (
                                 <>
-                                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                                  <span className="text-sm text-gray-500 dark:text-white">
                                     Sin líder asignado
                                   </span>
                                   {esInstructorSena ? (
@@ -578,7 +648,7 @@ export const ProgramacionFichasPage = () => {
                             <button
                               type="button"
                               onClick={() => toggleExpandirFicha(ficha.id)}
-                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 dark:text-white dark:hover:text-white/80 transition-colors"
                             >
                               <i
                                 className={`ki-outline ${expandida ? 'ki-up' : 'ki-down'} text-lg`}
@@ -592,26 +662,31 @@ export const ProgramacionFichasPage = () => {
                         <div className="px-4 pb-4 border-t border-gray-200 dark:border-coal-100 bg-gray-50 dark:bg-coal-200/30">
                           <div className="pt-4 grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Sede
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.sede?.nombre || '—'}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Jornada
                               </p>
+<<<<<<< HEAD
                               <p className="text-sm text-gray-700 dark:text-gray-300">
                                 {ficha.asignacion?.jornada?.nombreJornada || '—'}
+=======
+                              <p className="text-sm text-gray-700 dark:text-white">
+                                {ficha.jornada?.nombreJornada || '—'}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Fecha de inicio
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.asignacion?.fechaInicialClases
                                   ? new Date(
                                       ficha.asignacion.fechaInicialClases
@@ -620,20 +695,20 @@ export const ProgramacionFichasPage = () => {
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Fecha de Finalización
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.asignacion?.fechaFinalClases
                                   ? new Date(ficha.asignacion.fechaFinalClases).toLocaleDateString()
                                   : '—'}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                              <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Regional
                               </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.regional?.razonSocial || '—'}
                               </p>
                             </div>
@@ -641,7 +716,7 @@ export const ProgramacionFichasPage = () => {
 
                           {ficha.documento ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
-                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-white mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
                                 Documento de la Ficha
                               </h4>
@@ -654,7 +729,7 @@ export const ProgramacionFichasPage = () => {
                                     <p className="text-sm font-medium text-gray-800 dark:text-white">
                                       Documento Principal
                                     </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <p className="text-xs text-gray-500 dark:text-white mt-1">
                                       Formato PDF
                                     </p>
                                   </div>
@@ -673,12 +748,12 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           ) : (
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
-                              <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-gray-700 dark:text-white mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
                                 Documento de la Ficha
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
-                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
+                                <p className="text-sm text-gray-500 dark:text-white text-center py-2 flex items-center justify-center gap-2">
                                   <i className="ki-outline ki-information-2"></i>
                                   No hay documento adjunto para esta ficha
                                 </p>
@@ -733,18 +808,31 @@ export const ProgramacionFichasPage = () => {
                             >
                               <i className="ki-outline ki-book-square text-base"></i>
                             </button>
-
-                            {esInstructorSena && <button
-                              type='button'
+                            <button
+                              type="button"
                               onClick={() => {
-                                setSolicitud(true);
+                                setVerProyectoFormativo(true);
                                 setFichaSelected(ficha);
                               }}
-                              title="Solicitud de instructor"
-                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg transition-all"
+                              title="Proyecto formativo"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 rounded-lg transition-all"
                             >
-                              <i className="ki-outline ki-user text-base"></i>
-                            </button>}
+                              <i className="ki-outline ki-note-2 text-base"></i>
+                            </button>
+
+                            {esInstructorSena && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSolicitud(true);
+                                  setFichaSelected(ficha);
+                                }}
+                                title="Solicitud de instructor"
+                                className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg transition-all"
+                              >
+                                <i className="ki-outline ki-user text-base"></i>
+                              </button>
+                            )}
 
                             {puedeEditarEliminar(ficha) && (
                               <button
@@ -778,7 +866,7 @@ export const ProgramacionFichasPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-coal-100 bg-white dark:bg-coal-600 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <span className="text-xs font-medium text-gray-600 dark:text-white">
                       Mostrando
                     </span>
                     <select
@@ -787,7 +875,7 @@ export const ProgramacionFichasPage = () => {
                         setItemsPerPage(Number(e.target.value));
                         setCurrentPage(1);
                       }}
-                      className="px-2 py-1 text-xs border border-gray-300 dark:border-coal-100 rounded bg-white dark:bg-coal-400 text-gray-700 dark:text-gray-200"
+                      className="px-2 py-1 text-xs border border-gray-300 dark:border-coal-100 rounded bg-white dark:bg-coal-400 text-gray-700 dark:text-white"
                     >
                       <option value={10}>10 por página</option>
                       <option value={20}>20 por página</option>
@@ -796,20 +884,20 @@ export const ProgramacionFichasPage = () => {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <span className="text-xs font-medium text-gray-600 dark:text-white">
                       {startIndex + 1} - {Math.min(endIndex, fichas.length)} de {fichas.length}
                     </span>
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
                     >
                       <i className="text-sm ki-outline ki-left"></i>
                     </button>
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-300 dark:border-coal-100 bg-white dark:bg-coal-400 text-gray-600 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-coal-300"
                     >
                       <i className="text-sm ki-outline ki-right"></i>
                     </button>
@@ -821,13 +909,15 @@ export const ProgramacionFichasPage = () => {
         </div>
       </div>
 
-      {solicitud && <SolicitudInstructorForm
-        open={solicitud}
-        onClose={() => setSolicitud(false)}
-        onSave={() => setSolicitud(false)}
-        ficha={fichaSelected}
-        programa={program?.name}
-      />}
+      {solicitud && (
+        <SolicitudInstructorForm
+          open={solicitud}
+          onClose={() => setSolicitud(false)}
+          onSave={() => setSolicitud(false)}
+          ficha={fichaSelected}
+          programa={program?.name}
+        />
+      )}
 
       <AsignarTiposDocumentoModal
         isOpen={!!asignarFicha}
@@ -881,6 +971,15 @@ export const ProgramacionFichasPage = () => {
         <MallaCurricular
           isOpen={verMallaCurricular}
           onClose={() => setVerMallaCurricular(false)}
+          program={program}
+          ficha={fichaSelected}
+        />
+      )}
+      {verProyectoFormativo && (
+        <ProyectoFormativo
+          isOpen={verProyectoFormativo}
+          onClose={() => setVerProyectoFormativo(false)}
+          onUpdated={() => setEvento((prev) => !prev)}
           program={program}
           ficha={fichaSelected}
         />

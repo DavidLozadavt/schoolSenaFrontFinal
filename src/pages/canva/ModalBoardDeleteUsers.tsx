@@ -48,7 +48,7 @@ const ModalBoardDeleteUsers = ({ open, onClose, persons, onSave }: ModalProps) =
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalContent className="max-w-[600px] top-[15%] p-4">
+      <ModalContent className="max-w-[700px] top-[1px] p-4">
         <ModalHeader>
           <ModalTitle>Desasignar Usuarios</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
@@ -82,11 +82,11 @@ const ModalBoardDeleteUsers = ({ open, onClose, persons, onSave }: ModalProps) =
           ))}
 
           <div className="flex justify-end gap-3 mt-4 px-4">
-            <button className="btn btn-secondary" onClick={onClose}>
+            <button className="btn btn-sm btn-secondary" onClick={onClose}>
               Cancelar
             </button>
             <button
-              className="btn btn-primary"
+              className="btn btn-sm btn-primary"
               onClick={handleDeleteUsersConfirm}
               disabled={selectedIds.length === 0}
             >

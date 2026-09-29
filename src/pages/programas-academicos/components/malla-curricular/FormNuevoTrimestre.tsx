@@ -1,6 +1,20 @@
+<<<<<<< HEAD
 import React, { useState } from 'react';
 import { Save, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+=======
+import React, { useEffect } from 'react';
+import { Save, X } from 'lucide-react';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import {
+  compararTrimestresPorNumeroGrado,
+  parseNumeroGrado,
+  siguienteNumeroGradoTrimestre,
+  trimestresPersistidos,
+  ultimoTrimestrePersistido,
+} from './utils/trimestreNumeroGrado';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 interface FormNuevoTrimestreProps {
   trimestre: any;
   guardando: boolean;
@@ -16,6 +30,7 @@ interface FormNuevoTrimestreProps {
 export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   onCancelar,
 }) => {
+<<<<<<< HEAD
   const [periodos, setPeriodos] = useState([
     { id: 1, nombre: 'Periodo 1', fechaInicio: '', fechaFin: '', porcentaje: 33.33 },
     { id: 2, nombre: 'Periodo 2', fechaInicio: '', fechaFin: '', porcentaje: 33.33 },
@@ -29,6 +44,61 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
   const handlePeriodoChange = (id: number, field: string, value: string | number) => {
     setPeriodos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
+=======
+  const persistedTrimestres = trimestresPersistidos(trimestres).sort(compararTrimestresPorNumeroGrado);
+  const isFirst = persistedTrimestres.length === 0;
+
+  useEffect(() => {
+    if (isFirst) {
+      if (!trimestre.fechaInicio) {
+        const now = new Date().toISOString().split('T')[0];
+        onActualizarFechaInicio(now);
+      }
+      if (parseNumeroGrado(trimestre.numeroGrado) == null) {
+        onActualizarNumeroGrado(1);
+      }
+    } else {
+      const ultimo = ultimoTrimestrePersistido(trimestres);
+      if (!trimestre.fechaInicio && ultimo) {
+        onActualizarFechaInicio(formatearFecha(ultimo.grado?.fechaFin || ultimo.fechaFin));
+      }
+      if (parseNumeroGrado(trimestre.numeroGrado) == null) {
+        onActualizarNumeroGrado(siguienteNumeroGradoTrimestre(trimestres));
+      }
+    }
+  }, [isFirst]);
+  const formik = useFormik({
+    initialValues: {
+      numeroGrado: parseNumeroGrado(trimestre.numeroGrado) ?? '',
+      fechaInicio: formatearFecha(trimestre.fechaInicio) || '',
+      fechaFin: trimestre.fechaFin || '',
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object({
+      numeroGrado: Yup.number()
+        .required('El número de trimestre es requerido')
+        .min(1, 'Debe ser al menos 1')
+        .test('max-trimestre', (value, context) => {
+          const { path, createError } = context;
+          if (nivel?.toUpperCase() === 'TECNICO' && (value || 0) > 3) {
+            return createError({ path, message: 'Para nivel Técnico el máximo son 3 trimestres' });
+          }
+          if (nivel?.toUpperCase() === 'TECNOLOGO' && (value || 0) > 7) {
+            return createError({ path, message: 'Para nivel Tecnólogo el máximo son 7 trimestres' });
+          }
+          return true;
+        }),
+      fechaInicio: Yup.date()
+        .required('La fecha de inicio es requerida'),
+      fechaFin: Yup.date()
+        .required('La fecha de fin es requerida')
+        .min(Yup.ref('fechaInicio'), 'La fecha de fin debe ser posterior a la de inicio'),
+    }),
+    onSubmit: () => {
+      onGuardar();
+    },
+  });
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -54,12 +124,85 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
         </div>
 
         {/* CONTENIDO */}
+<<<<<<< HEAD
         <div className="flex-1 overflow-y-auto px-6 bg-gray-50/50 dark:bg-coal-500/30">
           
           {/* AVISO DE PORCENTAJE */}
           <div className={`p-4 rounded-xl flex items-center gap-4 transition-colors duration-300 ${esValido ? 'bg-success/5 border-success/20 text-success' : 'bg-warning/5 border-warning/30 text-warning-active'}`}>
             <div className={`p-2 rounded-full ${esValido ? 'bg-success/20' : 'bg-warning/20'}`}>
               {esValido ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+=======
+        <form onSubmit={formik.handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto">
+
+            {/* NUMERO Y FECHAS */}
+            <div className={`grid grid-cols-1 ${isFirst ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+              {isFirst && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+                    Número Trimestre
+                  </label>
+                  <input
+                    type="number"
+                    name="numeroGrado"
+                    value={formik.values.numeroGrado}
+                    onChange={(e) => {
+                      formik.handleChange(e);
+                      onActualizarNumeroGrado(Number(e.target.value));
+                    }}
+                    onBlur={formik.handleBlur}
+                    disabled={!isFirst}
+                    className={`w-full input px-4 py-2 rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.numeroGrado && formik.errors.numeroGrado ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                      } ${!isFirst ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-coal-500' : ''}`}
+                  />
+                  {formik.touched.numeroGrado && formik.errors.numeroGrado && (
+                    <p className="text-xs text-danger mt-1">{formik.errors.numeroGrado as string}</p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+                  Fecha de Inicio
+                </label>
+                <input
+                  type="date"
+                  name="fechaInicio"
+                  value={formik.values.fechaInicio}
+                  onChange={(e) => {
+                    formik.handleChange(e);
+                    onActualizarFechaInicio(e.target.value);
+                  }}
+                  onBlur={formik.handleBlur}
+                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaInicio && formik.errors.fechaInicio ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                />
+                {formik.touched.fechaInicio && formik.errors.fechaInicio && (
+                  <p className="text-xs text-danger mt-1">{formik.errors.fechaInicio as string}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+                  Fecha de Fin
+                </label>
+                <input
+                  type="date"
+                  name="fechaFin"
+                  value={formik.values.fechaFin}
+                  onChange={(e) => {
+                    formik.handleChange(e);
+                    onActualizarFechaFin(e.target.value);
+                  }}
+                  onBlur={formik.handleBlur}
+                  className={`w-full px-4 py-2 input rounded-lg bg-white dark:bg-coal-400 text-gray-800 dark:text-white ${formik.touched.fechaFin && formik.errors.fechaFin ? 'border-danger' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                />
+                {formik.touched.fechaFin && formik.errors.fechaFin && (
+                  <p className="text-xs text-danger mt-1">{formik.errors.fechaFin as string}</p>
+                )}
+              </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             </div>
             <div className="flex-1">
               <p className="font-bold text-lg flex items-center gap-2">
@@ -76,6 +219,7 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
             </div>
           </div>
 
+<<<<<<< HEAD
           {/* CARDS DE PERIODOS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {periodos.map((periodo) => (
@@ -136,6 +280,34 @@ export const FormNuevoTrimestre: React.FC<FormNuevoTrimestreProps> = ({
                         }`}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
+=======
+            {/* MATERIAS */}
+            <div>
+              <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3 mb-6">
+                Competencias Asignadas
+              </h4>
+
+              {trimestre.materias && trimestre.materias.length > 0 ? (
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                  {trimestre.materias.map((materia: any) => (
+                    <div
+                      key={materia.id}
+                      className="p-3 border rounded-lg bg-gray-50 dark:bg-coal-400 text-gray-800 dark:text-white font-semibold"
+                    >
+                      <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xs font-black bg-gray-100 dark:bg-coal-500 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded tracking-tighter shrink-0 border border-gray-200 dark:border-gray-600">
+                                  {materia.codigo || 'S/C'}
+                                </span>
+                                <p className="text-xs font-bold text-gray-800 dark:text-white truncate uppercase">
+                                  {materia.nombreMateria || 'Sin nombre'}
+                                </p>
+                              </div>
+                              <p className="text-2xs text-gray-500 dark:text-gray-300 font-bold uppercase truncate">
+                                {materia.descripcion || 'Sin descripción'}
+                              </p>
+                            </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                     </div>
                   </div>
                 </div>

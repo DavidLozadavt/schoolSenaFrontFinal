@@ -112,6 +112,11 @@ import StudentInscriptionPage from '@/pages/formularios/public/StudentInscriptio
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
+import { SeguimientoAspirantesPage } from '@/pages/seguimiento-aspirantes/SeguimientoAspirantesPage';
+import { SolicitudesPlanesPage } from '@/pages/solicitudes-planes/SolicitudesPlanesPage';
+import { PagoResultadoPage } from '@/pages/pago-plan/PagoResultadoPage';
+import { TelecomConfigPage } from '@/pages/telecom-config/TelecomConfigPage';
+import { FormularioAspirantePublicPage } from '@/pages/solicitudes-inscripcion/FormularioAspirantePublicPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
@@ -145,11 +150,14 @@ import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
 import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
 import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
 import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoEntry';
+import ProyectoFormativoDetalle from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoDetalle';
 import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
+import CompetenciasProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/CompetenciasProyectoEntry';
 import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGeneral';
 import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
+<<<<<<< HEAD
 import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativo/AperturarProgramaPage';
 import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
 import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
@@ -158,6 +166,11 @@ import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-conf
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
 import PortalAspirantePage from '@/pages/portal-aspirante/PortalAspirantePage';
+=======
+import PortafolioInstructorGeneral from '@/pages/proceso/portafolio/PortafolioInstructorGeneral';
+import SeguimientoAprendiz from '@/pages/programas-academicos/components/malla-curricular/SeguimientoAprendiz';
+import SeguimientoInstructor from '@/pages/programas-academicos/components/malla-curricular/SeguimientoInstructor';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -209,8 +222,12 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+<<<<<<< HEAD
       <Route path="/portal-aspirante/:token" element={<PortalAspirantePage />} />
 
+=======
+      <Route path="/formulario-aspirante/:token" element={<FormularioAspirantePublicPage />} />
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
       <Route element={<RequireAuth />}>
 
@@ -225,6 +242,32 @@ const AppRoutingSetup = (): ReactElement => {
 
         <Route element={<Demo1Layout />}>
           <Route path="/" element={getActiveDashboard()} />
+          <Route
+            path="seguimiento-aspirantes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_SEGUIMIENTO_ASPIRANTES']}>
+                <SeguimientoAspirantesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Retorno del Checkout de Wompi (compra de planes de mensajes) */}
+          <Route path="pago-plan/resultado" element={<PagoResultadoPage />} />
+          <Route
+            path="solicitudes-planes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_SOLICITUDES_PLANES']}>
+                <SolicitudesPlanesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="telecom-config"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_TELECOM_CONFIG']}>
+                <TelecomConfigPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="gestion-usuarios/usuarios"
             element={
@@ -317,6 +360,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_NOVEDADES']}>
                 <InstructorLider />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portafolios-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_PORTAFOLIO']}>
+                <PortafolioInstructorGeneral />
               </ProtectedRoute>
             }
           />
@@ -997,10 +1048,26 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/detalle/:idProyecto"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProyectoFormativoDetalle />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <ActividadProyectoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase/competencias"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CompetenciasProyectoEntry />
               </ProtectedRoute>
             }
           />
@@ -1388,6 +1455,22 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/ambiente-virtual/seguimiento-aprendiz"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_SEGUIMIENTO']}>
+                <SeguimientoAprendiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/seguimiento-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_SEGUIMIENTO']}>
+                <SeguimientoInstructor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/ambiente-virtual/grupos"
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_GRUPOS']}>
@@ -1419,6 +1502,7 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
+<<<<<<< HEAD
 
 
           <Route
@@ -1430,6 +1514,8 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
 
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
+import ModalCalificarSesion from './calificaciones/modal/ModalCalificarSesion';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,13 @@ interface Sesion {
   idDia: number;
   idHorarioMateria: number;
   estado: 'COMPLETADA' | 'EN_CURSO' | 'PROXIMO' | 'PENDIENTE';
+  idSesionMateria?: number;
+  yaCalificada?: boolean;
+  calificacionInfo?: {
+    id: number;
+    estrellas: number;
+    comentarios: string | null;
+  } | null;
 }
 
 export interface Materia {
@@ -66,7 +74,10 @@ const normalizarSesion = (s: Record<string, unknown>): Sesion => ({
     : 'PENDIENTE') as Sesion['estado'],
   numeroSesion: toNum(s.numeroSesion),
   idDia: toNum(s.idDia),
-  idHorarioMateria: toNum(s.idHorarioMateria ?? s.id_horario_materia)
+  idHorarioMateria: toNum(s.idHorarioMateria ?? s.id_horario_materia),
+  idSesionMateria: s.idSesionMateria ? toNum(s.idSesionMateria) : undefined,
+  yaCalificada: !!s.yaCalificada,
+  calificacionInfo: s.calificacionInfo as Sesion['calificacionInfo']
 });
 
 const normalizarMateria = (raw: Record<string, unknown>): Materia => ({
@@ -220,6 +231,10 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [error, setError] = useState<string | null>(null);
+
+  // Estados para Calificación de Sesión
+  const [selectedSesionForRating, setSelectedSesionForRating] = useState<any>(null);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
   // Actualiza el reloj cada minuto para re-evaluar estados EN_CURSO
   useEffect(() => {
@@ -491,35 +506,65 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
                   </div>
 
                   {/* Grid de sesiones */}
-                  {materia.sesiones.length > 0 ? (
+                    {materia.sesiones.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                      {materia.sesiones.map((sesion, index) => (
-                        <div
-                          key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
-                          className={clsx(
-                            'border-2 rounded-lg p-2',
-                            obtenerColorEstado(sesion.estado)
-                          )}
-                        >
-                          <div className="flex flex-col items-start gap-1">
-                            <div className="flex items-center gap-1 w-full">
-                              <div className="flex-shrink-0">
-                                {obtenerIconoEstado(sesion.estado)}
+                      {materia.sesiones.map((sesion, index) => {
+                        const canRate = sesion.estado === 'COMPLETADA' && sesion.idSesionMateria && !sesion.yaCalificada;
+                        const isAlreadyRated = sesion.estado === 'COMPLETADA' && sesion.yaCalificada;
+
+                        return (
+                          <div
+                            key={`${sesion.fecha}-${sesion.horaInicial}-${index}`}
+                            onClick={() => {
+                              if (canRate) {
+                                setSelectedSesionForRating({
+                                  idSesionMateria: sesion.idSesionMateria,
+                                  fecha: sesion.fecha,
+                                  numeroSesion: sesion.numeroSesion,
+                                  materia_nombre: materia.materia_nombre,
+                                  profesor_nombre: materia.profesor_nombre || 'Sin asignar'
+                                });
+                                setIsRatingModalOpen(true);
+                              }
+                            }}
+                            className={clsx(
+                              'border-2 rounded-lg p-2 transition-all duration-150',
+                              obtenerColorEstado(sesion.estado),
+                              canRate && 'cursor-pointer hover:border-yellow-400 hover:shadow-sm active:scale-98',
+                              isAlreadyRated && 'border-yellow-400 bg-yellow-50/20 dark:bg-yellow-950/10'
+                            )}
+                          >
+                            <div className="flex flex-col items-start gap-1">
+                              <div className="flex items-center gap-1 w-full">
+                                <div className="flex-shrink-0">
+                                  {isAlreadyRated ? (
+                                    <KeenIcon icon="star" className="text-xs text-yellow-400 font-bold fill-current" />
+                                  ) : (
+                                    obtenerIconoEstado(sesion.estado)
+                                  )}
+                                </div>
+                                <div className="text-xs font-semibold flex-1 truncate">
+                                  {isAlreadyRated ? 'Calificada' : obtenerTextoEstado(sesion.estado)}
+                                </div>
                               </div>
-                              <div className="text-xs font-medium flex-1">
-                                {obtenerTextoEstado(sesion.estado)}
+                              <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                                {formatearFecha(sesion.fecha)}
                               </div>
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                              {formatearFecha(sesion.fecha)}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
-                              {formatearHora(sesion.horaInicial)} -{' '}
-                              {formatearHora(sesion.horaFinal)}
+                              <div className="text-xs text-gray-600 dark:text-gray-400 w-full">
+                                {formatearHora(sesion.horaInicial)} -{' '}
+                                {formatearHora(sesion.horaFinal)}
+                              </div>
+                              {isAlreadyRated && sesion.calificacionInfo && (
+                                <div className="flex items-center gap-0.5 mt-1">
+                                  {Array.from({ length: sesion.calificacionInfo.estrellas }).map((_, i) => (
+                                    <KeenIcon key={i} icon="star" className="text-[10px] text-yellow-400 font-bold fill-current" />
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     // Materia sin sesiones detalladas (backend envió sesiones: [])
@@ -535,6 +580,18 @@ const MisClases: React.FC<MisClasesProps> = ({ filtro = 'todas' }) => {
           </React.Fragment>
         ))}
       </div>
+
+      {selectedSesionForRating && (
+        <ModalCalificarSesion
+          open={isRatingModalOpen}
+          onClose={() => {
+            setIsRatingModalOpen(false);
+            setSelectedSesionForRating(null);
+          }}
+          sesion={selectedSesionForRating}
+          onSuccess={fetchClases}
+        />
+      )}
     </div>
   );
 };

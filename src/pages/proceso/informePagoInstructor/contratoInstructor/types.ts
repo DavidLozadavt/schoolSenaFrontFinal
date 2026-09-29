@@ -37,6 +37,7 @@ export interface Contrato {
   supervisorContrato: null | string;
   objetoContrato: null | string;
   formaDePago: 'COMISIONES' | 'SALARIO INTEGRAL' | 'NORMAL';
+  numeroContrato: null | string;
   siif: null | number;
   descripcionFormaPago: string | null;
 }
@@ -57,6 +58,7 @@ export interface ContratoFormData {
   formaDePago: Contrato['formaDePago'];
   ciudadExpedicionId: number | '';
   siif: null | number;
+  numeroContrato: null | string;
   descripcionFormaPago: string;
 }
 

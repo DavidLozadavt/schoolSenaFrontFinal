@@ -4,7 +4,11 @@ import { KeenIcon, Toast } from '@/components';
 import { createPortal } from 'react-dom';
 import { useAuthContext } from '@/auth';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
-import { filterOptionNormalized } from '@/components/forms/compactReactSelect';
+import {
+  filterOptionNormalized,
+  compactReactSelectClassNames,
+  compactReactSelectNoOptions,
+} from '@/components/forms/compactReactSelect';
 import {
   MATERIAL_DOCUMENTO_ACCEPT,
   MATERIAL_DOCUMENTO_FORMATOS_LABEL,
@@ -18,11 +22,17 @@ import {
   VIDEO_ACCEPT,
   VIDEO_FORMATOS_LABEL,
 } from './materialDocumentoSupport';
+import {
+  TIPO_MATERIAL_OPTIONS,
+  tipoMaterialDisplay,
+} from './tipoMaterialApoyo';
+import Select from 'react-select';
 
 export interface MaterialApoyoFichaItem {
   id: number;
   titulo: string;
   descripcion?: string | null;
+  tipoMaterial?: string | null;
   urlDocumento?: string | null;
   urlDocumentoUrl?: string | null;
   urlAdicional?: string | null;
@@ -32,6 +42,7 @@ export interface MaterialApoyoFichaItem {
   idPersona?: number | null;
   idFicha?: number | null;
   idRap?: number | null;
+  idCompetencia?: number | null;
   materiaNombre?: string | null;
   competenciaNombre?: string | null;
   rap?: {
@@ -72,6 +83,41 @@ const getPerfilPublicUrl = (path?: string | null): string | null => {
 };
 
 const PAGE_SIZE = 20;
+
+const clsLabelFiltro =
+  'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block';
+
+const selectClassNamesBiblioteca = {
+  ...compactReactSelectClassNames,
+  control: () => `${compactReactSelectClassNames.control()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
+  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () => `${compactReactSelectClassNames.menuList()} dark:text-white`,
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white',
+};
+
+const selectStylesBiblioteca = {
+  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+};
+
+const idCompetenciaDeItem = (it: MaterialApoyoFichaItem): number | null => {
+  const fromRap = it.rap?.idCompetencia;
+  if (fromRap && fromRap > 0) return fromRap;
+  if (it.idCompetencia && it.idCompetencia > 0) return it.idCompetencia;
+  return null;
+};
 
 const getDocumentUrl = (url?: string | null): string | null => {
   if (!url) return null;
@@ -160,6 +206,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const [recursosMenu, setRecursosMenu] = useState<MenuState | null>(null);
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [tipoMaterial, setTipoMaterial] = useState<string>('');
   const [link, setLink] = useState('');
   const [idRap, setIdRap] = useState<number | ''>('');
   const [raps, setRaps] = useState<RapOption[]>([]);
@@ -167,6 +214,8 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
   const [documentoFile, setDocumentoFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [quitarVideo, setQuitarVideo] = useState(false);
+  const [competenciaSel, setCompetenciaSel] = useState<number | null>(null);
+  const [rapFiltroSel, setRapFiltroSel] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -221,14 +270,50 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     [items, editandoId]
   );
 
+  const opcionesCompetencia = useMemo(() => {
+    const map = new Map<number, string>();
+    items.forEach((it) => {
+      const idComp = idCompetenciaDeItem(it);
+      const nombre = it.competenciaNombre || it.materiaNombre;
+      if (idComp && idComp > 0 && nombre) {
+        map.set(idComp, nombre);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [items]);
+
+  const opcionesRapFiltro = useMemo(() => {
+    const map = new Map<number, string>();
+    items
+      .filter((it) => {
+        if (!competenciaSel) return true;
+        return idCompetenciaDeItem(it) === competenciaSel;
+      })
+      .forEach((it) => {
+        const id = it.idRap ?? it.rap?.id;
+        const label = it.rap?.nombre || it.materiaNombre;
+        if (id && label) map.set(id, label);
+      });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [items, competenciaSel]);
+
   const itemsFiltrados = useMemo(() => {
     const q = search.trim();
-    if (!q) return items;
     return items.filter((it) => {
+      const idComp = idCompetenciaDeItem(it);
+      if (competenciaSel && idComp !== competenciaSel) return false;
+      if (rapFiltroSel && (it.idRap ?? it.rap?.id) !== rapFiltroSel) return false;
+
+      if (!q) return true;
       const recursosTokens = [
         tieneDocumento(it) ? 'Documento' : '',
         tieneEnlace(it) ? 'Enlace' : '',
         tieneVideo(it) ? 'Video' : '',
+        tipoMaterialDisplay(it.tipoMaterial),
       ].filter(Boolean);
 
       return filterOptionNormalized(
@@ -240,12 +325,13 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
           it.competenciaNombre,
           it.creador?.nombreCompleto,
           it.creador?.email,
+          tipoMaterialDisplay(it.tipoMaterial),
           ...recursosTokens,
         ],
         q
       );
     });
-  }, [items, search]);
+  }, [items, search, competenciaSel, rapFiltroSel]);
 
   const totalPaginas = Math.max(1, Math.ceil(itemsFiltrados.length / PAGE_SIZE));
   const itemsPagina = useMemo(() => {
@@ -329,7 +415,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   useEffect(() => {
     setPagina(1);
-  }, [idFicha, search]);
+  }, [idFicha, search, competenciaSel, rapFiltroSel]);
 
   useEffect(() => {
     if (!accionesMenu && !recursosMenu) return;
@@ -360,6 +446,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     setEditandoId(null);
     setTitulo('');
     setDescripcion('');
+    setTipoMaterial('');
     setLink('');
     setIdRap(idRapContext ?? raps[0]?.id ?? '');
     setDocumentoFile(null);
@@ -378,6 +465,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     setEditandoId(row.id);
     setTitulo(row.titulo || '');
     setDescripcion(row.descripcion || '');
+    setTipoMaterial(row.tipoMaterial || '');
     setLink(row.urlAdicional || '');
     setIdRap(idRapContext ?? (row.idRap || row.rap?.id || ''));
     setDocumentoFile(null);
@@ -393,6 +481,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     setEditandoId(null);
     setTitulo('');
     setDescripcion('');
+    setTipoMaterial('');
     setLink('');
     setIdRap(idRapContext ?? raps[0]?.id ?? '');
     setDocumentoFile(null);
@@ -448,6 +537,11 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       fd.append('idRap', String(idRapEnvio));
       fd.append('titulo', titulo.trim());
       fd.append('descripcion', descripcion.trim().slice(0, 3000));
+      if (tipoMaterial) {
+        fd.append('tipoMaterial', tipoMaterial);
+      } else if (editandoId) {
+        fd.append('tipoMaterial', '');
+      }
       if (documentoFile) fd.append('documento', documentoFile);
       if (link.trim()) fd.append('urlAdicional', link.trim());
 
@@ -542,20 +636,55 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
           </div>
         </div>
         {modo === 'lista' && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:max-w-xl">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                type="text"
-                className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-300"
-                placeholder="Buscar por título, descripción, competencia, RAP, materia, instructor o recurso..."
-              />
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={clsLabelFiltro}>Competencia</label>
+                <Select
+                  isClearable
+                  placeholder="Todas las competencias"
+                  options={opcionesCompetencia}
+                  value={opcionesCompetencia.find((o) => o.value === competenciaSel) ?? null}
+                  onChange={(opt) => {
+                    setCompetenciaSel(opt?.value ?? null);
+                    setRapFiltroSel(null);
+                  }}
+                  isDisabled={opcionesCompetencia.length === 0}
+                  classNames={selectClassNamesBiblioteca}
+                  styles={selectStylesBiblioteca}
+                  noOptionsMessage={compactReactSelectNoOptions}
+                />
+              </div>
+              <div>
+                <label className={clsLabelFiltro}>RAP</label>
+                <Select
+                  isClearable
+                  placeholder="Todos los RAP"
+                  options={opcionesRapFiltro}
+                  value={opcionesRapFiltro.find((o) => o.value === rapFiltroSel) ?? null}
+                  onChange={(opt) => setRapFiltroSel(opt?.value ?? null)}
+                  isDisabled={opcionesRapFiltro.length === 0}
+                  classNames={selectClassNamesBiblioteca}
+                  styles={selectStylesBiblioteca}
+                  noOptionsMessage={compactReactSelectNoOptions}
+                />
+              </div>
             </div>
-            <button type="button" onClick={abrirNuevo} className="btn btn-primary text-sm shrink-0">
-              <KeenIcon icon="plus" className="text-sm mr-1.5" />
-              Agregar recurso a la biblioteca
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="w-full sm:max-w-xl">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  type="text"
+                  className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-300"
+                  placeholder="Buscar por título, descripción, competencia, RAP, materia, instructor o recurso..."
+                />
+              </div>
+              <button type="button" onClick={abrirNuevo} className="btn btn-primary text-sm shrink-0">
+                <KeenIcon icon="plus" className="text-sm mr-1.5" />
+                Agregar recurso a la biblioteca
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -613,6 +742,22 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
               data-preserve-case
               maxLength={3000}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-200 mb-1">Tipo de material</label>
+            <select
+              className="select w-full"
+              value={tipoMaterial}
+              onChange={(e) => setTipoMaterial(e.target.value)}
+            >
+              <option value="">Sin tipo</option>
+              {TIPO_MATERIAL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -711,6 +856,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-600 dark:text-white w-[120px]">Recurso</th>
                   <th className="text-left py-2.5 pl-2 pr-2 text-xs font-semibold text-gray-600 dark:text-white min-w-0">Título</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[150px]">Tipo</th>
                   <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[140px]">Creador</th>
                   <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white w-[110px]">RAP</th>
                   <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-600 dark:text-white min-w-0">Descripción</th>
@@ -720,19 +866,19 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center">
+                    <td colSpan={7} className="py-8 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
+                    <td colSpan={7} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
                       No hay recursos en la biblioteca de conocimiento para este programa.
                     </td>
                   </tr>
                 ) : itemsFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
+                    <td colSpan={7} className="py-8 text-center text-sm text-gray-600 dark:text-gray-200">
                       No se encontraron materiales con ese criterio.
                     </td>
                   </tr>
@@ -741,6 +887,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                     const rapFull = mat.rap?.nombre || 'Sin RAP';
                     const tituloFull = mat.titulo || '-';
                     const descripcionFull = mat.descripcion || '-';
+                    const tipoFull = tipoMaterialDisplay(mat.tipoMaterial);
                     const accionesMenuOpen = accionesMenu?.id === mat.id;
                     const tieneAlguno =
                       tieneDocumento(mat) || tieneEnlace(mat) || tieneVideo(mat);
@@ -772,6 +919,11 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
                         <td className="py-3 pl-2 pr-2 text-sm font-medium text-gray-900 dark:text-white min-w-0">
                           <span className="block w-full truncate" title={tituloFull}>
                             {tituloFull}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-xs text-gray-700 dark:text-gray-200 min-w-0">
+                          <span className="block w-full truncate" title={tipoFull}>
+                            {tipoFull}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-xs text-gray-700 dark:text-gray-200 min-w-0">

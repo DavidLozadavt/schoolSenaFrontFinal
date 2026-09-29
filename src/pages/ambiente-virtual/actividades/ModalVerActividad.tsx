@@ -111,7 +111,7 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
                 </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Materia</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">RAP</p>
                 <p className="text-sm text-gray-900 dark:text-white">
                   {act.materia?.codigo ? `${act.materia.codigo} - ` : ''}
                   {act.materia?.nombreMateria || '-'}

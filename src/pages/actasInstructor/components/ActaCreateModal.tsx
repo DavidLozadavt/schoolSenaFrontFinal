@@ -42,6 +42,8 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
   const getInitialFormState = () => ({
     nombre: '',
     fecha: new Date().toISOString().split('T')[0],
+    fechaInicialFormacion: '',
+    fechaFinalFormacion: '',
     horaInicio: '07:00',
     horaFin: '12:00',
     tipoActa: 'NORMAL',
@@ -91,6 +93,12 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
         setFormData({
           nombre: actaToEdit.nombre || '',
           fecha: fechaFormateada,
+          fechaInicialFormacion: actaToEdit.fechaInicialFormacion
+            ? actaToEdit.fechaInicialFormacion.split('T')[0]
+            : '',
+          fechaFinalFormacion: actaToEdit.fechaFinalFormacion
+            ? actaToEdit.fechaFinalFormacion.split('T')[0]
+            : '',
           horaInicio: actaToEdit.horaInicio ? actaToEdit.horaInicio.substring(0, 5) : '07:00',
           horaFin: actaToEdit.horaFin ? actaToEdit.horaFin.substring(0, 5) : '12:00',
           tipoActa: actaToEdit.tipoActa || 'NORMAL',
@@ -129,9 +137,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                 }))
               : []
         });
-        if (actaToEdit.idFicha) {
-          fetchContratos(actaToEdit.idFicha.toString());
-        }
+        // fetchContratos handled by separate useEffect
         // Set the selected city label when editing
         if (actaToEdit.idCiudad) {
           const ciudadEncontrada = ciudades.find((c) => c.id === actaToEdit.idCiudad);
@@ -162,16 +168,33 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
     }
   }, [isOpen, actaToEdit, ciudades]);
 
-  const fetchContratos = async (idFicha: string) => {
+  const fetchContratos = async (idFicha: string, fechaInicial?: string, fechaFinal?: string) => {
     try {
       const response = await axios.get(`actas/ficha-data`, {
-        params: { idFicha }
+        params: { idFicha, fechaInicial, fechaFinal }
       });
       setContratosFicha(response.data);
+      if (!actaToEdit) {
+        setFormData((prev) => ({
+          ...prev,
+          asistencias: response.data.map((c: any) => ({
+            idContrato: c.idContrato.toString(),
+            dependencia: 'INSTRUCTOR',
+            aprueba: 'NO',
+            observacion: ''
+          }))
+        }));
+      }
     } catch (error) {
       console.error('Error fetching contratos:', error);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && formData.idFicha) {
+      fetchContratos(formData.idFicha, formData.fechaInicialFormacion, formData.fechaFinalFormacion);
+    }
+  }, [isOpen, formData.idFicha, formData.fechaInicialFormacion, formData.fechaFinalFormacion]);
 
   const toggleAsistencia = (contrato: any) => {
     const isSelected = formData.asistencias.some((a) => a.idContrato === contrato.idContrato.toString());
@@ -644,6 +667,40 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                     />
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 border-b border-gray-100 dark:border-coal-300 pb-2 mt-2">
+                  <i className="ki-outline ki-calendar text-blue-500" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                    Periodo de Formación
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                      Fecha Inicial de Formación
+                    </label>
+                    <input
+                      name="fechaInicialFormacion"
+                      type="date"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={formData.fechaInicialFormacion}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                      Fecha Final de Formación
+                    </label>
+                    <input
+                      name="fechaFinalFormacion"
+                      type="date"
+                      className="w-full px-4 py-2 bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={formData.fechaFinalFormacion}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
               </div>}
 
               {/* Ubicación y Ficha */}
@@ -693,7 +750,7 @@ const ActaCreateModal: React.FC<ActaCreateModalProps> = ({
                                   setFichaSearch('');
                                   setIsFichaFocused(false);
                                   setErrors((prev) => ({ ...prev, idFicha: undefined }));
-                                  fetchContratos(ficha.idFicha.toString());
+                                  // fetchContratos handled by useEffect
                                 }}
                                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-500/20 border-b border-gray-100 dark:border-coal-300 last:border-b-0 text-sm text-gray-700 dark:text-gray-200 transition-colors"
                               >

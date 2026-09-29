@@ -10,7 +10,10 @@ import { useSnackbar } from 'notistack';
 import { RoleModel } from '../../roles/models/_Role';
 import Swal from 'sweetalert2';
 import icons from './icons';
+<<<<<<< HEAD
 import { formatPagosDisplayLabel } from '@/utils/pagosDisplayLabels';
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Helper: build a tree from flat permission list
@@ -1050,7 +1053,11 @@ const ParentSearchSelect = React.memo(
     };
 
     return (
+<<<<<<< HEAD
       <div ref={containerRef} className="relative w-full">
+=======
+      <div ref={containerRef} className='relative w-full'>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
         <button
           type="button"
           disabled={disabled}

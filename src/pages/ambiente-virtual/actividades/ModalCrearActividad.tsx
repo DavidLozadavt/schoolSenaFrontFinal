@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle, ModalFooter } from '@/components/modal';
 import { KeenIcon } from '@/components';
 import axios from 'axios';
 import { useAuthContext } from '@/auth';
@@ -48,6 +48,9 @@ export interface Actividad {
   idClasificacion?: number;
   estrategia?: string;
   entregables?: string;
+  preguntasMinimasAprobar?: number | null;
+  intervaloReintento?: number | null;
+  tiempoCuestionario?: number | null;
   persona?: PersonaCreador;
   materia?: MateriaRef;
   estado?: EstadoRef;
@@ -167,8 +170,13 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const idMateriaFinal = formData.idMateria || idMateria || materias[0]?.id;
-    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !idMateriaFinal || !formData.estrategia || !formData.entregables || !formData.idCompany) {
+    // Solo el RAP del contexto de clase (o el ya guardado al editar). Nunca materias[0]: asociaría otro RAP.
+    const idMateriaFinal = Number(formData.idMateria || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar la actividad.');
+      return;
+    }
+    if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !formData.estrategia || !formData.entregables || !formData.idCompany) {
       return;
     }
     if (documentoFile) {
@@ -258,6 +266,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
+<<<<<<< HEAD
       <ModalContent className="relative mx-4 w-full max-w-[640px] max-h-[85vh] overflow-y-auto rounded-xl bg-white p-4 shadow-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <ModalHeader className="mb-2 flex items-center justify-between gap-2">
           <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
@@ -269,8 +278,22 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de Actividad *</label>
+=======
+      <ModalContent className="w-[95vw] max-w-[840px] top-[5%] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <form onSubmit={handleSubmit} className="modal-form-actividades flex flex-col min-h-0 max-h-[90vh] flex-1">
+          <ModalHeader className="shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+            <ModalTitle>{actividadEditar ? 'Editar Actividad' : 'Crear Actividad'}</ModalTitle>
+            <button type="button" className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
+              <KeenIcon icon="cross" />
+            </button>
+          </ModalHeader>
+
+          <ModalBody className="grid gap-4 px-4 sm:px-6 py-5 flex-1 min-h-0 overflow-y-auto">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Tipo de Actividad</label>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
               <select
-                className="input w-full p-2 text-sm"
+                className="input w-full p-2 text-sm dark:text-white dark:focus:text-white dark:active:text-white"
                 value={formData.tipoActividad || 'sin evidencia'}
                 onChange={(e) => handleChange('tipoActividad', e.target.value as TipoActividadEnum)}
                 required
@@ -282,10 +305,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
+<<<<<<< HEAD
               <label className="mb-1 block text-sm font-medium text-gray-700">Título de la Actividad *</label>
               <textarea
                 className="input w-full resize-y p-2 text-sm min-h-[40px] leading-snug break-words"
                 placeholder="Título de la actividad"
+=======
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Título de la Actividad</label>
+              <input
+                type="text"
+                className="input w-full p-2 text-sm dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 value={formData.tituloActividad || ''}
                 onChange={(e) => {
                   handleChange('tituloActividad', e.target.value);
@@ -300,10 +330,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
+<<<<<<< HEAD
               <label className="mb-1 block text-sm font-medium text-gray-700">Descripción de la Actividad *</label>
               <textarea
                 ref={descripcionRef}
                 className="input w-full resize-none overflow-hidden p-2 text-sm min-h-[72px]"
+=======
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Descripción de la Actividad</label>
+              <textarea
+                ref={descripcionRef}
+                className="input w-full p-2 text-sm min-h-[80px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 placeholder="Descripción de la actividad"
                 value={formData.descripcionActividad || ''}
                 onChange={(e) => handleChange('descripcionActividad', e.target.value)}
@@ -313,8 +350,13 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
+<<<<<<< HEAD
               <label className="mb-1 block text-sm font-medium text-gray-700">Documento base de la actividad</label>
               <div className="flex flex-wrap items-center gap-2">
+=======
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Documento base de la actividad</label>
+              <div className="flex items-center gap-2 flex-wrap">
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -329,6 +371,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 >
                   Seleccionar archivo
                 </button>
+<<<<<<< HEAD
                 <span className="text-sm text-gray-500">
                   {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
                 </span>
@@ -341,6 +384,20 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
               <textarea
                 ref={estrategiaRef}
                 className="input w-full resize-none overflow-hidden p-2 text-sm min-h-[40px]"
+=======
+                <span className="text-sm text-gray-500 dark:text-white">
+                  {documentoFile ? documentoFile.name : 'Ningún archivo seleccionado'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-white mt-1">{ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Estrategia de la Actividad</label>
+              <textarea
+                ref={estrategiaRef}
+                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 placeholder="Estrategia pedagógica"
                 value={formData.estrategia || ''}
                 onChange={(e) => handleChange('estrategia', e.target.value)}
@@ -350,10 +407,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
 
             <div>
+<<<<<<< HEAD
               <label className="mb-1 block text-sm font-medium text-gray-700">Entregables *</label>
               <textarea
                 ref={entregablesRef}
                 className="input w-full resize-none overflow-hidden p-2 text-sm min-h-[40px] break-words"
+=======
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Entregables</label>
+              <textarea
+                ref={entregablesRef}
+                className="input w-full p-2 text-sm min-h-[40px] overflow-hidden resize-none dark:text-white dark:focus:text-white dark:active:text-white dark:placeholder:text-white"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 placeholder="Entregables esperados"
                 value={formData.entregables || ''}
                 onChange={(e) => handleChange('entregables', e.target.value)}
@@ -361,7 +425,9 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
                 required
               />
             </div>
+          </ModalBody>
 
+<<<<<<< HEAD
             <div className="flex justify-between gap-2 pt-3">
               <button type="button" className="btn bg-red-600 text-white hover:bg-red-700" onClick={onClose}>
                 X CANCELAR
@@ -372,6 +438,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             </div>
           </form>
         </ModalBody>
+=======
+          <ModalFooter className="shrink-0 flex justify-between gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-coal-500">
+            <button type="button" className="btn bg-red-600 hover:bg-red-700 text-white" onClick={onClose}>
+              X CANCELAR
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Guardando...' : actividadEditar ? 'Actualizar' : '+ CREAR ACTIVIDAD'}
+            </button>
+          </ModalFooter>
+        </form>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       </ModalContent>
     </Modal>
   );

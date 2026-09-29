@@ -25,5 +25,13 @@ export interface FormData {
   colorTema: string;
   estado: string;
   requiereAutenticacion: boolean;
+  permiteMultiplesRespuestas?: boolean;
+  fechaInicio?: string | null;
+  fechaLimite?: string | null;
+  limiteRespuestas?: number | null;
+  mensajeCierre?: string | null;
+  is_expired?: boolean;
+  motivo_expiracion?: 'no_iniciado' | 'expirado' | 'pausado' | 'limite_alcanzado' | 'borrador' | null;
+  respuestas_count?: number;
   preguntas: FormQuestion[];
 }

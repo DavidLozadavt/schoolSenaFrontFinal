@@ -59,6 +59,8 @@ export interface Acta {
   id: number;
   nombre: string;
   fecha: string;
+  fechaInicialFormacion?: string;
+  fechaFinalFormacion?: string;
   horaInicio: string;
   horaFin: string;
   tipoActa: string;

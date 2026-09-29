@@ -15,6 +15,9 @@ export interface RapOpcion {
   id: number;
   nombreMateria?: string;
   codigo?: string | null;
+  idCompetencia?: number | null;
+  competenciaNombre?: string | null;
+  numeroRap?: number | null;
 }
 
 interface ModalMoverActividadRapProps {
@@ -63,16 +66,21 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const idMateriaActual = actividad?.idMateria;
+  const idMateriaActual =
+    actividad?.idMateria != null ? Number(actividad.idMateria) : undefined;
+  const idMateriaActualValido =
+    idMateriaActual != null && Number.isFinite(idMateriaActual) && idMateriaActual > 0
+      ? idMateriaActual
+      : undefined;
 
   const textoRapActual = useMemo(() => {
     const cod = actividad?.materia?.codigo?.trim();
     const nom = actividad?.materia?.nombreMateria?.trim();
     const joined = [cod, nom].filter(Boolean).join(' — ');
     if (joined) return joined;
-    if (idMateriaActual != null) return `RAP ID ${idMateriaActual}`;
+    if (idMateriaActualValido != null) return `RAP ID ${idMateriaActualValido}`;
     return '—';
-  }, [actividad?.materia?.codigo, actividad?.materia?.nombreMateria, idMateriaActual]);
+  }, [actividad?.materia?.codigo, actividad?.materia?.nombreMateria, idMateriaActualValido]);
 
   const destinoSeleccionado = useMemo(
     () => (idDestino ? opcionesRap.find((r) => r.id === idDestino) ?? null : null),
@@ -80,7 +88,7 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
   );
 
   const destinoValido =
-    Boolean(idDestino) && idMateriaActual != null && idDestino !== idMateriaActual;
+    Boolean(idDestino) && idMateriaActualValido != null && idDestino !== idMateriaActualValido;
 
   useEffect(() => {
     if (!open || idFicha <= 0) return;
@@ -88,10 +96,51 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
     setIdDestino(0);
     setLoadingRaps(true);
     axios
-      .get<RapOpcion[]>(`fichas/${idFicha}/raps-horario-actividades`)
+      .get(`fichas/${idFicha}/raps-horario-actividades`)
       .then((res) => {
-        const raw = Array.isArray(res.data) ? res.data : [];
-        setOpcionesRap(raw.filter((r) => r && typeof r.id === 'number'));
+        const raw = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+            ? res.data.data
+            : [];
+        setOpcionesRap(
+          raw
+            .map((r: RapOpcion | Record<string, unknown>) => {
+              if (!r || typeof r !== 'object') return null;
+              const id = Number((r as { id?: unknown }).id);
+              if (!Number.isFinite(id) || id <= 0) return null;
+              const numeroRaw = (r as { numeroRap?: unknown }).numeroRap;
+              const numeroRap =
+                typeof numeroRaw === 'number' && Number.isFinite(numeroRaw) ? numeroRaw : null;
+              return {
+                id,
+                nombreMateria:
+                  typeof (r as RapOpcion).nombreMateria === 'string'
+                    ? (r as RapOpcion).nombreMateria
+                    : undefined,
+                codigo:
+                  (r as RapOpcion).codigo == null
+                    ? null
+                    : String((r as RapOpcion).codigo),
+                idCompetencia:
+                  (r as RapOpcion).idCompetencia != null
+                    ? Number((r as RapOpcion).idCompetencia)
+                    : null,
+                competenciaNombre:
+                  typeof (r as RapOpcion).competenciaNombre === 'string'
+                    ? (r as RapOpcion).competenciaNombre
+                    : null,
+                numeroRap
+              } as RapOpcion;
+            })
+            .filter((r: RapOpcion | null): r is RapOpcion => r != null)
+            .sort((a: RapOpcion, b: RapOpcion) => {
+              const na = a.numeroRap ?? Number.MAX_SAFE_INTEGER;
+              const nb = b.numeroRap ?? Number.MAX_SAFE_INTEGER;
+              if (na !== nb) return na - nb;
+              return rapLabelCompleto(a).localeCompare(rapLabelCompleto(b));
+            })
+        );
       })
       .catch(() => {
         setOpcionesRap([]);
@@ -150,7 +199,8 @@ const ModalMoverActividadRap: React.FC<ModalMoverActividadRapProps> = ({
     setError('');
   };
 
-  const esRapActual = (r: RapOpcion) => idMateriaActual != null && r.id === idMateriaActual;
+  const esRapActual = (r: RapOpcion) =>
+    idMateriaActualValido != null && Number(r.id) === idMateriaActualValido;
 
   return (
     <Modal open={open} onClose={onClose} zIndex={120} className="flex items-center justify-center p-4 sm:p-6">

@@ -182,9 +182,7 @@ export const ContratoSupervisor: React.FC<ContratoSupervisorProps> = ({
               </p>
             </div>
             <div className="bg-gray-50 dark:bg-coal-400 rounded-lg px-4 py-3 border border-gray-100 dark:border-coal-300 sm:col-span-2">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
-                Objeto del contrato
-              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Objeto del contrato</p>
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
                 {contrato.objetoContrato ?? (
                   <span className="text-yellow-600 dark:text-yellow-400 font-normal italic">
@@ -245,6 +243,23 @@ export const ContratoSupervisor: React.FC<ContratoSupervisorProps> = ({
                   })
                 }
                 placeholder="Número SIIF"
+                className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                Número de contrato
+              </label>
+              <input
+                type="string"
+                value={form.numeroContrato ?? ''}
+                onChange={(e) =>
+                  onFormChange({
+                    ...form,
+                    numeroContrato: e.target.value
+                  })
+                }
+                placeholder="Número del contrato"
                 className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-coal-300 bg-white dark:bg-coal-400 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

@@ -11,3 +11,5 @@ export { default as ModalMoverActividadRap } from './ModalMoverActividadRap';
 export { default as ListaActividades } from './ListaActividades';
 export type { Actividad } from './ModalCrearActividad';
 export type { AprendizCalificacion } from './ModalAprendices';
+export type { ConfigCuestionariosMap } from './cuestionarioAsignacion';
+export { default as ModalConfigurarPreguntasCuestionario } from './ModalConfigurarPreguntasCuestionario';

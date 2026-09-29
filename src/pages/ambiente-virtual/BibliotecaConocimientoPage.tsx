@@ -1,11 +1,6 @@
 import React, { Fragment } from 'react';
 import { Container } from '@/components/container';
-import {
-  Toolbar,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle
-} from '@/partials/toolbar';
+import { Toolbar, ToolbarHeading } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 import MaterialApoyoAprendiz from './actividades/MaterialApoyoAprendiz';
 
@@ -22,10 +17,12 @@ const BibliotecaConocimientoPage: React.FC = () => {
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <ToolbarPageTitle text="Biblioteca de conocimiento" />
-              <ToolbarDescription>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-snug">
+                Biblioteca de conocimiento
+              </h1>
+              <p className="text-sm font-medium leading-relaxed text-gray-700 dark:text-white mt-1.5 max-w-3xl">
                 Recursos de tu programa de formación: documentos, enlaces y videos (solo consulta).
-              </ToolbarDescription>
+              </p>
             </ToolbarHeading>
           </Toolbar>
         </Container>

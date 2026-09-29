@@ -19,7 +19,7 @@ export const ContratoHeader: React.FC<ContratoHeaderProps> = ({ contrato }) => {
             {contrato.centroFormacion.nombre}
           </p>
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
-            Contrato #{contrato.id}
+            Contrato {contrato.numeroContrato}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">

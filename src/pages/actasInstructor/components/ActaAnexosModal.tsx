@@ -10,7 +10,7 @@ interface ActaAnexosModalProps {
   onSuccess: () => void;
 }
 
-const BACKEND_URL = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:8003';
 
 const ActaAnexosModal: React.FC<ActaAnexosModalProps> = ({
   isOpen,

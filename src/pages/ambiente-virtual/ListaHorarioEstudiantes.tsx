@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import GraficaAsistencia from '../asistencias/GraficaAsistencia';
 import TakeAttendanceModal from '../asistencias/TakeAttendanceModal';
@@ -134,9 +134,11 @@ interface StudentListProps {
     idHorarioMateria?: number;
     ficha_codigo?: string;
   };
+  /** Incrementar al reentrar a Estudiantes para forzar refetch sin F5. */
+  refreshToken?: number;
 }
 
-const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
+const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData, refreshToken = 0 }) => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,18 +208,24 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
     }
   };
 
-  // Función para obtener estudiantes
-  const fetchStudents = async () => {
+  // Función para obtener estudiantes (siempre reemplaza el state; no concatena).
+  const fetchStudents = useCallback(async () => {
+    const idMateriaRaw = materiaData?.idMateria;
+    const idFichaRaw = materiaData?.idFicha;
+    const idMateriaNum =
+      typeof idMateriaRaw === 'string' ? parseInt(idMateriaRaw, 10) : Number(idMateriaRaw);
+    const idFichaNum = Number(idFichaRaw);
+    if (!Number.isFinite(idMateriaNum) || idMateriaNum <= 0 || !Number.isFinite(idFichaNum) || idFichaNum <= 0) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       const requestData: Record<string, any> = {
-        idMateria:
-          typeof materiaData.idMateria === 'string'
-            ? parseInt(materiaData.idMateria)
-            : materiaData.idMateria,
-        idFicha: materiaData.idFicha
+        idMateria: idMateriaNum,
+        idFicha: idFichaNum
       };
 
       // Incluir el horario exacto para que el backend cree la sesión correcta
@@ -225,29 +233,14 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
         requestData.idHorarioMateria = materiaData.idHorarioMateria;
       }
 
-      console.log('🎯 [StudentList] Enviando datos al backend:', requestData);
-      console.log('🎯 [StudentList] Estado de la clase recibido:', materiaData.estadoClase);
-      console.log(
-        '🎯 [StudentList] URL completa:',
-        `get_student_by_id_materia?data_encoded=${encodeURIComponent(JSON.stringify(requestData))}`
-      );
-
       const dataEncoded = encodeData(requestData);
 
       const response = await axios.get('get_student_by_id_materia', {
-        params: { data_encoded: dataEncoded, ts: new Date().getTime() }
+        params: { data_encoded: dataEncoded, ts: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
       });
 
-      console.log('[StudentList] Respuesta del backend:', response.data);
-      console.log(
-        '[StudentList] Tipo de respuesta:',
-        Array.isArray(response.data) ? 'array' : typeof response.data
-      );
-      console.log('[StudentList] Cantidad de estudiantes:', response.data?.length || 0);
-
       if (Array.isArray(response.data)) {
-        console.log('[StudentList] Primer estudiante:', response.data[0]);
-
         // Obtener la fecha de hoy en formato YYYY-MM-DD local
         const hoy = new Date();
         const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
@@ -306,27 +299,21 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
       }
     } catch (err: any) {
       console.error('[StudentList] Error fetching students:', err);
-      console.error('[StudentList] Mensaje:', err.message);
-      console.error('[StudentList] Respuesta:', err.response?.data);
-
       setError(
         err.response?.data?.message ||
           err.message ||
           'Error al cargar los estudiantes'
       );
-
-      setStudents([]);
+      // No vaciar el listado anterior si ya había datos y falla un refetch.
     } finally {
       setLoading(false);
     }
-  };
-
-  // useEffect para cargar datos cuando cambia materiaData
-  useEffect(() => {
-    if (materiaData?.idMateria && materiaData?.idFicha) {
-      fetchStudents();
-    }
   }, [materiaData.idMateria, materiaData.idFicha, materiaData.idHorarioMateria]);
+
+  // Cargar / refrescar al montar, al cambiar contexto o al reentrar a Estudiantes
+  useEffect(() => {
+    void fetchStudents();
+  }, [fetchStudents, refreshToken]);
 
   // Cerrar menú de exportación al hacer clic afuera o presionar Escape
   useEffect(() => {
@@ -595,7 +582,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
 
       // Tabla de estudiantes - Fila de encabezado
       const headerRow = worksheet.getRow(8);
-      headerRow.values = ['#', 'Nombre Completo', 'Identificación', 'Estado', 'Permiso'];
+      headerRow.values = ['#', 'Nombre Completo', 'Identificación', 'Correo Electrónico', 'Teléfono', 'Estado', 'Permiso'];
 
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -619,6 +606,8 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           index + 1,
           getFullName(student),
           getStudentIdentificacion(student),
+          getStudentEmail(student),
+          getStudentCelular(student),
           'En formación',
           estudianteTienePermiso(student.permisoAsistencia)
             ? getPermisoLabel(student.permisoAsistencia)
@@ -633,17 +622,27 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             right: { style: 'thin', color: { argb: 'FFEEEEEE' } }
           };
 
-          if (colNumber === 1 || colNumber === 4 || colNumber === 5) {
+          if (colNumber === 1 || colNumber === 6 || colNumber === 7) {
             cell.alignment = { horizontal: 'center' };
           }
         });
       });
 
-      worksheet.getColumn(1).width = 5;
-      worksheet.getColumn(2).width = 45;
-      worksheet.getColumn(3).width = 20;
-      worksheet.getColumn(4).width = 18;
-      worksheet.getColumn(5).width = 24;
+      // Ancho automático por columna (según el contenido más largo)
+      const minWidths = [5, 30, 18, 28, 16, 16, 22];
+
+      minWidths.forEach((minWidth, index) => {
+        const column = worksheet.getColumn(index + 1);
+        let maxLength = minWidth;
+
+        column.eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+          if (rowNumber < 8) return; // ignoramos el encabezado del documento
+          const length = String(cell.value ?? '').length;
+          if (length > maxLength) maxLength = length;
+        });
+
+        column.width = Math.min(maxLength + 4, 55);
+      });
 
       const buffer = await workbook.xlsx.writeBuffer();
 
@@ -674,6 +673,7 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
         <head>
           <title>Lista de Aprendices - ${materiaData.ficha_codigo || 'Ficha'}</title>
           <style>
+            @page { size: A4 landscape; margin: 12mm; }
             body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
             .header-container { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border-bottom: 3px solid #0072C6; padding-bottom: 15px; position: relative; }
             .logo { width: 80px; height: auto; position: absolute; left: 0; top: -10px; }
@@ -681,8 +681,9 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
             .info-grid { display: flex; justify-content: space-between; margin-bottom: 25px; background-color: #f8f9fa; padding: 15px 20px; border-radius: 6px; border: 1px solid #eaeaea; }
             .info-item p { margin: 0; font-size: 14px; }
             .info-item strong { color: #444; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-            th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; table-layout: fixed; }
+            th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; word-wrap: break-word; overflow-wrap: anywhere; }
+            .col-email { font-size: 10px; }
             th { background-color: #0072C6; color: white; font-weight: 600; text-transform: uppercase; font-size: 12px; }
             tr:nth-child(even) { background-color: #fcfcfc; }
             .text-center { text-align: center; }
@@ -713,11 +714,13 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
           <table>
             <thead>
               <tr>
-                <th class="text-center" style="width: 5%">#</th>
-                <th style="width: 35%">Nombre Completo</th>
-                <th style="width: 20%">Identificación</th>
-                <th class="text-center" style="width: 20%">Estado</th>
-                <th class="text-center" style="width: 20%">Permiso</th>
+                <th class="text-center" style="width: 4%">#</th>
+                <th style="width: 24%">Nombre Completo</th>
+                <th style="width: 12%">Identificación</th>
+                <th style="width: 24%">Correo Electrónico</th>
+                <th style="width: 12%">Teléfono</th>
+                <th class="text-center" style="width: 11%">Estado</th>
+                <th class="text-center" style="width: 13%">Permiso</th>
               </tr>
             </thead>
 
@@ -729,6 +732,8 @@ const StudentListByMateria: React.FC<StudentListProps> = ({ materiaData }) => {
                       <td class="text-center">${index + 1}</td>
                       <td>${getFullName(s)}</td>
                       <td>${getStudentIdentificacion(s)}</td>
+                      <td class="col-email">${getStudentEmail(s)}</td>
+                      <td>${getStudentCelular(s)}</td>
                       <td class="text-center">En formación</td>
                       <td class="text-center">${estudianteTienePermiso(s.permisoAsistencia) ? getPermisoLabel(s.permisoAsistencia) : 'Sin permiso'}</td>
                     </tr>

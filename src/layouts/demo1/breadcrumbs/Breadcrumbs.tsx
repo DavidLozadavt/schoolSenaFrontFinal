@@ -72,7 +72,7 @@ const Breadcrumbs = () => {
           {index === 0 ? ( 
             <span
               className={clsx(
-                'text-gray-700 font-medium',
+                'text-gray-700 dark:text-white font-medium',
                 'cursor-default' 
               )}
             >
@@ -83,7 +83,7 @@ const Breadcrumbs = () => {
               to={ambienteVirtualCrumbHome}
               className={clsx(
                 'hover:underline',
-                item.active ? 'text-gray-700 font-medium' : 'text-gray-600'
+                item.active ? 'text-gray-700 dark:text-white font-medium' : 'text-gray-600 dark:text-white/90'
               )}
             >
               {item.title}
@@ -92,7 +92,7 @@ const Breadcrumbs = () => {
             // Clase no debe ser clickeable, solo mostrar el texto
             <span
               className={clsx(
-                'text-gray-700 font-medium',
+                'text-gray-700 dark:text-white font-medium',
                 'cursor-default'
               )}
             >
@@ -103,7 +103,7 @@ const Breadcrumbs = () => {
             last ? (
               <span
                 className={clsx(
-                  'text-gray-700 font-medium',
+                  'text-gray-700 dark:text-white font-medium',
                   'cursor-default'
                 )}
               >
@@ -114,7 +114,7 @@ const Breadcrumbs = () => {
                 to={item.path}
                 className={clsx(
                   'hover:underline',
-                  item.active ? 'text-gray-700 font-medium' : 'text-gray-600'
+                  item.active ? 'text-gray-700 dark:text-white font-medium' : 'text-gray-600 dark:text-white/90'
                 )}
               >
                 {item.title}
@@ -122,7 +122,7 @@ const Breadcrumbs = () => {
             )
           )}
           {!last && (
-            <KeenIcon icon="right" className="text-gray-500 text-xs" key={`separator-${index}`} />
+            <KeenIcon icon="right" className="text-gray-500 dark:text-white/70 text-xs" key={`separator-${index}`} />
           )}
         </Fragment>
       );

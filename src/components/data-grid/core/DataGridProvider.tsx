@@ -61,6 +61,7 @@ export const DataGridProvider = <TData extends object>(props: TDataGridProps<TDa
   };
 
   const mergedProps = deepMerge(defaultValues, props);
+  const isExternallyPaginated = mergedProps.nativePagination === false;
 
   const [data, setData] = useState<TData[]>(mergedProps.data ?? []);
   const [loading, setLoading] = useState<boolean>(false);
@@ -106,16 +107,41 @@ export const DataGridProvider = <TData extends object>(props: TDataGridProps<TDa
     }
   };
 
+  useEffect(() => {
+    if (!mergedProps.serverSide) {
+      setData(mergedProps.data ?? []);
+      setTotalRows(mergedProps.data?.length ?? 0);
+    }
+  }, [mergedProps.data, mergedProps.serverSide]);
+
+  useEffect(() => {
+    if (isExternallyPaginated && mergedProps.pagination) {
+      setPagination({
+        pageIndex: mergedProps.pagination.page ?? 0,
+        pageSize: mergedProps.pagination.size ?? mergedProps.data?.length ?? 15
+      });
+    }
+  }, [
+    isExternallyPaginated,
+    mergedProps.pagination?.page,
+    mergedProps.pagination?.size,
+    mergedProps.data?.length
+  ]);
+
   const table = useReactTable({
     columns: mergedProps.columns, // Access columns from mergedProps
     data: data, // Access data from mergedProps
     debugTable: false,
-    pageCount: mergedProps.serverSide ? Math.ceil(totalRows / pagination.pageSize) : undefined,
+    pageCount: mergedProps.serverSide
+      ? Math.ceil(totalRows / pagination.pageSize)
+      : isExternallyPaginated
+        ? 1
+        : undefined,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: mergedProps.serverSide,
+    ...(isExternallyPaginated ? {} : { getPaginationRowModel: getPaginationRowModel() }),
+    manualPagination: mergedProps.serverSide || isExternallyPaginated,
     manualSorting: mergedProps.serverSide,
     manualFiltering: mergedProps.serverSide,
     onPaginationChange: setPagination,

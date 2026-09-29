@@ -6,12 +6,21 @@ import * as Yup from 'yup';
 import clsx from 'clsx';
 import { KeenIcon } from '@/components';
 import { useLayout } from '@/providers';
+import {
+  AuthBrandLogo,
+  authCardClass,
+  authCardStyle,
+  authFormClass,
+  authInputClass,
+  authLinkClass,
+  authPageShellClass,
+  authPrimaryButtonClass
+} from '../authVisual';
 
 const VITE_APP_API_URL = import.meta.env.VITE_APP_API_URL;
 
 const resetPasswordSchema = Yup.object().shape({
   password: Yup.string()
-  
     .min(8, 'Mínimo 8 caracteres')
     .max(50, 'Máximo 50 caracteres')
     .required('La contraseña es requerida'),
@@ -49,7 +58,6 @@ const ResetPasswordChange = () => {
       }
 
       try {
-
         setValidatingToken(false);
       } catch (error: any) {
         setErrorMessage(error.response?.data?.message || 'Token inválido o expirado');
@@ -93,40 +101,37 @@ const ResetPasswordChange = () => {
           {
             headers: {
               'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              Accept: 'application/json'
             }
           }
         );
 
-        // Limpiar sessionStorage
         sessionStorage.removeItem('resetEmail');
         sessionStorage.removeItem('resetToken');
 
-        // Redirigir a pantalla de éxito
         navigate(
           currentLayout?.name === 'auth-branded'
             ? '/auth/reset-password/check-email'
             : '/auth/classic/reset-password/check-email',
           {
-            state: { 
+            state: {
               message: response.data?.message || 'Contraseña cambiada exitosamente',
-              email 
+              email
             }
           }
         );
-
       } catch (error: any) {
         setHasErrors(true);
         setLoading(false);
         setSubmitting(false);
 
-        // Manejar errores específicos del backend
         if (error.response?.data?.error === 'invalid_token') {
-          setErrorMessage('Token de recuperación inválido o expirado. Por favor, solicita un nuevo enlace.');
-          // Limpiar sessionStorage en caso de token inválido
+          setErrorMessage(
+            'Token de recuperación inválido o expirado. Por favor, solicita un nuevo enlace.'
+          );
           sessionStorage.removeItem('resetToken');
           sessionStorage.removeItem('resetEmail');
-          
+
           setTimeout(() => {
             navigate(
               currentLayout?.name === 'auth-branded'
@@ -145,10 +150,10 @@ const ResetPasswordChange = () => {
 
   if (validatingToken) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 p-10">
+      <div className={authPageShellClass}>
+        <div className={clsx(authCardClass, 'p-10')} style={authCardStyle}>
           <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-200 border-t-orange-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-[#1e6fd9]"></div>
             <p className="text-gray-600 text-center">Validando tu enlace de recuperación...</p>
           </div>
         </div>
@@ -158,8 +163,8 @@ const ResetPasswordChange = () => {
 
   if (hasErrors && errorMessage) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 p-10">
+      <div className={authPageShellClass}>
+        <div className={clsx(authCardClass, 'p-10')} style={authCardStyle}>
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
               <KeenIcon icon="x-circle" className="text-red-500 text-2xl" />
@@ -167,12 +172,14 @@ const ResetPasswordChange = () => {
             <h3 className="text-lg font-semibold text-gray-900">Error</h3>
             <p className="text-gray-600 text-center">{errorMessage}</p>
             <button
-              onClick={() => navigate(
-                currentLayout?.name === 'auth-branded'
-                  ? '/auth/reset-password'
-                  : '/auth/classic/reset-password'
-              )}
-              className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+              onClick={() =>
+                navigate(
+                  currentLayout?.name === 'auth-branded'
+                    ? '/auth/reset-password'
+                    : '/auth/classic/reset-password'
+                )
+              }
+              className={clsx(authPrimaryButtonClass, 'mt-4 px-6')}
             >
               Volver a recuperar contraseña
             </button>
@@ -183,14 +190,14 @@ const ResetPasswordChange = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200">
-        <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6 px-6 py-10 sm:px-10" noValidate>
-          <div className="text-center">
-            <img src="https://admin.virtualt.org/default/logoweb.png" alt="Logo" className="h-12 object-contain mx-auto mb-4"/>
+    <div className={authPageShellClass}>
+      <div className={authCardClass} style={authCardStyle}>
+        <form onSubmit={formik.handleSubmit} className={authFormClass} noValidate>
+          <div className="text-center flex flex-col items-center gap-3">
+            <AuthBrandLogo />
             <h3 className="text-2xl font-semibold text-gray-900">Restablecer contraseña</h3>
-            <p className="text-sm text-gray-500 mt-2">Ingresa tu nueva contraseña</p>
-            <p className="text-xs text-gray-400 mt-1">Para: {email}</p>
+            <p className="text-sm text-gray-500">Ingresa tu nueva contraseña</p>
+            <p className="text-xs text-gray-400">Para: {email}</p>
           </div>
 
           {hasErrors && errorMessage && (
@@ -199,28 +206,26 @@ const ResetPasswordChange = () => {
             </div>
           )}
 
-          {/* Nueva contraseña */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">Nueva contraseña</label>
             <div className="relative">
-              <input 
-                placeholder="••••••••" 
-                type={showPassword ? 'text' : 'password'} 
+              <input
+                placeholder="••••••••"
+                type={showPassword ? 'text' : 'password'}
                 {...formik.getFieldProps('password')}
                 data-no-uppercase
                 className={clsx(
-                  'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
-                  'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 hover:border-gray-400',
-                  { 'border-red-500 focus:ring-red-500/20': formik.touched.password && formik.errors.password }
+                  authInputClass(!!(formik.touched.password && formik.errors.password)),
+                  'pr-12'
                 )}
                 autoComplete="new-password"
               />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword(!showPassword)} 
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
               >
-                <KeenIcon icon={showPassword ? "eye-slash" : "eye"} className="w-5 h-5" />
+                <KeenIcon icon={showPassword ? 'eye-slash' : 'eye'} className="w-5 h-5" />
               </button>
             </div>
             {formik.touched.password && formik.errors.password && (
@@ -228,28 +233,28 @@ const ResetPasswordChange = () => {
             )}
           </div>
 
-          {/* Confirmar contraseña */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">Confirmar contraseña</label>
             <div className="relative">
-              <input 
-                placeholder="••••••••" 
-                type={showConfirmPassword ? 'text' : 'password'} 
+              <input
+                placeholder="••••••••"
+                type={showConfirmPassword ? 'text' : 'password'}
                 {...formik.getFieldProps('password_confirmation')}
                 data-no-uppercase
                 className={clsx(
-                  'w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-gray-900 outline-none transition-all',
-                  'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 hover:border-gray-400',
-                  { 'border-red-500 focus:ring-red-500/20': formik.touched.password_confirmation && formik.errors.password_confirmation }
+                  authInputClass(
+                    !!(formik.touched.password_confirmation && formik.errors.password_confirmation)
+                  ),
+                  'pr-12'
                 )}
                 autoComplete="new-password"
               />
-              <button 
-                type="button" 
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
               >
-                <KeenIcon icon={showConfirmPassword ? "eye-slash" : "eye"} className="w-5 h-5" />
+                <KeenIcon icon={showConfirmPassword ? 'eye-slash' : 'eye'} className="w-5 h-5" />
               </button>
             </div>
             {formik.touched.password_confirmation && formik.errors.password_confirmation && (
@@ -257,27 +262,25 @@ const ResetPasswordChange = () => {
             )}
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading || formik.isSubmitting}
-            className={clsx(
-              'w-full h-12 rounded-xl text-white font-medium text-sm transition-all',
-              'bg-orange-500 hover:bg-orange-600 focus:ring-4 focus:ring-orange-500/30',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
+            className={clsx(authPrimaryButtonClass, 'w-full')}
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Cambiando...
               </div>
-            ) : 'Cambiar contraseña'}
+            ) : (
+              'Cambiar contraseña'
+            )}
           </button>
 
-          <div className="text-center text-sm text-gray-500 mt-4">
-            <Link 
+          <div className="text-center mt-2">
+            <Link
               to={currentLayout?.name === 'auth-branded' ? '/auth/login' : '/auth/classic/login'}
-              className="hover:text-orange-500 font-medium"
+              className={authLinkClass}
             >
               Volver al inicio de sesión
             </Link>

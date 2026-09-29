@@ -23,7 +23,7 @@ const fixImageUrl = (path: string | null): string | null => {
     cleanPath = `storage/${cleanPath}`;
   }
 
-  const apiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/';
+  const apiUrl = import.meta.env.VITE_APP_API_URL || 'http://localhost:8003/api/';
   const baseUrl = apiUrl.replace(/\/api\/?$/, '');
   return `${baseUrl}/${cleanPath}`;
 };

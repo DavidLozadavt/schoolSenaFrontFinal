@@ -19,7 +19,6 @@ import {
   unificarSesionesCompletadas,
   ymdFromFechaSesion,
   ymdSetSesionesCompletadas,
-  textoJornadaParaAjuste12h,
   titulosCompetenciaYRapUi,
   jsGetDayDesdeApiClase,
   calendarioInstructorEnRango,
@@ -36,9 +35,17 @@ import {
 } from '@/utils/clasesAsignadasLogica';
 import { useClasesInstructorAsignadas } from '@/hooks/useClasesInstructorAsignadas';
 import { useResponsive } from '@/hooks';
+import { useAuthContext } from '@/auth/useAuthContext';
+import {
+  descargarPlaneacionFicha,
+  FichaPlaneacionMeta,
+  obtenerIdContratoActivo,
+  puedeDescargarPlaneacion
+} from './utils/descargarPlaneacionFicha';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
+import ModalVerOpinionesClase from './calificaciones/modal/ModalVerOpinionesClase';
 import {
   ModalCrearActividad,
   ModalVerActividad,
@@ -51,12 +58,14 @@ import {
   ListaActividades,
   MaterialApoyoFichaView,
   MaterialApoyoAprendiz,
-  type Actividad
+  type Actividad,
+  type ConfigCuestionariosMap
 } from './actividades';
 import { VerGruposView } from './grupos';
 import CalificacionesFichaView from './calificaciones/CalificacionesFichaView';
 import JustificacionesInstructorPage from './JustificacionesInstructorPage';
 import ListaAsistenciasGlobalPage from './ListaAsistenciasGlobalPage';
+import ModalJuiciosEvaluativos from '@/pages/shared/ModalJuiciosEvaluativos';
 
 /** YYYY-MM-DD en calendario local (no usar toISOString() para claves: desfasa el día en UTC). */
 const formatYmdLocal = (d: Date): string => {
@@ -642,16 +651,12 @@ const CalendarComponent: React.FC<{
       [filasCalendarioPayload, sesionesCompletadasUnificadas, ahoraRef]
     );
 
-    const formatHora12Tooltip = (timeString: string, jornadaNombre: string): string => {
+    const formatHora12Tooltip = (timeString: string, _jornadaNombre?: string): string => {
       if (!timeString) return '—';
       const time = timeString.substring(0, 5);
       const [hoursStr, minutes] = time.split(':');
-      let hour24 = parseInt(hoursStr, 10);
+      const hour24 = parseInt(hoursStr, 10);
       if (isNaN(hour24)) return timeString;
-      const lowerJ = (jornadaNombre || '').toLowerCase();
-      const esTardeONoche =
-        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-      if (esTardeONoche && hour24 < 12) hour24 += 12;
       const esPM = hour24 >= 12;
       let hour12 = hour24 % 12;
       if (hour12 === 0) hour12 = 12;
@@ -776,24 +781,10 @@ const CalendarComponent: React.FC<{
 
       const finVentanaFranjaEnDia = (row: ClaseTooltipDia, diaCalendario: Date): Date => {
         const ahora = ahoraRef;
-        let [hIni, mIni] = (
-          extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5)
-        )
-          .split(':')
-          .map(Number);
-        let [hFin, mFin] = (
-          extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5)
-        )
-          .split(':')
-          .map(Number);
-        const lowerJ = textoJornadaParaAjuste12h({
-          jornada_nombre: row.jornada_nombre,
-          jornada_tipo: row.jornada_tipo
-        });
-        const esTardeONoche =
-          lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-        if (esTardeONoche && hIni < 12) hIni += 12;
-        if (esTardeONoche && hFin < 12) hFin += 12;
+        const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+        const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+        const [hIni, mIni] = hiS.split(':').map(Number);
+        const [hFin, mFin] = hfS.split(':').map(Number);
         const hi = new Date(diaCalendario);
         hi.setHours(hIni, mIni || 0, 0, 0);
         const hf = new Date(diaCalendario);
@@ -927,20 +918,10 @@ const CalendarComponent: React.FC<{
         (s) => ymdFromFechaSesion(s.fechaSesion) === ymd
       );
 
-      let [hIni, mIni] = (extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5))
-        .split(':')
-        .map(Number);
-      let [hFin, mFin] = (extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5))
-        .split(':')
-        .map(Number);
-      const lowerJ = textoJornadaParaAjuste12h({
-        jornada_nombre: row.jornada_nombre,
-        jornada_tipo: row.jornada_tipo
-      });
-      const esTardeONoche =
-        lowerJ.includes('tarde') || lowerJ.includes('noche') || lowerJ.includes('nocturna');
-      if (esTardeONoche && hIni < 12) hIni += 12;
-      if (esTardeONoche && hFin < 12) hFin += 12;
+      const hiS = extraerHoraHHMM(row.horaInicial || '') ?? (row.horaInicial || '0:0').substring(0, 5);
+      const hfS = extraerHoraHHMM(row.horaFinal || '') ?? (row.horaFinal || '0:0').substring(0, 5);
+      const [hIni, mIni] = hiS.split(':').map(Number);
+      const [hFin, mFin] = hfS.split(':').map(Number);
       const hi = new Date(ahora);
       hi.setHours(hIni, mIni || 0, 0, 0);
       const hf = new Date(ahora);
@@ -988,21 +969,21 @@ const CalendarComponent: React.FC<{
         >
           <p className="font-semibold leading-snug text-blue-900 dark:text-white">{tit.competencia}</p>
           {row.ficha_codigo ? (
-            <p className="mt-0.5 text-[11px] font-semibold text-slate-800 dark:text-gray-200">
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-800 dark:text-white">
               Ficha {row.ficha_codigo}
             </p>
           ) : null}
           {tit.rap ? (
-            <p className="mt-0.5 text-[11px] font-medium leading-snug text-slate-700 dark:text-gray-200">
+            <p className="mt-0.5 text-[11px] font-medium leading-snug text-slate-700 dark:text-white">
               {tit.rap}
             </p>
           ) : null}
           {row.programa_nombre ? (
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-gray-300">
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-white">
               {row.programa_nombre}
             </p>
           ) : null}
-          <p className="mt-1 text-[11px] text-slate-800 dark:text-gray-200">
+          <p className="mt-1 text-[11px] text-slate-800 dark:text-white">
             {formatHora12Tooltip(row.horaInicial, row.jornada_nombre)} —{' '}
             {formatHora12Tooltip(row.horaFinal, row.jornada_nombre)}
           </p>
@@ -1093,7 +1074,7 @@ const CalendarComponent: React.FC<{
           <div className="flex items-center gap-2">
             <button
               onClick={goToPreviousMonth}
-              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white transition-colors"
+              className="p-1 text-gray-600 hover:text-gray-900 dark:text-white dark:hover:text-white transition-colors"
             >
               <KeenIcon icon="left" className="text-sm" />
             </button>
@@ -1102,7 +1083,7 @@ const CalendarComponent: React.FC<{
             </span>
             <button
               onClick={goToNextMonth}
-              className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white transition-colors"
+              className="p-1 text-gray-600 hover:text-gray-900 dark:text-white dark:hover:text-white transition-colors"
             >
               <KeenIcon icon="right" className="text-sm" />
             </button>
@@ -1110,7 +1091,7 @@ const CalendarComponent: React.FC<{
         </div>
         <div className="grid grid-cols-7 gap-1 mb-2">
           {diasSemanaCortos.map((day, i) => (
-            <div key={`dow-${i}`} className="text-center text-xs font-medium text-gray-700 dark:text-gray-300">
+            <div key={`dow-${i}`} className="text-center text-xs font-medium text-gray-700 dark:text-white">
               {day}
             </div>
           ))}
@@ -1145,7 +1126,7 @@ const CalendarComponent: React.FC<{
 
             const baseClass =
               status === 'normal'
-                ? `${layoutCal} text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800`
+                ? `${layoutCal} text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800`
                 : `${layoutCal} cursor-default`;
 
             const celda = (
@@ -1200,7 +1181,7 @@ const CalendarComponent: React.FC<{
                       {bloquesDia.length > 0 ? (
                         bloquesDia.map((row) => contenidoBloqueTooltipDia(date, row))
                       ) : (
-                        <p className="text-sm text-slate-800 dark:text-gray-200">
+                        <p className="text-sm text-slate-800 dark:text-white">
                           No hay clase el día de hoy.
                         </p>
                       )}
@@ -1272,35 +1253,35 @@ const CalendarComponent: React.FC<{
             <>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Verde — sesión completada</span>
+                <span className="text-gray-700 dark:text-white">Verde — sesión completada</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
-                <span className="text-gray-700 dark:text-gray-300">Naranja — hoy</span>
+                <span className="text-gray-700 dark:text-white">Naranja — hoy</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Azul — próximos días con clase</span>
+                <span className="text-gray-700 dark:text-white">Azul — próximos días con clase</span>
               </div>
             </>
           ) : (
             <>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-orange-200 dark:bg-orange-500"></div>
-                <span className="text-gray-700 dark:text-gray-300">Hoy — día actual</span>
+                <span className="text-gray-700 dark:text-white">Hoy — día actual</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Pendientes (faltan por dictar)</span>
+                <span className="text-gray-700 dark:text-white">Pendientes (faltan por dictar)</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-400"></div>
-                <span className="text-gray-700 dark:text-gray-300">Completadas (sesión registrada)</span>
+                <span className="text-gray-700 dark:text-white">Completadas (sesión registrada)</span>
               </div>
               {calendarioInstructorMes ? (
                 resumenMesCalendarioInstructor.completadas > 0 ||
                 resumenMesCalendarioInstructor.pendientes > 0 ? (
-                  <p className="text-[10px] text-gray-600 dark:text-gray-200 leading-snug">
+                  <p className="text-[10px] text-gray-600 dark:text-white leading-snug">
                     {resumenMesCalendarioInstructor.completadas}{' '}
                     {resumenMesCalendarioInstructor.completadas === 1 ? 'día' : 'días'} con sesión
                     {resumenMesCalendarioInstructor.pendientes > 0
@@ -1310,7 +1291,7 @@ const CalendarComponent: React.FC<{
                   </p>
                 ) : null
               ) : sesionesCompletadasUnificadas.length > 0 ? (
-                <p className="text-[10px] text-gray-600 dark:text-gray-200 leading-snug">
+                <p className="text-[10px] text-gray-600 dark:text-white leading-snug">
                   {sesionesCompletadasUnificadas.length} sesión
                   {sesionesCompletadasUnificadas.length === 1 ? '' : 'es'} completada
                   {ymdPendienteClase.size > 0
@@ -1401,6 +1382,13 @@ interface Ficha {
   id: number;
   codigo: string;
   idSede?: number;
+  idInstructorLider?: number | null;
+  idProyectoFormativo?: number | null;
+  /** Ruta relativa del documento de la ficha (desde el backend). */
+  documento?: string | null;
+  /** URL completa para visualizar el documento de la ficha. */
+  rutaDocumentoUrl?: string | null;
+  sede?: { id: number; nombre?: string };
   jornada?: {
     id: number;
     nombreJornada: string;
@@ -1409,12 +1397,17 @@ interface Ficha {
   };
   asignacion?: {
     id: number;
+    idSede?: number;
     fechaInicialClases?: string;
     fechaFinalClases?: string;
     programa?: {
       id: number;
       nombrePrograma: string;
+      /** URL completa del documento del programa. */
+      documentoUrl?: string | null;
+      grados?: Array<{ pivot?: { idGrado?: number } }>;
     };
+    sede?: { id: number };
   };
   instructorLider?: {
     id: number;
@@ -1453,13 +1446,16 @@ type MenuOption =
   | 'calificaciones'
   | 'material-apoyo'
   | 'justificaciones-pendientes'
-  | 'lista-asistencias';
+  | 'lista-asistencias'
+  | 'opiniones-clase';
 
 const ClaseDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const authContext = useAuthContext();
+  const [exportandoPlaneacion, setExportandoPlaneacion] = useState(false);
   const locationState = location.state as {
     returnTo?: string;
     activeMenu?: MenuOption;
@@ -1488,6 +1484,52 @@ const ClaseDetallePage: React.FC = () => {
   const [sesionesCompletadasPorHorario, setSesionesCompletadasPorHorario] =
     useState<SesionesPorHorarioMap>({});
   const idHorarioMateriaClase = id ? parseInt(id, 10) : undefined;
+
+  // Estados para Calificaciones de Clase (Opiniones)
+  const [selectedSesionForOpinions, setSelectedSesionForOpinions] = useState<{
+    id: number;
+    numeroSesion: number;
+  } | null>(null);
+  const [isOpinionsModalOpen, setIsOpinionsModalOpen] = useState(false);
+
+  const idContratoUsuario = useMemo(
+    () => obtenerIdContratoActivo(authContext?.user?.persona?.contrato),
+    [authContext?.user?.persona?.contrato]
+  );
+
+  const metaPlaneacionFicha = useMemo<FichaPlaneacionMeta | undefined>(() => {
+    if (!ficha) return undefined;
+    const persona = ficha.instructorLider?.persona;
+    return {
+      id: ficha.id,
+      codigo: ficha.codigo,
+      idInstructorLider: ficha.idInstructorLider ?? null,
+      idProyectoFormativo: ficha.idProyectoFormativo ?? null,
+      instructorLiderNombre: persona
+        ? `${persona.nombre1} ${persona.apellido1}`.trim()
+        : '',
+      jornada: ficha.jornada?.nombreJornada ?? '',
+      programa: ficha.asignacion?.programa?.nombrePrograma ?? ''
+    };
+  }, [ficha]);
+
+  const mostrarDescargaPlaneacion = puedeDescargarPlaneacion(
+    metaPlaneacionFicha,
+    idContratoUsuario
+  );
+
+  const handleDescargarPlaneacion = useCallback(async () => {
+    if (!metaPlaneacionFicha) return;
+    try {
+      setExportandoPlaneacion(true);
+      await descargarPlaneacionFicha(metaPlaneacionFicha);
+    } catch (err) {
+      console.error('Error al exportar planeación:', err);
+      alert('No se pudo exportar la planeación. Intenta de nuevo.');
+    } finally {
+      setExportandoPlaneacion(false);
+    }
+  }, [metaPlaneacionFicha]);
 
   useEffect(() => {
     if (modoCalendario !== 'instructor') {
@@ -1664,15 +1706,6 @@ const ClaseDetallePage: React.FC = () => {
   const itemsPerPage = 11;
   const [currentTime, setCurrentTime] = useState(new Date());
 
-
-  //Juicios evaluativos:
-  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<boolean>(false);
-  const [idFicha, setIdFicha] = useState<number | undefined>(0);
-  const [idSede, setIdSede] = useState<number | undefined>(0);
-  const [idGrado, setIdGrado] = useState<number | undefined>(0);
-  const [idPrograma, setIdPrograma] = useState<string | undefined>('');
-  const [evento, setEvento] = useState<boolean>(false);
-
   // Actividades
   const [actividadesDisponibles, setActividadesDisponibles] = useState<Actividad[]>([]);
   const [actividadesAsignadas, setActividadesAsignadas] = useState<Actividad[]>([]);
@@ -1684,7 +1717,10 @@ const ClaseDetallePage: React.FC = () => {
   const [modalAsignarActividadOpen, setModalAsignarActividadOpen] = useState(false);
   const [actividadParaAsignar, setActividadParaAsignar] = useState<Actividad | null>(null);
   const [actividadesParaAsignar, setActividadesParaAsignar] = useState<Actividad[] | null>(null);
+  const [configCuestionariosAsignacion, setConfigCuestionariosAsignacion] = useState<ConfigCuestionariosMap | null>(null);
   const [assignSuccessCounter, setAssignSuccessCounter] = useState(0);
+  /** Fuerza refetch del listado de estudiantes al (re)entrar al menú Estudiantes. */
+  const [estudiantesRefreshToken, setEstudiantesRefreshToken] = useState(0);
   const [modalCrearActividadOpen, setModalCrearActividadOpen] = useState(false);
   const [actividadParaEditar, setActividadParaEditar] = useState<Actividad | null>(null);
   const [modalCrearCuestionarioOpen, setModalCrearCuestionarioOpen] = useState(false);
@@ -1699,6 +1735,7 @@ const ClaseDetallePage: React.FC = () => {
   const [actividadParaVerAprendices, setActividadParaVerAprendices] = useState<Actividad | null>(null);
   const [modalMoverRapOpen, setModalMoverRapOpen] = useState(false);
   const [actividadParaMoverRap, setActividadParaMoverRap] = useState<Actividad | null>(null);
+  const [modalJuiciosOpen, setModalJuiciosOpen] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1711,6 +1748,30 @@ const ClaseDetallePage: React.FC = () => {
     () => Number(locationState?.ficha_id || ficha?.id || 0) || 0,
     [locationState?.ficha_id, ficha?.id]
   );
+
+  /** Mismos parámetros que Planeación → ModalJuiciosEvaluativos (POST raps). */
+  const idProgramaJuicios = useMemo(() => {
+    const raw = ficha?.asignacion?.programa?.id;
+    return raw != null && String(raw).trim() !== '' ? String(raw) : undefined;
+  }, [ficha?.asignacion?.programa?.id]);
+
+  const idSedeJuicios = useMemo(() => {
+    const n = Number(
+      ficha?.idSede ?? ficha?.sede?.id ?? ficha?.asignacion?.idSede ?? ficha?.asignacion?.sede?.id ?? 0
+    );
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [ficha?.idSede, ficha?.sede?.id, ficha?.asignacion?.idSede, ficha?.asignacion?.sede?.id]);
+
+  const idGradoJuicios = useMemo(() => {
+    const desdeClase = Number((clase as { idGrado?: unknown } | null)?.idGrado);
+    if (Number.isFinite(desdeClase) && desdeClase > 0) return desdeClase;
+    const desdePrograma = Number(ficha?.asignacion?.programa?.grados?.[0]?.pivot?.idGrado);
+    if (Number.isFinite(desdePrograma) && desdePrograma > 0) return desdePrograma;
+    return 1;
+  }, [clase, ficha?.asignacion?.programa?.grados]);
+
+  const puedeAbrirModalJuicios =
+    idFichaParaClase > 0 && !!idProgramaJuicios && !!idSedeJuicios && !!idGradoJuicios;
 
   const idHorarioMateriaRuta = useMemo(() => {
     const n = id ? parseInt(String(id), 10) : NaN;
@@ -1787,21 +1848,8 @@ const ClaseDetallePage: React.FC = () => {
     // Verificar si estamos dentro del rango de horas de la clase
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
     const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
-    let [hIni, mIni] = hiS.split(':').map(Number);
-    let [hFin, mFin] = hfS.split(':').map(Number);
-
-    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTardeOEnoche =
-      jornadaTipoUpper.includes('TARDE') ||
-      jornadaTipoUpper.includes('NOCHE') ||
-      jornadaTipoUpper.includes('NOCTURNA');
-
-    if (esTardeOEnoche && hIni < 12) {
-      hIni += 12;
-    }
-    if (esTardeOEnoche && hFin < 12) {
-      hFin += 12;
-    }
+    const [hIni, mIni] = hiS.split(':').map(Number);
+    const [hFin, mFin] = hfS.split(':').map(Number);
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(hIni, mIni, 0, 0);
@@ -1862,6 +1910,58 @@ const ClaseDetallePage: React.FC = () => {
         const claseData = response.data?.data?.clase;
 
         if (fichaData) {
+          const backUrl = import.meta.env.VITE_APP_BACKEND_URL ?? '';
+          // Construir URL del documento de la ficha desde el endpoint principal
+          if (fichaData.documento) {
+            fichaData.rutaDocumentoUrl = `${backUrl}${fichaData.documento}`;
+          }
+          // Construir URL del documento del programa desde el endpoint principal
+          if (fichaData.asignacion?.programa?.documento) {
+            fichaData.asignacion.programa.documentoUrl =
+              `${backUrl}${fichaData.asignacion.programa.documento}`;
+          }
+
+          // Complementar documentos y datos de planeación desde fichas/{id}
+          if (fichaData.id) {
+            try {
+              const fichaDetalle = await axios.get(`fichas/${fichaData.id}`);
+              const fichaRaw = fichaDetalle.data?.data?.ficha ?? fichaDetalle.data?.data ?? fichaDetalle.data;
+              if (fichaRaw?.documento && !fichaData.documento) {
+                fichaData.documento = fichaRaw.documento;
+                fichaData.rutaDocumentoUrl = `${backUrl}${fichaRaw.documento}`;
+              }
+              const progDoc =
+                fichaRaw?.asignacion?.programa?.documento ??
+                fichaDetalle.data?.data?.apertura?.programa?.documento;
+              if (progDoc && fichaData.asignacion?.programa && !fichaData.asignacion.programa.documentoUrl) {
+                fichaData.asignacion.programa.documentoUrl = `${backUrl}${progDoc}`;
+              }
+              if (fichaRaw?.idSede != null && fichaData.idSede == null) {
+                fichaData.idSede = Number(fichaRaw.idSede);
+              }
+              if (fichaRaw?.sede && !fichaData.sede) {
+                fichaData.sede = fichaRaw.sede;
+              }
+              if (fichaRaw?.asignacion?.programa?.grados && fichaData.asignacion?.programa) {
+                fichaData.asignacion.programa.grados = fichaRaw.asignacion.programa.grados;
+              }
+              if (fichaRaw?.idInstructorLider != null) {
+                fichaData.idInstructorLider = Number(fichaRaw.idInstructorLider);
+              }
+              if (fichaRaw?.idProyectoFormativo != null) {
+                fichaData.idProyectoFormativo = Number(fichaRaw.idProyectoFormativo);
+              }
+              if (fichaRaw?.instructorLider && !fichaData.instructorLider) {
+                fichaData.instructorLider = fichaRaw.instructorLider;
+              }
+              if (fichaRaw?.jornada && !fichaData.jornada) {
+                fichaData.jornada = fichaRaw.jornada;
+              }
+            } catch {
+              // silencioso: si falla el fetch adicional, se mantiene sin datos extra
+            }
+          }
+
           setFicha(fichaData);
           if (claseData) {
             const norm = normalizarClaseDetalleApi(claseData);
@@ -1871,11 +1971,40 @@ const ClaseDetallePage: React.FC = () => {
               : Array.isArray((response.data?.data as { sesiones_completadas?: unknown })?.sesiones_completadas)
                 ? (response.data?.data as { sesiones_completadas: unknown[] }).sesiones_completadas
                 : [];
-            if (norm && sesionesLista.length > 0) {
-              norm.sesiones_completadas = unificarSesionesCompletadas(
-                norm.sesiones_completadas,
-                sesionesLista as Array<{ fechaSesion?: unknown; numeroSesion?: number }>
-              ) as Clase['sesiones_completadas'];
+            
+            if (norm) {
+              const unificadas: SesionCompletada[] = [];
+              const agregadas = new Set<string>();
+
+              // 1. Añadir sesiones que ya están en norm (preserva todas las propiedades como id, fechaFormateada, etc.)
+              for (const s of norm.sesiones_completadas ?? []) {
+                const key = `${s.fechaSesion}|${s.numeroSesion}`;
+                if (!agregadas.has(key)) {
+                  unificadas.push(s);
+                  agregadas.add(key);
+                }
+              }
+
+              // 2. Añadir de sesionesLista si no están, sin perder propiedades
+              for (const s of sesionesLista as any[]) {
+                if (!s) continue;
+                const fSesion = s.fechaSesion ?? s.fecha_sesion ?? '';
+                const numSesion = s.numeroSesion ?? s.numero_sesion ?? 0;
+                const key = `${fSesion}|${numSesion}`;
+                if (!agregadas.has(key)) {
+                  unificadas.push({
+                    id: s.id,
+                    numeroSesion: numSesion,
+                    fechaSesion: fSesion,
+                    fechaFormateada: s.fechaFormateada ?? s.fecha_formateada ?? fSesion,
+                    fechaCorta: s.fechaCorta ?? s.fecha_corta ?? '',
+                    estado: s.estado ?? 'COMPLETADA',
+                    observacion: s.observacion,
+                  });
+                  agregadas.add(key);
+                }
+              }
+              norm.sesiones_completadas = unificadas;
             }
             setClase(norm ?? (claseData as Clase));
           } else {
@@ -1922,7 +2051,12 @@ const ClaseDetallePage: React.FC = () => {
           ? Number(rawProg)
           : undefined;
       const params: Record<string, string> = {};
-      if (idMateriaFiltro) params.id_materia_clase = String(idMateriaFiltro);
+      if (idMateriaFiltro) {
+        // RAP exacto: id_materia_clase + idRap/idMateria (misma llave en backend: actividades.idMateria).
+        params.id_materia_clase = String(idMateriaFiltro);
+        params.idRap = String(idMateriaFiltro);
+        params.idMateria = String(idMateriaFiltro);
+      }
       if (idProgramaFiltro != null && !Number.isNaN(idProgramaFiltro)) {
         params.id_programa = String(idProgramaFiltro);
       }
@@ -1934,21 +2068,38 @@ const ClaseDetallePage: React.FC = () => {
       }
       if (idMateriaFiltro) {
         planeacionQs.set('id_materia_clase', String(idMateriaFiltro));
+        planeacionQs.set('idRap', String(idMateriaFiltro));
+        planeacionQs.set('idMateria', String(idMateriaFiltro));
       }
       const planeacionUrl = `planeacionactividades/ficha/${idFichaParaClase}${
         planeacionQs.toString() ? `?${planeacionQs.toString()}` : ''
       }`;
 
       const [disponiblesRes, asignadasRes, coberturaRes] = await Promise.allSettled([
-        axios.get('actividades', { params }).catch(() => ({ data: [] })),
-        axios.get(planeacionUrl).catch(() => ({ data: [] })),
-        axios.get(`fichas/${idFichaParaClase}/asignacion-actividades/cobertura`).catch(() => ({ data: null }))
+        axios
+          .get('actividades', {
+            params: { ...params, ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(planeacionUrl, {
+            params: { ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: [] })),
+        axios
+          .get(`fichas/${idFichaParaClase}/asignacion-actividades/cobertura`, {
+            params: { ts: Date.now() },
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+          })
+          .catch(() => ({ data: null }))
       ]);
       const disp = disponiblesRes.status === 'fulfilled' && Array.isArray(disponiblesRes.value?.data) ? disponiblesRes.value.data : disponiblesRes.status === 'fulfilled' && disponiblesRes.value?.data?.data ? disponiblesRes.value.data.data : [];
       const asig = asignadasRes.status === 'fulfilled' && Array.isArray(asignadasRes.value?.data) ? asignadasRes.value.data : asignadasRes.status === 'fulfilled' && asignadasRes.value?.data?.data ? asignadasRes.value.data.data : [];
-      setActividadesDisponibles(disp);
+      // Reemplazar listados (no concatenar) para reflejar el estado actual.
+      setActividadesDisponibles(Array.isArray(disp) ? disp : []);
       setActividadesAsignadas(Array.isArray(asig) ? asig.filter((a: any) => a.actividad || a) : []);
-
       if (coberturaRes.status === 'fulfilled' && coberturaRes.value?.data) {
         const d = coberturaRes.value.data;
         const por = d.porActividad as
@@ -1990,6 +2141,26 @@ const ClaseDetallePage: React.FC = () => {
       fetchActividades();
     }
   }, [activeMenu, fetchActividades, idFichaParaClase]);
+
+  /** Cambia de sección y, si ya estamos en ella, fuerza refetch (sin F5). */
+  const irAMenuClase = useCallback(
+    (menu: MenuOption) => {
+      if (menu === activeMenu) {
+        if (menu === 'estudiantes') {
+          setEstudiantesRefreshToken((n) => n + 1);
+        }
+        if (
+          (menu === 'agregar-actividades' || menu === 'actividades-asignadas') &&
+          idFichaParaClase > 0
+        ) {
+          void fetchActividades();
+        }
+        return;
+      }
+      setActiveMenu(menu);
+    },
+    [activeMenu, fetchActividades, idFichaParaClase]
+  );
 
   const idsActividadesAsignadas = useMemo(() => {
     const set = new Set<number>();
@@ -2146,29 +2317,19 @@ const ClaseDetallePage: React.FC = () => {
     return `${hour12}:${minutes} ${esPM ? 'PM' : 'AM'}`;
   };
 
-  // Función para convertir hora string (HH:MM:SS o HH:MM) a minutos desde medianoche
-  // El backend devuelve horas en formato 12h pero como si fueran 24h (ej: "04:00:00" = 4:00 PM si jornada es TARDE)
-  const timeToMinutes = (timeString: string, jornadaTipo?: string): number => {
+  // Función para convertir hora string (HH:MM:SS o HH:MM) a minutos desde medianoche (24h, horarioMateria).
+  const timeToMinutes = (timeString: string): number => {
     if (!timeString) return 0;
     const time = extraerHoraHHMM(timeString) ?? timeString.substring(0, 5);
-    let [hours, minutes] = time.split(':').map(Number);
-
-    const jornadaTipoUpper = (jornadaTipo || '').toUpperCase();
-    const esTarde = jornadaTipoUpper.includes('TARDE');
-    const esNoche = jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
-
-    if ((esTarde || esNoche) && hours < 12) {
-      hours += 12;
-    }
-
+    const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
 
   // Función para calcular la duración total de la clase en segundos
   const calcularDuracionClase = (): number => {
     if (!clase?.horaInicial || !clase?.horaFinal) return 0;
-    const inicio = timeToMinutes(clase.horaInicial, clase.jornada_tipo || clase.jornada_nombre);
-    const fin = timeToMinutes(clase.horaFinal, clase.jornada_tipo || clase.jornada_nombre);
+    const inicio = timeToMinutes(clase.horaInicial);
+    const fin = timeToMinutes(clase.horaFinal);
     // Si la hora final es menor que la inicial, asumimos que cruza medianoche
     let duracionMinutos = 0;
     if (fin <= inicio) {
@@ -2238,18 +2399,8 @@ const ClaseDetallePage: React.FC = () => {
     // 3. Hora actual dentro del rango horaInicial–horaFinal (misma lógica de jornada que el listado y el horario)
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
     const hfS = extraerHoraHHMM(clase.horaFinal) ?? clase.horaFinal.substring(0, 5);
-    let [hIni, mIni] = hiS.split(':').map(Number);
-    let [hFin, mFin] = hfS.split(':').map(Number);
-
-    const jornadaTipoUpper = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTardeOEnoche = jornadaTipoUpper.includes('TARDE') || jornadaTipoUpper.includes('NOCHE') || jornadaTipoUpper.includes('NOCTURNA');
-
-    if (esTardeOEnoche && hIni < 12) {
-      hIni += 12;
-    }
-    if (esTardeOEnoche && hFin < 12) {
-      hFin += 12;
-    }
+    const [hIni, mIni] = hiS.split(':').map(Number);
+    const [hFin, mFin] = hfS.split(':').map(Number);
 
     const inicio = new Date(ahora); inicio.setHours(hIni, mIni, 0, 0);
     const fin = new Date(ahora); fin.setHours(hFin, mFin, 0, 0);
@@ -2266,15 +2417,7 @@ const ClaseDetallePage: React.FC = () => {
 
     const ahora = currentTime;
     const hiS = extraerHoraHHMM(clase.horaInicial) ?? clase.horaInicial.substring(0, 5);
-    let [horaIni, minIni] = hiS.split(':').map(Number);
-
-    const jornadaTipo = textoJornadaParaAjuste12h(clase).toUpperCase();
-    const esTarde = jornadaTipo.includes('TARDE');
-    const esNoche = jornadaTipo.includes('NOCHE') || jornadaTipo.includes('NOCTURNA');
-
-    if ((esTarde || esNoche) && horaIni < 12) {
-      horaIni += 12;
-    }
+    const [horaIni, minIni] = hiS.split(':').map(Number);
 
     const horaInicio = new Date(ahora);
     horaInicio.setHours(horaIni, minIni, 0, 0);
@@ -2312,7 +2455,7 @@ const ClaseDetallePage: React.FC = () => {
       return {
         color: '#9ca3af', // gray-400
         bgColor: 'bg-gray-100 dark:bg-gray-900/30',
-        textColor: 'text-gray-700 dark:text-gray-300',
+        textColor: 'text-gray-700 dark:text-white',
         estado: estado === 'pasada' ? 'Completada' : 'Pendiente'
       };
     }
@@ -2379,7 +2522,7 @@ const ClaseDetallePage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-200">Cargando...</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-white">Cargando...</p>
         </div>
       </div>
     );
@@ -2390,7 +2533,7 @@ const ClaseDetallePage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <KeenIcon icon="document" className="text-6xl text-gray-400 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+          <p className="text-lg font-medium text-gray-700 dark:text-white">
             No se encontró la clase
           </p>
         </div>
@@ -2467,11 +2610,11 @@ const ClaseDetallePage: React.FC = () => {
                     {tit.competencia}
                   </h1>
                   {tit.rap ? (
-                    <p className="text-xs font-normal text-gray-700 dark:text-gray-300 mb-1 leading-snug">
+                    <p className="text-xs font-normal text-gray-700 dark:text-white mb-1 leading-snug">
                       {tit.rap}
                     </p>
                   ) : null}
-                  <p className="text-xs text-gray-600 dark:text-gray-200 uppercase tracking-wide">
+                  <p className="text-xs text-gray-600 dark:text-white uppercase tracking-wide">
                     {programaTxt}
                   </p>
                 </>
@@ -2487,7 +2630,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="document" className="text-blue-600 dark:text-blue-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">Ficha</p>
+                  <p className="text-[10px] text-gray-600 dark:text-white mb-0.5">Ficha</p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                     {ficha.codigo}
                   </p>
@@ -2500,7 +2643,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="sun" className="text-yellow-600 dark:text-yellow-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">Jornada</p>
+                  <p className="text-[10px] text-gray-600 dark:text-white mb-0.5">Jornada</p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                     {getJornadaType(ficha.jornada?.nombreJornada || '')}
                   </p>
@@ -2513,7 +2656,7 @@ const ClaseDetallePage: React.FC = () => {
                   <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-sm" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-200 mb-0.5">
+                  <p className="text-[10px] text-gray-600 dark:text-white mb-0.5">
                     Número de Sesiones
                   </p>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
@@ -2522,6 +2665,83 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Documento del Programa */}
+            <DefaultTooltip
+              title={
+                ficha.asignacion?.programa?.documentoUrl
+                  ? 'Ver documento del programa'
+                  : 'Sin documento de programa'
+              }
+              placement="top"
+            >
+              <button
+                type="button"
+                id="btn-doc-programa-clase"
+                disabled={!ficha.asignacion?.programa?.documentoUrl}
+                onClick={() => {
+                  if (ficha.asignacion?.programa?.documentoUrl) {
+                    window.open(ficha.asignacion.programa.documentoUrl, '_blank');
+                  }
+                }}
+                className={`p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  ficha.asignacion?.programa?.documentoUrl
+                    ? 'border-purple-200 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 cursor-pointer'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title={ficha.asignacion?.programa?.documentoUrl ? 'Ver documento del programa' : 'Sin documento de programa'}
+              >
+                <i className="ki-outline ki-book text-sm" />
+              </button>
+            </DefaultTooltip>
+
+            {/* Documento de la Ficha */}
+            <DefaultTooltip
+              title={
+                ficha.rutaDocumentoUrl
+                  ? 'Ver documento de la ficha'
+                  : 'Sin documento de ficha'
+              }
+              placement="top"
+            >
+              <button
+                type="button"
+                id="btn-doc-ficha-clase"
+                disabled={!ficha.rutaDocumentoUrl}
+                onClick={() => {
+                  if (ficha.rutaDocumentoUrl) {
+                    window.open(ficha.rutaDocumentoUrl, '_blank');
+                  }
+                }}
+                className={`p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  ficha.rutaDocumentoUrl
+                    ? 'border-rose-200 dark:border-rose-600 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 cursor-pointer'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title={ficha.rutaDocumentoUrl ? 'Ver documento de la ficha' : 'Sin documento de ficha'}
+              >
+                <i className="ki-outline ki-file-down text-sm" />
+              </button>
+            </DefaultTooltip>
+
+            {mostrarDescargaPlaneacion ? (
+              <DefaultTooltip title="Descargar planeación (Excel)" placement="top">
+                <button
+                  type="button"
+                  id="btn-planeacion-ficha-clase"
+                  disabled={exportandoPlaneacion}
+                  onClick={handleDescargarPlaneacion}
+                  className="p-2.5 w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors border-orange-200 dark:border-orange-600 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                  title="Descargar planeación (Excel)"
+                >
+                  {exportandoPlaneacion ? (
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                  ) : (
+                    <i className="ki-outline ki-note-2 text-sm" />
+                  )}
+                </button>
+              </DefaultTooltip>
+            ) : null}
           </div>
         </div>
       </div>
@@ -2602,7 +2822,7 @@ const ClaseDetallePage: React.FC = () => {
                           {inst.nombre}
                         </p>
                       ))}
-                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-4 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-white mb-4 mt-1">
                         {emailInstructor}
                       </p>
                       <div className="flex items-center gap-2.5">
@@ -2618,7 +2838,7 @@ const ClaseDetallePage: React.FC = () => {
                   </div>
                 );
               })() : (
-                <p className="text-xs text-gray-600 dark:text-gray-200">No hay instructor asignado</p>
+                <p className="text-xs text-gray-600 dark:text-white">No hay instructor asignado</p>
               )}
             </div>
           </div>
@@ -2635,12 +2855,12 @@ const ClaseDetallePage: React.FC = () => {
                       <KeenIcon icon="calendar" className="text-green-600 dark:text-green-400 text-xl" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-2.5">Fecha de Inicio</p>
+                      <p className="text-xs text-gray-600 dark:text-white mb-2.5">Fecha de Inicio</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
                         {formatDate(clase.fechaInicial)}
                       </p>
                       {clase.horaInicial && (
-                        <p className="text-xs text-gray-600 dark:text-gray-200">
+                        <p className="text-xs text-gray-600 dark:text-white">
                           Hora inicio: {formatTime12h(clase.horaInicial)}
                         </p>
                       )}
@@ -2652,12 +2872,12 @@ const ClaseDetallePage: React.FC = () => {
                       <KeenIcon icon="calendar" className="text-red-600 dark:text-red-400 text-xl" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-600 dark:text-gray-200 mb-2.5">Fecha de Fin</p>
+                      <p className="text-xs text-gray-600 dark:text-white mb-2.5">Fecha de Fin</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2.5 leading-snug">
                         {formatDate(clase.fechaFinal)}
                       </p>
                       {clase.horaFinal && (
-                        <p className="text-xs text-gray-600 dark:text-gray-200">
+                        <p className="text-xs text-gray-600 dark:text-white">
                           Hora fin: {formatTime12h(clase.horaFinal)}
                         </p>
                       )}
@@ -2714,7 +2934,7 @@ const ClaseDetallePage: React.FC = () => {
                   }}
                 />
               ) : (
-                <div className="text-center py-8 text-sm text-gray-600 dark:text-gray-200">
+                <div className="text-center py-8 text-sm text-gray-600 dark:text-white">
                   No hay fechas disponibles
                 </div>
               )}
@@ -2750,7 +2970,7 @@ const ClaseDetallePage: React.FC = () => {
                   ) : null}
                   <KeenIcon
                     icon="down"
-                    className={`shrink-0 text-sm text-gray-600 dark:text-gray-200 transition-transform duration-200 ${menuClaseExpandido ? 'rotate-0' : '-rotate-90'}`}
+                    className={`shrink-0 text-sm text-gray-600 dark:text-white transition-transform duration-200 ${menuClaseExpandido ? 'rotate-0' : '-rotate-90'}`}
                   />
                 </button>
               ) : (
@@ -2762,14 +2982,14 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Estudiantes"
-                  onClick={() => setActiveMenu('estudiantes')}
+                  onClick={() => irAMenuClase('estudiantes')}
                   className={claseBotonItemMenu(activeMenu === 'estudiantes')}
                 >
                   <KeenIcon
                     icon="users"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'estudiantes' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Estudiantes" /> : null}
@@ -2777,14 +2997,14 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Crear actividad"
-                  onClick={() => setActiveMenu('agregar-actividades')}
+                  onClick={() => irAMenuClase('agregar-actividades')}
                   className={claseBotonItemMenu(activeMenu === 'agregar-actividades')}
                 >
                   <KeenIcon
                     icon="plus-circle"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'agregar-actividades' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Crear actividad" /> : null}
@@ -2792,14 +3012,14 @@ const ClaseDetallePage: React.FC = () => {
                 <button
                   type="button"
                   title="Calificar actividad"
-                  onClick={() => setActiveMenu('actividades-asignadas')}
+                  onClick={() => irAMenuClase('actividades-asignadas')}
                   className={claseBotonItemMenu(activeMenu === 'actividades-asignadas')}
                 >
                   <KeenIcon
                     icon="check-squared"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'actividades-asignadas' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificar actividad" /> : null}
@@ -2814,7 +3034,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="users"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'ver-grupos' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Ver grupos" /> : null}
@@ -2829,7 +3049,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="chart-line"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'calificaciones' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Calificaciones" /> : null}
@@ -2844,7 +3064,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="chart-simple"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'juicios-evaluativos' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? <EtiquetaMenuClase etiqueta="Juicios evaluativos" /> : null}
@@ -2859,7 +3079,7 @@ const ClaseDetallePage: React.FC = () => {
                     icon="document"
                     className={clsx(
                       claseIconoItemMenu,
-                      activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                      activeMenu === 'material-apoyo' ? 'text-primary' : 'text-gray-600 dark:text-white'
                     )}
                   />
                   {mostrarEtiquetasMenu ? (
@@ -2880,7 +3100,7 @@ const ClaseDetallePage: React.FC = () => {
                           claseIconoItemMenu,
                           activeMenu === 'justificaciones-pendientes'
                             ? 'text-primary'
-                            : 'text-gray-600 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-white'
                         )}
                       />
                       {mostrarEtiquetasMenu ? (
@@ -2897,11 +3117,28 @@ const ClaseDetallePage: React.FC = () => {
                         icon="chart-line-up"
                         className={clsx(
                           claseIconoItemMenu,
-                          activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-600 dark:text-gray-100'
+                          activeMenu === 'lista-asistencias' ? 'text-primary' : 'text-gray-600 dark:text-white'
                         )}
                       />
                       {mostrarEtiquetasMenu ? (
                         <EtiquetaMenuClase etiqueta="Lista de asistencias" />
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      title="Opiniones de clase"
+                      onClick={() => setActiveMenu('opiniones-clase')}
+                      className={claseBotonItemMenu(activeMenu === 'opiniones-clase')}
+                    >
+                      <KeenIcon
+                        icon="star"
+                        className={clsx(
+                          claseIconoItemMenu,
+                          activeMenu === 'opiniones-clase' ? 'text-primary' : 'text-gray-600 dark:text-white'
+                        )}
+                      />
+                      {mostrarEtiquetasMenu ? (
+                        <EtiquetaMenuClase etiqueta="Opiniones de clase" />
                       ) : null}
                     </button>
                   </>
@@ -2918,6 +3155,8 @@ const ClaseDetallePage: React.FC = () => {
               {/* Estudiantes Section */}
               {activeMenu === 'estudiantes' && (
                 <StudentListByMateria
+                  key={`estudiantes-${idFichaParaClase}-${idMateriaClaseProp}-${idHorarioMateriaRuta ?? ''}`}
+                  refreshToken={estudiantesRefreshToken}
                   materiaData={{
                     idMateria: idMateriaClaseProp,
                     idFicha: idFichaParaClase,
@@ -2930,7 +3169,7 @@ const ClaseDetallePage: React.FC = () => {
                       (typeof ficha?.asignacion?.programa?.nombrePrograma === 'string'
                         ? ficha.asignacion.programa.nombrePrograma
                         : undefined),
-                    // estadoClase para el botón de asistencia: usa SOLO fechas, día y horas del backend (sin jornada)
+                    // estadoClase para el botón de asistencia: horas literales de horarioMateria (24h)
                     estadoClase: (getEstadoClase() === 'en_curso' || esPeriodoAsistencia()) ? 'EN_CURSO' : 'PENDIENTE',
                     idHorarioMateria: id ? parseInt(id) : undefined,
                     ficha_codigo: ficha?.codigo
@@ -2952,8 +3191,9 @@ const ClaseDetallePage: React.FC = () => {
                     setCuestionarioParaEditar(null);
                     setModalCrearCuestionarioOpen(true);
                   }}
-                  onAsignarActividades={(acts) => {
+                  onAsignarActividades={(acts, configCuestionarios) => {
                     setActividadesParaAsignar(acts);
+                    setConfigCuestionariosAsignacion(configCuestionarios ?? null);
                     setActividadParaAsignar(null);
                     setModalAsignarActividadOpen(true);
                   }}
@@ -3034,14 +3274,38 @@ const ClaseDetallePage: React.FC = () => {
                 />
               )}
 
-              {/* Juicios Evaluativos Section */}
+              {/* Juicios Evaluativos: mismo modal de Planeación (POST raps) */}
               {activeMenu === 'juicios-evaluativos' && (
                 <div className="text-center py-12">
                   <KeenIcon icon="chart-simple" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">No hay juicios evaluativos</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-200">
-                    Los juicios evaluativos aparecerán aquí cuando estén disponibles
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    Juicios evaluativos
                   </p>
+                  {idFichaParaClase > 0 ? (
+                    <>
+                      <p className="text-xs text-gray-600 dark:text-white mb-4">
+                        Carga el archivo Excel de juicios evaluativos para la ficha{' '}
+                        <span className="font-semibold">{ficha?.codigo || idFichaParaClase}</span>.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        disabled={!puedeAbrirModalJuicios}
+                        onClick={() => puedeAbrirModalJuicios && setModalJuiciosOpen(true)}
+                      >
+                        Cargar Juicios Evaluativos
+                      </button>
+                      {!puedeAbrirModalJuicios && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
+                          Faltan datos de sede o programa para abrir la carga. Recarga la clase e inténtalo de nuevo.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-600 dark:text-white">
+                      No hay ficha asociada a esta clase.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -3050,7 +3314,7 @@ const ClaseDetallePage: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</h3>
-                    <p className="text-xs text-gray-600 dark:text-gray-200">
+                    <p className="text-xs text-gray-600 dark:text-white">
                       Recursos de consulta de todo tu programa de formación (sin entrega ni calificación). El RAP actual es solo referencia.
                     </p>
                   </div>
@@ -3075,7 +3339,7 @@ const ClaseDetallePage: React.FC = () => {
                 <div className="text-center py-12 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
                   <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-200 px-4">
+                  <p className="text-xs text-gray-600 dark:text-white px-4">
                     No hay ficha cargada para esta clase. Vuelve a entrar desde el detalle de la ficha o recarga la página.
                   </p>
                 </div>
@@ -3110,6 +3374,72 @@ const ClaseDetallePage: React.FC = () => {
                   defaultIdHorarioMateria={idHorarioMateriaClase}
                 />
               )}
+
+              {activeMenu === 'opiniones-clase' && modoCalendario !== 'aprendiz' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase mb-1">
+                      Opiniones de alumnos sobre las sesiones
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-white">
+                      Selecciona una sesión de clase completada para ver las calificaciones y comentarios detallados dejados por los aprendices.
+                    </p>
+                  </div>
+
+                  {!clase?.sesiones_completadas || clase.sesiones_completadas.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                      <KeenIcon icon="star" className="text-4xl text-gray-300 mx-auto mb-3 animate-pulse" />
+                      <p className="text-sm font-semibold text-gray-500 dark:text-white">
+                        No hay sesiones de clase registradas/completadas todavía.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {clase.sesiones_completadas.map((sesion) => (
+                        <div
+                          key={sesion.id}
+                          className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-coal-400 flex flex-col justify-between hover:shadow-md transition-shadow"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">
+                                Sesión #{sesion.numeroSesion}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400">
+                                Completada
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+                              {sesion.fechaFormateada}
+                            </h4>
+                            {sesion.observacion && (
+                              <p className="text-xs text-gray-500 dark:text-white line-clamp-2 mt-2 italic">
+                                "{sesion.observacion}"
+                              </p>
+                            )}
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSesionForOpinions({
+                                  id: sesion.id,
+                                  numeroSesion: sesion.numeroSesion,
+                                });
+                                setIsOpinionsModalOpen(true);
+                              }}
+                              className="btn btn-xs py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md flex items-center gap-1 text-xs cursor-pointer focus:outline-none"
+                            >
+                              <KeenIcon icon="star" className="text-white text-xs" />
+                              Ver opiniones
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3122,17 +3452,20 @@ const ClaseDetallePage: React.FC = () => {
           setModalAsignarActividadOpen(false);
           setActividadParaAsignar(null);
           setActividadesParaAsignar(null);
+          setConfigCuestionariosAsignacion(null);
         }}
         onSave={() => {
           fetchActividades();
           setActividadesParaAsignar(null);
           setActividadParaAsignar(null);
+          setConfigCuestionariosAsignacion(null);
           setAssignSuccessCounter((c) => c + 1);
         }}
         onSuccess={showToast}
         idFicha={idFichaParaClase}
         actividad={actividadParaAsignar}
         actividades={actividadesParaAsignar}
+        configCuestionarios={configCuestionariosAsignacion}
       />
       <ModalCrearActividad
         open={modalCrearActividadOpen}
@@ -3202,6 +3535,7 @@ const ClaseDetallePage: React.FC = () => {
         }}
         onSuccess={showToast}
         actividad={actividadParaMaterialApoyo}
+        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
       />
       <ModalMoverActividadRap
         open={modalMoverRapOpen && idFichaParaClase > 0}
@@ -3215,6 +3549,17 @@ const ClaseDetallePage: React.FC = () => {
         onSave={() => fetchActividades()}
         onSuccess={showToast}
       />
+      <ModalJuiciosEvaluativos
+        open={modalJuiciosOpen && puedeAbrirModalJuicios}
+        onClose={() => setModalJuiciosOpen(false)}
+        onSave={() => {
+          showToast('Juicios evaluativos cargados correctamente');
+        }}
+        idFicha={idFichaParaClase > 0 ? idFichaParaClase : undefined}
+        idPrograma={idProgramaJuicios}
+        idSede={idSedeJuicios}
+        idGrado={idGradoJuicios}
+      />
       {zoomFoto && (
         <ImageZoomModal
           open={!!zoomFoto}
@@ -3222,6 +3567,18 @@ const ClaseDetallePage: React.FC = () => {
           src={zoomFoto.src}
           alt={zoomFoto.alt}
           title={zoomFoto.alt}
+        />
+      )}
+      {selectedSesionForOpinions && (
+        <ModalVerOpinionesClase
+          open={isOpinionsModalOpen}
+          onClose={() => {
+            setIsOpinionsModalOpen(false);
+            setSelectedSesionForOpinions(null);
+          }}
+          idSesionMateria={selectedSesionForOpinions.id}
+          numeroSesion={selectedSesionForOpinions.numeroSesion}
+          materiaNombre={clase?.materia_nombre || 'Materia'}
         />
       )}
       <Toast

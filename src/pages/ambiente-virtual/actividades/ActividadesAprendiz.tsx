@@ -1,10 +1,12 @@
-﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { KeenIcon, ImageZoomModal, Toast } from '@/components';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import ModalResponderCuestionario from './ModalResponderCuestionario';
+import ModalRevisarIntentoCuestionario from './ModalRevisarIntentoCuestionario';
+import CuentaRegresivaReintento from './CuentaRegresivaReintento';
 import {
   actOnMaterialDocumento,
   ENTREGA_EVIDENCIA_ACCEPT,
@@ -55,7 +57,7 @@ interface ActividadAprendiz {
   autor?: {
     nombreCompleto?: string | null;
     rutaFotoUrl?: string | null;
-    /** Ruta sin dominio si el backend la envÃ­a en crudo */
+    /** Ruta sin dominio si el backend la envía en crudo */
     rutaFoto?: string | null;
   };
   materialesApoyo?: Array<{
@@ -73,25 +75,32 @@ interface ActividadAprendiz {
   activa?: boolean;
   esGrupal?: boolean;
   idGrupo?: number | null;
+  tieneRespuestasCuestionario?: boolean;
+  preguntasMinimasAprobar?: number | null;
+  intervaloReintento?: number | null;
+  ultimoIntentoEn?: string | null;
+  proximoIntentoDisponibleEn?: string | null;
+  cumpleMinimoCuestionario?: boolean | null;
+  resultadoPerfectoCuestionario?: boolean | null;
   preguntas?: Array<{
     id: number;
     descripcion: string;
     tipoPregunta?: { tipoPregunta?: string };
     urlDocumento?: string | null;
-    respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta: boolean }>;
+    respuestas?: Array<{ id: number; descripcionRespuesta: string; chkCorrecta?: boolean }>;
   }>;
 }
 
-/** Nombre de la materia/RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar Ã¡rea de conocimiento aquÃ­. */
+/** Nombre del RAP de la actividad (`actividades.idMateria`), coherente con instructor. No usar �rea de conocimiento aqu�. */
 const etiquetaMateriaActividadAprendiz = (act: ActividadAprendiz): string => {
   const raw = act.materia?.nombreMateria ?? act.materia?.nombre;
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.trim();
   }
-  return 'Sin materia asignada';
+  return 'Sin RAP asignado';
 };
 
-const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÃ“N]';
+const MARCA_SOLICITUD_CORRECCION = '[SOLICITUD_CORRECCIÓN]';
 
 const textoComentarioDocenteVisible = (c: string | null | undefined): string => {
   const s = (c ?? '').trim();
@@ -103,7 +112,7 @@ const filtros: Array<{ id: EstadoActividad; label: string }> = [
   { id: 'TODOS', label: 'Todos' },
   { id: 'CALIFICADO', label: 'Calificado' },
   { id: 'POR_EVALUAR', label: 'Por Evaluar' },
-  { id: 'CORRECCION_SOLICITADA', label: 'CorrecciÃ³n solicitada' },
+  { id: 'CORRECCION_SOLICITADA', label: 'Corrección solicitada' },
   { id: 'PENDIENTE', label: 'Pendiente' },
   { id: 'SIN_ENTREGAR', label: 'Sin Entregar' }
 ];
@@ -131,10 +140,8 @@ const formatearFecha = (value?: string | null, incluirHora = false) => {
 
 const getFileName = (path?: string | null): string => {
   if (!path) return 'Archivo';
-  // Extraer el nombre del archivo de la ruta
   const parts = path.split('/');
   const fileName = parts[parts.length - 1];
-  // Si tiene extensiÃ³n, devolverlo tal cual, sino agregar extensiÃ³n genÃ©rica
   return fileName || 'Archivo entregado';
 };
 
@@ -181,7 +188,7 @@ const getPerfilPublicUrl = (path?: string | null): string | null => {
   return `${base.replace(/\/$/, '')}/${storagePath}`;
 };
 
-/** Primera foto no vacÃ­a enviada en `autor` (camel/snake/API). Solo creador/instructor â€” no usar campos del aprendiz. */
+/** Primera foto no vacía enviada en `autor` (camel/snake/API). Solo creador/instructor — no usar campos del aprendiz. */
 const pickAutorFotoParaMostrar = (autor?: ActividadAprendiz['autor']): string | null => {
   if (!autor) return null;
   const raw = autor as Record<string, unknown>;
@@ -221,7 +228,7 @@ type MaterialApoyoActividadItem = NonNullable<ActividadAprendiz['materialesApoyo
 const materialApoyoTieneRecurso = (m: MaterialApoyoActividadItem): boolean =>
   Boolean(m.urlDocumento || m.urlDocumentoUrl || m.urlAdicional);
 
-/** Lista de material de apoyo de la actividad (documento + enlace por ítem). */
+/** Lista de material de apoyo de la actividad (documento + enlace por �tem). */
 const MaterialApoyoActividadLista: React.FC<{
   materiales: MaterialApoyoActividadItem[];
   compact?: boolean;
@@ -230,7 +237,7 @@ const MaterialApoyoActividadLista: React.FC<{
   const list = materiales.filter(materialApoyoTieneRecurso);
   if (list.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+      <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-white">
         No hay material de apoyo
       </div>
     );
@@ -262,7 +269,7 @@ const MaterialApoyoActividadLista: React.FC<{
                 {docUrl ? (
                   <KeenIcon
                     icon={materialDocumentoKeenIcon(docExt)}
-                    className="text-gray-600 dark:text-gray-300 shrink-0 w-4 h-4"
+                    className="text-gray-600 dark:text-white shrink-0 w-4 h-4"
                   />
                 ) : (
                   <KeenIcon icon="exit-up-right" className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4" />
@@ -272,13 +279,13 @@ const MaterialApoyoActividadLista: React.FC<{
                     className={
                       compact
                         ? 'text-xs text-gray-900 dark:text-white truncate'
-                        : 'text-sm font-medium text-gray-800 dark:text-gray-200 truncate'
+                        : 'text-sm font-medium text-gray-800 dark:text-white truncate'
                     }
                   >
                     {material.titulo || getFileName(material.urlDocumento || material.urlDocumentoUrl) || 'Material de apoyo'}
                   </p>
                   {!compact && material.descripcion ? (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-0.5">{material.descripcion}</p>
+                    <p className="text-xs text-gray-600 dark:text-white line-clamp-2 mt-0.5">{material.descripcion}</p>
                   ) : null}
                   <div className="flex flex-wrap gap-1 mt-1">
                     {docExt ? (
@@ -317,7 +324,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   }}
                   className={
                     compact
-                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary disabled:opacity-50'
+                      ? 'text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary disabled:opacity-50'
                       : 'btn btn-sm btn-primary text-xs disabled:opacity-60'
                   }
                   title={docExt ? materialDocumentoActionLabel(docExt) : 'Descargar archivo'}
@@ -325,7 +332,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   {compact ? (
                     <KeenIcon icon={materialDocumentoActionIcon(docExt)} className="w-4 h-4" />
                   ) : downloadingId === material.id ? (
-                    'Descargando…'
+                    'Descargando�'
                   ) : (
                     materialDocumentoActionLabel(docExt)
                   )}
@@ -338,7 +345,7 @@ const MaterialApoyoActividadLista: React.FC<{
                   rel="noopener noreferrer"
                   className={
                     compact
-                      ? 'text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary'
+                      ? 'text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary'
                       : 'btn btn-sm btn-light text-xs'
                   }
                   title="Abrir enlace"
@@ -377,7 +384,7 @@ const estadoBadgeMap: Record<
     score: 'text-slate-500 dark:text-slate-300'
   },
   CORRECCION_SOLICITADA: {
-    label: 'CorrecciÃ³n solicitada',
+    label: 'Corrección solicitada',
     chip:
       'bg-red-100 text-red-900 font-semibold ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-100 dark:ring-red-800',
     line: 'border-l-red-600',
@@ -391,10 +398,10 @@ const estadoBadgeMap: Record<
   }
 };
 
-/** Color de nota segÃºn resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya estÃ¡ calificada. */
+/** Color de nota según resultado: Rojo <=3.5, Amarillo 3.5-4, Verde >=4. Solo cuando ya está calificada. */
 const getScoreColorClass = (score: number | null, estadoVisual: string): string => {
   if (score === null) {
-    return 'text-gray-500 dark:text-gray-400';
+    return 'text-gray-500 dark:text-white';
   }
   if (score <= 3.5) return 'text-red-600 dark:text-red-400 font-medium';
   if (score > 3.5 && score < 4.0) return 'text-amber-600 dark:text-amber-400 font-medium';
@@ -424,8 +431,6 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
       setIsDragging(false);
     }
   }, [open, actividad]);
-
-  if (!open) return null;
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -518,27 +523,31 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
     [applySelectedFile]
   );
 
-  // Extraer informaciÃ³n de proyecto y materia/RAP (misma lÃ³gica que la lista principal)
   const projectInfo = useMemo(() => {
-    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin materia asignada' };
+    if (!actividad) return { proyecto: 'Sin proyecto', rap: 'Sin RAP asignado' };
     const title = actividad.tituloActividad || '';
     return {
       proyecto: title || 'Sin proyecto',
       rap: etiquetaMateriaActividadAprendiz(actividad)
     };
   }, [actividad]);
+
   const maxChars = 500;
   const charsRemaining = maxChars - comentario.length;
-
   const tieneArchivoActual = !!actividad?.archivoEntregaUrl;
   const tituloModal = tieneArchivoActual ? 'Actualizar Entrega' : 'Responder Actividad';
+
+  // Todos los hooks deben ejecutarse antes de cualquier return condicional.
+  if (!open) return null;
 
   if (!actividad) {
     return (
       <Modal open={open} onClose={onClose} zIndex={110}>
         <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
           <div className="bg-primary px-5 py-3 flex items-center justify-between">
-            <ModalTitle className="text-white text-base font-semibold">Cargando...</ModalTitle>
+            <ModalTitle className="text-white text-base font-semibold">
+              <span>Cargando...</span>
+            </ModalTitle>
             <button
               className="text-white hover:text-gray-200 transition-colors"
               onClick={onClose}
@@ -560,9 +569,10 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
       <ModalContent className="max-w-[600px] top-[5%] p-0 overflow-hidden">
-        {/* Header azul */}
-        <div className="bg-primary px-5 py-3 flex items-center justify-between">
-          <ModalTitle className="text-white text-base font-semibold">{tituloModal}</ModalTitle>
+                <div className="bg-primary px-5 py-3 flex items-center justify-between">
+          <ModalTitle className="text-white text-base font-semibold">
+            <span>{tituloModal}</span>
+          </ModalTitle>
           <button
             className="text-white hover:text-gray-200 transition-colors"
             onClick={onClose}
@@ -573,25 +583,28 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
         </div>
 
         <ModalBody className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-          {/* InformaciÃ³n de la actividad */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-0.5">
             <p className="text-xs font-semibold text-gray-900 dark:text-white">
-              Proyecto: {projectInfo.proyecto}
+              <span>Proyecto: </span>
+              <span>{projectInfo.proyecto}</span>
             </p>
             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              Materia: {projectInfo.rap}
+              <span>RAP: </span>
+              <span>{projectInfo.rap}</span>
             </p>
           </div>
 
-          {/* Material de Apoyo */}
-          <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Material de Apoyo</p>
+                    <div>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Material de Apoyo</span>
+            </p>
             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} compact />
           </div>
 
-          {/* Documento de la actividad (adjunto al crear/editar la actividad) */}
-          <div>
-            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">Documento de la actividad</p>
+                    <div>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Documento de la actividad</span>
+            </p>
             {actividadTieneDocumentoOficial(actividad) ? (
               <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700 px-2.5 py-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -612,7 +625,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                     const url = getActividadDocumentoUrl(actividad);
                     if (url) window.open(url, '_blank', 'noopener,noreferrer');
                   }}
-                  className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary shrink-0"
+                  className="text-gray-500 hover:text-primary dark:text-white dark:hover:text-primary shrink-0"
                   title="Abrir documento"
                 >
                   <KeenIcon icon="exit-up-right" className="w-4 h-4" />
@@ -620,16 +633,24 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-coal-300 px-3 py-2.5 text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">No hay documento de la actividad adjunto</p>
+                <p className="text-xs text-gray-500 dark:text-white">No hay documento de la actividad adjunto</p>
               </div>
             )}
           </div>
 
+                    <div>
+            <p className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
+              <span>Entregable</span>
+            </p>
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
+              {actividad.entregables?.trim() || 'No disponible'}
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Respuesta del Estudiante */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
-                Respuesta del Estudiante <span className="text-gray-500 dark:text-gray-400 font-normal">(opcional)</span>
+                Respuesta del Estudiante <span className="text-gray-500 dark:text-white font-normal">(opcional)</span>
               </label>
               <textarea
                 value={comentario}
@@ -643,14 +664,13 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                 placeholder="Ej: Hago entrega de la actividad correspondiente al taller..."
               />
               <div className="flex justify-end mt-0.5">
-                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                <span className="text-[10px] text-gray-500 dark:text-white">
                   {comentario.length}/{maxChars}
                 </span>
               </div>
             </div>
 
-            {/* Archivo Actual (si existe) */}
-            {tieneArchivoActual && !archivo && (
+                        {tieneArchivoActual && !archivo && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
                 <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1.5">
                   Archivo Actual:
@@ -700,8 +720,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Adjuntar Archivo */}
-            <div>
+                        <div>
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1.5">
                 {tieneArchivoActual ? 'Nuevo Archivo' : 'Adjuntar Archivo'}
               </label>
@@ -725,27 +744,27 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
                   className="hidden"
                   accept={ENTREGA_EVIDENCIA_ACCEPT}
                 />
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                <p className="text-xs font-medium text-gray-700 dark:text-white mb-0.5">
                   {archivo ? (
                     <span className="text-primary">{archivo.name}</span>
                   ) : (
                     <>
                       {tieneArchivoActual ? (
                         <>
-                          Arrastra el nuevo archivo aquÃ­ o{' '}
+                          Arrastra el nuevo archivo aquí o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       ) : (
                         <>
-                          Arrastra tu archivo aquÃ­ o{' '}
+                          Arrastra tu archivo aquí o{' '}
                           <span className="text-primary">haz clic para seleccionar</span>
                         </>
                       )}
                     </>
                   )}
                 </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  {ENTREGA_EVIDENCIA_FORMATOS_LABEL}. Máximo {MAX_FILE_SIZE_MB} MB.
+                <p className="text-[10px] text-gray-500 dark:text-white">
+                  {ENTREGA_EVIDENCIA_FORMATOS_LABEL}. M�ximo {MAX_FILE_SIZE_MB} MB.
                 </p>
               </div>
               {archivo && (
@@ -773,8 +792,7 @@ const ResponderActividadModal: React.FC<ResponderModalProps> = ({ actividad, ope
               </div>
             )}
 
-            {/* Botones */}
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
@@ -843,6 +861,7 @@ const ActividadesAprendiz: React.FC = () => {
   const [filtro, setFiltro] = useState<EstadoActividad>('TODOS');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actividadResponder, setActividadResponder] = useState<ActividadAprendiz | null>(null);
+  const [actividadRevisar, setActividadRevisar] = useState<ActividadAprendiz | null>(null);
   const [zoomFoto, setZoomFoto] = useState<{ src: string; alt: string } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -856,17 +875,23 @@ const ActividadesAprendiz: React.FC = () => {
     total: 0,
     lastPage: 1,
   });
+  /** Evita refetch duplicados al vencer varios contadores. */
+  const reintentoRefetchPendiente = useRef<Set<number>>(new Set());
 
-  const fetchActividades = useCallback(async (page = 1) => {
+  const fetchActividades = useCallback(async (page = 1, opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) {
+        setLoading(true);
+      }
       setError(null);
       const response = await axios.get('actividades-aprendiz', {
         params: { page, per_page: 15 },
       });
       const data = response.data?.data || response.data || [];
       setActividades(Array.isArray(data) ? data : []);
-      setExpanded(null);
+      if (!opts?.silent) {
+        setExpanded(null);
+      }
       const meta = response.data?.meta || {};
       setPagination((prev) => ({
         ...prev,
@@ -878,11 +903,32 @@ const ActividadesAprendiz: React.FC = () => {
     } catch (err: any) {
       const errorMessage = err?.response?.data?.error || err?.message || 'No fue posible cargar tus actividades';
       setError(errorMessage);
-      setActividades([]);
+      if (!opts?.silent) {
+        setActividades([]);
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
+
+  const refetchTrasCuentaRegresiva = useCallback(
+    (idCalificacionActividad: number) => {
+      // Evitar ráfagas si varias tarjetas llegan a cero casi a la vez.
+      if (reintentoRefetchPendiente.current.has(idCalificacionActividad)) return;
+      reintentoRefetchPendiente.current.add(idCalificacionActividad);
+      void fetchActividades(pagination.currentPage, { silent: true }).finally(() => {
+        // Segundo intento suave por posibles desfaces de reloj con el backend.
+        window.setTimeout(() => {
+          void fetchActividades(pagination.currentPage, { silent: true }).finally(() => {
+            reintentoRefetchPendiente.current.delete(idCalificacionActividad);
+          });
+        }, 2500);
+      });
+    },
+    [fetchActividades, pagination.currentPage]
+  );
 
   useEffect(() => {
     fetchActividades(pagination.currentPage);
@@ -913,7 +959,7 @@ const ActividadesAprendiz: React.FC = () => {
     <>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">ESTADO:</span>
+          <span className="text-xs font-semibold text-gray-500 dark:text-white">ESTADO:</span>
           {filtros.map((item) => (
             <button
               key={item.id}
@@ -923,7 +969,7 @@ const ActividadesAprendiz: React.FC = () => {
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                 filtro === item.id
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-gray-300 dark:border-gray-600'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-coal-400 dark:text-white dark:border-gray-600'
               )}
             >
               {item.label}
@@ -933,9 +979,9 @@ const ActividadesAprendiz: React.FC = () => {
 
         {actividadesFiltradas.length === 0 && !loading ? (
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-10 text-center dark:bg-coal-400 dark:border-gray-700">
-            <KeenIcon icon="check-squared" className="text-4xl text-gray-400 mx-auto mb-3" />
+            <KeenIcon icon="check-squared" className="text-4xl text-gray-400 dark:text-white mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-900 dark:text-white">No hay actividades para este filtro</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Prueba con otro estado.</p>
+            <p className="text-xs text-gray-500 dark:text-white mt-1">Prueba con otro estado.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -996,7 +1042,7 @@ const ActividadesAprendiz: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <p className="text-xs text-gray-500 dark:text-white mt-0.5">
                               {etiquetaMateriaActividadAprendiz(actividad)}
                             </p>
                           </div>
@@ -1008,7 +1054,7 @@ const ActividadesAprendiz: React.FC = () => {
                           <div
                             className={clsx(
                               'inline-flex items-center gap-1 text-xs',
-                              actividad.fechaVencida ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+                              actividad.fechaVencida ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-white'
                             )}
                           >
                             <KeenIcon icon="calendar" className="text-xs" />
@@ -1028,18 +1074,66 @@ const ActividadesAprendiz: React.FC = () => {
                           )}>
                             {score !== null ? score.toFixed(1) : '-'}
                           </div>
-                          <div className="text-[9px] text-gray-400">/5.0</div>
+                          <div className="text-[9px] text-gray-400 dark:text-white">/5.0</div>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {actividad.puedeResponder && actividad.activa !== false && !actividad.fechaVencida && (
+                          {actividad.tipoActividad === 'cuestionario' &&
+                            actividad.intervaloReintento != null && (
+                            <span className="inline text-[10px] text-gray-500 dark:text-white whitespace-nowrap max-w-[14rem]">
+                              {actividad.resultadoPerfectoCuestionario
+                                ? 'Resultado perfecto (100%)'
+                                : actividad.proximoIntentoDisponibleEn &&
+                                    !actividad.puedeResponder &&
+                                    !actividad.fechaVencida &&
+                                    actividad.activa !== false
+                                  ? (
+                                    <CuentaRegresivaReintento
+                                      proximoIntentoDisponibleEn={actividad.proximoIntentoDisponibleEn}
+                                      fechaFinal={actividad.fechaFinal}
+                                      onElapsed={() =>
+                                        refetchTrasCuentaRegresiva(actividad.idCalificacionActividad)
+                                      }
+                                    />
+                                  )
+                                  : actividad.puedeResponder && actividad.ultimoIntentoEn
+                                    ? 'Puedes realizar un nuevo intento'
+                                    : actividad.fechaVencida
+                                      ? null
+                                      : `Reintento cada ${actividad.intervaloReintento} min`}
+                              {!actividad.resultadoPerfectoCuestionario &&
+                              actividad.cumpleMinimoCuestionario === true
+                                ? ' · Min. cumplido'
+                                : ''}
+                            </span>
+                          )}
+                          {actividad.puedeResponder &&
+                            !actividad.resultadoPerfectoCuestionario &&
+                            actividad.activa !== false &&
+                            !actividad.fechaVencida && (
                             <button
                               type="button"
                               onClick={() => setActividadResponder(actividad)}
                               className="btn btn-sm btn-primary h-7 px-2 text-[10px]"
                             >
                               <KeenIcon icon="notepad-edit" className="text-[10px]" />
-                              Responder
+                              <span>
+                                {actividad.ultimoIntentoEn ? 'Reintentar' : 'Responder'}
+                              </span>
+                            </button>
+                          )}
+                          {actividad.tipoActividad === 'cuestionario' &&
+                            (actividad.tieneRespuestasCuestionario ||
+                              actividad.comentarioEstudiante === 'Cuestionario respondido' ||
+                              actividad.estadoVisual === 'POR_EVALUAR' ||
+                              actividad.estadoVisual === 'CALIFICADO') && (
+                            <button
+                              type="button"
+                              onClick={() => setActividadRevisar(actividad)}
+                              className="btn btn-sm btn-light h-7 px-2 text-[10px] dark:text-white dark:[&_i]:text-white"
+                            >
+                              <KeenIcon icon="eye" className="text-[10px]" />
+                              <span>Revisar intento</span>
                             </button>
                           )}
                           <button
@@ -1051,7 +1145,7 @@ const ActividadesAprendiz: React.FC = () => {
                             }
                             className="bg-transparent border-0 hover:bg-transparent p-1 h-7 w-7 flex items-center justify-center"
                           >
-                            <KeenIcon icon={isExpanded ? 'up' : 'down'} className="text-xs text-gray-500 dark:text-gray-400" />
+                            <KeenIcon icon={isExpanded ? 'up' : 'down'} className="text-xs text-gray-500 dark:text-white" />
                           </button>
                         </div>
                       </div>
@@ -1063,16 +1157,16 @@ const ActividadesAprendiz: React.FC = () => {
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         <div className="space-y-4">
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                              DescripciÃ³n
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
+                              Descripción
                             </p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">
-                              {actividad.descripcionActividad || 'Sin descripciÃ³n'}
+                            <p className="text-sm text-gray-700 dark:text-white">
+                              {actividad.descripcionActividad || 'Sin descripción'}
                             </p>
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Estrategia de Aprendizaje
                             </p>
                             <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
@@ -1080,15 +1174,24 @@ const ActividadesAprendiz: React.FC = () => {
                             </div>
                           </div>
 
+                          <div>
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
+                              Entregable
+                            </p>
+                            <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                              {actividad.entregables?.trim() || 'No disponible'}
+                            </div>
+                          </div>
+
                           {actividad.estadoVisual === 'CORRECCION_SOLICITADA' && (
                             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/35 dark:text-red-100">
-                              El instructor solicitÃ³ corregir esta entrega. Actualiza tu evidencia segÃºn lo acordado con tu
+                              El instructor solicitó corregir esta entrega. Actualiza tu evidencia según lo acordado con tu
                               instructor.
                             </div>
                           )}
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Observaciones del Instructor
                             </p>
                             {actividad.estadoVisual === 'SIN_ENTREGAR' ? (
@@ -1096,18 +1199,18 @@ const ActividadesAprendiz: React.FC = () => {
                                 <KeenIcon icon="information" className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <span>
                                   {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                    'No se recibiÃ³ la entrega. Comunicarse con el instructor.'}
+                                    'No se recibió la entrega. Comunicarse con el instructor.'}
                                 </span>
                               </div>
                             ) : actividad.estadoVisual === 'CORRECCION_SOLICITADA' &&
                               !textoComentarioDocenteVisible(actividad.comentarioDocente) ? (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                El instructor solicitÃ³ corregir esta entrega.
+                                El instructor solicitó corregir esta entrega.
                               </div>
                             ) : (
                               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 {textoComentarioDocenteVisible(actividad.comentarioDocente) ||
-                                  'AÃºn no hay observaciones del instructor.'}
+                                  'Aún no hay observaciones del instructor.'}
                               </div>
                             )}
                           </div>
@@ -1115,14 +1218,14 @@ const ActividadesAprendiz: React.FC = () => {
 
                         <div className="space-y-4">
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Material de Apoyo
                             </p>
                             <MaterialApoyoActividadLista materiales={actividad.materialesApoyo ?? []} />
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Documento de la actividad
                             </p>
                             <div className="space-y-2">
@@ -1138,7 +1241,7 @@ const ActividadesAprendiz: React.FC = () => {
                                       className="text-blue-500 dark:text-blue-400 shrink-0 w-4 h-4"
                                     />
                                     <div className="min-w-0">
-                                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                      <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                         {getFileName(actividad.pathDocumentoActividad || actividad.documentoActividadUrl)}
                                       </p>
                                       <span className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -1161,7 +1264,7 @@ const ActividadesAprendiz: React.FC = () => {
                                   </a>
                                 </div>
                               ) : (
-                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-white">
                                   No hay documento de la actividad adjunto
                                 </div>
                               )}
@@ -1169,7 +1272,7 @@ const ActividadesAprendiz: React.FC = () => {
                           </div>
 
                           <div>
-                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                            <p className="mb-1 text-[11px] font-semibold text-gray-500 dark:text-white uppercase">
                               Mi Entrega
                             </p>
                             <div className="rounded-lg bg-emerald-50 px-3 py-3 dark:bg-emerald-900/10">
@@ -1239,7 +1342,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar PDF"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
@@ -1250,6 +1353,16 @@ const ActividadesAprendiz: React.FC = () => {
                                       <p className="text-sm text-emerald-700 dark:text-emerald-300">
                                         {actividad.comentarioEstudiante}
                                       </p>
+                                      {actividad.tipoActividad === 'cuestionario' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setActividadRevisar(actividad)}
+                                          className="mt-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                                        >
+                                          <KeenIcon icon="eye" className="w-3 h-3" />
+                                          <span>Revisar intento</span>
+                                        </button>
+                                      )}
                                       <div className="flex items-center justify-between mt-2">
                                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
                                           Entrega de la actividad
@@ -1268,7 +1381,7 @@ const ActividadesAprendiz: React.FC = () => {
                                             title="Cambiar entrega"
                                           >
                                             <KeenIcon icon="refresh" className="w-3 h-3" />
-                                            Cambiar
+                                            <span>Cambiar</span>
                                           </button>
                                         )}
                                       </div>
@@ -1277,7 +1390,7 @@ const ActividadesAprendiz: React.FC = () => {
                                 </div>
                               ) : (
                                 <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                  AÃºn no has enviado una entrega.
+                                  Aún no has enviado una entrega.
                                 </p>
                               )}
                             </div>
@@ -1294,7 +1407,7 @@ const ActividadesAprendiz: React.FC = () => {
 
         {pagination.total > pagination.perPage && (
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-white">
               Mostrando {(pagination.currentPage - 1) * pagination.perPage + 1} -{' '}
               {Math.min(pagination.currentPage * pagination.perPage, pagination.total)} de {pagination.total}
             </p>
@@ -1303,18 +1416,18 @@ const ActividadesAprendiz: React.FC = () => {
                 type="button"
                 onClick={() => setPagination((p) => ({ ...p, currentPage: Math.max(1, p.currentPage - 1) }))}
                 disabled={pagination.currentPage <= 1 || loading}
-                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50 dark:text-white"
               >
                 Anterior
               </button>
-              <span className="text-xs text-gray-600 dark:text-gray-300 px-2">
-                PÃ¡gina {pagination.currentPage} de {pagination.lastPage}
+              <span className="text-xs text-gray-600 dark:text-white px-2">
+                Página {pagination.currentPage} de {pagination.lastPage}
               </span>
               <button
                 type="button"
                 onClick={() => setPagination((p) => ({ ...p, currentPage: Math.min(p.lastPage, p.currentPage + 1) }))}
                 disabled={pagination.currentPage >= pagination.lastPage || loading}
-                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50"
+                className="btn btn-sm btn-light px-3 text-xs h-8 disabled:opacity-50 dark:text-white"
               >
                 Siguiente
               </button>
@@ -1330,6 +1443,18 @@ const ActividadesAprendiz: React.FC = () => {
           onClose={() => setActividadResponder(null)}
           onSaved={() => fetchActividades(pagination.currentPage)}
           onSuccess={showToast}
+          onCompleted={(act) => {
+            setActividadResponder(null);
+            setActividadRevisar(act as ActividadAprendiz);
+          }}
+        />
+      )}
+      {actividadRevisar && (
+        <ModalRevisarIntentoCuestionario
+          open={true}
+          idCalificacionActividad={actividadRevisar.idCalificacionActividad}
+          tituloFallback={actividadRevisar.tituloActividad}
+          onClose={() => setActividadRevisar(null)}
         />
       )}
       {actividadResponder && actividadResponder.tipoActividad !== 'cuestionario' && (

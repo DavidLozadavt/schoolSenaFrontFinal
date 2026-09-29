@@ -11,14 +11,17 @@ type TipoPregunta = (typeof TIPO_PREGUNTA_OPCIONES)[number];
 
 interface OpcionPregunta {
   id: string;
+  idRespuesta?: number;
   texto: string;
   esCorrecta: boolean;
 }
 
 interface Pregunta {
   id: string;
+  idPregunta?: number;
   tipo: TipoPregunta;
   titulo: string;
+  explicacionRespuesta: string;
   fotoFile: File | null;
   opciones: OpcionPregunta[];
 }
@@ -29,7 +32,22 @@ interface CuestionarioEditar {
   descripcionActividad?: string;
   autor?: string;
   idMateria?: number;
-  preguntas?: { id?: number; descripcion?: string; tipoPregunta?: { tipoPregunta: string }; respuestas?: { descripcionRespuesta: string; chkCorrecta: boolean }[] }[];
+  preguntas?: {
+    id?: number;
+    descripcion?: string;
+    explicacionRespuesta?: string | null;
+    tipoPregunta?: { tipoPregunta: string };
+    respuestas?: { id?: number; descripcionRespuesta: string; chkCorrecta: boolean }[];
+  }[];
+}
+
+interface PreguntaApi {
+  id?: number;
+  descripcion?: string;
+  explicacionRespuesta?: string | null;
+  tipoPregunta?: { tipoPregunta: string };
+  tipo_pregunta?: { tipoPregunta: string };
+  respuestas?: { id?: number; descripcionRespuesta?: string; chkCorrecta?: boolean }[];
 }
 
 interface ModalCrearCuestionarioProps {
@@ -42,6 +60,11 @@ interface ModalCrearCuestionarioProps {
 }
 
 const generarId = () => Math.random().toString(36).slice(2, 11);
+
+const toNumericId = (value: unknown): number | undefined => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
 
 const ImagenPreviewPregunta: React.FC<{ file: File }> = ({ file }) => {
   const [url, setUrl] = useState<string>('');
@@ -72,7 +95,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       axios.get('materia').then((r) => {
         const data = Array.isArray(r.data) ? r.data : r.data?.data ?? [];
         setMaterias(data);
-        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? data[0]?.id ?? 0;
+        const valorInicial = idMateriaProp ?? cuestionarioEditar?.idMateria ?? 0;
         setIdMateria(valorInicial);
       }).catch(() => setMaterias([]));
     }
@@ -90,13 +113,16 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         setClasificacion((data.autor || '') as ClasificacionCuestionario | '');
         setDescripcion(data.descripcionActividad || '');
         setIdMateria(data.idMateria || 0);
-        setPreguntas((data.preguntas || []).map((p: any) => ({
+        setPreguntas((data.preguntas || []).map((p: PreguntaApi) => ({
           id: generarId(),
-          tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
+          idPregunta: toNumericId(p.id),
+          tipo: (p.tipoPregunta?.tipoPregunta || p.tipo_pregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
+          explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
-          opciones: (p.respuestas || []).map((r: any) => ({
+          opciones: (p.respuestas || []).map((r) => ({
             id: generarId(),
+            idRespuesta: toNumericId(r.id),
             texto: r.descripcionRespuesta || '',
             esCorrecta: !!r.chkCorrecta
           }))
@@ -108,11 +134,14 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         setIdMateria(cuestionarioEditar.idMateria || 0);
         setPreguntas((cuestionarioEditar.preguntas || []).map((p) => ({
           id: generarId(),
+          idPregunta: toNumericId(p.id),
           tipo: (p.tipoPregunta?.tipoPregunta || 'Párrafo') as TipoPregunta,
           titulo: p.descripcion || '',
+          explicacionRespuesta: p.explicacionRespuesta || '',
           fotoFile: null,
           opciones: (p.respuestas || []).map((r) => ({
             id: generarId(),
+            idRespuesta: toNumericId(r.id),
             texto: r.descripcionRespuesta || '',
             esCorrecta: !!r.chkCorrecta
           }))
@@ -129,17 +158,27 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim()) return;
-    const idMateriaFinal = idMateriaProp || idMateria || materias[0]?.id;
-    if (!idMateriaFinal) {
-      alert('Seleccione una materia');
+    // Solo el RAP del contexto de clase. Nunca materias[0]: asociaría un RAP incorrecto.
+    const idMateriaFinal = Number(idMateriaProp || idMateria || 0);
+    if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
+      alert('No se identificó el RAP de la clase. No se puede guardar el cuestionario.');
       return;
     }
+
     setSaving(true);
     try {
       const preguntasPayload = preguntas.map((p) => ({
+        id: p.idPregunta,
         tipo: p.tipo,
         titulo: p.titulo,
-        opciones: p.tipo === 'Varias opciones' ? p.opciones.map((o) => ({ texto: o.texto, esCorrecta: o.esCorrecta })) : []
+        explicacionRespuesta: p.explicacionRespuesta.trim() || null,
+        opciones: p.tipo === 'Varias opciones'
+          ? p.opciones.map((o) => ({
+              id: o.idRespuesta,
+              texto: o.texto,
+              esCorrecta: o.esCorrecta
+            }))
+          : []
       }));
 
       const fd = new FormData();
@@ -164,9 +203,15 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       onSave?.();
       onClose();
       resetForm();
-    } catch (err: any) {
-      console.error('Error guardando cuestionario:', err);
-      alert(err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join('\n') : err.response?.data?.error || 'Error al guardar');
+    } catch (err: unknown) {
+      const ax = err as {
+        response?: { data?: { error?: string; errors?: Record<string, string[] | string> } };
+      };
+      const errors = ax.response?.data?.errors;
+      const fromErrors = errors
+        ? Object.values(errors).flat().join('\n')
+        : '';
+      alert(fromErrors || ax.response?.data?.error || 'No se pudo guardar el cuestionario. Intente de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -186,6 +231,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
         id: generarId(),
         tipo: 'Varias opciones',
         titulo: '',
+        explicacionRespuesta: '',
         fotoFile: null,
         opciones: [
           { id: generarId(), texto: '', esCorrecta: false },
@@ -243,17 +289,22 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
 
   return (
     <Modal open={open} onClose={onClose} zIndex={110}>
-      <ModalContent className="max-w-2xl top-[5%] max-h-[90vh] overflow-y-auto p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:[display:none]">
-        <ModalHeader>
-          <ModalTitle>{isEdit ? 'Editar cuestionario' : 'Crear cuestionario'}</ModalTitle>
-          <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
-            <KeenIcon icon="cross" />
-          </button>
-        </ModalHeader>
-        <ModalBody className="px-0 py-5">
-          <form onSubmit={handleGuardar} className="space-y-4">
+      <div className="flex min-h-[100dvh] w-full items-center justify-center p-3 sm:px-5 sm:py-10 box-border pointer-events-none">
+        <div
+          className="pointer-events-auto w-full max-w-2xl"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <ModalContent className="!flex w-full !max-w-none !flex-col !overflow-hidden !rounded-2xl border border-gray-200/90 bg-white !p-0 shadow-2xl dark:border-gray-600/60 dark:bg-coal-400 max-h-[min(94dvh,960px)]">
+            <ModalHeader className="!shrink-0 border-b border-gray-100 dark:border-gray-600/80 px-5 sm:px-6 py-3.5">
+              <ModalTitle>{isEdit ? 'Editar cuestionario' : 'Crear cuestionario'}</ModalTitle>
+              <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0 text-red-600 hover:bg-red-50" onClick={onClose}>
+                <KeenIcon icon="cross" />
+              </button>
+            </ModalHeader>
+            <ModalBody className="cuestionario-modal-scroll !flex !min-h-0 !flex-1 !flex-col !overflow-y-auto [scrollbar-gutter:stable] !px-5 !py-5 sm:!px-6">
+              <form onSubmit={handleGuardar} className="modal-form-actividades space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del cuestionario</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Título del cuestionario</label>
               <input
                 type="text"
                 className="input w-full p-2 text-sm"
@@ -265,7 +316,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Clasificación de Actividad</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Clasificación de Actividad</label>
               <select
                 className="input w-full p-2 text-sm"
                 value={clasificacion}
@@ -280,12 +331,12 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Materia</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">RAP</label>
               {idMateriaProp ? (
                 <div className="p-2 text-sm rounded bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                   {(() => {
                     const m = materias.find((x) => x.id === idMateriaProp);
-                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `Materia del RAPS`;
+                    return m ? `${m.codigo ? `${m.codigo} - ` : ''}${m.nombreMateria || m.nombre || ''}` : `RAP del RAPS`;
                   })()}
                 </div>
               ) : (
@@ -295,17 +346,17 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                   onChange={(e) => setIdMateria(Number(e.target.value))}
                   required
                 >
-                  <option value="">Seleccione materia</option>
+                  <option value="">Seleccione RAP</option>
                   {materias.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `Materia ${m.id}`}
+                      {m.codigo ? `${m.codigo} - ` : ''}{m.nombreMateria || m.nombre || `RAP ${m.id}`}
                     </option>
                   ))}
                 </select>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción del cuestionario</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Descripción del cuestionario</label>
               <textarea
                 className="input w-full p-2 text-sm min-h-[100px] max-h-[350px] overflow-y-auto overflow-x-hidden resize-y break-words"
                 style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
@@ -324,7 +375,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-gray-50/50 dark:bg-coal-400/20"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-white">
                     Pregunta {preguntas.indexOf(pregunta) + 1}
                   </span>
                   <button
@@ -338,7 +389,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de pregunta</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Tipo de pregunta</label>
                   <select
                     className="input w-full p-2 text-sm"
                     value={pregunta.tipo}
@@ -353,7 +404,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pregunta</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Pregunta</label>
                   <input
                     type="text"
                     className="input w-full p-2 text-sm"
@@ -365,7 +416,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagen (opcional)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Imagen (opcional)</label>
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="file"
@@ -384,7 +435,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                     >
                       Seleccionar archivo
                     </button>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 dark:text-white">
                       {pregunta.fotoFile ? pregunta.fotoFile.name : 'Sin archivos seleccionados'}
                     </span>
                   </div>
@@ -395,7 +446,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
 
                 {pregunta.tipo === 'Varias opciones' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opciones</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">Opciones</label>
                     <div className="space-y-2">
                       {pregunta.opciones.map((opcion) => (
                         <div key={opcion.id} className="flex items-center gap-2">
@@ -407,6 +458,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                             onChange={(e) =>
                               actualizarOpcion(pregunta.id, opcion.id, e.target.value, opcion.esCorrecta)
                             }
+                            data-preserve-case
                           />
                           <label className="flex items-center gap-1 shrink-0 cursor-pointer">
                             <input
@@ -417,7 +469,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                               }
                               className="rounded"
                             />
-                            <span className="text-xs text-gray-600 dark:text-gray-400">Correcta</span>
+                            <span className="text-xs text-gray-600 dark:text-white">Correcta</span>
                           </label>
                           <button
                             type="button"
@@ -439,20 +491,39 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
                     </button>
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">
+                    Explicación de la respuesta correcta
+                  </label>
+                  <textarea
+                    className="input w-full p-2 text-sm min-h-[80px] max-h-[250px] overflow-y-auto overflow-x-hidden resize-y break-words"
+                    style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
+                    placeholder="Explique por qué la respuesta seleccionada es correcta..."
+                    value={pregunta.explicacionRespuesta}
+                    onChange={(e) =>
+                      actualizarPregunta(pregunta.id, { explicacionRespuesta: e.target.value })
+                    }
+                    data-preserve-case
+                    rows={3}
+                  />
+                </div>
               </div>
             ))}
 
-            <div className="flex justify-between gap-2 pt-4">
-              <button type="button" onClick={handleAñadirPregunta} className="btn btn-primary">
-                + AÑADIR PREGUNTA
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Guardando...' : isEdit ? 'Actualizar cuestionario' : '+ GUARDAR CUESTIONARIO'}
-              </button>
-            </div>
-          </form>
-        </ModalBody>
-      </ModalContent>
+                <div className="flex justify-between gap-2 border-t border-gray-100 pt-4 dark:border-gray-600/50">
+                  <button type="button" onClick={handleAñadirPregunta} className="btn btn-primary">
+                    + AÑADIR PREGUNTA
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Guardando...' : isEdit ? 'Actualizar cuestionario' : '+ GUARDAR CUESTIONARIO'}
+                  </button>
+                </div>
+              </form>
+            </ModalBody>
+          </ModalContent>
+        </div>
+      </div>
     </Modal>
   );
 };

@@ -1,4 +1,3 @@
-
 export interface Program {
   id: number;
   name: string;
@@ -12,7 +11,7 @@ export interface Program {
   idNivelEducativo?: number | string;
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
-  idRed?:number;
+  idRed?: number;
   fichas_count?: number;
   aperturas_count?: number;
   estado?: {
@@ -20,9 +19,9 @@ export interface Program {
     nombre: string;
   };
   red?: {
-    id:number;
-    nombre:string;
-  }
+    id: number;
+    nombre: string;
+  };
 }
 
 // Props para el componente principal GestionProgramas
@@ -35,7 +34,7 @@ export interface FormularioProgramaProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProgram: (newProgram: any) => void;
-  programToEdit?: Program | null; 
+  programToEdit?: Program | null;
   onUpdateProgram?: (updatedProgram: any) => void;
 }
 
@@ -57,7 +56,7 @@ export interface CatalogosData {
   niveles: CatalogoItem[];
   tipos: CatalogoItem[];
   estados: CatalogoItem[];
-  redes:any[];
+  redes: any[];
 }
 
 export interface MallaCurricularProps {
@@ -67,15 +66,20 @@ export interface MallaCurricularProps {
   ficha?: any;
 }
 
+export interface ProyectoFormativoProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onUpdated?: () => void;
+  program?: Program | any;
+  ficha?: any;
+}
+
 export interface AsignarMateriaProps {
   idPrograma: number;
   isOpen: boolean;
   onClose: () => void;
   nivelId: number | null; // Este es el idGradoPrograma
-  onMateriasSeleccionadas: (data: { 
-    idGradoPrograma: number; 
-    materias: number[] 
-  }) => void;
+  onMateriasSeleccionadas: (data: { idGradoPrograma: number; materias: number[] }) => void;
 }
 
 export interface RecursoItem {
