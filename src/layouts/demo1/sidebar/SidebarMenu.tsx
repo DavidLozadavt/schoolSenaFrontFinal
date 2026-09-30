@@ -18,6 +18,7 @@ import {
 } from '@/components/menu';
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
+import { userHasAnyPermission } from '@/utils/permissionUtils';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
@@ -40,16 +41,23 @@ const SidebarMenu = () => {
     }
 
     const safePermissions = userPermissions ?? [];
-    const isAllowedByPermission = requiredPermissions.some((perm) =>
-      safePermissions.includes(perm)
-    );
+    const isAllowedByPermission = userHasAnyPermission(requiredPermissions, safePermissions);
 
     const instructorSenaBypass =
       Array.isArray(userRoles) &&
       userRoles.includes('INSTRUCTOR SENA') &&
-      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
+      (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
 
-    return isAllowedByPermission || instructorSenaBypass;
+    const docenteUpBypass =
+      Array.isArray(userRoles) &&
+      userRoles.includes('DOCENTEUP') &&
+      (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+        requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
+
+    return isAllowedByPermission || instructorSenaBypass || docenteUpBypass;
   };
 
   const linkPl = 'ps-[10px]';

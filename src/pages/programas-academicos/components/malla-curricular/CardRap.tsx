@@ -1,15 +1,20 @@
+<<<<<<< HEAD
+import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause, X } from 'lucide-react';
+=======
 import { User, Pencil, Trash2, Calendar, FolderPlus, ChevronDown, Check, Pause, Lock } from 'lucide-react';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { useSnackbar } from 'notistack';
 import { Calendario } from './Calendario';
+import { ProfesorSelect } from './ProfesorSelect';
 import Swal from 'sweetalert2';
+import ListaRaps from './ListaRaps';
 
 interface CardRapProps {
   materia: any;
-  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
-  idTrimestre?: number;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string) => void;
   setModalHorarios?: any;
   idFicha?: number; // Necesario para filtrar instructores
   onAsignacionSuccess?: () => void;
@@ -24,7 +29,6 @@ const MSG_SOLO_ACTUAL = 'Solo puede modificarse el trimestre actual.';
 export const CardRap = ({
   materia,
   onVerRaps,
-  idTrimestre,
   setModalHorarios,
   idFicha,
   onAsignacionSuccess,
@@ -43,6 +47,8 @@ export const CardRap = ({
   const [showInstructorsModal, setShowInstructorsModal] = useState(false);
   const [asignando, setAsignando] = useState(false);
   const [isCalendarioOpen, setIsCalendarioOpen] = useState(false);
+  const [showAsignacionModal, setShowAsignacionModal] = useState(false);
+  const [tipoAsignacion, setTipoAsignacion] = useState<'principal' | 'compartida'>('principal');
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -189,10 +195,6 @@ export const CardRap = ({
         return;
       }
 
-      // Llamamos a un nuevo endpoint o actualizamos la asignacionSesion
-      // Como no tenemos un endpoint de "update-bulk-sesiones", usaremos el store de AsignacionSesion
-      // Pero el usuario ya tiene la asignacion creada con contrato nulo.
-      
       // Enviamos la petición para actualizar esos registros.
       await axios.put('horario/asignar-compartido', {
         idContrato: instructor.id,
@@ -277,10 +279,8 @@ export const CardRap = ({
     const color = isDarkMode ? 'white' : '#4B5675';
 
     const result = await Swal.fire({
-      title: materia.idMateriaPadre ? '¿Eliminar RAP?' : '¿Eliminar competencia?',
-      text: materiasLength && materiasLength == 1 ?
-        `Si eliminas esta competencia, se eliminará tambien el trimestre. El trimestre debe tener al menos una competencia.` :
-        `¿Estás seguro de que deseas eliminar "${materia.nombre || materia.nombreMateria}" de este trimestre?`,
+      title: 'Eliminar materia',
+      text: 'Si eliminas la materia se eliminarán las materias derivadas.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -297,8 +297,7 @@ export const CardRap = ({
       try {
         await axios.delete(`grado-materia`, {
           params: {
-            id: materia.idGradoMateria,
-            eliminarTrimestre: materiasLength && materiasLength == 1 ? true : false,
+            idMateria: materia.id,
             idFicha: idFicha
           }
         });
@@ -478,7 +477,11 @@ export const CardRap = ({
 
 
   return (
+<<<<<<< HEAD
+    <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-2 flex gap-4 hover:border-primary/50 transition-all duration-300 'bg-white dark:bg-coal-600'}`}>
+=======
     <div className={`rounded-xl border border-gray-300 dark:border-gray-600 p-4 sm:p-5 flex gap-5 hover:border-primary/50 transition-all duration-300 ${materia.estado === 'FINALIZADO' ? 'bg-black/10 dark:bg-white/10' : 'bg-white dark:bg-coal-400'}`}>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       {/* Contenido principal */}
       <div className="flex-1 min-w-0 space-y-3">
         {/* Título del RAP */}
@@ -486,6 +489,18 @@ export const CardRap = ({
           <span className={`block px-1 text-left text-xs font-semibold text-gray-500`}>
             Fecha Final: {materia?.fechaFinalRap || ''}
           </span>}
+<<<<<<< HEAD
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium text-gray-900 dark:text-white px-2">
+              {materia.nombreMateria || materia.nombre}
+            <p className='text-gray-500 font-normal text-xs'>
+              {materia.descripcion}
+            </p>
+          </h3>
+          <div className='flex flex-col items-center'>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Progreso</p>
+            <p className="text-lg text-center text-blue-500 font-semibold">
+=======
         <div className="flex justify-between items-start gap-4">
           <h3 className="font-semibold text-base sm:text-[1.05rem] leading-snug text-gray-900 dark:text-white px-1">
             {materia.nombre || materia.nombreMateria}
@@ -500,6 +515,7 @@ export const CardRap = ({
             </span>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Progreso</p>
             <p className="text-xl text-center text-blue-500 font-semibold leading-none">
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
               {materia.porcentajeAvance > 100 ? 100 : materia.porcentajeAvance || 0}%
             </p>
           </div>
@@ -525,8 +541,12 @@ export const CardRap = ({
               (materia.estado === 'FINALIZADO' && horariosAsignables.length > 0));
 
           return (
+<<<<<<< HEAD
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-center min-h-[40px] px-6">
+=======
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 rounded-lg pt-3 mt-1 text-center">
               <div className="flex flex-col items-center justify-center gap-2.5 text-center relative col-span-1 md:col-span-1 min-h-[72px]">
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 {!hasAsignados && !hasSinAsignar ? (
                   <div className="flex-1 text-center py-2">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -534,7 +554,7 @@ export const CardRap = ({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3">
                     {/* Avatars de Instructores Asignados */}
                     {instructoresAsignados.length > 0 && (
                       <div
@@ -582,64 +602,47 @@ export const CardRap = ({
                       )}
                     </div>
 
+                    {hasSinAsignar && (
+                      <div className="col-span-full dark:border-gray-600">
+                        <button
+                          onClick={() => {
+                            setTipoAsignacion('principal');
+                            setShowAsignacionModal(true);
+                          }}
+                          className="flex items-center justify-center gap-4 text-2xs bg-primary/10 text-primary font-bold p-3 rounded-lg hover:bg-primary/20 transition-all uppercase w-full"
+                        >
+                          <div
+                            className="h-8 w-8 rounded-full bg-primary/10 border border-dashed border-primary flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all"
+                            title="Asignar instructor"
+                          >
+                            <User className="text-primary" size={14} />
+                          </div>
+                          Asignar instructor
+                        </button>
+                      </div>
+                    )}
+
                     {/* Botón para asignar 2º Profe (Solo si es compartido, falta el secundario y ES UN RAP, no la competencia padre) */}
                     {esEditable && materia.idMateriaPadre != null && instructoresAsignados.length > 0 && 
                      horarios.some(h => h.asignacionSesion?.some((as: any) => as.tipoAsignacion === 'HORARIO COMPARTIDO' && as.idContrato === null)) && (
                       <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
-                        <div className="relative">
-                          <button
-                            onClick={() => {
-                              setMostrarSelectorSecundario(!mostrarSelectorSecundario);
-                              cargarInstructores();
-                            }}
-                            className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 transition-all"
-                          >
-                            <User size={12} />
-                            <span className="text-[10px] font-bold uppercase">Asignar 2º Profe</span>
-                          </button>
-
-                          {mostrarSelectorSecundario && (
-                            <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-coal-300 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-[110] max-h-48 overflow-y-auto">
-                              {cargandoInstructores || asignando ? (
-                                <div className="p-3 text-center">
-                                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                </div>
-                              ) : (
-                                <div className="p-1">
-                                  {instructores
-                                    .filter((inst) => {
-                                      // Evitar el instructor principal del horario
-                                      if (horarios.some(h => 
-                                        h.idContrato == inst.id ||
-                                        h.contrato?.id == inst.id ||
-                                        h.instructor?.id == inst.persona?.id
-                                      )) return false;
-                                      return true;
-                                    })
-                                    .map((inst) => (
-                                      <button
-                                        key={inst.id}
-                                        onClick={() => handleAsignarSegundoInstructor(inst)}
-                                        className="w-full p-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-coal-400 rounded-md transition-colors text-left"
-                                      >
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 text-[8px] flex items-center justify-center">
-                                          {inst.persona?.rutaFotoUrl ? <img src={inst.persona.rutaFotoUrl} className="w-full h-full object-cover" /> : <User size={10} />}
-                                        </div>
-                                        <p className="text-[10px] font-bold text-gray-800 dark:text-white truncate uppercase">
-                                          {inst.persona?.nombre1} {inst.persona?.apellido1}
-                                        </p>
-                                      </button>
-                                    ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => {
+                            setTipoAsignacion('compartida');
+                            setShowAsignacionModal(true);
+                          }}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 text-primary rounded-md hover:bg-primary/10 transition-all"
+                        >
+                          <User size={12} />
+                          <span className="text-[10px] font-bold uppercase">Asignar 2º Profe</span>
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
               </div>
+<<<<<<< HEAD
+=======
 
               {/* Horas */}
               <div className="flex flex-col items-center justify-center gap-1 py-1">
@@ -728,11 +731,20 @@ export const CardRap = ({
                 </div>
               )}
             </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           );
         })()}
       </div>
 
       {/* Acciones */}
+<<<<<<< HEAD
+        <div className="flex flex-col items-center justify-between py-2 gap-1">
+          {onVerRaps && (
+            <button
+              onClick={() => onVerRaps(materia.id, materia.nombre || materia.nombreMateria)}
+              className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition"
+              title="Materias derivadas"
+=======
       {materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? <div></div> :
         <div className="flex flex-col items-center justify-between py-1 gap-2 shrink-0">
           {onVerRaps && (
@@ -740,11 +752,21 @@ export const CardRap = ({
               onClick={() => onVerRaps(materia.id, materia.nombre || materia.nombreMateria, idTrimestre ?? 0)}
               className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition"
               title="RAPs"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             >
               <FolderPlus size={18} />
             </button>
           )}
 
+<<<<<<< HEAD
+          <button
+            onClick={() => onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }
+            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-blue-600 transition"
+            title="Editar"
+          >
+            <Pencil size={18} />
+          </button>
+=======
           {esEditable ? (
             <button
               onClick={() => { materia.idMateriaPadre != null && materia.estado == 'FINALIZADO' ? enqueueSnackbar('No se puede editar un RAP finalizado', { variant: 'error' }) : onEditCompetencia && onEditCompetencia(materia.idMateria || materia.id) }}
@@ -763,6 +785,7 @@ export const CardRap = ({
               <Lock size={18} />
             </button>
           )}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
           {esEditable && materia.idMateriaPadre && materia.horarios.asignados.length > 0 && mostrarFinalizar && <button
             onClick={() => handleFinalizarRap()}
@@ -781,15 +804,30 @@ export const CardRap = ({
           </button>}
 
           <button
+<<<<<<< HEAD
+            onClick={() => setIsCalendarioOpen(true)}
+            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
+=======
             onClick={materia.idMateriaPadre == null ? () => setIsCalendarioOpen(true) // si es competencia abrimos el calendario normalmente
               : materia.idMateriaPadre != null && parseFloat(materia.horasTotales) > 0 ? () => setIsCalendarioOpen(true) // si es rap pero tiene horas configuradas abrimos el calendario normalmente
                 : () => enqueueSnackbar('Debes configurar el total de horas del RAP', { variant: 'error' })} // si es rap pero no tiene horas, mostrar alerta
             className="p-2.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-orange-600 transition"
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             title="Horarios"
           >
             <Calendar size={18} />
           </button>
 
+<<<<<<< HEAD
+          <button
+            onClick={handleEliminarCompetencia}
+            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-coal-300 hover:text-red-600 transition"
+            title="Eliminar"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+=======
           {esEditable ? (
             <button
               onClick={handleEliminarCompetencia}
@@ -809,6 +847,7 @@ export const CardRap = ({
             </button>
           )}
         </div>}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
       {/* Modal de Lista de Instructores */}
       {showInstructorsModal && (
@@ -850,13 +889,21 @@ export const CardRap = ({
                       </p>
                     </div>
 
+<<<<<<< HEAD
+                    <button
+=======
                     {(esEditable && (inst.esPrincipal || materia.idMateriaPadre != null)) ? <button
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                       onClick={() => handleDesasignarInstructor(inst)}
                       className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
                       title="Desasignar Instructor"
                     >
                       <Trash2 size={18} />
+<<<<<<< HEAD
+                    </button>
+=======
                     </button> : <p className="text-xs text-gray-500 dark:text-gray-400">{esEditable ? 'Desasigna desde el RAP' : MSG_SOLO_ACTUAL}</p>}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                   </div>
                 ))}
               </div>
@@ -899,6 +946,10 @@ export const CardRap = ({
             }
             setModalHorarios({
               open: true,
+<<<<<<< HEAD
+              idMateria: materia.id,
+              idFicha: idFicha ?? 0,
+=======
               idGradoMateria: materia.idGradoMateria,
               idFicha: idFicha || undefined,
               totalHoras: materia.horasTotales ?? 0,
@@ -908,8 +959,32 @@ export const CardRap = ({
               horaInicioPrefill: horaInicio,
               horaFinPrefill: horaFin,
               fechaFinalRap: materia.fechaFinalRap || undefined,
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             });
           }}
+        />
+      )}
+
+      {/* Modal de Asignación de Profesor */}
+      {showAsignacionModal && (
+        <ProfesorSelect
+          onClose={() => setShowAsignacionModal(false)}
+          idMateria={materia.idMateria || materia.id}
+          onSelect={async (profesor) => {
+            if (tipoAsignacion === 'principal') {
+              await handleAsignarInstructor(profesor.data);
+            } else {
+              await handleAsignarSegundoInstructor(profesor.data);
+            }
+            setShowAsignacionModal(false);
+          }}
+          excludeIds={tipoAsignacion === 'compartida' ? 
+            horarios.map(h => h.idContrato).filter(Boolean) 
+            : []
+          }
+          placeholder={tipoAsignacion === 'principal' 
+            ? 'Selecciona un profesor'
+            : 'Selecciona un profesor para compartir'}
         />
       )}
     </div>

@@ -9,9 +9,13 @@ import { ModalSearch } from '@/partials/modals/search/ModalSearch';
 import { useAuthContext } from '@/auth';
 import axios from 'axios';
 import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { DropdownJitsiSalas } from '@/partials/dropdowns/jitsi/DropdownJitsiSalas';
+import { faVideo } from '@fortawesome/free-solid-svg-icons';
 
 const HeaderTopbar = () => {
   const itemChatRef = useRef<any>(null);
+  const itemJitsiRef = useRef<any>(null);
   const itemAppsRef = useRef<any>(null);
   const itemNotificationsRef = useRef<any>(null);
   const authContext = useAuthContext();
@@ -127,6 +131,36 @@ const HeaderTopbar = () => {
           {DropdownApps()}
         </MenuItem> */}
       {/* </Menu> */}
+
+      <Menu className="items-stretch">
+        <MenuItem
+          ref={itemJitsiRef}
+          toggle="dropdown"
+          trigger="click"
+          dropdownProps={{
+            placement: 'bottom-end',
+            modifiers: [
+              {
+                name: 'offset',
+                options: {
+                  offset: [10, 0] // [skid, distance]
+                }
+              }
+            ]
+          }}
+        >
+          <MenuToggle>
+            <div
+              className="btn btn-icon btn-icon-lg size-9 rounded-full hover:bg-primary-light hover:text-primary text-gray-500 menu-item-show:bg-primary-light menu-item-show:text-primary"
+              title="Salas de Videollamada"
+            >
+              <FontAwesomeIcon size="lg" icon={faVideo} />
+            </div>
+          </MenuToggle>
+
+          {DropdownJitsiSalas({ menuTtemRef: itemJitsiRef })}
+        </MenuItem>
+      </Menu>
 
       <Menu className="items-stretch">
         <MenuItem

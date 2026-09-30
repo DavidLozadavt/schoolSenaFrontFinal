@@ -218,16 +218,29 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div
+<<<<<<< HEAD
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shrink-0"
+                            style={{ backgroundColor: r.nexiEmail ? '#f59e0b' : accentColor }}
+=======
                             className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0"
                             style={{ backgroundColor: accentColor }}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                           >
-                            {getUserInitials(r.usuario)}
+                            {getUserInitials(r.usuario, r)}
                           </div>
                           <div className="flex flex-col min-w-0">
+<<<<<<< HEAD
+                            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-250 truncate max-w-[130px]">{getUserName(r.usuario, r)}</span>
+                            {(r.usuario?.isNexiUser || r.nexiEmail)
+                              ? <span className="text-[9px] font-black uppercase tracking-wider text-amber-500">NexiService</span>
+                              : r.usuario?.email && <span className="text-[10px] text-neutral-400 truncate max-w-[130px]">{r.usuario.email}</span>
+                            }
+=======
                             <span className="text-xs font-bold text-neutral-800 dark:text-white truncate">
                               {getUserName(r.usuario)}
                             </span>
                             <span className="text-[10px] text-neutral-400">{new Date(r.created_at).toLocaleString()}</span>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                           </div>
                         </div>
                       </td>
@@ -251,10 +264,17 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                             className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 transition-colors"
                             title="Eliminar respuesta"
                           >
+<<<<<<< HEAD
+                            <i className="bi bi-trash3 text-xs"></i>
+                          </button>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all">
+                            <i className="bi bi-chevron-right text-xs"></i>
+=======
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                           <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-250 transition-all">
                             <ChevronRight className="w-3.5 h-3.5" />
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                           </div>
                         </div>
                       </td>
@@ -351,10 +371,17 @@ const FormResponsesTab: React.FC<Props> = ({ formularioId }) => {
                   </div>
                   <button
                     onClick={() => deleteResponse(selectedResponse.id)}
+<<<<<<< HEAD
+                    className="shrink-0 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-800/40 hover:text-red-600 transition-all"
+                  >
+                    <i className="bi bi-trash3 text-xs"></i>
+                    Eliminar
+=======
                     className="shrink-0 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-800/40 hover:text-red-600 transition-all"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Eliminar</span>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                   </button>
                 </div>
 

@@ -1,22 +1,22 @@
 import axios from 'axios';
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import ModalPeriodo from '@/pages/periodos/ModalPeriodo';
 import Select from 'react-select';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import FormularioInfraestructura from '@/pages/gestion-infraestructura/FormularioInfraestructura';
 import { ModalBody } from '@/components/modal';
-import ModalError from '@/pages/gestion-sedes-sena/ModalError';
-import Toast from './Toast';
 import { AuthContext } from '@/auth/providers/JWTProvider';
+import { enqueueSnackbar } from 'notistack';
+import { useParams } from 'react-router-dom';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   idCentro?: number;
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
-  programaId?: string; // solo para CREAR
   fichaId?: number | null; // solo para EDITAR — si viene, entra en modo edición
+  fichaIdClonar?: number | null; // PARA CLONAR
   onAction: () => void;
   // callbacks opcionales que usaba EditarFicha (se mantienen por compatibilidad)
   setEvento?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -29,12 +29,7 @@ interface Jornada {
   id: number;
   nombreJornada: string;
 }
-interface Periodo {
-  id: number;
-  nombrePeriodo: string;
-  fechaInicial: string;
-  fechaFinal: string;
-}
+
 interface Sedes {
   id: number;
   nombre: string;
@@ -54,165 +49,42 @@ interface Ambientes {
 }
 
 interface FormValues {
-  observacion: string;
-  idPeriodo: number;
-  idPrograma: number;
+  idAsignacion: number;
   idRegional: number;
   estado: string;
   idSede: number;
   idJornada: number;
   idInfraestructura: number;
   codigo: string;
-  fechaInicialClases: string;
-  fechaFinalClases: string;
-  fechaInicialPlanMejoramiento: string;
-  fechaFinalPlanMejoramiento: string;
-  fechaInicialInscripciones: string;
-  fechaFinalInscripciones: string;
-  fechaInicialMatriculas: string;
-  fechaFinalMatriculas: string;
   tipoCalificacion: string;
   porcentajeEjecucion: number | null;
   documento: File | null;
+  idFicha: number | null;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const toDate = (date?: string) => (date ? new Date(date) : null);
-const normalizeDate = (date?: string | null) => {
-  if (!date) return '';
-  // Dividir por T o espacio para obtener solo la fecha YYYY-MM-DD
-  return date.split(/T| /)[0];
-};
-
-const ESTADOS_APERTURA = [
-  { value: 'ACTIVO', label: 'ACTIVO' },
-  { value: 'INACTIVO', label: 'INACTIVO' },
-  { value: 'EN CURSO', label: 'EN CURSO' },
-  { value: 'CERRADO', label: 'CERRADO' },
-  { value: 'PENDIENTE', label: 'PENDIENTE' },
-  { value: 'APROBADO', label: 'APROBADO' },
-  { value: 'CANCELADO', label: 'CANCELADO' }
-];
 
 // ─── Validación ───────────────────────────────────────────────────────────────
 const buildValidationSchema = (isEditing: boolean, hasCentro: boolean) =>
   Yup.object({
     observacion: Yup.string().nullable().max(1000, 'Máximo 1000 caracteres'),
 
-    idPeriodo: Yup.number()
-      .typeError('Debe seleccionar un periodo')
-      .required('Debe seleccionar un periodo'),
-
-    // En edición el programa se puede cambiar; en creación viene por prop
-    idPrograma: isEditing
-      ? Yup.number()
-          .typeError('Debe seleccionar un programa')
-          .required('Debe seleccionar un programa')
-      : Yup.number().nullable(),
-
-    idRegional: hasCentro
-      ? Yup.number().nullable()
-      : Yup.number()
-          .typeError('Debe seleccionar una regional')
-          .required('Debe seleccionar una regional'),
-
-    // Estado solo se valida en edición
-    estado: isEditing
-      ? Yup.string().required('Debe seleccionar un estado')
-      : Yup.string().nullable(),
+    idAsignacion: Yup.number()
+      .min(1, 'Debe seleccionar una apertura')
+      .typeError('Debe seleccionar una apertura')
+      .required('Debe seleccionar una apertura'),
 
     idSede: Yup.number()
+      .min(1, 'Debe seleccionar una sede')
       .typeError('Debe seleccionar una sede')
       .required('Debe seleccionar una sede'),
 
     idInfraestructura: Yup.number().nullable(),
 
-    idJornada: Yup.number()
-      .typeError('Debe seleccionar una jornada')
-      .required('Debe seleccionar una jornada'),
-
     codigo: Yup.string().required('El código es obligatorio').max(100, 'Máximo 100 caracteres'),
 
-    fechaInicialInscripciones: Yup.string().required(
-      'La fecha inicial de inscripciones es obligatoria'
-    ),
-
-    fechaFinalInscripciones: Yup.string()
-      .required('La fecha final de inscripciones es obligatoria')
-      .test('after-or-equal', 'Debe ser mayor o igual a la fecha inicial', function (value) {
-        const { fechaInicialInscripciones } = this.parent;
-        return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-      }),
-
-    fechaInicialMatriculas: Yup.string()
-      .required('La fecha inicial de matrículas es obligatoria')
-      .test(
-        'matricula-after-inscripcion',
-        'Debe ser mayor o igual a la fecha inicial de inscripciones',
-        function (value) {
-          const { fechaInicialInscripciones } = this.parent;
-          return !value || !fechaInicialInscripciones || value >= fechaInicialInscripciones;
-        }
-      ),
-
-    fechaFinalMatriculas: Yup.string()
-      .required('La fecha final de matrículas es obligatoria')
-      .test(
-        'after-or-equal',
-        'Debe ser mayor o igual a la fecha inicial de matrículas',
-        function (value) {
-          const { fechaInicialMatriculas } = this.parent;
-          return !value || !fechaInicialMatriculas || value >= fechaInicialMatriculas;
-        }
-      )
-      .test(
-        'fin-matriculas-before-clases',
-        'Debe ser menor a la fecha inicial de la etapa electiva',
-        function (value) {
-          const { fechaInicialClases } = this.parent;
-          if (!value || !fechaInicialClases) return true;
-          return toDate(value)! < toDate(fechaInicialClases)!;
-        }
-      ),
-
-    fechaInicialClases: Yup.string().required('La fecha inicial de etapa electiva es obligatoria'),
-
-    fechaFinalClases: Yup.string()
-      .required('La fecha final de etapa electiva es obligatoria')
-      .test(
-        'fin-clases-after-inicio',
-        'Debe ser mayor o igual a la fecha inicial de etapa electiva',
-        function (value) {
-          const { fechaInicialClases } = this.parent;
-          if (!value || !fechaInicialClases) return true;
-          return toDate(value)! >= toDate(fechaInicialClases)!;
-        }
-      ),
-
-    fechaInicialPlanMejoramiento: Yup.string()
-      .required('La fecha inicial de la etapa productiva es obligatoria')
-      .test('plan-after-clases', 'Debe ser posterior al fin de etapa electiva', function (value) {
-        const { fechaFinalClases } = this.parent;
-        if (!value || !fechaFinalClases) return true;
-        return toDate(value)! >= toDate(fechaFinalClases)!;
-      }),
-
-    fechaFinalPlanMejoramiento: Yup.string()
-      .required('La fecha final de la etapa productiva es obligatoria')
-      .test(
-        'plan-fin-after-inicio',
-        'Debe ser mayor o igual a la fecha inicial de la etapa productiva',
-        function (value) {
-          const { fechaInicialPlanMejoramiento } = this.parent;
-          if (!value || !fechaInicialPlanMejoramiento) return true;
-          return toDate(value)! >= toDate(fechaInicialPlanMejoramiento)!;
-        }
-      ),
-
     porcentajeEjecucion: Yup.number()
-      .typeError('Debe ser un número')
-      .min(1, 'No puede ser menor que 1')
-      .max(100, 'No puede ser mayor que 100')
+      .typeError('El porcentaje de ejecución debe ser un número')
+      .min(1, 'El porcentaje debe ser mínimo 1')
+      .max(100, 'El porcentaje debe ser máximo 100')
       .nullable(),
 
     documento: Yup.mixed()
@@ -247,8 +119,8 @@ const CrearEditarFicha: React.FC<Props> = ({
   idCentro,
   isModalOpen,
   setIsModalOpen,
-  programaId,
   fichaId,
+  fichaIdClonar,
   onAction,
   setShowToast,
   setMessageToast
@@ -276,48 +148,41 @@ const CrearEditarFicha: React.FC<Props> = ({
   const [idInfraestructura, setIdInfraestructura] = useState('');
   const [codigoExist, setCodigoExist] = useState(false);
   const [codigo, setCodigo] = useState('');
-
-  // Toast / error state
-  const [handleError, setHandleError] = useState(false);
-  const [messageError, setMessageError] = useState('');
-  const [handleSuccess, setHandleSuccess] = useState(false);
-  const [messageSuccess, setMessageSuccess] = useState('');
+  const [aperturaSelected, setAperturaSelected] = useState<any>(null);
+  const { programId } = useParams<{ programId: string }>();
 
   // Catálogos
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
-  const [periodos, setPeriodos] = useState<Periodo[]>([]);
+  const [periodos, setPeriodos] = useState<any[]>([]);
   const [sedes, setSedes] = useState<Sedes[]>([]);
-  const [programas, setProgramas] = useState<Programas[]>([]);
   const [regionales, setRegionales] = useState<Regionales[]>([]);
   const [ambientes, setAmbientes] = useState<Ambientes[]>([]);
+  const [tiposGrado, setTiposGrado] = useState<{ value: number; label: string }[]>([]);
 
   // ── Formik ─────────────────────────────────────────────────────────────────
   const formik = useFormik<FormValues>({
     enableReinitialize: true,
     initialValues: {
-      observacion: '',
-      idPeriodo: 0,
-      idPrograma: 0,
+      idAsignacion: Number(programId) || 0,
+      idSede: 0,
       idRegional: 0,
       estado: '',
-      idSede: 0,
       idInfraestructura: 0,
-      fechaInicialClases: '',
-      fechaFinalClases: '',
       idJornada: 0,
       codigo: '',
-      fechaInicialPlanMejoramiento: '',
-      fechaFinalPlanMejoramiento: '',
-      fechaInicialInscripciones: '',
-      fechaFinalInscripciones: '',
-      fechaInicialMatriculas: '',
-      fechaFinalMatriculas: '',
       tipoCalificacion: 'NUMERICO',
       porcentajeEjecucion: isEditing ? null : 100,
-      documento: null
+      documento: null,
+      idFicha: fichaId || fichaIdClonar || null                  
     },
     validationSchema: buildValidationSchema(isEditing, !!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
+      if (!isEditing && codigoExist) {
+        enqueueSnackbar('El código ya está en uso', { variant: 'error' });
+        setSubmitting(false);
+        return;
+      }
+
       try {
         const formData = new FormData();
         Object.entries(values).forEach(([key, value]) => {
@@ -327,12 +192,12 @@ const CrearEditarFicha: React.FC<Props> = ({
         });
 
         if (isEditing) {
-          await axios.post(`fichas/${fichaId}?_method=PUT`, formData, {
+          formData.append('_method', 'PUT');
+          await axios.post(`fichas/${fichaId}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          setMessageSuccess('Ficha actualizada correctamente');
+          enqueueSnackbar('Grado actualizado correctamente', { variant: 'success' });
         } else {
-          formData.append('idPrograma', String(programaId));
           const fichaRes = await axios.post('fichas', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
@@ -348,48 +213,71 @@ const CrearEditarFicha: React.FC<Props> = ({
               console.warn('No se pudo asignar automáticamente el instructor líder');
             }
           }
-
-          setMessageSuccess('Ficha creada correctamente');
         }
-        setHandleSuccess(true);
         setTimeout(() => {
           resetForm();
           setIsModalOpen(false);
-          setHandleSuccess(false);
+          enqueueSnackbar( isEditing ?  'Grado actualizado correctamente' : 'Grado creado correctamente', { variant: 'success' });
           onAction();
         }, 700);
       } catch (error: any) {
-        setHandleError(true);
-        setMessageError(
-          isEditing
-            ? 'No se pudo actualizar la ficha.'
-            : 'No se pudo crear, revisa si el código ya existe.'
-        );
+        enqueueSnackbar( isEditing ? 'Error al actualizar el grado' : 'Error al crear el grado', { variant: 'error' });
       } finally {
         setSubmitting(false);
       }
     }
   });
 
+  // ── Validar código de ficha (solo CREAR) ────────────────────────────────────
+  useEffect(() => {
+    if (isEditing || !codigo || !formik.values.idAsignacion) {
+      setCodigoExist(false);
+      return;
+    }
+    const checkCodigo = async () => {
+      try {
+        const res = await axios.get('ficha/validar-codigo', {
+          params: {
+            codigo,
+            idAsignacion: formik.values.idAsignacion
+          }
+        });
+        setCodigoExist(res.data.existe);
+      } catch (err) {
+        console.error('Error validando código:', err);
+      }
+    };
+
+    const debounceTimer = setTimeout(checkCodigo, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [codigo, formik.values.idAsignacion, isEditing]);
+
   // ── Cargar catálogos generales (solo CREAR) ───────────────────────────────
   useEffect(() => {
     if (isEditing) return; // en edición todo se carga dentro de loadFichaData
     const loadData = async () => {
       try {
-        const [jornadaRes, periodosRes, regionalesRes] = await Promise.all([
+        const [jornadaRes, periodosRes, tiposGradoRes, aperturaRes] = await Promise.all([
           axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentro } }),
-          axios.get('periodos'),
-          axios.get('regional')
+          axios.get('regional'),
+          axios.get('tipos-grado'),
+          axios.get(`aperturaPrograma/${Number(programId)}`)
         ]);
         setJornadas(jornadaRes.data.data);
         setPeriodos(periodosRes.data);
-        setRegionales(regionalesRes.data);
+        setTiposGrado(tiposGradoRes.data);
+        setAperturaSelected(aperturaRes.data);
       } catch (err) {
         console.error('Error cargando catálogos:', err);
       }
     };
     loadData();
   }, [reload]);
+
+  useEffect(() => {
+    if (isEditing && isLoading) return;
+
+  }, [isModalOpen, isEditing, formik.values.idSede, reload, isLoading]);
 
   // ── Cargar datos de la ficha + todos los catálogos (solo EDITAR) ──────────
   useEffect(() => {
@@ -409,44 +297,34 @@ const CrearEditarFicha: React.FC<Props> = ({
         );
 
         // Cargar TODO en paralelo: catálogos + sedes + ambientes
-        const [jornadaRes, periodosRes, regionalesRes, programasRes, sedesRes, ambientesRes] =
+        const [jornadaRes, regionalesRes, aperturaRes, sedesRes, ambientesRes] =
           await Promise.all([
             axios.get('jornadas/agrupadas', { params: { idCentroFormacion: idCentroFromApi } }),
-            axios.get('periodos'),
             axios.get('regional'),
-            axios.get('programas'),
+            axios.get(`aperturaPrograma/${Number(apertura.id || Number(programId))}`),
             idRegional ? axios.get(`sedes/regional/${idRegional}`) : Promise.resolve(null),
             idSede ? axios.get(`sedes/${idSede}/infraestructuras`) : Promise.resolve(null)
           ]);
 
         setJornadas(jornadaRes.data.data);
-        setPeriodos(periodosRes.data);
+        setAperturaSelected(aperturaRes.data);
+
         setRegionales(regionalesRes.data);
-        setProgramas(programasRes.data.data);
         if (sedesRes) setSedes(sedesRes.data.data);
         if (ambientesRes) setAmbientes(ambientesRes.data.data);
 
         formik.setValues({
-          observacion: apertura.observacion || '',
-          idPeriodo: Number(apertura.idPeriodo) || 0,
-          idPrograma: Number(apertura.idPrograma) || 0,
+          idAsignacion: Number(ficha.idAsignacion) || 0,
           idRegional: Number(idRegional) || 0,
           estado: apertura.estado || '',
           idSede: Number(idSede) || 0,
           idJornada: Number(ficha.idJornada) || 0,
           codigo: ficha.codigo || '',
-          fechaInicialClases: normalizeDate(apertura.fechaInicialClases),
-          fechaFinalClases: normalizeDate(apertura.fechaFinalClases),
-          fechaInicialInscripciones: normalizeDate(apertura.fechaInicialInscripciones),
-          fechaFinalInscripciones: normalizeDate(apertura.fechaFinalInscripciones),
-          fechaInicialMatriculas: normalizeDate(apertura.fechaInicialMatriculas),
-          fechaFinalMatriculas: normalizeDate(apertura.fechaFinalMatriculas),
-          fechaInicialPlanMejoramiento: normalizeDate(apertura.fechaInicialPlanMejoramiento),
-          fechaFinalPlanMejoramiento: normalizeDate(apertura.fechaFinalPlanMejoramiento),
           idInfraestructura: Number(ficha.idInfraestructura) || 0,
           tipoCalificacion: apertura.tipoCalificacion || 'NUMERICO',
           porcentajeEjecucion: ficha.porcentajeEjecucion != null ? Number(ficha.porcentajeEjecucion) : null,
-          documento: null
+          documento: null,
+          idFicha: fichaId || null
         });
       } catch (error: any) {
         const msg = error.response?.data?.message || 'Error al cargar la ficha';
@@ -505,25 +383,17 @@ const CrearEditarFicha: React.FC<Props> = ({
       .catch(() => setAmbientes([]));
   }, [formik.values.idSede, eventoAmbiente]);
 
-  // ── Verificar duplicado de código (solo creación) ─────────────────────────
-  useEffect(() => {
-    if (isEditing || !codigo) return;
-    axios
-      .get(`ficha/validar-codigo/${codigo}`)
-      .then((res) => setCodigoExist(res.data.existe))
-      .catch(() => setCodigoExist(false));
-  }, [codigo]);
+  const fechaFormateada = (fecha: any) => {
+    const fechaDate = new Date(fecha);
+    const dia = String(fechaDate.getDate()).padStart(2, '0');
+    const mes = String(fechaDate.getMonth() + 1).padStart(2, '0');
+    const anio = fechaDate.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  }
 
-  // ── Opciones para react-select ────────────────────────────────────────────
-  const optionsJornadas = jornadas.map((v) => ({ value: v.id, label: v.nombreJornada }));
-  const optionsPeriodos = periodos.map((v) => ({
-    value: v.id,
-    label: `${v.nombrePeriodo} fecha inicio: ${v.fechaInicial} fecha fin: ${v.fechaFinal}`
-  }));
   const optionsSedes = sedes.map((v) => ({ value: v.id, label: v.nombre }));
   const optionsRegionales = regionales.map((v) => ({ value: v.id, label: v.razonSocial }));
   const optionsAmbientes = ambientes.map((v) => ({ value: v.id, label: v.nombreInfraestructura }));
-  const optionsProgramas = programas.map((v) => ({ value: v.id, label: v.nombrePrograma }));
 
   if (!isModalOpen) return null;
 
@@ -545,7 +415,12 @@ const CrearEditarFicha: React.FC<Props> = ({
 
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-          {isEditing ? 'Editar Ficha' : 'Crear Ficha'}
+          {isEditing ? 'Editar Grado' : 'Crear Grado'}
+          {!isEditing && (
+          <p className="text-sm opacity-50 mt-1">
+            Desde esta opción se generará el nuevo grupo con las mismas materias asignadas que el anterior.
+          </p>
+        )}
         </h2>
 
         {isLoading ? (
@@ -563,9 +438,9 @@ const CrearEditarFicha: React.FC<Props> = ({
                   </h3>
                 </div>
 
-                {/* Código */}
+                {/* Grado */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Código de la ficha</label>
+                  <label className="text-sm font-medium text-gray-700">Grado</label>
                   <input
                     type="text"
                     name="codigo"
@@ -575,7 +450,7 @@ const CrearEditarFicha: React.FC<Props> = ({
                       if (!isEditing) setCodigo(e.target.value);
                     }}
                     onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
+                    className="w-full input text-sm"
                   />
                   {!isEditing && codigoExist && (
                     <p className="text-red-500 text-xs">Este código ya está en uso</p>
@@ -584,115 +459,6 @@ const CrearEditarFicha: React.FC<Props> = ({
                     <p className="text-red-500 text-xs">{formik.errors.codigo}</p>
                   )}
                 </div>
-
-                {/* Observación */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Observación</label>
-                  <textarea
-                    name="observacion"
-                    value={formik.values.observacion}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    rows={4}
-                    maxLength={1000}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400 resize-y"
-                    placeholder="Escriba la observación (máx. 1000 caracteres)"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>
-                      {formik.touched.observacion && formik.errors.observacion && (
-                        <span className="text-red-500">{formik.errors.observacion}</span>
-                      )}
-                    </span>
-                    <span className={formik.values.observacion.length > 1000 ? 'text-red-500' : ''}>
-                      {formik.values.observacion.length}/1000
-                    </span>
-                  </div>
-                </div>
-
-                {/* Jornada */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Jornada</label>
-                  <Select
-                    options={optionsJornadas}
-                    placeholder="Seleccione la jornada"
-                    isClearable
-                    value={optionsJornadas.find((o) => o.value === formik.values.idJornada)}
-                    onChange={(option) => formik.setFieldValue('idJornada', option?.value || 0)}
-                    onBlur={() => formik.setFieldTouched('idJornada', true)}
-                    classNames={selectClassNames}
-                  />
-                  {formik.touched.idJornada && formik.errors.idJornada && (
-                    <p className="text-red-500 text-xs">{formik.errors.idJornada}</p>
-                  )}
-                </div>
-
-                {/* Periodo */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Periodo</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select
-                        options={optionsPeriodos}
-                        placeholder="Seleccione el periodo"
-                        isClearable
-                        value={optionsPeriodos.find((o) => o.value === formik.values.idPeriodo)}
-                        onChange={(option) => formik.setFieldValue('idPeriodo', option?.value || 0)}
-                        onBlur={() => formik.setFieldTouched('idPeriodo', true)}
-                        classNames={selectClassNames}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenModal(true)}
-                      className="h-[38px] w-[38px] flex items-center justify-center border border-gray-300 rounded-md text-lg font-medium text-gray-600 hover:border-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                      title="Agregar periodo"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {formik.touched.idPeriodo && formik.errors.idPeriodo && (
-                    <p className="text-red-500 text-xs">{formik.errors.idPeriodo}</p>
-                  )}
-                </div>
-
-                {/* Programa (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Programa</label>
-                    <Select
-                      options={optionsProgramas}
-                      placeholder="Seleccione el programa"
-                      isClearable
-                      value={optionsProgramas.find((o) => o.value === formik.values.idPrograma)}
-                      onChange={(option) => formik.setFieldValue('idPrograma', option?.value || 0)}
-                      onBlur={() => formik.setFieldTouched('idPrograma', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.idPrograma && formik.errors.idPrograma && (
-                      <p className="text-red-500 text-xs">{formik.errors.idPrograma}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Estado (solo en edición) */}
-                {isEditing && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Estado</label>
-                    <Select
-                      options={ESTADOS_APERTURA}
-                      placeholder="Seleccione el estado"
-                      isClearable
-                      value={ESTADOS_APERTURA.find((o) => o.value === formik.values.estado)}
-                      onChange={(option) => formik.setFieldValue('estado', option?.value || '')}
-                      onBlur={() => formik.setFieldTouched('estado', true)}
-                      classNames={selectClassNames}
-                    />
-                    {formik.touched.estado && formik.errors.estado && (
-                      <p className="text-red-500 text-xs">{formik.errors.estado}</p>
-                    )}
-                  </div>
-                )}
 
                 {/* ── Ubicación ────────────────────────────────────── */}
                 <div className="md:col-span-2 mt-4">
@@ -792,183 +558,81 @@ const CrearEditarFicha: React.FC<Props> = ({
                   )}
                 </div>
 
-                {/* ── Fechas del proceso ───────────────────────────── */}
-                <div className="md:col-span-2 mt-6">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">
-                    Fechas del proceso
+            {/* FECHAS DE APERTURA SELECCIONADA */}
+            {aperturaSelected != null && (
+              <div className="md:col-span-2 mt-2 border border-gray-200 dark:border-coal-200 rounded-xl p-5">
+                <div className="mb-4 border-b border-gray-200 dark:border-coal-300 pb-2">
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    Fechas del periodo de apertura seleccionado
                   </h3>
                 </div>
 
-                {/* Inscripciones */}
-                <div className="md:col-span-2 mt-3">
-                  <p className="text-xs font-bold mb-1">Inscripciones</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Inicio</label>
-                  <input
-                    type="date"
-                    name="fechaInicialInscripciones"
-                    value={formik.values.fechaInicialInscripciones}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaInicialInscripciones &&
-                    formik.errors.fechaInicialInscripciones && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.fechaInicialInscripciones}
-                      </p>
-                    )}
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Fin</label>
-                  <input
-                    type="date"
-                    name="fechaFinalInscripciones"
-                    value={formik.values.fechaFinalInscripciones}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaFinalInscripciones &&
-                    formik.errors.fechaFinalInscripciones && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.fechaFinalInscripciones}
-                      </p>
-                    )}
-                </div>
-
-                {/* Matrículas */}
-                <div className="md:col-span-2 mt-3">
-                  <p className="text-xs font-bold mb-1">Matrículas</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Inicio</label>
-                  <input
-                    type="date"
-                    name="fechaInicialMatriculas"
-                    value={formik.values.fechaInicialMatriculas}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaInicialMatriculas &&
-                    formik.errors.fechaInicialMatriculas && (
-                      <p className="text-red-500 text-xs">{formik.errors.fechaInicialMatriculas}</p>
-                    )}
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Fin</label>
-                  <input
-                    type="date"
-                    name="fechaFinalMatriculas"
-                    value={formik.values.fechaFinalMatriculas}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaFinalMatriculas && formik.errors.fechaFinalMatriculas && (
-                    <p className="text-red-500 text-xs">{formik.errors.fechaFinalMatriculas}</p>
-                  )}
-                </div>
-
-                {/* Etapa electiva */}
-                <div className="md:col-span-2">
-                  <p className="text-xs font-bold mb-1">Etapa electiva</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Inicio</label>
-                  <input
-                    type="date"
-                    name="fechaInicialClases"
-                    value={formik.values.fechaInicialClases}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaInicialClases && formik.errors.fechaInicialClases && (
-                    <p className="text-red-500 text-xs">{formik.errors.fechaInicialClases}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Fin</label>
-                  <input
-                    type="date"
-                    name="fechaFinalClases"
-                    value={formik.values.fechaFinalClases}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaFinalClases && formik.errors.fechaFinalClases && (
-                    <p className="text-red-500 text-xs">{formik.errors.fechaFinalClases}</p>
-                  )}
-                </div>
-
-                {/* Etapa productiva */}
-                <div className="md:col-span-2 mt-3">
-                  <p className="text-xs font-bold mb-1">Etapa productiva</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Inicio</label>
-                  <input
-                    type="date"
-                    name="fechaInicialPlanMejoramiento"
-                    value={formik.values.fechaInicialPlanMejoramiento}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaInicialPlanMejoramiento &&
-                    formik.errors.fechaInicialPlanMejoramiento && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.fechaInicialPlanMejoramiento}
-                      </p>
-                    )}
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Fin</label>
-                  <input
-                    type="date"
-                    name="fechaFinalPlanMejoramiento"
-                    value={formik.values.fechaFinalPlanMejoramiento}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                  />
-                  {formik.touched.fechaFinalPlanMejoramiento &&
-                    formik.errors.fechaFinalPlanMejoramiento && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.fechaFinalPlanMejoramiento}
-                      </p>
-                    )}
-                </div>
-
-                {/* Porcentaje de ejecución */}
-                <div>
-                  <div className="md:col-span-2 mt-3">
-                    <p className="text-xs font-bold mb-1">Porcentaje de ejecución</p>
+                <div className="grid md:grid-cols-3 gap-6">
+                  {/* Matrículas */}
+                  <div className="flex flex-col">
+                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
+                      Matrículas
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Inicio</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaInicialMatriculas)}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Fin</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaFinalMatriculas)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    type="number"
-                    name="porcentajeEjecucion"
-                    min={1}
-                    max={100}
-                    value={formik.values.porcentajeEjecucion ?? ''}
-                    onChange={(e) =>
-                      formik.setFieldValue(
-                        'porcentajeEjecucion',
-                        e.target.value === '' ? null : Number(e.target.value)
-                      )
-                    }
-                    onBlur={formik.handleBlur}
-                    className="w-full rounded-lg border px-3 py-2 text-sm dark:border-coal-100 bg-white dark:bg-coal-400"
-                    placeholder="Ej: 75"
-                  />
-                  {formik.touched.porcentajeEjecucion && formik.errors.porcentajeEjecucion && (
-                    <p className="text-red-500 text-xs">{formik.errors.porcentajeEjecucion}</p>
-                  )}
+
+                  {/* Etapa lectiva */}
+                  <div className="flex flex-col">
+                    <p className="text-xs font-bold text-green-600 dark:text-green-400 mb-2 uppercase tracking-wide">
+                      Etapa lectiva
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Inicio</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaInicialClases)}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Fin</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaFinalClases)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Plan de mejoramiento */}
+                  <div className="flex flex-col">
+                    <p className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-2 uppercase tracking-wide">
+                      Plan mejoramiento
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Inicio</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaInicialPlanMejoramiento)}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Fin</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-coal-400 border border-gray-200 dark:border-coal-300 rounded-lg px-3 py-2 mt-1">
+                          {fechaFormateada(aperturaSelected.fechaFinalPlanMejoramiento)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            )}
               </div>
 
               {/* Documento PDF */}
@@ -1029,8 +693,8 @@ const CrearEditarFicha: React.FC<Props> = ({
                       ? 'Actualizando...'
                       : 'Guardando...'
                     : isEditing
-                      ? 'Actualizar ficha'
-                      : 'Guardar ficha'}
+                      ? 'Actualizar Grado'
+                      : 'Guardar Grado'}
                 </button>
               </div>
             </form>
@@ -1047,29 +711,16 @@ const CrearEditarFicha: React.FC<Props> = ({
           setEvento={setEventoAmbiente}
         />
       )}
-
-      <ModalPeriodo
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        onSave={() => {
-          setReload((prev) => !prev);
-          setOpenModal(false);
-        }}
-      />
-
-      <Toast
-        isOpen={handleSuccess}
-        message={messageSuccess}
-        onClose={() => setHandleSuccess(false)}
-      />
-      <ModalError
-        isOpen={handleError}
-        message={messageError}
-        onClose={() => {
-          setHandleError(false);
-          setMessageError('');
-        }}
-      />
+      {openModal && (
+        <ModalPeriodo
+          open={openModal}
+          onClose={() => setOpenModal(false)}
+          onSave={() => {
+            setOpenModal(false);
+            setReload(r => !r);
+          }}
+        />
+      )}
     </div>
   );
 };

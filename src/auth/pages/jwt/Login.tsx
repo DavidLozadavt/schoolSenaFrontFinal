@@ -7,6 +7,9 @@ import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
+<<<<<<< HEAD
+import { useLayout } from '@/providers';
+=======
 import {
   AuthBrandLogo,
   authCardClass,
@@ -17,6 +20,7 @@ import {
   authPageShellClass,
   authPrimaryButtonClass
 } from './authVisual';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
@@ -39,6 +43,7 @@ const initialValues = {
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login, roles, activacion } = useAuthContext();
+  const { currentLayout } = useLayout();
   const navigate = useNavigate();
   const location = useLocation();
   const [deviceToken, setDeviceToken] = useState<string>('');
@@ -203,8 +208,13 @@ const Login = () => {
 
           <div className="flex items-center justify-center">
             <Link
+<<<<<<< HEAD
+              to={currentLayout?.name === 'auth-branded' ? '/auth/reset-password' : '/auth/classic/reset-password'}
+              className="text-xs text-gray-600 hover:text-[#1e6fd9] font-medium transition-colors"
+=======
               to="/auth/classic/reset-password"
               className={authLinkClass}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             >
               ¿Olvidaste tu contraseña?
             </Link>

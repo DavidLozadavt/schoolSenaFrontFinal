@@ -38,12 +38,19 @@ interface Integrante {
   nombreCompleto: string;
 }
 
+interface AprendizOpcion {
+  id: number; // idMatricula
+  nombre: string;
+}
+
 interface ModalCrearGrupoProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
   idFicha: number;
   grupoEditar?: Grupo | null;
+  /** Al crear, permite elegir integrantes iniciales (id = idMatricula). */
+  aprendicesDisponibles?: AprendizOpcion[];
 }
 
 const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
@@ -51,7 +58,8 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
   onClose,
   onSave,
   idFicha,
-  grupoEditar
+  grupoEditar,
+  aprendicesDisponibles = []
 }) => {
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [cantidadParticipantes, setCantidadParticipantes] = useState<string>('');
@@ -60,6 +68,7 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
   const [error, setError] = useState('');
   const [integrantes, setIntegrantes] = useState<Integrante[]>([]);
   const [loadingIntegrantes, setLoadingIntegrantes] = useState(false);
+  const [idsMatriculaNuevos, setIdsMatriculaNuevos] = useState<number[]>([]);
 
   const isEdit = !!grupoEditar?.id;
 
@@ -71,19 +80,31 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
         setDescripcion(grupoEditar.descripcion || '');
         setLoadingIntegrantes(true);
         setIntegrantes([]);
+        setIdsMatriculaNuevos([]);
         axios.get(`fichas/${idFicha}/grupos/${grupoEditar.id}/integrantes`)
           .then((r) => setIntegrantes(r.data?.data ?? []))
           .catch(() => setIntegrantes([]))
           .finally(() => setLoadingIntegrantes(false));
       } else {
         setNombreGrupo('');
-        setCantidadParticipantes('');
+        setCantidadParticipantes(
+          aprendicesDisponibles.length > 0
+            ? String(Math.min(6, Math.max(2, aprendicesDisponibles.length)))
+            : ''
+        );
         setDescripcion('');
         setIntegrantes([]);
+        setIdsMatriculaNuevos([]);
       }
       setError('');
     }
-  }, [open, grupoEditar, idFicha]);
+  }, [open, grupoEditar, idFicha, aprendicesDisponibles.length]);
+
+  const toggleMatriculaNueva = (id: number) => {
+    setIdsMatriculaNuevos((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +116,10 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
     const cantidad = parseInt(String(cantidadParticipantes).trim(), 10);
     if (isNaN(cantidad) || cantidad < 1) {
       setError('La cantidad de participantes debe ser un número mayor a 0');
+      return;
+    }
+    if (!isEdit && idsMatriculaNuevos.length > cantidad) {
+      setError('Seleccionaste más integrantes que el cupo del grupo');
       return;
     }
     setSaving(true);
@@ -109,7 +134,8 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
         await axios.post(`fichas/${idFicha}/grupos`, {
           nombreGrupo: nombreGrupo.trim(),
           cantidadParticipantes: cantidad,
-          descripcion: descripcion.trim() || ''
+          descripcion: descripcion.trim() || '',
+          ...(idsMatriculaNuevos.length > 0 ? { idsMatricula: idsMatriculaNuevos } : {})
         });
       }
       onSave();
@@ -260,6 +286,50 @@ const ModalCrearGrupo: React.FC<ModalCrearGrupoProps> = ({
                 rows={3}
               />
             </div>
+
+            {!isEdit && aprendicesDisponibles.length > 0 && (
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Integrantes iniciales ({idsMatriculaNuevos.length})
+                  </label>
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-primary hover:underline"
+                    onClick={() => {
+                      const cupo = parseInt(String(cantidadParticipantes).trim(), 10) || aprendicesDisponibles.length;
+                      if (idsMatriculaNuevos.length === Math.min(cupo, aprendicesDisponibles.length)) {
+                        setIdsMatriculaNuevos([]);
+                      } else {
+                        setIdsMatriculaNuevos(
+                          aprendicesDisponibles.slice(0, cupo).map((a) => a.id)
+                        );
+                      }
+                    }}
+                  >
+                    {idsMatriculaNuevos.length > 0 ? 'Quitar todos' : 'Seleccionar según cupo'}
+                  </button>
+                </div>
+                <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-600">
+                  {aprendicesDisponibles.map((a) => (
+                    <li key={a.id}>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-white/5">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-primary"
+                          checked={idsMatriculaNuevos.includes(a.id)}
+                          onChange={() => toggleMatriculaNueva(a.id)}
+                        />
+                        <span className="text-sm text-gray-800 dark:text-gray-200">{a.nombre}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Opcional. Si no eliges nadie, el grupo queda vacío hasta que se unan o los agregues después.
+                </p>
+              </div>
+            )}
           </form>
         </ModalBody>
 

@@ -151,6 +151,58 @@ const VerifyOtp = () => {
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pastedData) return;
+
+    const digitFields: (keyof VerifyOtpFormValues)[] = ['digit1', 'digit2', 'digit3', 'digit4', 'digit5', 'digit6'];
+    
+    pastedData.split('').forEach((char, i) => {
+      formik.setFieldValue(digitFields[i], char);
+    });
+
+    const nextActiveIndex = Math.min(pastedData.length, 5);
+    setTimeout(() => inputRefs.current[nextActiveIndex]?.focus(), 10);
+
+    if (pastedData.length === 6) {
+      setLoading(true);
+      setHasErrors(undefined);
+      setSuccessMessage('');
+
+      axios.post(`${VITE_APP_API_URL}password/verify-otp`, {
+        email,
+        otp: pastedData
+      }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+      }).then(response => {
+        const token = response.data?.token || pastedData;
+        sessionStorage.setItem('resetToken', token);
+        
+        if (response.data?.reset_token) {
+          sessionStorage.setItem('resetToken', response.data.reset_token);
+        }
+
+        navigate(
+          currentLayout?.name === 'auth-branded'
+            ? '/auth/reset-password/change'
+            : '/auth/classic/reset-password/change'
+        );
+      }).catch(error => {
+        setHasErrors(true);
+        if (error.response?.data?.message) {
+          formik.setStatus(`${error.response.data.message}`);
+        } else if (error.response?.data?.error) {
+          formik.setStatus(`${error.response.data.error}`);
+        } else {
+          formik.setStatus('Error al verificar el código');
+        }
+      }).finally(() => {
+        setLoading(false);
+      });
+    }
+  };
+
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     const digitFields: (keyof VerifyOtpFormValues)[] = [
       'digit1',
@@ -229,6 +281,31 @@ const VerifyOtp = () => {
 
         <form onSubmit={formik.handleSubmit} className="space-y-6">
           <div className="flex justify-center gap-2 mb-6">
+<<<<<<< HEAD
+            {[0, 1, 2, 3, 4, 5].map(index => (
+              <input
+                key={index}
+                ref={el => inputRefs.current[index] = el}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={formik.values[`digit${index + 1}` as keyof VerifyOtpFormValues] as string}
+                onChange={e => handleDigitChange(index, e.target.value)}
+                onKeyDown={e => handleKeyDown(index, e)}
+                onFocus={e => e.target.select()}
+                onPaste={handlePaste}
+                className={clsx(
+                  'w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl',
+                  'focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition-all',
+                  formik.values[`digit${index + 1}` as keyof VerifyOtpFormValues] 
+                    ? 'border-orange-300 bg-orange-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                )}
+                autoComplete="off"
+                spellCheck="false"
+              />
+            ))}
+=======
             {[0, 1, 2, 3, 4, 5].map((index) => {
               const fieldValue = formik.values[`digit${index + 1}` as keyof VerifyOtpFormValues] as string;
               return (
@@ -248,6 +325,7 @@ const VerifyOtp = () => {
                 />
               );
             })}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           </div>
 
           <button

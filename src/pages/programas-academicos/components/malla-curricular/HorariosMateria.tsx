@@ -5,7 +5,6 @@ import * as Yup from 'yup';
 import { useSnackbar } from 'notistack';
 import { ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { Clock, Save } from 'lucide-react';
-import { getColombianHolidayDateSet, isColombianHoliday } from '@/utils/colombianHolidays';
 
 interface HorarioDia {
   idDia: number;
@@ -18,7 +17,7 @@ interface HorarioDia {
 interface HorariosMateriaProps {
   open: boolean;
   onClose: () => void;
-  idGradoMateria: number;
+  idMateria: number;
   idFicha: number;
   totalHoras?: number;
   jornada?: string;
@@ -39,6 +38,9 @@ interface HorariosMateriaProps {
 const HorarioSchema = Yup.object().shape({
   fechaInicio: Yup.date()
     .required('La fecha de inicio es requerida')
+    .typeError('Fecha inválida'),
+  fechaFin: Yup.date()
+    .required('La fecha de fin es requerida')
     .typeError('Fecha inválida'),
   observacion: Yup.string().nullable(),
   horarios: Yup.array()
@@ -74,18 +76,18 @@ const HorarioSchema = Yup.object().shape({
 export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   open,
   onClose,
-  idGradoMateria,
+  idMateria,
   idFicha,
-  totalHoras,
   jornada,
-  horasActuales,
-  horasFaltantes,
   onGuardado,
+<<<<<<< HEAD
+=======
   porcentajeEjecucion,
   fechaInicioPrefill,
   horaInicioPrefill,
   horaFinPrefill,
   fechaFinalRap
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 }) => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -107,12 +109,16 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   /** Evita que el sync por fechaInicio pise la carga inicial desde calendario. */
   const inicializandoRef = useRef(false);
 
+  // Fechas de apertura obtenidas de la ficha
+  const [fechaAperturaInicio, setFechaAperturaInicio] = useState('');
+  const [fechaAperturaFin, setFechaAperturaFin] = useState('');
+
   // Para aplicar misma hora a varios días
   const [horaGlobalInicio, setHoraGlobalInicio] = useState('');
   const [horaGlobalFin, setHoraGlobalFin] = useState('');
 
   // Si es false, la proyección excluye festivos de Colombia
-  const [incluirFestivos, setIncluirFestivos] = useState(true);
+  const [incluirFestivos, setIncluirFestivos] = useState(false);
 
   // Inicializar Formik
   const formik = useFormik({
@@ -131,6 +137,15 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
 
   const { values, setFieldValue, handleChange, handleSubmit, errors, touched } = formik;
 
+<<<<<<< HEAD
+  // Cargar días disponibles y datos de apertura al abrir el modal
+  useEffect(() => {
+    if (open) {
+      cargarDias();
+      cargarFicha();
+    } else {
+      // Limpiar formulario al cerrar
+=======
   const normalizeHoraPrefill = (raw?: string): string => {
     if (!raw) return '';
     const m = String(raw).match(/(\d{1,2}):(\d{2})/);
@@ -148,14 +163,63 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   // Cargar días y precargas al abrir el modal
   useEffect(() => {
     if (!open) {
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       formik.resetForm();
       setHoraGlobalInicio('');
       setHoraGlobalFin('');
       setIncluirFestivos(false);
+<<<<<<< HEAD
+      setFechaAperturaInicio('');
+      setFechaAperturaFin('');
+=======
       inicializandoRef.current = false;
       return;
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
     }
 
+<<<<<<< HEAD
+  // Cuando se obtienen las fechas de apertura, aplicarlas al formulario
+  useEffect(() => {
+    if (fechaAperturaInicio) {
+      setFieldValue('fechaInicio', fechaAperturaInicio);
+    }
+    if (fechaAperturaFin) {
+      setFieldValue('fechaFin', fechaAperturaFin);
+    }
+  }, [fechaAperturaInicio, fechaAperturaFin]);
+
+  // Cargar fechas de apertura de la ficha
+  const cargarFicha = async () => {
+    try {
+      const response = await axios.get(`fichas/${idFicha}`);
+      // Estructura: { data: { ficha: {...}, apertura: {...} } }
+      const apertura = response.data.data?.apertura;
+
+      if (!apertura) {
+        enqueueSnackbar('La ficha no tiene datos de apertura configurados', { variant: 'warning' });
+        return;
+      }
+
+      // Los campos en el modelo AperturarPrograma se llaman fechaInicialClases y fechaFinalClases
+      const inicio = apertura.fechaInicialClases
+        ? new Date(apertura.fechaInicialClases).toISOString().split('T')[0]
+        : null;
+      const fin = apertura.fechaFinalClases
+        ? new Date(apertura.fechaFinalClases).toISOString().split('T')[0]
+        : null;
+
+      if (!inicio || !fin) {
+        enqueueSnackbar('La apertura no tiene fechas de clases configuradas', { variant: 'warning' });
+        return;
+      }
+
+      setFechaAperturaInicio(inicio);
+      setFechaAperturaFin(fin);
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error al cargar datos de la ficha', { variant: 'error' });
+    }
+  };
+=======
     let cancelled = false;
     inicializandoRef.current = true;
 
@@ -316,6 +380,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
         return;
       }
     }
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
     horarios[index].activo = !horarios[index].activo;
     if (!horarios[index].activo) {
@@ -330,6 +395,20 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     setFieldValue('horarios', horarios);
   };
 
+<<<<<<< HEAD
+// Activar/desactivar un día
+const toggleDia = (index: number) => {
+  const horarios = [...values.horarios];
+  horarios[index].activo = !horarios[index].activo;
+  if (!horarios[index].activo) {
+    horarios[index].horaInicio = '';
+    horarios[index].horaFin = '';
+  }
+  setFieldValue('horarios', horarios);
+};
+
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   // Aplicar misma hora a múltiples días
   const aplicarHoraGlobal = () => {
     if (!horaGlobalInicio || !horaGlobalFin) {
@@ -373,7 +452,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
     }
 
     const payload = {
-      idGradoMateria,
+      idMateria,
       idFicha,
       fechaInicio: values.fechaInicio,
       fechaFin: values.fechaFin,
@@ -415,6 +494,8 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   // Contar días activos
   const diasActivos = values.horarios.filter((h: HorarioDia) => h.activo).length;
 
+<<<<<<< HEAD
+=======
   // Calcular proyección de fecha fin y estadísticas
   useEffect(() => {
     calcularProyeccion();
@@ -542,6 +623,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   });
 };
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   return (
     <div className='fixed inset-0 !z-[600] flex items-center justify-center p-2 sm:p-4 animate-fade-in'>
       <ModalContent className="w-full max-w-7xl p-4 max-h-[95vh]">
@@ -563,7 +645,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block mb-1 text-sm font-medium">
-                    Fecha inicio <span className="text-red-500">*</span>
+                    Fecha inicio
                   </label>
                   <input
                     type="date"
@@ -582,22 +664,27 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
 
                 <div>
                   <label className="block mb-1 text-sm font-medium text-gray-500">
-                    Fecha Fin (Estimada)
+                    Fecha Fin
                   </label>
                   <input
                     type="date"
                     name="fechaFin"
+                    disabled={loadingDias}
                     value={values.fechaFin}
-                    readOnly
-                    className="input w-full p-2 border rounded-md bg-gray-100 dark:bg-coal-500 text-gray-500 cursor-not-allowed"
+                    onChange={handleChange}
+                    className="input w-full p-2 border rounded-md"
                   />
+                  {errors.fechaFin && touched.fechaFin && (
+                    <p className="text-red-500 text-xs mt-1">{errors.fechaFin}</p>
+                  )}
                 </div>
+
               </div>
 
               <div className='flex flex-col gap-2'>
 
               {/* Horario compartido */}
-              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              {/* <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <label className="switch">
                   <input
                     type="checkbox"
@@ -610,7 +697,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                   <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">Es Horario Compartido</span>
                   <p className="text-[10px] text-blue-600 dark:text-blue-500">Al marcar esta opción, se habilitará la asignación de múltiples instructores para este horario.</p>
                 </div>
-              </div>
+              </div> */}
 
               {/* Incluir festivos en el cálculo */}
               {/* <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
@@ -673,7 +760,7 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                     <button
                       type="button"
                       onClick={aplicarHoraGlobal}
-                      className="btn btn-sm btn-primary w-full"
+                      className="btn btn-sm btn-primary w-full my-1"
                     >
                       Aplicar a días seleccionados
                     </button>
@@ -791,58 +878,6 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
                   <div className="p-2 bg-white dark:bg-coal-500 rounded border">
                     <span className="text-gray-500 block">Horas/Semana</span>
                     <span className="font-bold text-lg">{estadisticas.horasSemana} h</span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Horas Reales ({porcentajeEjecucion}%)</span>
-                    <span className="font-bold text-lg text-blue-600">
-                      {((totalHoras || 0) * ((porcentajeEjecucion || 100) / 100)).toFixed(1)} h / {totalHoras} h
-                    </span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Horas Actuales</span>
-                    <span className="font-bold text-lg text-green-600">{horasActuales || 0} h</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Horas Faltantes</span>
-                    <span className="font-bold text-lg text-orange-600">
-                      {Math.max(0, ((totalHoras || 0) * ((porcentajeEjecucion || 100) / 100)) - (horasActuales || 0)).toFixed(1)} h / {totalHoras} h
-                    </span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Horas Programadas</span>
-                    <span className="font-bold text-lg text-purple-600">{estadisticas.horasProgramadas} h</span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Sesiones Pasadas</span>
-                    <span className="font-bold text-lg text-gray-600">{estadisticas.sesionesPasadas}</span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Total Sesiones</span>
-                    <span className="font-bold text-lg text-blue-600">{estadisticas.totalSesiones}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Sesiones Restantes</span>
-                    <span className="font-bold text-lg text-orange-600">{estadisticas.sesionesRestantes}</span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Fecha final estimada</span>
-                    <span className="font-bold text-lg text-blue-600">{estadisticas.fechaFinEstimada}
-                      {(() => {
-                        const hObj = (totalHoras || 0) * ((porcentajeEjecucion || 100) / 100);
-                        const hPen = Math.max(0, hObj - (horasActuales || 0));
-                        return hPen > 0 && estadisticas.horasProgramadas < hPen;
-                      })() && (
-                          <span className="text-red-500 ml-2 text-xs">
-                            (La programación no cubre las horas del objetivo)
-                          </span>
-                        )}
-                    </span>
                   </div>
                 </div>
               </div>

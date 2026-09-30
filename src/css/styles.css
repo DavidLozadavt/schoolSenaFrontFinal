@@ -6,6 +6,11 @@
 /* Demos */
 @import "demos/demo1";
 
+<<<<<<< HEAD
+.lk-start-audio-button {
+  display: none !important;
+}
+=======
 /* Texto de campos en Crear/Editar Actividad y Cuestionario (solo color, dark) */
 .dark .modal-form-actividades input.input,
 .dark .modal-form-actividades textarea.input,
@@ -64,3 +69,4 @@
   background: #6b7280;
 }
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4

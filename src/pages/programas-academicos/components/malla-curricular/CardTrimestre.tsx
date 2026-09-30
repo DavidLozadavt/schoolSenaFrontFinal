@@ -9,7 +9,7 @@ interface CardTrimestreProps {
   trimestre: any;
   index: number;
   onAbrirMaterias: (nivelId: any) => void;
-  onVerRaps?: (competenciaId: number, competenciaNombre: string, idTrimestre: number) => void;
+  onVerRaps?: (competenciaId: number, competenciaNombre: string) => void;
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onAsignacionSuccess?: () => void;
   setModalHorarios?: any;
@@ -108,11 +108,73 @@ export const CardTrimestre: React.FC<CardTrimestreProps> = ({
           </span>
         </div>
 
+<<<<<<< HEAD
+      {/* Estadísticas del Trimestre */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Inicio</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
+            {trimestre.grado.fechaInicio ? formatearFecha(trimestre.grado.fechaInicio) : '--:--:--'}
+          </p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Fin</p>
+          <p className="font-bold text-gray-800 dark:text-gray-600 text-sm">
+            {trimestre.grado.fechaFin ? formatearFecha(trimestre.grado.fechaFin) : '--:--:--'}
+          </p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Competencias</p>
+          <p className="font-bold text-primary text-sm">
+            {materiasArray.length || 0}
+          </p>
+        </div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-800 mb-1">Progreso</p>
+          <p className="font-bold text-green-600 dark:text-green-400 text-sm flex items-center justify-center gap-1">
+            <TrendingUp size={14} />
+            {trimestre.grado.fechaInicio && trimestre.grado.fechaFin
+              ? calcularProgreso(trimestre.grado.fechaInicio, trimestre.grado.fechaFin)
+              : 0}%
+          </p>
+        </div>
+      </div>
+
+      {/* Competencias */}
+      <div>
+        <h4 className="text-sm font-black uppercase text-gray-700 dark:text-gray-200 border-l-4 border-primary pl-3 mb-4">
+          Competencias Asignadas
+        </h4>
+
+        {materiasArray.length > 0 ? (
+          <div className="space-y-3">
+            {tieneObjetosCompletos ? (
+              materiasArray.map((materia: any) => (
+                <CardRap
+                  key={materia.id}
+                  materia={materia}
+                  onVerRaps={onVerRaps} // PASAR LA FUNCIÓN AL CardRap
+                  onEditCompetencia={onEditCompetencia}
+                  onAsignacionSuccess={onAsignacionSuccess}
+                  setModalHorarios={setModalHorarios}
+                  idFicha={idFicha || trimestre.idFicha}
+                  materiasLength={materiasArray.length}
+                />
+              ))
+            ) : (<div ></div>)
+            }
+          </div>
+        ) : (
+          <div className="text-center py-6 bg-gray-50 dark:bg-coal-400 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+              No hay competencias asignadas
+=======
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-300 mb-1">Inicio</p>
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               {trimestre.grado.fechaInicio ? formatearFecha(trimestre.grado.fechaInicio) : '--:--:--'}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             </p>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-coal-400 rounded-lg">

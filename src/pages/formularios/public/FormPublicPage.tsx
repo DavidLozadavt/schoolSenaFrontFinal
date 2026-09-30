@@ -49,6 +49,8 @@ const FormPublicPage: React.FC = () => {
   const [fileError, setFileError] = useState<string | null>(null);
   const [alertMsg, setAlertMsg] = useState<{ text: string; tipo: 'error' | 'info' } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ text: string; onConfirm: () => void } | null>(null);
+<<<<<<< HEAD
+=======
   
   // Real-time Countdown Timer State
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
@@ -76,6 +78,7 @@ const FormPublicPage: React.FC = () => {
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
   };
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
   const buildEmptyRespuestas = (preguntas: any[]) =>
     preguntas.map((q: any) => ({ idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' }));
@@ -120,6 +123,8 @@ const FormPublicPage: React.FC = () => {
     fetchForm();
   }, [slug]);
 
+<<<<<<< HEAD
+=======
   // Real-Time Expiration Countdown Effect
   useEffect(() => {
     if (!form || !form.fechaLimite || form.is_expired) {
@@ -166,6 +171,7 @@ const FormPublicPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [form?.fechaLimite, form?.is_expired]);
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   const entrarModoEdicion = () => {
     if (!form) return;
     const prefilled = form.preguntas.map((q: any) => {
@@ -426,6 +432,8 @@ const FormPublicPage: React.FC = () => {
 
   if (!form) return null;
 
+<<<<<<< HEAD
+=======
   if (form.is_expired && !modoEdicion) {
     const getExpiracionTitulo = () => {
       switch (form.motivo_expiracion) {
@@ -524,6 +532,7 @@ const FormPublicPage: React.FC = () => {
     );
   }
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   if (yaInscrito) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
@@ -721,6 +730,8 @@ const FormPublicPage: React.FC = () => {
             <span>Volver al Dashboard</span>
           </button>
         )}
+<<<<<<< HEAD
+=======
 
         {/* Real-time Expiration Countdown Banner */}
         {timeLeft && !form.is_expired && (
@@ -764,6 +775,7 @@ const FormPublicPage: React.FC = () => {
             </div>
           </div>
         )}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
         <form onSubmit={handleSubmit}>
           {/* Main Title Card */}

@@ -14,7 +14,11 @@ import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
 import { User } from 'lucide-react';
 import SolicitudInstructorForm from '../solicitud-instructor/SolicitudInstructorForm';
+<<<<<<< HEAD
+import CrearGrupos from './components/CrearGrupos';
+=======
 import ProyectoFormativo from './components/malla-curricular/ProyectoFormativo';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 interface Ficha {
   id: number;
@@ -24,11 +28,6 @@ interface Ficha {
   documento?: string | null;
   rutaDocumentoUrl: string | null;
   idProyectoFormativo?: number | null;
-
-  jornada?: {
-    id: number;
-    nombreJornada: string;
-  };
 
   sede?: {
     id: number;
@@ -46,6 +45,7 @@ interface Ficha {
     estado: string;
     fechaInicialClases: string;
     fechaFinalClases: string;
+    jornada?: any,
     programa?: {
       id: number;
       nombrePrograma: string;
@@ -83,7 +83,7 @@ interface Program {
 }
 
 export const ProgramacionFichasPage = () => {
-  const { programId } = useParams<{ programId: string }>();
+  const { programId } = useParams<{ programId: string }>(); // id de la apertura del programa
   const { user } = useAuthContext();
   const navigate = useNavigate();
 
@@ -116,11 +116,13 @@ export const ProgramacionFichasPage = () => {
   const [idGrado, setIdGrado] = useState<number | undefined>(0);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [fichaIdToClone, setFichaIdToClone] = useState<number | null>(null);
 
   const [idCentroFormacion, setIdCentroFormacion] = useState<number>(0);
 
   const [fichasCreadasEnSesion, setFichasCreadasEnSesion] = useState<number[]>([]);
   const [fichasAntesDeCrear, setFichasAntesDeCrear] = useState<number[]>([]);
+  const [crearGrupoModal, setCrearGrupoModal] = useState<boolean>(false);
 
   const authContext = useContext(AuthContext);
 
@@ -137,18 +139,18 @@ export const ProgramacionFichasPage = () => {
     if (!programId) return;
     try {
       const res = await axios.get('/programas');
-      if (res.data?.status === 'success' && Array.isArray(res.data?.data)) {
-        const p = res.data.data.find((prog: any) => Number(prog.id) === Number(programId));
-        if (p) {
-          setProgram({
-            id: Number(p.id),
-            name: p.nombrePrograma,
-            codigo: p.codigoPrograma,
-            nivel: p.nivel?.nombreNivel || 'N/A',
-            formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
-            status: p.estado?.nombre || 'ACTIVO'
-          });
-        }
+      const data = res.data?.data || res.data;
+      const list = Array.isArray(data) ? data : [];
+      const p = list.find((prog: any) => Number(prog.id) === Number(programId));
+      if (p) {
+        setProgram({
+          id: Number(p.id),
+          name: p.nombrePrograma,
+          codigo: p.codigoPrograma,
+          nivel: p.nivel?.nombreNivel || 'N/A',
+          formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
+          status: p.estado?.nombre || 'ACTIVO'
+        });
       }
     } catch (error) {
       console.error('Error al cargar programa:', error);
@@ -176,7 +178,7 @@ export const ProgramacionFichasPage = () => {
 
       const centroId = Number(centroF) !== 0 ? Number(centroF) : Number(user?.idCentroFormacion);
 
-      const res = await axios.get(`fichas/programa/${programId}/${centroId}`);
+      const res = await axios.get(`fichas/programa/${programId}`,);
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {
@@ -316,7 +318,7 @@ export const ProgramacionFichasPage = () => {
 
   return (
     <>
-      <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-coal-500">
+      <div className="flex flex-col w-full h-screen">
         <ModalJuiciosEvaluativos
           open={juiciosEvaluativos}
           onClose={() => {
@@ -330,6 +332,11 @@ export const ProgramacionFichasPage = () => {
           idGrado={idGrado}
         />
 
+<<<<<<< HEAD
+      <div className="flex flex-col md:flex-row md:justify-between px-6 py-2 shadow-sm">
+        <div>
+          <div className="flex items-center gap-3">
+=======
         <div className="px-6 py-4 bg-white dark:bg-coal-600 border-b border-gray-200 dark:border-coal-100">
           <nav className="text-sm text-gray-600 dark:text-white">
             <span
@@ -366,15 +373,35 @@ export const ProgramacionFichasPage = () => {
                 <span>Presencial</span>
               </div>
             </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
             <button
               onClick={() => navigate(-1)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-coal-400 dark:hover:bg-coal-300 transition-colors"
             >
-              Volver
+              <i className="ki-outline ki-arrow-left text-lg text-gray-600 dark:text-gray-300" />
             </button>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-white">{program?.name || 'Grupos del programa'}</h1>
           </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
+            {esInstructorSena
+                ? 'Grupos asignados a ti y disponibles para autogestión.'
+                : 'Administra los grupos del programa y asigna líderes responsables.'
+            }
+          </p>
         </div>
 
+<<<<<<< HEAD
+        <div className="flex items-center">
+          <button
+            onClick={() => setCrearGrupoModal(true)}
+            className="h-11 px-4 gap-2 flex items-center rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+          >
+            <i className="ki-outline ki-plus text-base"></i>
+            Crear Grados
+          </button>
+        </div>
+      </div>
+=======
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -396,13 +423,16 @@ export const ProgramacionFichasPage = () => {
               Crear Ficha
             </button>
           </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
+        <div className="flex-1 overflow-y-auto p-6">
+          
           {isModalOpen && (
             <CrearEditarFicha
               idCentro={idCentroFormacion}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
-              programaId={programId}
+              fichaIdClonar={fichaIdToClone}
               onAction={() => {
                 const idsActuales = fichas.map((f) => f.id);
                 setFichasAntesDeCrear(idsActuales);
@@ -433,8 +463,8 @@ export const ProgramacionFichasPage = () => {
               <i className="mb-4 text-5xl text-gray-400 ki-outline ki-file-deleted"></i>
               <p className="text-sm text-gray-500 dark:text-white">
                 {esInstructorSena
-                  ? 'No tienes fichas asignadas en este programa'
-                  : 'No hay fichas registradas para este programa'}
+                  ? 'No tienes grados asignados en este nivel académico'
+                  : 'No hay grados registrados para este nivel académico'}
               </p>
             </div>
           ) : (
@@ -508,7 +538,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                                  Ficha {ficha.codigo}
+                                  {ficha.codigo}
                                 </h3>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${
@@ -546,7 +576,7 @@ export const ProgramacionFichasPage = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-time text-xs"></i>
-                                  <span>Jornada: {ficha.jornada?.nombreJornada || '—'}</span>
+                                  <span>Jornada: {ficha.asignacion?.jornada?.nombreJornada || '—'}</span>
                                 </div>
                               </div>
                             </div>
@@ -643,8 +673,13 @@ export const ProgramacionFichasPage = () => {
                               <p className="text-xs font-bold text-gray-500 dark:text-white uppercase mb-1">
                                 Jornada
                               </p>
+<<<<<<< HEAD
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {ficha.asignacion?.jornada?.nombreJornada || '—'}
+=======
                               <p className="text-sm text-gray-700 dark:text-white">
                                 {ficha.jornada?.nombreJornada || '—'}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                               </p>
                             </div>
                             <div>
@@ -726,7 +761,7 @@ export const ProgramacionFichasPage = () => {
                             </div>
                           )}
 
-                          <div className="grid grid-cols-3 md:grid-cols-5 gap-6 pt-3 border-t border-gray-200 dark:border-coal-100">
+                          <div className="grid grid-cols-3 md:grid-cols-6 gap-4 pt-3 border-t border-gray-200 dark:border-coal-100">
                             <button
                               type="button"
                               onClick={() => {
@@ -750,6 +785,17 @@ export const ProgramacionFichasPage = () => {
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-calendar text-base"></i>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFichaIdToClone(ficha.id);
+                                setIsModalOpen(true);
+                              }}
+                              title="Generar clone de grupo"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
+                            >
+                              <i className="ki-outline ki-copy text-base"></i>
                             </button>
                             <button
                               type="button"
@@ -911,6 +957,16 @@ export const ProgramacionFichasPage = () => {
         setMessageToast={setMessageToast}
         onAction={() => setEvento((prev) => !prev)}
       />
+
+      <CrearGrupos
+        isModalOpen={crearGrupoModal}
+        setIsModalOpen={setCrearGrupoModal}
+        fichaId={fichaIdToEdit}
+        setShowToast={setShowToast}
+        setMessageToast={setMessageToast}
+        onAction={() => setEvento((prev) => !prev)}
+      />
+
       {verMallaCurricular && (
         <MallaCurricular
           isOpen={verMallaCurricular}
@@ -932,7 +988,6 @@ export const ProgramacionFichasPage = () => {
         <Calendario
           isOpen={!!verHorariosFicha}
           onClose={() => setVerHorariosFicha(null)}
-          materia={{ nombre: `Ficha ${verHorariosFicha?.codigo}` }}
           idFicha={verHorariosFicha?.id || 0}
           onAddSchedule={() => {}}
         />

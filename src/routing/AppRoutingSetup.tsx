@@ -81,6 +81,14 @@ import { FacturacionElectronicaPage } from '@/pages/facturacion-electronica/Fact
 import { GrupoNominaPage } from '@/pages/grupo-nomina';
 import ReservasPage from '@/pages/reservas-pendientes/ReservasPage';
 import { ConfiguracionPagosPage } from '@/pages/configuracion-pagos';
+import {
+  ConfiguracionValoresEconomicosPage,
+  PERMISO_GESTION_VALORES_ECONOMICOS
+} from '@/pages/configuracion-valores-economicos';
+import {
+  FacturasAcademicasPage,
+  PERMISOS_ACCESO_VER_FACTURAS
+} from '@/pages/facturas-academicas';
 import { TarifasPage } from '@/pages/tarifas';
 import CalendarioReunionesPage from '@/pages/calendario-reuniones/ReunionesPage';
 import Pedidos from '@/pages/gestion-pedidos/Pedidos';
@@ -125,6 +133,8 @@ import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import MisActividadesInstructorPage from '@/pages/ambiente-virtual/MisActividadesInstructorPage';
 import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
+import PlaneacionPedagogicaPage from '@/pages/ambiente-virtual/PlaneacionPedagogicaPage';
+import PlaneacionPedagogicaEditorPage from '@/pages/ambiente-virtual/PlaneacionPedagogicaEditorPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
 import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
@@ -147,9 +157,20 @@ import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGener
 import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
 import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
 import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
+<<<<<<< HEAD
+import AperturarProgramaPage from '@/pages/programas-academicos/proyectoFormativo/AperturarProgramaPage';
+import { JitsiSalasPage } from '@/pages/jitsi-salas/JitsiSalasPage';
+import CheckoutMetodosPagoAcademicoPage from '@/pages/programas-academicos/pagos/CheckoutMetodosPagoAcademicoPage';
+import SolicitudesInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/SolicitudesInscripcionPage';
+import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-config/InscripcionConfigPage';
+import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
+import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
+import PortalAspirantePage from '@/pages/portal-aspirante/PortalAspirantePage';
+=======
 import PortafolioInstructorGeneral from '@/pages/proceso/portafolio/PortafolioInstructorGeneral';
 import SeguimientoAprendiz from '@/pages/programas-academicos/components/malla-curricular/SeguimientoAprendiz';
 import SeguimientoInstructor from '@/pages/programas-academicos/components/malla-curricular/SeguimientoInstructor';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -201,9 +222,24 @@ const AppRoutingSetup = (): ReactElement => {
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+<<<<<<< HEAD
+      <Route path="/portal-aspirante/:token" element={<PortalAspirantePage />} />
+
+=======
       <Route path="/formulario-aspirante/:token" element={<FormularioAspirantePublicPage />} />
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
       <Route element={<RequireAuth />}>
+
+        <Route
+          path="/videoconferencias/standalone"
+          element={
+            <ProtectedRoute requiredPermissions={['GESTION_VIDEOCONFERENCIAS', 'GESTION_HORAS_INSTRUCTOR']}>
+              <JitsiSalasPage standalone={true} />
+            </ProtectedRoute>
+          }
+        />
+
         <Route element={<Demo1Layout />}>
           <Route path="/" element={getActiveDashboard()} />
           <Route
@@ -399,6 +435,51 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           <Route
+            path="/pagos/configuracion-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_PAGOS']}>
+                <ConfiguracionPagosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/configuracion-valores-economicos"
+            element={
+              <ProtectedRoute requiredPermissions={[PERMISO_GESTION_VALORES_ECONOMICOS]}>
+                <ConfiguracionValoresEconomicosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/facturas-academicas"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VER_FACTURAS]}>
+                <FacturasAcademicasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pagos/medio-pagos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+                <MedioPagoPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/gestion-contratos/pagos-pendientes/pago"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_PAGOS_CONTRATOS']}>
@@ -419,7 +500,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/pagos/configuracion-pagos"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_PAGOS']}>
                 <ConfiguracionPagosPage />
               </ProtectedRoute>
             }
@@ -903,6 +984,38 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/gestion-academica/pagos/checkout"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CheckoutMetodosPagoAcademicoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <SolicitudesInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/solicitudes/:idSolicitud/validar"
+            element={
+              <ProtectedRoute requiredPermissions={[...PERMISOS_ACCESO_VALIDACION_INSCRIPCION]}>
+                <ValidacionSolicitudInscripcionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/inscripciones/configuracion"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <InscripcionConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/gestion-academica/configuracion/redes"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
@@ -915,6 +1028,14 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <GestionProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/:idPrograma/aperturar"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <AperturarProgramaPage />
               </ProtectedRoute>
             }
           />
@@ -1260,6 +1381,48 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/ambiente-virtual/planeacion-pedagogica"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/planeacion-pedagogica/nueva"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/planeacion-pedagogica/:id"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+                  'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+                  'AULA_VIRTUAL_INSTRUCTOR'
+                ]}
+              >
+                <PlaneacionPedagogicaEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/ambiente-virtual/historial-raps"
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_FORMACIONES']}>
@@ -1339,6 +1502,20 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
+<<<<<<< HEAD
+
+
+          <Route
+            path="/videoconferencias"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <JitsiSalasPage />
+              </ProtectedRoute>
+            }
+          />
+
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />

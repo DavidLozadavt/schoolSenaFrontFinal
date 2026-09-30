@@ -12,12 +12,15 @@ interface ListaRapsProps {
   idMateriaPadre: number;
   nombreCompetencia?: string;
   idFicha: number;
+<<<<<<< HEAD
+=======
   nivelId?: number;
   porcentajeEjecucion?: number;
   programId: number;
   /** Misma ficha/programa que Planeación (encabezado unificado). */
   program?: any;
   ficha?: any;
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   onEditCompetencia?: (competenciaId: number, callback?: () => void) => void;
   onUpdate?: () => void;
   esEditable?: boolean;
@@ -29,11 +32,14 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   idMateriaPadre,
   nombreCompetencia = "Competencia",
   idFicha,
+<<<<<<< HEAD
+=======
   nivelId,
   porcentajeEjecucion,
   programId,
   program,
   ficha,
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   onEditCompetencia,
   onUpdate,
   esEditable = true
@@ -46,7 +52,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
   const hasLoadedRef = useRef(false);
   const [modalHorarios, setModalHorarios] = useState<{
     open: boolean;
-    idGradoMateria?: number;
+    idMateria?: number;
     idFicha?: number;
     totalHoras?: number;
     horasActuales?: number;
@@ -57,7 +63,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
     fechaFinalRap?: string;
   }>({
     open: false,
-    idGradoMateria: undefined,
+    idMateria: undefined,
     idFicha: undefined,
     totalHoras: 0,
     horasActuales: 0,
@@ -78,8 +84,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         params:
         {
           idFicha: idFicha,
-          idMateriaPadre: idMateriaPadre,
-          idGradoPrograma: nivelId
+          idMateriaPadre: idMateriaPadre
         }
       });
 
@@ -132,6 +137,33 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-black/10 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-6xl bg-white dark:bg-coal-500 rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
 
+<<<<<<< HEAD
+        {/* Header */}
+        <div className="flex-shrink-0 bg-primary-active p-4 text-white">
+          <div className="flex items-center justify-between flex-col md:flex-row">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <BookOpen size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight">
+                    Materias derivadas.
+                  </h2>
+                  <span className="text-sm font-bold text-gray-300">
+                    Total: {raps.length} - {nombreCompetencia}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="absolute z-10 flex items-center justify-center w-9 h-9 text-white transition-all border rounded-full top-4 right-4 bg-white/10 hover:bg-danger backdrop-blur-md border-white/40 hover:scale-110"
+              aria-label="Cerrar modal"
+            >
+              <i className="text-lg ki-outline ki-cross"></i>
+            </button>
+=======
         {/* Encabezado unificado con Planeación de Fichas */}
         <div className="relative flex-shrink-0 w-full overflow-hidden">
           <img
@@ -172,6 +204,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                 </span>
               </div>
             </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           </div>
         </div>
 
@@ -236,16 +269,12 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                   // Transformar el RAP al formato que espera CardRap
                   const materiaTransformada = {
                     id: rap.id,
-                    nombre: rap.nombre,
+                    nombre: rap.nombre || rap.nombreMateria,
                     estado: rap.estado,
                     idMateria: rap.idMateria,
                     fechaFinalRap: rap.fechaFinalRap,
-                    idGradoMateria: rap.idGradoMateria,
                     idMateriaPadre: rap.idMateriaPadre,
                     codigo: rap.codigo,
-                    horasTotales: rap.horas,
-                    horasActuales: rap.horasActuales || 0,
-                    horasFaltantes: rap.horasFaltantes || 0,
                     porcentajeAvance: rap.porcentajeAvance || 0,
                     descripcion: rap.descripcion,
                     horarios: rap.horarios || []
@@ -255,7 +284,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
                     <div key={rap.id} className="rounded-xl">
                       <CardRap
                         materia={materiaTransformada}
-                        idTrimestre={nivelId}
                         idFicha={idFicha}
                         setModalHorarios={setModalHorarios}
                         cargarRaps={cargarRaps}
@@ -298,7 +326,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         <div className="flex-shrink-0 flex items-center justify-between p-5 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={()=> setAgregarRap(true)} className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-primary-active active:scale-95 transition-all shadow-md">
-              <Plus size={14} />Agregar RAP
+              <Plus size={14} />Agregar Materia
             </button>
           </div>
           <button
@@ -316,10 +344,12 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
           open={modalHorarios.open}
           onClose={() => setModalHorarios({
             open: false,
-            idGradoMateria: undefined
+            idMateria: undefined
           })}
-          idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+          idMateria={modalHorarios.idMateria ?? 0}
           idFicha={modalHorarios.idFicha || idFicha || 0}
+<<<<<<< HEAD
+=======
           totalHoras={modalHorarios.totalHoras}
           horasActuales={modalHorarios.horasActuales}
           horasFaltantes={modalHorarios.horasFaltantes}
@@ -339,6 +369,7 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
               : undefined)
           }
           fechaFinalRap={modalHorarios.fechaFinalRap}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           onGuardado={() => {
             cargarRaps();
             if (onUpdate) onUpdate();
@@ -350,8 +381,6 @@ export const ListaRaps: React.FC<ListaRapsProps> = ({
         <FormCompetencia
           isOpen={agregarRap}
           onClose={() => setAgregarRap(false)}
-          programId={programId||0}
-          idGradoPrograma={nivelId}
           idFicha={idFicha}
           idMateriaPadre={idMateriaPadre}
           onSuccess={() => {

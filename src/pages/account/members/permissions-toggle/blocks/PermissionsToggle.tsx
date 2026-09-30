@@ -10,6 +10,10 @@ import { useSnackbar } from 'notistack';
 import { RoleModel } from '../../roles/models/_Role';
 import Swal from 'sweetalert2';
 import icons from './icons';
+<<<<<<< HEAD
+import { formatPagosDisplayLabel } from '@/utils/pagosDisplayLabels';
+=======
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Helper: build a tree from flat permission list
@@ -573,7 +577,7 @@ const PermissionsToggle = React.memo(() => {
 
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="flex items-center gap-1.5 leading-none font-medium text-sm text-gray-900">
-                  {node.name}
+                  {formatPagosDisplayLabel(node.name)}
                   {hasChildren && (
                     <span className="text-2xs text-gray-400 font-normal">
                       ({node.children!.length} sub-permisos)
@@ -581,7 +585,7 @@ const PermissionsToggle = React.memo(() => {
                   )}
                 </span>
                 <div className="text-2sm text-gray-700 truncate flex items-center gap-2">
-                  <span className="truncate">{node.description}</span>
+                  <span className="truncate">{formatPagosDisplayLabel(node.description)}</span>
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs"
@@ -765,7 +769,9 @@ const PermissionsToggle = React.memo(() => {
               <div className="p-2">
                 {modalMode === 'create'
                   ? 'Crear Permiso'
-                  : `Editar Permiso: ${permissions.find((p) => p.id === editingNodeId)?.name || ''}`}
+                  : `Editar Permiso: ${formatPagosDisplayLabel(
+                      permissions.find((p) => p.id === editingNodeId)?.name || ''
+                    )}`}
               </div>
             </ModalTitle>
           </ModalHeader>
@@ -1047,7 +1053,11 @@ const ParentSearchSelect = React.memo(
     };
 
     return (
+<<<<<<< HEAD
+      <div ref={containerRef} className="relative w-full">
+=======
       <div ref={containerRef} className='relative w-full'>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
         <button
           type="button"
           disabled={disabled}

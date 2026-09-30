@@ -13,6 +13,7 @@ export interface Program {
   idEstadoPrograma?: number | string;
   idRed?: number;
   fichas_count?: number;
+  aperturas_count?: number;
   estado?: {
     id: number;
     nombre: string;
@@ -59,7 +60,7 @@ export interface CatalogosData {
 }
 
 export interface MallaCurricularProps {
-  isOpen?: boolean;
+  isOpen: boolean;
   onClose?: () => void;
   program?: Program | any;
   ficha?: any;

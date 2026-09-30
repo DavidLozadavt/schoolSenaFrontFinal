@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthContext } from '@/auth';
+import { userHasAnyPermission } from '@/utils/permissionUtils';
 
 interface ProtectedRouteProps {
   /** Si hay varios permisos, basta con tener uno (OR), igual que en el menú lateral. */
@@ -24,12 +25,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredPermissions, ch
   const instructorSenaBypass =
     Array.isArray(roles) &&
     roles.includes('INSTRUCTOR SENA') &&
-    requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
+    (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
+
+  const docenteUpBypass =
+    Array.isArray(roles) &&
+    roles.includes('DOCENTEUP') &&
+    (requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_HORARIO') ||
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA'));
 
   const allowed =
-    requiredPermissions.length === 0 ||
-    requiredPermissions.some((perm) => safePermissions.includes(perm)) ||
-    instructorSenaBypass;
+    userHasAnyPermission(requiredPermissions, safePermissions) ||
+    instructorSenaBypass ||
+    docenteUpBypass;
 
   if (!allowed) {
     return <Navigate to="/" replace />;

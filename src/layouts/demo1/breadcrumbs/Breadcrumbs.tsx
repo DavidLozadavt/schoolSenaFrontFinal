@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 
 import { KeenIcon } from '@/components';
+import { formatPagosRouteSegmentTitle } from '@/utils/pagosDisplayLabels';
 
 const Breadcrumbs = () => {
   const { pathname } = useLocation();
@@ -13,12 +14,30 @@ const Breadcrumbs = () => {
       const path = `/${segments.slice(0, index + 1).join('/')}`; 
       
       // Si el segmento anterior es "clase" y el actual es numérico (ID), mostrar "Detalle" en lugar del ID
-      let title = segment.charAt(0).toUpperCase() + segment.slice(1);
+      let title =
+        formatPagosRouteSegmentTitle(segment) ??
+        segment.charAt(0).toUpperCase() + segment.slice(1);
+  if (segment === 'historial-raps') {
+        title = 'Mis clases';
+      }
       if (segment === 'horario' && segments[0] === 'ambiente-virtual') {
         title = 'Horario';
       }
+      if (segment === 'planeacion-pedagogica' || segment === 'planeación-pedagogica') {
+        title = 'Planeación pedagógica';
+      }
+      if (segment === 'nueva' && segments.includes('planeacion-pedagogica')) {
+        title = 'Nueva';
+      }
       if (index > 0 && segments[index - 1] === 'clase' && /^\d+$/.test(segment)) {
         title = 'Detalle'; // Ocultar el ID, mostrar "Detalle"
+      }
+      if (
+        index > 0 &&
+        segments[index - 1] === 'planeacion-pedagogica' &&
+        /^\d+$/.test(segment)
+      ) {
+        title = 'Editar';
       }
       
       return {

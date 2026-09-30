@@ -774,7 +774,11 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'archivo' && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-coal-200 rounded-3xl cursor-not-allowed bg-neutral-50/20 dark:bg-coal-400/20">
                   <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-coal-300 flex items-center justify-center mb-3">
+<<<<<<< HEAD
+                    <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
+=======
                     <UploadCloud className="w-6 h-6 text-neutral-400" />
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                   </div>
                   <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>
                   <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">Arrastra aquí o haz clic (Máx 5MB)</span>

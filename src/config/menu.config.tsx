@@ -31,14 +31,34 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
   },
   {
-    title: 'Gestión Académica',
+    title: 'Planeaci?n pedag?gica',
+    icon: 'notepad-edit',
+    path: '/ambiente-virtual/planeacion-pedagogica',
+    requiredPermissions: [
+      'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+      'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+      'AULA_VIRTUAL_INSTRUCTOR'
+    ]
+  },
+  {
+    title: 'Gesti?n Acad?mica',
     icon: 'teacher',
     requiredPermissions: ['GESTION_ACADEMICA'],
     children: [
           {
-            title: 'Planeación',
+            title: 'Planeaci?n',
             path: '/gestion-academica/configuracion/redes',
             requiredPermissions: ['GESTION_PLANEACION']
+          },
+          {
+            title: 'Solicitudes de inscripci?n',
+            path: '/gestion-academica/inscripciones/solicitudes',
+            requiredPermissions: ['GESTION_SOLICITUDES_INSCRIPCION', 'GESTION_ACADEMICA']
+          },
+          {
+            title: 'Configuraci?n de inscripci?n',
+            path: '/gestion-academica/inscripciones/configuracion',
+            requiredPermissions: ['GESTION_ACADEMICA']
           },
           {
             title: 'Periodos',
@@ -56,7 +76,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_REGIONALES
           },
           {
-            title: 'Centro Formación',
+            title: 'Centro Formaci?n',
             path: '/centrosFormacion',
             requiredPermissions: ['GESTION_CENTROS_FORMACION'] //Cambiar por GESTION_CENTROS_FORMACION
           },
@@ -83,7 +103,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
     children: [
       {
-        title: 'Mis formaciones',
+        title: 'Mis clases',
         path: '/ambiente-virtual/historial-raps',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
@@ -128,10 +148,15 @@ export const MENU_SIDEBAR: TMenuConfig = [
         path: '/gc',
         requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
       },
+              {
+        title: 'Videoconferencias',
+        path: '/videoconferencias',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      }
     ]
   },
   {
-    title: 'Gestión de Usuarios',
+    title: 'Gesti?n de Usuarios',
     icon: 'users',
     children: [
       {
@@ -153,7 +178,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión Laboral',
+    title: 'Gesti?n Laboral',
     icon: 'tablet-text-down',
     requiredPermissions: ['GESTION_LABORAL'],
 
@@ -175,7 +200,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         ]
       },
       {
-        title: 'Contratación',
+        title: 'Contrataci?n',
         path: '/gestion-contratos/contratacion',
         requiredPermissions: ['GESTION_CONTRATACION']
       },
@@ -209,7 +234,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     ]
   },
   {
-    title: 'Gestión instructor',
+    title: 'Gesti?n instructor',
     icon: 'tablet-text-down',
     requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
     children: [
@@ -295,12 +320,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
     requiredPermissions: ['GESTION_NOMINA'],
     children: [
       {
-        title: 'Configuración de Empresa',
+        title: 'Configuraci?n de Empresa',
         path: '/empresa/configuracion-empresa',
         requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
       },
       {
-        title: 'Migración de datos',
+        title: 'Migraci?n de datos',
         path: '/empresa/migracion-datos',
         requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
       },
@@ -310,12 +335,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_PUNTO_VENTAS']
       },
       {
-        title: 'Gestión Escenarios',
+        title: 'Gesti?n Escenarios',
         requiredPermissions: ['GESTION_USUARIO'],
         path: '/gestion-escenarios'
       },
       {
-        title: 'Gestión Servicios',
+        title: 'Gesti?n Servicios',
         requiredPermissions: ['GESTION_USUARIO'],
         path: '/gestion-servicios'
       },
@@ -325,14 +350,33 @@ export const MENU_SIDEBAR: TMenuConfig = [
 
         children: [
           {
-            title: 'Configuración de Pagos',
+            title: 'Configuraci?n de Pagos',
             path: '/pagos/configuracion-pagos',
-            requiredPermissions: ['GESTION_TIPO_PAGO']
+            requiredPermissions: ['GESTION_CONFIGURACION_PAGOS']
           },
           {
             title: 'Medios de Pago',
-            path: '/pagos/medio-pagos',
-            requiredPermissions: ['GESTION_MEDIO_PAGO']
+            icon: 'wallet',
+            requiredPermissions: ['GESTION_MEDIO_PAGO'],
+            children: [
+              {
+                title: 'Medios de Pago',
+                path: '/pagos/medio-pagos',
+                requiredPermissions: ['GESTION_MEDIO_PAGO']
+              },
+              {
+                title: 'Valores econ?micos',
+                icon: 'wallet',
+                path: '/pagos/configuracion-valores-economicos',
+                requiredPermissions: ['GESTION_VALORES_ECONOMICOS']
+              },
+              {
+                title: 'Facturas',
+                icon: 'file-text',
+                path: '/pagos/facturas-academicas',
+                requiredPermissions: ['GESTION_FACTURAS_ACADEMICAS', 'GESTION_VALORES_ECONOMICOS']
+              }
+            ]
           },
           {
             title: 'Tipos de Pago',
@@ -340,7 +384,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_TIPO_PAGO']
           },
           {
-            title: 'Tipos de Transacción',
+            title: 'Tipos de Transacci?n',
             path: '/pagos/tipo-transaccion',
             requiredPermissions: ['GESTION_TIPO_TRANSACCION']
           }
@@ -376,7 +420,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_ENTIDADES_SEGURIDAD_SOCIAL']
       },
       {
-        title: 'Áreas',
+        title: '��reas',
         path: '/gestion-contratos/areas',
         requiredPermissions: ['GESTION_AREAS']
       }
@@ -441,7 +485,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
           },
 
           {
-            title: 'Configuración de Asientos',
+            title: 'Configuraci?n de Asientos',
             path: '/configuracion/asientos',
             requiredPermissions: ['GESTION_CONFIGURACION_ASIENTOS']
           },
@@ -475,12 +519,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_AFILIACIONES']
       },
       {
-        title: 'Registrar Vinculación',
+        title: 'Registrar Vinculaci?n',
         path: '/gestion-vinculaciones/vinculacion-vehiculo',
         requiredPermissions: ['GESTION_AFILIACIONES']
       },
       {
-        title: 'Registro Autorización Menores',
+        title: 'Registro Autorizaci?n Menores',
         path: '/transporte/autorizacion-menores',
         requiredPermissions: ['GESTION_AUTORIZACION_MENORES']
       },
@@ -493,7 +537,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión de sedes',
+    title: 'Gesti?n de sedes',
     icon: 'shop',
     children: [
       {
@@ -505,7 +549,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión de Productos',
+    title: 'Gesti?n de Productos',
     icon: 'package',
     children: [
       {
@@ -517,16 +561,16 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión de Almacén',
+    title: 'Gesti?n de Almac?n',
     icon: 'archive',
     children: [
       {
-        title: 'Gestión de Almacén',
+        title: 'Gesti?n de Almac?n',
         path: '/gestion-almacen',
         requiredPermissions: ['GESTION_USUARIO']
       },
       {
-        title: 'Gestión solicitud Almacén',
+        title: 'Gesti?n solicitud Almac?n',
         path: '/gestion-solicitud-almacen',
         requiredPermissions: ['GESTION_USUARIO']
       }
@@ -534,7 +578,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión de Pedidos',
+    title: 'Gesti?n de Pedidos',
     icon: 'lots-shopping',
     children: [
       {
@@ -556,13 +600,13 @@ export const MENU_SIDEBAR: TMenuConfig = [
   },
 
   {
-    title: 'Gestión de Contratos',
+    title: 'Gesti?n de Contratos',
     icon: 'tablet-text-down',
     children: []
   },
 
   {
-    title: 'Nómina',
+    title: 'N?mina',
     icon: 'wallet',
     children: [
       {
@@ -601,7 +645,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
             requiredPermissions: ['GESTION_NOMINA']
           },
           {
-            title: 'Configuración Incapacidades',
+            title: 'Configuraci?n Incapacidades',
             path: '/nomina/novedades/configuracion-incapacidades',
             requiredPermissions: ['GESTION_NOMINA']
           }
@@ -633,12 +677,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
       },
 
       {
-        title: 'Tu Nómina',
+        title: 'Tu N?mina',
         path: '/nomina/tu-nomina',
         requiredPermissions: ['GESTION_NOMINA']
       },
       {
-        title: 'Configuración de Nómina',
+        title: 'Configuraci?n de N?mina',
         path: '/nomina/configuracion',
         requiredPermissions: ['GESTION_NOMINA']
       },
@@ -649,12 +693,12 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['GESTION_NOMINA']
       },
       {
-        title: 'Configuración de Horas Extra',
+        title: 'Configuraci?n de Horas Extra',
         path: '/nomina/configuracion-horas-extra',
         requiredPermissions: ['GESTION_NOMINA']
       },
       {
-        title: 'Configuración de Grupos Nomina',
+        title: 'Configuraci?n de Grupos Nomina',
         path: '/nomina/configuracion-grupos-nomina',
         requiredPermissions: ['GESTION_NOMINA']
       },
@@ -705,7 +749,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
     icon: 'tablet-text-down',
     children: [
       {
-        title: 'Gestión de Formularios',
+        title: 'Gesti?n de Formularios',
         path: '/formularios',
         requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
       }
@@ -766,7 +810,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
   //   ]
   // },
   // {
-  //   title: 'Gestión de Cuentas',
+  //   title: 'Gesti?n de Cuentas',
   //   icon: 'bill',
   //   children: [
   //     {

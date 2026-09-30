@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { MallaCurricularProps } from '../../types';
+<<<<<<< HEAD
+import { BookOpen, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@/components/modal';
+=======
 import { Calendar, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
 // Componentes separados
-import { CardTrimestre } from './CardTrimestre';
-import { FormNuevoTrimestre } from './FormNuevoTrimestre';
 import { AsignarMateria } from './AsignarMateria';
 import { ListaRaps } from './ListaRaps';
 import { FormCompetencia } from './FormCompetencia';
+<<<<<<< HEAD
+import { CardRap } from './CardRap';
+=======
 import { ModalSeguimientoPractica } from './ModalSeguimientoPractica';
 
 // Hook personalizado
@@ -18,10 +25,10 @@ import {
   maxNumeroGradoTrimestres
 } from './utils/trimestreNumeroGrado';
 import Toast from '../Toast';
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 import { HorariosMateria } from './HorariosMateria';
-import { enqueueSnackbar } from 'notistack';
 
-export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurricularProps) => {
+export const MallaCurricular = ({ isOpen, onClose, ficha }: MallaCurricularProps) => {
   // Estados de modales
   const [isMateriaModalOpen, setIsMateriaModalOpen] = useState(false);
   const [selectedNivelId, setSelectedNivelId] = useState<number | null>(null);
@@ -37,6 +44,29 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
   const [postEditCallback, setPostEditCallback] = useState<(() => void) | null>(null);
 
+<<<<<<< HEAD
+  // Estado de materias (antes en useTrimestres)
+  const [materias, setMaterias] = useState<any[]>([]);
+  const [loadingMaterias, setLoadingMaterias] = useState<boolean>(false);
+
+  const cargarMaterias = async (fichaIdParam?: number) => {
+    const idFicha = fichaIdParam || ficha?.id;
+    try {
+      const response = await axios.get(`materias/ficha`, { params: { idFicha } });
+      setMaterias(response.data || []);
+      setLoadingMaterias(true);
+    } catch {
+      setMaterias([]);
+    }
+  };
+
+  useEffect(() => {
+    if (ficha?.id) {
+      cargarMaterias(ficha.id);
+    }
+  }, [ficha?.id]);
+
+=======
   // Modal Seguimiento Etapa Practica
   const [isSeguimientoModalOpen, setIsSeguimientoModalOpen] = useState(false);
 
@@ -65,10 +95,11 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     }
   }, [ficha?.id]);
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   // Estados para modal de Horarios
   const [modalHorarios, setModalHorarios] = useState<{
     open: boolean;
-    idGradoMateria?: number;
+    idMateria?: number;
     idFicha?: number;
     totalHoras?: number;
     horasActuales?: number;
@@ -79,23 +110,15 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     fechaFinalRap?: string;
   }>({
     open: false,
-    idGradoMateria: undefined,
+    idMateria: undefined,
     idFicha: undefined,
     totalHoras: 0,
     horasActuales: 0,
     horasFaltantes: 0
   });
 
-  const handleAgregarTrimestre = () => {
-    agregarNuevoTrimestre(ficha);
-  };
-
-  const handleOpenMateriaFromTrimestre = (nivelId: any) => {
-    setSelectedNivelId(nivelId);
-    setIsMateriaModalOpen(true);
-  };
-
-  const handleOpenMateriaFromNuevoTrimestre = () => {
+  const handleOpenConfiguracionMaterias = () => {
+    setSelectedNivelId(null);
     setIsMateriaModalOpen(true);
   };
 
@@ -103,6 +126,17 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     idGradoPrograma: number;
     materias: any[];
   }) => {
+<<<<<<< HEAD
+    // Si necesitas reasignar desde la malla, se implementa aquí
+    setIsMateriaModalOpen(false);
+    if (ficha?.id) {
+      cargarMaterias(ficha?.id);
+    }
+  };
+
+  // para abrir modal de RAPs
+  const handleOpenRaps = (competenciaId: number, competenciaNombre: string) => {
+=======
     if (nuevoTrimestre) {
       actualizarMaterias(data.materias);
     } else if (ficha?.id) {
@@ -131,9 +165,9 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     competenciaNombre: string,
     idTrimestre: number
   ) => {
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
     setSelectedCompetenciaId(competenciaId);
     setSelectedCompetenciaNombre(competenciaNombre);
-    setSelectedNivelId(idTrimestre);
     setIsRapsModalOpen(true);
   };
 
@@ -145,7 +179,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
 
   const handleFormCompetenciaSuccess = () => {
     if (ficha?.id) {
-      cargarTrimestres(ficha?.id);
+      cargarMaterias(ficha?.id);
     }
     if (postEditCallback) {
       postEditCallback();
@@ -153,6 +187,31 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
     }
   };
 
+<<<<<<< HEAD
+  return (
+    <>
+      <Modal open={isOpen} onClose={onClose} zIndex={100} className="p-4 animate-fade-in">
+        <ModalContent className="w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+          <ModalHeader className="flex px-4 w-full justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-coal-600">
+            <div>
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight leading-none text-gray-600 dark:text-gray-300 drop-shadow-sm">
+                Malla Curricular
+              </h2>
+              <span className="text-xs font-bold uppercase mt-1">{ficha?.codigo}</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center w-9 h-9 text-gray-500 hover:text-danger transition-all border rounded-full top-4 right-4 bg-gray-50 hover:bg-red-50 dark:bg-coal-400 dark:hover:bg-danger/20 border-gray-200 dark:border-coal-300 hover:scale-110"
+              aria-label="Cerrar modal"
+            >
+              <i className="text-lg ki-outline ki-cross"></i>
+            </button>
+          </ModalHeader>
+
+          {/* Contenido Principal */}
+          <ModalBody className="flex-grow min-h-96 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+
+=======
   const tieneEtapaPractica = trimestres.some((t) =>
     (t.materias || []).some(
       (m: any) =>
@@ -215,11 +274,39 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
 
         {/* Contenido Principal */}
         <div className="flex-grow min-h-96 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-coal-600 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           <div className="mb-8">
             {/* Controles de Trimestres */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
               {ficha && (
                 <div className="flex w-full items-center gap-3 px-4 justify-between">
+<<<<<<< HEAD
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="ml-4 rounded-lg hover:bg-gray-100 dark:hover:bg-coal-400 transition-colors text-gray-600 dark:text-gray-400 flex items-center gap-2 group"
+                    title={sortOrder === 'asc' ? 'Orden Ascendente' : 'Orden Descendente'}
+                  >
+                    {sortOrder === 'asc' ? (
+                      <ArrowDownAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                    ) : (
+                      <ArrowUpAZ size={20} className="text-primary group-hover:scale-110 transition-transform" />
+                    )}
+                    <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                      {sortOrder === 'asc' ? 'Asc' : 'Desc'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleOpenConfiguracionMaterias}
+                    className="group relative flex items-center justify-start h-[46px] w-[46px] hover:w-[180px] bg-blue-600 text-white rounded-full transition-all duration-500 shadow-lg active:scale-95"
+                  >
+                    <div className="flex items-center justify-center flex-shrink-0 w-[46px] h-[46px]">
+                      <i className="text-lg ki-filled ki-plus"></i>
+                    </div>
+                    <span className="absolute left-[46px] text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pr-6">
+                      Agregar materias
+                    </span>
+                  </button>
+=======
                   <div className="flex items-center">
                     <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
                       Trimestres:
@@ -289,9 +376,11 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
                       </span>
                     </button>
                   </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
                 </div>
               )}
             </div>
+          </div>
 
             {/* Sin ficha seleccionada */}
             {!ficha && (
@@ -303,6 +392,53 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
               </div>
             )}
 
+<<<<<<< HEAD
+              {/* Contenido: Calendario o Materias */}
+              {ficha &&
+                <div className="space-y-5">
+                  {
+                    !loadingMaterias ?
+
+                      <div className="flex justify-center py-8">
+                        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                      :
+                      (
+                        materias.length > 0 ? (
+                          (sortOrder === 'asc' 
+                            ? [...materias].sort((a, b) => a.nombreMateria.localeCompare(b.nombreMateria))
+                            : [...materias].sort((a, b) => b.nombreMateria.localeCompare(a.nombreMateria))
+                          ).map((materia, index) => (
+                            <div key={materia.id || index} className="mb-4">
+                              <CardRap
+                                materia={materia}
+                                onVerRaps={handleOpenRaps}
+                                onEditCompetencia={handleEditCompetencia}
+                                setModalHorarios={setModalHorarios}
+                                idFicha={ficha?.id}
+                                onAsignacionSuccess={() => ficha && cargarMaterias(ficha.id)}
+                                materiasLength={materias.length}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-16 bg-white dark:bg-coal-400 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                            <BookOpen size={56} className="mx-auto text-gray-400 mb-4" />
+                            <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-2">
+                              No hay materias asignadas
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Utiliza los controles superiores para agregar materias
+                            </p>
+                          </div>
+                        )
+                      )}
+                </div>
+              }
+            </>
+
+          </ModalBody>
+=======
             {/* Contenido: Trimestres o Spinner */}
             {ficha && (
               <div className="space-y-5">
@@ -359,15 +495,16 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
             )}
           </div>
         </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-5 px-6 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
+          {/* Footer */}
+          <ModalFooter className="flex items-center justify-between p-5 px-6 bg-white dark:bg-coal-400 border-t-2 border-gray-200 dark:border-gray-600 shadow-inner">
           <div className="items-center hidden sm:flex gap-2">
             <i className="text-base ki-outline ki-information-2 text-primary"></i>
             <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
               {ficha
-                ? `Ficha #${ficha?.codigo} seleccionada`
-                : 'Selecciona una ficha para comenzar'}
+                ? `Grupo ${ficha?.codigo} seleccionado`
+                : 'Selecciona una grupo para comenzar'}
             </p>
           </div>
           <button
@@ -376,33 +513,22 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           >
             Cerrar
           </button>
-        </div>
-      </div>
-
-      {/* Modal FormNuevoTrimestre */}
-      {nuevoTrimestre && (
-        <FormNuevoTrimestre
-          trimestres={trimestres}
-          trimestre={nuevoTrimestre}
-          guardando={guardandoTrimestre}
-          nivel={program.nivel}
-          onActualizarFechaFin={actualizarFechaFin}
-          onActualizarFechaInicio={actualizarFechaInicio}
-          onActualizarNumeroGrado={actualizarNumeroGrado}
-          onAbrirMaterias={handleOpenMateriaFromNuevoTrimestre}
-          onGuardar={handleGuardarTrimestre}
-          onCancelar={cancelarNuevoTrimestre}
-        />
-      )}
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Modal AsignarMateria */}
       <AsignarMateria
-        idPrograma={program?.id}
         isOpen={isMateriaModalOpen}
         onClose={() => setIsMateriaModalOpen(false)}
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
         idFicha={ficha?.id}
+<<<<<<< HEAD
+        materiasActuales={materias}
+      />
+
+=======
         materiasActuales={
           nuevoTrimestre
             ? nuevoTrimestre.materias
@@ -436,25 +562,46 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
         />
       )}
 
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
       {/* Modal Independiente de Competencia */}
       <FormCompetencia
         isOpen={isFormCompetenciaOpen}
         onClose={() => setIsFormCompetenciaOpen(false)}
-        programId={program?.id ?? 0}
         competenciaId={editingCompetenciaId}
         onSuccess={handleFormCompetenciaSuccess}
       />
+
+      {/* Modal RAPs */}
+      {isRapsModalOpen && selectedCompetenciaId && (
+        <ListaRaps
+          isOpen={isRapsModalOpen}
+          onClose={() => {
+            setIsRapsModalOpen(false);
+            setSelectedCompetenciaId(null);
+          }}
+          idMateriaPadre={selectedCompetenciaId}
+          nombreCompetencia={selectedCompetenciaNombre}
+          idFicha={ficha?.id ?? 0}
+          onEditCompetencia={handleEditCompetencia}
+          onUpdate={() => ficha?.id && cargarMaterias(ficha.id)}
+        />
+      )}
 
       {/* Modal Horarios */}
       {modalHorarios.open && (
         <HorariosMateria
           open={modalHorarios.open}
+<<<<<<< HEAD
+          onClose={() => setModalHorarios({
+            open: false,
+            idMateria: undefined
+          })}
+          idMateria={modalHorarios.idMateria || 0}
+=======
           onClose={() => setModalHorarios({ open: false, idGradoMateria: undefined })}
           idGradoMateria={modalHorarios.idGradoMateria ?? 0}
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
           idFicha={modalHorarios.idFicha || ficha?.id || 0}
-          totalHoras={modalHorarios.totalHoras}
-          horasActuales={modalHorarios.horasActuales}
-          horasFaltantes={modalHorarios.horasFaltantes}
           porcentajeEjecucion={ficha?.porcentajeEjecucion ?? 0}
           jornada={ficha?.jornada?.nombreJornada}
           fechaInicioPrefill={modalHorarios.fechaInicioPrefill}
@@ -470,9 +617,13 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
           }
           fechaFinalRap={modalHorarios.fechaFinalRap}
           onGuardado={() => {
-            if (ficha?.id) cargarTrimestres(ficha?.id);
+            if (ficha?.id) cargarMaterias(ficha?.id);
           }}
         />
+<<<<<<< HEAD
+      }
+    </>
+=======
       )}
 
       <ModalSeguimientoPractica
@@ -487,6 +638,7 @@ export const MallaCurricular = ({ isOpen, onClose, program, ficha }: MallaCurric
         onClose={() => setToast(false)}
       />
     </div>
+>>>>>>> 7808e9cd69aa15046051a6a5e2f08da615c07ae4
   );
 };
 
