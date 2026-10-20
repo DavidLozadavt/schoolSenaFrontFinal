@@ -23,7 +23,10 @@ import {
   MessageSquare,
   Layers,
   Pencil,
-  Users
+  Users,
+  Ghost,
+  FileSpreadsheet,
+  IdCard
 } from 'lucide-react';
 import { Container } from '@/components/container';
 import { useLayout } from '@/providers';
@@ -36,6 +39,9 @@ import {
 } from '@/partials/toolbar';
 import { FormIntegrationWizard } from '@/pages/gestion-eventos/eventos/FormIntegrationWizard';
 import ExternalFormEmbed from '@/pages/gestion-eventos/eventos/ExternalFormEmbed';
+import { FormConfigModal } from './components/FormConfigModal';
+import { ExcelImportModal } from './components/ExcelImportModal';
+import { EscarapelasTab } from './components/EscarapelasTab';
 import { compactReactSelectClassNames, compactReactSelectNoOptions } from '@/components/forms/compactReactSelect';
 
 import { useNavigate } from 'react-router-dom';
@@ -54,7 +60,7 @@ interface FormularioInterno {
 const FormulariosPage: React.FC = () => {
   const { currentLayout } = useLayout();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'external' | 'internal'>('external');
+  const [activeTab, setActiveTab] = useState<'external' | 'internal' | 'escarapelas'>('internal');
   
   // External Forms Integration States
   const [events, setEvents] = useState<any[]>([]);
@@ -69,6 +75,21 @@ const FormulariosPage: React.FC = () => {
   // Internal Forms State
   const [internalForms, setInternalForms] = useState<FormularioInterno[]>([]);
   const [loadingInternalForms, setLoadingInternalForms] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
+  const [excelModalOpen, setExcelModalOpen] = useState(false);
+
+  const fetchInternalForms = async () => {
+    setLoadingInternalForms(true);
+    try {
+      const response = await axios.get('formularios');
+      setInternalForms(response.data);
+    } catch (error) {
+      console.error('Error fetching internal forms:', error);
+    } finally {
+      setLoadingInternalForms(false);
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToast({ open: true, message, type });
@@ -202,13 +223,23 @@ const FormulariosPage: React.FC = () => {
               </ToolbarDescription>
             </ToolbarHeading>
             <ToolbarActions>
-              <button
-                onClick={() => setWizardOpen(true)}
-                className="btn btn-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-orange-500/20 rounded-xl px-5 py-2.5"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Vincular Formulario Externo</span>
-              </button>
+              {activeTab === 'internal' ? (
+                <button
+                  onClick={() => navigate('/formularios/builder')}
+                  className="btn btn-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/20 rounded-xl px-5 py-2.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Crear Formulario Interno</span>
+                </button>
+              ) : activeTab === 'external' ? (
+                <button
+                  onClick={() => setWizardOpen(true)}
+                  className="btn btn-sm bg-gradient-to-r from-orange-500 to-rose-500 text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-orange-500/20 rounded-xl px-5 py-2.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Vincular Formulario Externo</span>
+                </button>
+              ) : null}
             </ToolbarActions>
           </Toolbar>
         </Container>
@@ -217,6 +248,17 @@ const FormulariosPage: React.FC = () => {
       <Container>
         {/* Tab Selector */}
         <div className="flex gap-1 mb-8 bg-neutral-100 dark:bg-neutral-800/80 p-1.5 rounded-2xl w-fit border border-neutral-200/20 shadow-inner">
+          <button
+            onClick={() => setActiveTab('internal')}
+            className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+              activeTab === 'internal'
+                ? 'bg-white dark:bg-neutral-900 shadow-xl shadow-black/5 text-blue-600 dark:text-blue-400'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Formularios Internos</span>
+          </button>
           <button
             onClick={() => setActiveTab('external')}
             className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
@@ -229,15 +271,15 @@ const FormulariosPage: React.FC = () => {
             <span>Integración de Formularios Externos</span>
           </button>
           <button
-            onClick={() => setActiveTab('internal')}
+            onClick={() => setActiveTab('escarapelas')}
             className={`flex items-center gap-3 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-              activeTab === 'internal'
-                ? 'bg-white dark:bg-neutral-900 shadow-xl shadow-black/5 text-blue-600 dark:text-blue-400'
+              activeTab === 'escarapelas'
+                ? 'bg-white dark:bg-neutral-900 shadow-xl shadow-black/5 text-violet-600 dark:text-violet-400'
                 : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
             }`}
           >
-            <FileText className="w-4 h-4" />
-            <span>Estructura de Formularios Internos (Demo)</span>
+            <IdCard className="w-4 h-4" />
+            <span>Escarapelas</span>
           </button>
         </div>
 
@@ -476,6 +518,8 @@ const FormulariosPage: React.FC = () => {
             </div>
 
           </div>
+        ) : activeTab === 'escarapelas' ? (
+          <EscarapelasTab onToast={showToast} />
         ) : (
           /* TAB 2: INTERNAL FORMS STANDARDS & DEMO */
           <div className="grid grid-cols-1 gap-8 items-start">
@@ -492,13 +536,22 @@ const FormulariosPage: React.FC = () => {
                     </h2>
                     <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-bold uppercase tracking-widest mt-1">Crea y gestiona formularios directamente en la plataforma</p>
                   </div>
-                  <button 
-                    onClick={() => navigate('/formularios/builder')}
-                    className="btn btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg shadow-blue-500/20 px-6 py-3.5 flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 text-xs font-black uppercase tracking-wider"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>Crear Desde Cero</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => setExcelModalOpen(true)}
+                      className="btn bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/20 rounded-2xl px-6 py-3.5 flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 text-xs font-black uppercase tracking-wider"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Cargar desde Excel</span>
+                    </button>
+                    <button
+                      onClick={() => navigate('/formularios/builder')}
+                      className="btn btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg shadow-blue-500/20 px-6 py-3.5 flex items-center justify-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 text-xs font-black uppercase tracking-wider"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      <span>Crear Desde Cero</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Templates Section */}
@@ -507,7 +560,7 @@ const FormulariosPage: React.FC = () => {
                     <Sparkles className="w-3.5 h-3.5 text-orange-500" /> <span>Plantillas predeterminadas para inicio rápido</span>
                   </h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                     {/* Satisfaccion */}
                     <div 
                       className="group relative rounded-3xl border border-emerald-500/10 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.06] hover:border-emerald-500/30 transition-all duration-300 cursor-pointer p-6 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-emerald-500/5 hover:-translate-y-1"
@@ -570,6 +623,28 @@ const FormulariosPage: React.FC = () => {
                         </p>
                       </div>
                       <div className="mt-6 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span>Usar plantilla</span> <Plus className="w-3 h-3" />
+                      </div>
+                    </div>
+
+                    {/* Halloween */}
+                    <div
+                      className="group relative rounded-3xl border border-purple-500/10 bg-purple-500/[0.02] hover:bg-purple-500/[0.06] hover:border-purple-500/30 transition-all duration-300 cursor-pointer p-6 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-purple-500/5 hover:-translate-y-1"
+                      onClick={() => navigate('/formularios/builder', { state: { template: 'halloween' } })}
+                    >
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all duration-300" />
+                      <div>
+                        <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
+                          <Ghost className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-sm font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-2">
+                          Inscripción Halloween
+                        </h4>
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
+                          Inscripción de instituciones: nombre, correo, teléfono y cargo del contacto.
+                        </p>
+                      </div>
+                      <div className="mt-6 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <span>Usar plantilla</span> <Plus className="w-3 h-3" />
                       </div>
                     </div>
@@ -660,7 +735,7 @@ const FormulariosPage: React.FC = () => {
 
                               {/* Configurar */}
                               <button 
-                                onClick={() => navigate(`/formularios/builder/${f.id}`)}
+                                onClick={() => { setSelectedFormId(f.id); setConfigModalOpen(true); }}
                                 className="p-2.5 bg-neutral-50 hover:bg-amber-500/10 text-neutral-500 hover:text-amber-600 dark:bg-neutral-800/40 dark:hover:bg-amber-500/20 dark:text-neutral-400 dark:hover:text-amber-400 rounded-xl transition-all active:scale-90"
                                 title="Configurar Formulario"
                               >
@@ -730,6 +805,17 @@ const FormulariosPage: React.FC = () => {
           showToast('Formulario integrado con éxito', 'success');
         }}
       />
+
+      {/* Form Configuration Modal */}
+      <FormConfigModal 
+        open={configModalOpen}
+        onClose={() => setConfigModalOpen(false)}
+        formId={selectedFormId}
+        onFormUpdated={fetchInternalForms}
+      />
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal open={excelModalOpen} onClose={() => setExcelModalOpen(false)} />
     </Fragment>
   );
 };
