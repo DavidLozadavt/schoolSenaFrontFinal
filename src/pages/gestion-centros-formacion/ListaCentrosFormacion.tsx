@@ -5,6 +5,7 @@ import CentroFormacionCard from './CentroFormacionCard';
 import FormularioCentrosFormacion from './FormularioCentrosFormacion';
 import Toast from '../programas-academicos/components/Toast';
 import ModalInfoRow from '../gestion-regional/ModalInfoRow';
+import { useAuthContext } from '@/auth';
 
 interface Props {
   searchTerm: string;
@@ -42,6 +43,7 @@ interface CentrosFormacion {
 }
 
 const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento, showToast }) => {
+  const { empresa } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [centrosFormacion, setCentroFormacion] = useState<CentrosFormacion[]>([]);
 
@@ -65,6 +67,7 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
       try {
         const res = await axios.get<CentrosFormacion[]>('centrosFormacion');
         setCentroFormacion(res.data);
@@ -76,14 +79,17 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
     };
 
     loadData();
-  }, [evento]);
+  }, [evento, empresa?.id]);
 
   const filteredCentrosFormacion = useMemo(() => {
-    if (!searchTerm) return centrosFormacion;
+    const centrosDeEmpresa = centrosFormacion.filter(
+      (centro) => Number(centro.idEmpresa ?? centro.empresa?.id) === Number(empresa?.id)
+    );
+    if (!searchTerm) return centrosDeEmpresa;
 
     const term = searchTerm.toLowerCase();
 
-    return centrosFormacion.filter(
+    return centrosDeEmpresa.filter(
       (centrosFormacion) =>
         centrosFormacion.nombre.toLowerCase().includes(term) ||
         centrosFormacion.direccion.toLowerCase().includes(term) ||
@@ -93,7 +99,7 @@ const ListaCentrosFormacion: React.FC<Props> = ({ searchTerm, evento, setEvento,
         centrosFormacion.ciudad?.descripcion.toLowerCase().includes(term) ||
         centrosFormacion.empresa?.razonSocial.toLowerCase().includes(term)
     );
-  }, [centrosFormacion, searchTerm]);
+  }, [centrosFormacion, searchTerm, empresa?.id]);
 
   const eliminarCentro = async (id: number) => {
     try {

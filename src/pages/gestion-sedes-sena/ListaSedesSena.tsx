@@ -49,7 +49,7 @@ interface Sede {
 }
 
 const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
-
+  const { empresa } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [sedes, setSedes] = useState<Sede[]>([]);
 
@@ -71,6 +71,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
       try {
         const res = await axios.get<Sede[]>('sedesSena');
         setSedes(res.data);
@@ -82,7 +83,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
     };
 
     loadData();
-  }, [evento]);
+  }, [evento, empresa?.id]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -90,11 +91,14 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
   };
 
   const filteredSedes = useMemo(() => {
-    if (!searchTerm) return sedes;
+    const sedesDeEmpresa = sedes.filter(
+      (sede) => Number(sede.empresa?.id) === Number(empresa?.id)
+    );
+    if (!searchTerm) return sedesDeEmpresa;
 
     const term = searchTerm.toLowerCase();
 
-    return sedes.filter(
+    return sedesDeEmpresa.filter(
       (sede) =>
         sede.nombre.toLowerCase().includes(term) ||
         sede.jefeInmediato.toLowerCase().includes(term) ||
@@ -104,7 +108,7 @@ const ListaSedesSena: React.FC<Props> = ({ searchTerm, evento, setEvento }) => {
         sede.ciudad?.descripcion.toLowerCase().includes(term) ||
         sede.empresa?.razonSocial.toLowerCase().includes(term)
     );
-  }, [sedes, searchTerm]);
+  }, [sedes, searchTerm, empresa?.id]);
 
   if (loading) {
     return (

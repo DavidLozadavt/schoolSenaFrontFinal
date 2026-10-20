@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { FC } from 'react';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { useFormik } from 'formik';
@@ -23,7 +24,17 @@ interface JornadaMateriasModalProps {
     jornada?: Jornada | null;
 }
 
-const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClose, onSuccess, jornada }) => {
+const nombresPorId: Record<number, string> = {
+    1: 'Lunes',
+    2: 'Martes',
+    3: 'Miércoles',
+    4: 'Jueves',
+    5: 'Viernes',
+    6: 'Sábado',
+    7: 'Domingo'
+};
+
+const FormJornadaMaterias: FC<JornadaMateriasModalProps> = ({ open, onClose, onSuccess, jornada }) => {
     const { enqueueSnackbar } = useSnackbar();
     const { user } = useAuthContext();
     const [diasDisponibles, setDiasDisponibles] = useState<any[]>([]);
@@ -35,7 +46,7 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
             dias: [] as any[],
             horaInicial: '',
             horaFinal: '',
-            idCentroFormacion: user?.idCentroFormacion || ''
+            idCentroFormacion: user?.idCentroFormacion ?? ''
         },
         validationSchema: Yup.object().shape({
             nombreJornada: Yup.string().required('El nombre es requerido'),
@@ -43,7 +54,10 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
             dias: Yup.array().min(1, 'Selecciona al menos un día').required('Los días son requeridos'),
             horaInicial: Yup.string().required('Hora inicial requerida'),
             horaFinal: Yup.string().required('Hora final requerida'),
-            idCentroFormacion: Yup.number().required()
+            idCentroFormacion: Yup.number()
+                .transform((value, originalValue) => originalValue === '' ? undefined : value)
+                .typeError('Tu usuario no tiene un centro de formación asignado')
+                .required('El centro de formación es requerido')
         }),
         onSubmit: async (values) => {
             try {
@@ -54,6 +68,8 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
                     ...values,
                     nombreJornada: values.nombreJornada.toUpperCase(),
                     descripcion: values.descripcion?.toUpperCase() || '',
+                    dias: values.dias.map((dia: any) => nombresPorId[Number(dia.id)]),
+                    idCentroFormacion: Number(values.idCentroFormacion),
                     ...(jornada && { id: jornada.id })
                 };
 
@@ -66,38 +82,39 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
             }
         }
     });
+    const { resetForm, setValues } = formik;
 
-    const getDias = async () => {
+    const getDias = useCallback(async () => {
         try {
             const res = await axios.get('dias');
             setDiasDisponibles(res.data);
         } catch (error) {
             enqueueSnackbar('Error al obtener los días', { variant: 'error' });
         }
-    };
+    }, [enqueueSnackbar]);
 
     useEffect(() => {
         if (open) {
             getDias();
-            if (!jornada) formik.resetForm();
+            if (!jornada) resetForm();
         }
-    }, [open, jornada]);
+    }, [open, jornada, getDias, resetForm]);
 
     useEffect(() => {
         if (jornada && diasDisponibles.length > 0) {
             const diasMapped = diasDisponibles.filter(d =>
                 jornada.dias.some(jd => typeof jd === 'string' ? jd === d.dia : jd.id === d.id)
             );
-            formik.setValues({
+            setValues({
                 nombreJornada: jornada.nombreJornada.toUpperCase(),
                 descripcion: jornada.descripcion?.toUpperCase() || '',
                 dias: diasMapped,
                 horaInicial: jornada.horaInicial.slice(0, 5),
                 horaFinal: jornada.horaFinal.slice(0, 5),
-                idCentroFormacion: user?.idCentroFormacion || ''
+                idCentroFormacion: user?.idCentroFormacion ?? ''
             });
         }
-    }, [jornada, diasDisponibles]);
+    }, [jornada, diasDisponibles, setValues, user?.idCentroFormacion]);
 
     const toggleDia = (dia: any) => {
         const exists = formik.values.dias.find((d: any) => d.id === dia.id);
@@ -135,12 +152,12 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
 
     return (
         <Modal open={open} onClose={onClose}>
-            <ModalContent className="max-w-[650px] top-[10%] p-4">
+            <ModalContent className="max-w-[650px] max-h-[calc(100dvh-2rem)] overflow-hidden p-4">
                 <ModalHeader>
                     <ModalTitle>{jornada ? 'Editar' : 'Crear'} Jornada de Materias</ModalTitle>
                     <button className="btn btn-sm btn-icon btn-light btn-clear" onClick={onClose}><KeenIcon icon="cross" /></button>
                 </ModalHeader>
-                <ModalBody className="px-0 py-5">
+                <ModalBody className="min-h-0 overflow-y-auto overscroll-contain px-0 py-5">
                     <form onSubmit={formik.handleSubmit} className="grid gap-5">
                         <div>
                             <label className="block mb-1 text-sm font-medium">Nombre de la jornada</label>
@@ -177,6 +194,9 @@ const FormJornadaMaterias: React.FC<JornadaMateriasModalProps> = ({ open, onClos
                                 <p className="flex items-center gap-2"><KeenIcon icon="calendar" /> Total ({formik.values.dias.length} días): <strong>{resumen.horasTotales} h</strong></p>
                                 {resumen.cruzaMedianoche && <p className="text-xs text-orange-600 flex items-center gap-1"><KeenIcon icon="warning-2" /> La jornada cruza medianoche</p>}
                             </div>
+                        )}
+                        {formik.submitCount > 0 && formik.errors.idCentroFormacion && (
+                            <p className="text-sm text-red-500">{formik.errors.idCentroFormacion as string}</p>
                         )}
                         <div className="flex justify-end gap-3 mt-6">
                             <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancelar</button>
