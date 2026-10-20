@@ -106,6 +106,7 @@ import FormulariosPage from '@/pages/formularios/FormulariosPage';
 import FormBuilderPage from '@/pages/formularios/builder/FormBuilderPage';
 import FormPublicPage from '@/pages/formularios/public/FormPublicPage';
 import StudentInscriptionPage from '@/pages/formularios/public/StudentInscriptionPage';
+import EscarapelaPublicPage from '@/pages/formularios/public/EscarapelaPublicPage';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
@@ -207,6 +208,7 @@ const AppRoutingSetup = (): ReactElement => {
     <Routes>
       <Route path="/formulario/:slug" element={<FormPublicPage />} />
       <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
+      <Route path="/escarapela/:codigo" element={<EscarapelaPublicPage />} />
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
