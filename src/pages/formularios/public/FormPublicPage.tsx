@@ -46,6 +46,8 @@ const FormPublicPage: React.FC = () => {
   const [camposDuplicados, setCamposDuplicados] = useState<number[]>([]);
   // Escarapela del inscrito cuando el formulario la entrega al registrarse
   const [escarapela, setEscarapela] = useState<EscarapelaDatos | null>(null);
+  // Respuesta recién enviada y su llave: permiten corregirla en vez de crear otra
+  const [edicion, setEdicion] = useState<{ id: number; llave: string } | null>(null);
   const [uploadingFileId, setUploadingFileId] = useState<number | string | null>(null);
   const [filePreviews, setFilePreviews] = useState<{ [preguntaId: number | string]: { name: string; url: string }[] }>({});
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
@@ -356,16 +358,22 @@ const FormPublicPage: React.FC = () => {
       const postParams: Record<string, string> = {};
       if (isEmbed) { postParams.embed = 'true'; if (emailParam) postParams.email = emailParam; }
 
+      const respuestasEnviadas = respuestas.map(r => ({ ...r, valor: combinarOtro(r.valor, otros[r.idPregunta] || '') }));
       const envio = await axios.post(
         `formulario-publico/${slug}/responder`,
         {
-          respuestas: respuestas.map(r => ({ ...r, valor: combinarOtro(r.valor, otros[r.idPregunta] || '') })),
+          respuestas: respuestasEnviadas,
           ...(isEmbed ? { embed: true } : {}),
           ...(isEmbed && emailParam ? { nexiEmail: emailParam } : {}),
           ...(modoEdicion ? { forzar_actualizacion: true } : {}),
+          ...(modoEdicion && edicion ? { idRespuesta: edicion.id, llaveEdicion: edicion.llave } : {}),
         },
         { params: postParams },
       );
+
+      // Lo enviado queda listo para "Editar mi respuesta"
+      setRespuestaAnterior(respuestasEnviadas);
+      if (envio.data?.edicion) setEdicion(envio.data.edicion);
 
       // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
       if (fromEventId) {
@@ -664,22 +672,18 @@ const FormPublicPage: React.FC = () => {
             {escarapela && <DescargarEscarapela datos={escarapela} />}
 
             <div className="flex flex-col sm:flex-row gap-3 w-full justify-center empty:hidden">
-              {!form.requiereAutenticacion && !isEmbed && (
+              {!isEmbed && edicion && (
                 <button
-                  className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
+                  className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                   style={{ backgroundColor: form.colorTema, boxShadow: `0 10px 15px -3px ${form.colorTema}35` }}
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    setEnviado(false);
+                    entrarModoEdicion();
+                    window.scrollTo(0, 0);
+                  }}
                 >
-                  Enviar otra respuesta
-                </button>
-              )}
-              {!isEmbed && (
-                <button
-                  className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Volver al Dashboard</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Editar mi respuesta
                 </button>
               )}
             </div>
@@ -781,8 +785,8 @@ const FormPublicPage: React.FC = () => {
       {/* Centered content column */}
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-28">
         
-        {/* Back Button */}
-        {!isEmbed && (
+        {/* Volver al evento: solo si se abrió desde un evento dentro del ERP; en el enlace compartido no hay a dónde volver */}
+        {!isEmbed && fromEventId && (
           <button
             type="button"
             onClick={() => {
@@ -791,7 +795,7 @@ const FormPublicPage: React.FC = () => {
             className="group mb-6 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-fit cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
-            <span>Volver al Dashboard</span>
+            <span>Volver</span>
           </button>
         )}
 
