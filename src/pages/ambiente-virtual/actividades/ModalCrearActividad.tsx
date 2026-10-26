@@ -63,6 +63,7 @@ interface ModalCrearActividadProps {
   onSuccess?: (message: string) => void;
   actividadEditar?: Actividad | null;
   idMateria?: number;
+  idCompetencia?: number;
 }
 
 const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
@@ -71,7 +72,8 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
   onSave,
   onSuccess,
   actividadEditar,
-  idMateria
+  idMateria,
+  idCompetencia
 }) => {
   const authContext = useAuthContext();
   const [loading, setLoading] = useState(false);
@@ -167,7 +169,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
     // Solo el RAP del contexto de clase (o el ya guardado al editar). Nunca materias[0]: asociaría otro RAP.
     const idMateriaFinal = Number(formData.idMateria || idMateria || 0);
     if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
-      alert('No se identificó el RAP de la clase. No se puede guardar la actividad.');
+      alert('No se identificó el RAP. No se puede guardar la actividad.');
       return;
     }
     if (!formData.tituloActividad || !formData.descripcionActividad || !formData.tipoActividad || !formData.estrategia || !formData.entregables || !formData.idCompany) {
@@ -189,6 +191,7 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
         autor: actividadEditar?.autor ?? null,
         tipoActividad: formData.tipoActividad,
         idMateria: idMateriaFinal,
+        ...(idCompetencia && idCompetencia > 0 ? { idCompetencia } : {}),
         idEstado: formData.idEstado || 1,
         idCompany: formData.idCompany,
         idPersona: formData.idPersona || null,

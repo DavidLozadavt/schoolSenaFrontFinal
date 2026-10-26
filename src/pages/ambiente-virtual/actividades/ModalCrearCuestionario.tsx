@@ -56,6 +56,7 @@ interface ModalCrearCuestionarioProps {
   onSave?: () => void;
   onSuccess?: (message: string) => void;
   idMateria?: number;
+  idCompetencia?: number;
   cuestionarioEditar?: CuestionarioEditar | null;
 }
 
@@ -80,7 +81,7 @@ const ImagenPreviewPregunta: React.FC<{ file: File }> = ({ file }) => {
   );
 };
 
-const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, onClose, onSave, onSuccess, idMateria: idMateriaProp, cuestionarioEditar }) => {
+const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, onClose, onSave, onSuccess, idMateria: idMateriaProp, idCompetencia, cuestionarioEditar }) => {
   const [titulo, setTitulo] = useState('');
   const [clasificacion, setClasificacion] = useState<ClasificacionCuestionario | ''>('');
   const [descripcion, setDescripcion] = useState('');
@@ -161,7 +162,7 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
     // Solo el RAP del contexto de clase. Nunca materias[0]: asociaría un RAP incorrecto.
     const idMateriaFinal = Number(idMateriaProp || idMateria || 0);
     if (!idMateriaFinal || !Number.isFinite(idMateriaFinal) || idMateriaFinal <= 0) {
-      alert('No se identificó el RAP de la clase. No se puede guardar el cuestionario.');
+      alert('No se identificó el RAP. No se puede guardar el cuestionario.');
       return;
     }
 
@@ -186,6 +187,9 @@ const ModalCrearCuestionario: React.FC<ModalCrearCuestionarioProps> = ({ open, o
       fd.append('clasificacion', clasificacion || '');
       fd.append('descripcion', descripcion);
       fd.append('idMateria', String(idMateriaFinal));
+      if (idCompetencia && idCompetencia > 0) {
+        fd.append('idCompetencia', String(idCompetencia));
+      }
       fd.append('preguntas', JSON.stringify(preguntasPayload));
 
       preguntas.forEach((p, i) => {

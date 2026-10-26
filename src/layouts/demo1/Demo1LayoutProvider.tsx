@@ -1,6 +1,6 @@
 import { createContext, type PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { useMenuChildren } from '@/components/menu';
-import { MENU_SIDEBAR } from '@/config/menu.config';
+import { MENU_SIDEBAR, ensureActividadesCompetenciaMenu, ensureGestionActividadesMenu } from '@/config/menu.config';
 import { fetchPermissionsMenu } from '@/services/menuService';
 import { type TMenuConfig } from '@/components/menu';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -83,13 +83,16 @@ const Demo1LayoutProvider = ({ children }: PropsWithChildren) => {
   (async () => {
     try {
       const raw = await fetchPermissionsMenu();
-      const menu = raw ? normalizeMenu(raw) : MENU_SIDEBAR;
+      const menu = ensureGestionActividadesMenu(
+        ensureActividadesCompetenciaMenu(raw ? normalizeMenu(raw) : MENU_SIDEBAR)
+      );
       if (!mounted) return;
       setMenuConfig('primary', menu);
       setMenuConfig('secondary', menu);
     } catch (err) {
-      setMenuConfig('primary', MENU_SIDEBAR);
-      setMenuConfig('secondary', MENU_SIDEBAR);
+      const fallback = ensureGestionActividadesMenu(ensureActividadesCompetenciaMenu(MENU_SIDEBAR));
+      setMenuConfig('primary', fallback);
+      setMenuConfig('secondary', fallback);
     }
   })();
   return () => { mounted = false; };

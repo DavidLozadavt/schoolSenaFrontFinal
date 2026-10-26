@@ -1,4 +1,143 @@
-import { type TMenuConfig } from '@/components/menu';
+import { type IMenuItemConfig, type TMenuConfig } from '@/components/menu';
+
+const ACTIVIDADES_COMPETENCIA_PATH = '/ambiente-virtual/actividades-competencia';
+const GESTION_ACTIVIDADES_PATH = '/ambiente-virtual/gestion-actividades';
+
+const GESTION_ACTIVIDADES_ITEM: IMenuItemConfig = {
+  title: 'Gestión de actividades',
+  path: GESTION_ACTIVIDADES_PATH,
+  requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+};
+
+const ACTIVIDADES_COMPETENCIA_ITEM: IMenuItemConfig = {
+  title: 'Actividades competencias RAP',
+  path: ACTIVIDADES_COMPETENCIA_PATH,
+  requiredPermissions: [
+    'AULA_VIRTUAL_INSTRUCTOR',
+    'AULA_VIRTUAL_APRENDIZ',
+    'AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES_COMPETENCIA',
+    'AULA_VIRTUAL_APRENDIZ_ACTIVIDADES_COMPETENCIA'
+  ]
+};
+
+const mergeRequiredPermissions = (
+  current: string[] | undefined,
+  extra: string[] | undefined
+): string[] => Array.from(new Set([...(current ?? []), ...(extra ?? [])]));
+
+const esGrupoAmbienteVirtual = (node: IMenuItemConfig): boolean => {
+  const title = String(node.title ?? '').toLowerCase();
+  const perms = node.requiredPermissions ?? [];
+  if (title === 'ambiente virtual' || perms.includes('AMBIENTE_VIRTUAL')) return true;
+  const children = node.children ?? [];
+  return children.some(
+    (child) =>
+      child.path === '/ambiente-virtual/instructor/mis-actividades' ||
+      child.path === '/ambiente-virtual/mis-clases' ||
+      child.path === '/ambiente-virtual/historial-raps'
+  );
+};
+
+const esRaizAulaVirtualRol = (node: IMenuItemConfig): boolean => {
+  const title = String(node.title ?? '').toLowerCase();
+  const perms = node.requiredPermissions ?? [];
+  if (title.startsWith('aula virtual para')) return true;
+  return (
+    (perms.includes('AULA_VIRTUAL_INSTRUCTOR') || perms.includes('AULA_VIRTUAL_APRENDIZ')) &&
+    !esGrupoAmbienteVirtual(node)
+  );
+};
+
+const insertGestionActividades = (children: TMenuConfig): TMenuConfig => {
+  if (children.some((child) => child.path === GESTION_ACTIVIDADES_PATH)) {
+    return children.map((child) =>
+      child.path === GESTION_ACTIVIDADES_PATH
+        ? {
+            ...child,
+            title: GESTION_ACTIVIDADES_ITEM.title,
+            requiredPermissions: mergeRequiredPermissions(
+              child.requiredPermissions,
+              GESTION_ACTIVIDADES_ITEM.requiredPermissions
+            )
+          }
+        : child
+    );
+  }
+  const next = [...children];
+  const afterMisActividades = next.findIndex(
+    (child) => child.path === '/ambiente-virtual/instructor/mis-actividades'
+  );
+  if (afterMisActividades >= 0) {
+    next.splice(afterMisActividades + 1, 0, GESTION_ACTIVIDADES_ITEM);
+    return next;
+  }
+  const beforeCompetencia = next.findIndex((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH);
+  if (beforeCompetencia >= 0) {
+    next.splice(beforeCompetencia, 0, GESTION_ACTIVIDADES_ITEM);
+    return next;
+  }
+  next.push(GESTION_ACTIVIDADES_ITEM);
+  return next;
+};
+
+/** Inserta Gestión de actividades (solo instructor) en Ambiente Virtual. */
+export const ensureGestionActividadesMenu = (menu: TMenuConfig): TMenuConfig =>
+  menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      const rest = children.filter((child) => child.path !== GESTION_ACTIVIDADES_PATH);
+      if (rest.length === 0 && (!node.path || node.path === '#')) return [];
+      return [{ ...node, children: rest }];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertGestionActividades(children) }];
+  });
+
+/** Inserta o corrige el ítem si el menú dinámico de permisos aún no lo trae. */
+export const ensureActividadesCompetenciaMenu = (menu: TMenuConfig): TMenuConfig => {
+  const insertInChildren = (children: TMenuConfig): TMenuConfig => {
+    if (children.some((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH)) {
+      return children.map((child) =>
+        child.path === ACTIVIDADES_COMPETENCIA_PATH
+          ? {
+              ...child,
+              title: ACTIVIDADES_COMPETENCIA_ITEM.title,
+              requiredPermissions: mergeRequiredPermissions(
+                child.requiredPermissions,
+                ACTIVIDADES_COMPETENCIA_ITEM.requiredPermissions
+              )
+            }
+          : child
+      );
+    }
+    const next = [...children];
+    const after = next.findIndex((child) => child.path === '/ambiente-virtual/instructor/mis-actividades');
+    if (after >= 0) {
+      next.splice(after + 1, 0, ACTIVIDADES_COMPETENCIA_ITEM);
+      return next;
+    }
+    const beforeClases = next.findIndex((child) => child.path === '/ambiente-virtual/mis-clases');
+    if (beforeClases >= 0) {
+      next.splice(beforeClases, 0, ACTIVIDADES_COMPETENCIA_ITEM);
+      return next;
+    }
+    next.push(ACTIVIDADES_COMPETENCIA_ITEM);
+    return next;
+  };
+
+  return menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      const rest = children.filter((child) => child.path !== ACTIVIDADES_COMPETENCIA_PATH);
+      if (rest.length === 0 && (!node.path || node.path === '#')) return [];
+      return [{ ...node, children: rest }];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertInChildren(children) }];
+  });
+};
 
 export const MENU_SIDEBAR: TMenuConfig = [
   {
@@ -91,6 +230,16 @@ export const MENU_SIDEBAR: TMenuConfig = [
         title: 'Mis actividades',
         path: '/ambiente-virtual/instructor/mis-actividades',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Gestión de actividades',
+        path: '/ambiente-virtual/gestion-actividades',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Actividades competencias RAP',
+        path: '/ambiente-virtual/actividades-competencia',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ']
       },
       {
         title: 'Mis clases',

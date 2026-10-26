@@ -877,7 +877,7 @@ export const Calendario: React.FC<CalendarioProps> = ({
       const color = isDarkMode ? 'white' : '#4B5675';
       const result = await Swal.fire({
         title: '¿Eliminar horario?',
-        text: '¿Estás seguro de que deseas eliminar este horario?',
+        text: 'Se eliminará solo esta clase/horario. El RAP, la competencia y las actividades se conservan.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Sí, eliminar',
