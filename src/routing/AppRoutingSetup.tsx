@@ -124,6 +124,7 @@ import Fichas from '@/pages/gestion-fichas/Fichas';
 import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
 import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
 import MisActividadesInstructorPage from '@/pages/ambiente-virtual/MisActividadesInstructorPage';
+import GestionActividadesPage from '@/pages/ambiente-virtual/gestion-actividades/GestionActividadesPage';
 import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
 import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
 import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
@@ -131,6 +132,7 @@ import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
 import GruposPage from '@/pages/ambiente-virtual/GruposPage';
 import JustificacionesInstructorPage from '@/pages/ambiente-virtual/JustificacionesInstructorPage';
 import BibliotecaConocimientoPage from '@/pages/ambiente-virtual/BibliotecaConocimientoPage';
+import ActividadesCompetenciaPage from '@/pages/ambiente-virtual/actividades-competencia/ActividadesCompetenciaPage';
 import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
 import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
 import Redes from '@/pages/gestion-red/Redes';
@@ -1276,6 +1278,14 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
           <Route
+            path="/ambiente-virtual/gestion-actividades"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+                <GestionActividadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/ambiente-virtual/mis-clases"
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_CLASES']}>
@@ -1320,6 +1330,21 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_BIBLIOTECA']}>
                 <BibliotecaConocimientoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/actividades-competencia"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR',
+                  'AULA_VIRTUAL_APRENDIZ',
+                  'AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES_COMPETENCIA',
+                  'AULA_VIRTUAL_APRENDIZ_ACTIVIDADES_COMPETENCIA',
+                ]}
+              >
+                <ActividadesCompetenciaPage />
               </ProtectedRoute>
             }
           />

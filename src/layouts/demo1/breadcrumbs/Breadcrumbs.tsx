@@ -36,11 +36,14 @@ const Breadcrumbs = () => {
     const ambienteVirtualCrumbHome =
       pathname.startsWith('/ambiente-virtual/historial-raps') ||
       pathname.startsWith('/ambiente-virtual/instructor/mis-actividades') ||
+      pathname.startsWith('/ambiente-virtual/gestion-actividades') ||
       pathname.startsWith('/ambiente-virtual/horario') ||
       /^\/ambiente-virtual\/clase\//.test(pathname)
-        ? pathname.startsWith('/ambiente-virtual/instructor/mis-actividades')
-          ? '/ambiente-virtual/instructor/mis-actividades'
-          : '/ambiente-virtual/historial-raps'
+        ? pathname.startsWith('/ambiente-virtual/gestion-actividades')
+          ? '/ambiente-virtual/gestion-actividades'
+          : pathname.startsWith('/ambiente-virtual/instructor/mis-actividades')
+            ? '/ambiente-virtual/instructor/mis-actividades'
+            : '/ambiente-virtual/historial-raps'
         : '/ambiente-virtual/mis-clases';
 
     return items.map((item, index) => {
