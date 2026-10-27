@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import FormularioPrograma from './components/FormularioPrograma';
+import FormularioPrograma, { precargarRecursosPrograma } from './components/FormularioPrograma';
 import ConfirmarEliminar from './components/ConfirmarEliminar';
 import Toast from './components/Toast';
 import { Program } from './types';
@@ -15,12 +15,17 @@ import Select from 'react-select';
 const IMAGENES_POR_NIVEL: Record<string, string> = {
   PREESCOLAR: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
   PRIMARIA: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=600',
+  JARDIN: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600',
   TECNICO: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=600',
   BACHILLER: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600',
+  BACHILLERATO: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=600',
   TECNOLOGO: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600',
+  UNIVERSITARIO: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=600',
   PREGRADO: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=600',
   POSTGRADO: 'https://images.unsplash.com/photo-1525921429624-479b6a26d84d?q=80&w=600',
-  DEFAULT: 'https://images.unsplash.com/photo-1523050335392-9ae38774b79f?q=80&w=600'
+  CURSO: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600',
+  CICLICO: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600',
+  DEFAULT: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=600'
 };
 
 interface Regional {
@@ -52,8 +57,7 @@ export const GestionProgramas = ({
   const [selectedAperturaProgram, setSelectedAperturaProgram] = useState<Program | null>(null);
 
   const openAperturaModal = (program: Program) => {
-    // Navegar a la página de Aperturar Programa en vez de abrir modal
-    navigate(`/gestion-academica/configuracion/redes/programas/${idRed}/${program.id}/aperturar`);
+    navigate(`/gestion-academica/configuracion/programas/${program.id}/fichas?por=programa`);
   };
 
   const authContext = useContext(AuthContext);
@@ -125,7 +129,10 @@ export const GestionProgramas = ({
 
   const { idRed } = useParams();
 
-  const backUrl = import.meta.env.VITE_APP_BACKEND_URL || '';
+  const backUrl = (
+    import.meta.env.VITE_APP_BACKEND_URL ||
+    String(import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/').replace(/\/api\/?$/, '')
+  ).replace(/\/$/, '');
 
   const mapBackendToUi = useCallback(
     (p: any): Program => {
@@ -140,10 +147,24 @@ export const GestionProgramas = ({
         formacion: p.tipo_formacion?.nombreTipoFormacion || 'N/A',
         imageUrl: IMAGENES_POR_NIVEL[nivelKey] || IMAGENES_POR_NIVEL['DEFAULT'],
         description: p.descripcionPrograma,
-        documento: p.documento ? `${backUrl}${p.documento}` : null,
+        documento: p.documento
+          ? String(p.documento).startsWith('http')
+            ? p.documento
+            : `${backUrl}${p.documento}`
+          : null,
         idNivelEducativo: Number(p.idNivelEducativo),
         idTipoFormacion: Number(p.idTipoFormacion),
         idEstadoPrograma: Number(p.idEstadoPrograma),
+        idRed: p.idRed || p.red?.id,
+        clasePrograma: p.clasePrograma || 'PLANEACION',
+        idSede: p.idSede,
+        duracion: p.duracion,
+        unidadDuracion: p.unidadDuracion,
+        vigenciaDesde: p.vigenciaDesde,
+        idSistemaEvaluacion: p.idSistemaEvaluacion,
+        idEscalaCalificacion: p.idEscalaCalificacion,
+        nivelesPrograma: p.niveles_programa || p.nivelesPrograma || [],
+        sede: p.sede,
         red: p.red,
         fichas_count: p.fichas_activas_count ?? 0,
         aperturas_count: p.aperturas_activas_count ?? 0
@@ -157,25 +178,10 @@ export const GestionProgramas = ({
       setLoading(true);
       setError(null);
 
-      let url = '';
+      let url = `programasporRed/${idRed}`;
 
-      if (authContext?.roles?.includes('INSTRUCTOR SENA')) {
-        const idContrato = authContext?.user?.persona?.contrato?.find(
-          (c: any) => Number(c.idEstado) === 1
-        )?.id;
-
-        if (!idContrato) {
-          setPrograms([]);
-          return;
-        }
-
-        url = `programas_docente/${Number(idContrato)}`;
-      } else {
-        url = `programasporRed/${idRed}`;
-
-        if (idCentroFormacion !== 0) {
-          url += `?centro=${idCentroFormacion}`;
-        }
+      if (idCentroFormacion !== 0) {
+        url += `?centro=${idCentroFormacion}`;
       }
 
       const response = await axios.get(url);
@@ -192,6 +198,10 @@ export const GestionProgramas = ({
   }, [idCentroFormacion, idRed, mapBackendToUi, authContext]);
 
   useEffect(() => {
+    precargarRecursosPrograma().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!idRed) return;
 
     if (authContext?.roles?.includes('ADMIN CENTRO') && idCentroFormacion === 0) {
@@ -202,14 +212,22 @@ export const GestionProgramas = ({
   }, [idRed, idCentroFormacion]);
 
   const handleAddProgram = async (newProgramFromDB: any) => {
-    await fetchProgramas();
+    const ui = mapBackendToUi(newProgramFromDB);
     setToastMessage('Programa creado con éxito');
     setShowToast(true);
     onActionComplete();
+    if (ui.idRed && String(ui.idRed) !== String(idRed)) {
+      navigate(`/gestion-academica/configuracion/redes/programas/${ui.idRed}`);
+      return;
+    }
+    setPrograms((prev) => [...prev, ui].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
-  const handleUpdateProgram = async () => {
-    await fetchProgramas();
+  const handleUpdateProgram = (updated: any) => {
+    const ui = mapBackendToUi(updated);
+    setPrograms((prev) =>
+      prev.map((p) => (p.id === ui.id ? { ...ui, aperturas_count: p.aperturas_count, fichas_count: p.fichas_count } : p))
+    );
     setToastMessage('Programa actualizado con éxito');
     setShowToast(true);
     onActionComplete();
@@ -353,8 +371,7 @@ export const GestionProgramas = ({
             />
           </div>
 
-          {!esInstructorSena && (
-            <button
+          <button
               onClick={() => {
                 setProgramToEdit(null);
                 setIsModalOpen(true);
@@ -368,7 +385,6 @@ export const GestionProgramas = ({
                 Añadir Programa
               </span>
             </button>
-          )}
         </div>
 
         <div className="flex">
@@ -496,9 +512,9 @@ export const GestionProgramas = ({
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <i className="text-gray-400 ki-outline ki-share text-xs"></i>
+                              <i className="text-gray-400 ki-outline ki-geolocation text-xs"></i>
                               <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                                RED: {program.red?.nombre}
+                                SEDE: {program.sede?.nombre || 'Sin sede'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -515,7 +531,7 @@ export const GestionProgramas = ({
                             onClick={() => openAperturaModal(program)}
                             className="w-full py-2 px-4 text-xs font-bold uppercase bg-primary text-white rounded-lg hover:bg-primary-active transition-colors mb-3"
                           >
-                            Aperturas →
+                            Ver programación de fichas →
                           </button>
 
                           <div className="flex justify-between gap-2 pt-3 border-t border-gray-100 dark:border-coal-200">
@@ -537,15 +553,23 @@ export const GestionProgramas = ({
                               </span>
                             )}
 
-                            {!esInstructorSena && (
-                              <button
-                                onClick={() => openDeleteConfirm(program)}
-                                title="Eliminar"
-                                className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
-                              >
-                                <i className="text-sm ki-outline ki-trash"></i>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(program)}
+                              title="Editar"
+                              className="flex items-center justify-center flex-1 py-1.5 text-blue-600 transition-all border border-transparent bg-blue-50/50 dark:bg-blue-500/10 rounded-lg hover:border-blue-500 hover:scale-105"
+                            >
+                              <i className="text-sm ki-outline ki-pencil"></i>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openDeleteConfirm(program)}
+                              title="Eliminar"
+                              className="flex items-center justify-center flex-1 py-1.5 text-red-500 transition-all border border-transparent bg-red-50/50 dark:bg-red-500/10 rounded-lg hover:border-red-500 hover:scale-105"
+                            >
+                              <i className="text-sm ki-outline ki-trash"></i>
+                            </button>
 
                             <button
                               title="Información"

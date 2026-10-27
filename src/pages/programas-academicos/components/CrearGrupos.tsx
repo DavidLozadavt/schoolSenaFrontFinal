@@ -6,7 +6,7 @@ import { useFormik } from 'formik';
 import { ModalBody } from '@/components/modal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
   programaId?: string; // solo para CREAR
   fichaId?: number | null; // mantenemos opcional por compatibilidad, pero no se usa para editar aquí
   onAction: () => void;
+  gradoEditar?: { id: number; nombre: string; idJornada: number } | null;
   // callbacks opcionales que usaba EditarFicha (se mantienen por compatibilidad)
   setEvento?: React.Dispatch<React.SetStateAction<boolean>>;
   setShowToast?: (v: boolean) => void;
@@ -25,6 +26,7 @@ interface Props {
 interface FormValues {
   idAsignacion: number;
   cantidadGrados: number;
+  idJornada: number;
 }
 
 // ─── Validación ───────────────────────────────────────────────────────────────
@@ -41,6 +43,8 @@ const buildValidationSchema = (hasCentro: boolean) =>
       .min(1, 'La cantidad de grados debe ser al menos 1')
       .max(10, 'La cantidad de grados no puede ser mayor a 10')
       .required('La cantidad de grados es obligatoria'),
+
+    idJornada: Yup.number().nullable(),
   });
 
 // ─── Estilos compartidos para react-select ────────────────────────────────────
@@ -64,6 +68,7 @@ const CrearGrupos: React.FC<Props> = ({
   isModalOpen,
   setIsModalOpen,
   onAction,
+  gradoEditar = null,
 }) => {
   const authContext = useContext(AuthContext);
   const user = authContext?.user;
@@ -82,8 +87,12 @@ const CrearGrupos: React.FC<Props> = ({
   const [reload, setReload] = useState(false);
   const [aperturaSelected, setAperturaSelected] = useState<any>(null);
   const { programId } = useParams<{ programId: string }>();
+  const [searchParams] = useSearchParams();
+  const porPrograma = searchParams.get('por') === 'programa';
 
-  const [tiposGrado, setTiposGrado] = useState<{ value: number; label: string }[]>([]);
+  const [jornadas, setJornadas] = useState<{ id: number; nombre: string }[]>([]);
+  const [nombres, setNombres] = useState<string[]>(['']);
+  const editando = !!gradoEditar;
 
   // ── Formik ─────────────────────────────────────────────────────────────────
   const formik = useFormik<FormValues>({
@@ -91,13 +100,41 @@ const CrearGrupos: React.FC<Props> = ({
     initialValues: {
       idAsignacion: programId ? Number(programId) : 0,
       cantidadGrados: 1,
+      idJornada: 0,
     },
     validationSchema: buildValidationSchema(!!user?.idCentroFormacion),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
+      const nombresLimpios = nombres.map((nombre) => nombre.trim());
+      const idJornada = Number(values.idJornada) || Number(jornadas[0]?.id || 0);
+      if (nombresLimpios.some((nombre) => nombre.length < 2)) {
+        enqueueSnackbar('Escribe el nombre de cada grado', { variant: 'warning' });
+        setSubmitting(false);
+        return;
+      }
+      if (!idJornada) {
+        enqueueSnackbar('Selecciona la jornada', { variant: 'warning' });
+        setSubmitting(false);
+        return;
+      }
       try {
+        if (editando && gradoEditar) {
+          const response = await axios.put(`fichas/${gradoEditar.id}/nombre-grado`, {
+            nombreGrado: nombresLimpios[0],
+            idJornada,
+          });
+          resetForm();
+          setNombres(['']);
+          setIsModalOpen(false);
+          enqueueSnackbar(response.data.message || 'Grado actualizado', { variant: 'success' });
+          onAction();
+          return;
+        }
+
         const payload = {
           idAsignacion: values.idAsignacion,
-          cantidadGrados: values.cantidadGrados
+          cantidadGrados: nombresLimpios.length,
+          idJornada,
+          nombres: nombresLimpios,
         };
 
         const response = await axios.post('fichas/multiples', payload);
@@ -109,7 +146,7 @@ const CrearGrupos: React.FC<Props> = ({
           onAction();
         }, 700);
       } catch (error: any) {
-        enqueueSnackbar(error.response.data.message || 'Error al crear los grupos', { variant: 'error' });
+        enqueueSnackbar(error.response?.data?.message || 'Error al guardar el grado', { variant: 'error' });
       } finally {
         setSubmitting(false);
       }
@@ -129,16 +166,22 @@ const CrearGrupos: React.FC<Props> = ({
           return;
         }
 
-        const [tiposGradoRes, aperturaRes] = await Promise.all([
-          axios.get('tipos-grado'),
-          axios.get(`aperturaPrograma/${aperturaId}`)
+        const [aperturaRes, jornadasRes] = await Promise.all([
+          axios.get(porPrograma ? `programas/${aperturaId}/apertura-para-grados` : `aperturaPrograma/${aperturaId}`),
+          axios.get('jornadas-para-grados')
         ]);
 
-        setTiposGrado(tiposGradoRes.data ?? []);
-        setAperturaSelected(aperturaRes.data);
+        const listaJornadas = jornadasRes.data ?? [];
+        setJornadas(listaJornadas);
+        const jornadaInicial = gradoEditar?.idJornada || listaJornadas[0]?.id;
+        if (jornadaInicial) {
+          formik.setFieldValue('idJornada', Number(jornadaInicial));
+        }
+        const apertura = aperturaRes.data?.data?.id ? aperturaRes.data.data : aperturaRes.data;
+        setAperturaSelected(apertura);
 
-        if (aperturaRes.data?.id) {
-          formik.setFieldValue('idAsignacion', Number(aperturaRes.data.id));
+        if (apertura?.id) {
+          formik.setFieldValue('idAsignacion', Number(apertura.id));
         }
       } catch (err) {
         console.error('Error cargando catálogos:', err);
@@ -149,6 +192,18 @@ const CrearGrupos: React.FC<Props> = ({
 
     loadData();
   }, [isModalOpen, programId, reload]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (gradoEditar) {
+      setNombres([gradoEditar.nombre || '']);
+      if (gradoEditar.idJornada) {
+        formik.setFieldValue('idJornada', gradoEditar.idJornada);
+      }
+      return;
+    }
+    setNombres(['']);
+  }, [isModalOpen, gradoEditar]);
 
   const fechaFormateada = (fecha: any) => {
     const fechaDate = new Date(fecha);
@@ -177,7 +232,10 @@ const CrearGrupos: React.FC<Props> = ({
 
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-          Crear Grados
+          {editando ? 'Editar grado' : 'Crear grados'}
+          <p className="text-sm font-normal text-gray-500 mt-1">
+            El nombre es el nivel, por ejemplo primero o transición. La cantidad dice cuántos grados vas a crear. No es una ficha.
+          </p>
         </h2>
 
         {isLoading ? (
@@ -195,19 +253,70 @@ const CrearGrupos: React.FC<Props> = ({
                   </h3>
                 </div>
 
-                {/* Grado */}
+                <div className={editando ? '' : 'md:col-span-2'}>
+                  <label className="text-sm font-medium text-gray-700">
+                    {nombres.length > 1 ? 'Nombre de cada grado' : 'Nombre del grado'}
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1">
+                    {nombres.map((nombre, indice) => (
+                      <input
+                        key={indice}
+                        type="text"
+                        value={nombre}
+                        placeholder={nombres.length > 1 ? `Grado ${indice + 1}` : 'Ejemplo: Transición'}
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          setNombres((actuales) => actuales.map((item, i) => (i === indice ? valor : item)));
+                        }}
+                        className="w-full input text-sm"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {!editando && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Cantidad de Grados</label>
+                  <label className="text-sm font-medium text-gray-700">Cantidad de grados</label>
                   <input
                     type="number"
                     name="cantidadGrados"
+                    min={1}
+                    max={10}
                     value={formik.values.cantidadGrados}
-                    onChange={formik.handleChange}
+                    onChange={(e) => {
+                      const cantidad = Math.min(10, Math.max(1, Number(e.target.value) || 1));
+                      formik.setFieldValue('cantidadGrados', cantidad);
+                      setNombres((actuales) => {
+                        const copia = [...actuales];
+                        while (copia.length < cantidad) copia.push('');
+                        return copia.slice(0, cantidad);
+                      });
+                    }}
                     onBlur={formik.handleBlur}
                     className="w-full input text-sm"
                   />
                   {formik.touched.cantidadGrados && formik.errors.cantidadGrados && (
                     <p className="text-red-500 text-xs">{formik.errors.cantidadGrados}</p>
+                  )}
+                </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Jornada</label>
+                  <select
+                    name="idJornada"
+                    value={formik.values.idJornada || ''}
+                    onChange={(e) => formik.setFieldValue('idJornada', Number(e.target.value))}
+                    onBlur={formik.handleBlur}
+                    className="w-full input text-sm"
+                  >
+                    <option value="">Seleccionar jornada</option>
+                    {jornadas.map((jornada) => (
+                      <option key={jornada.id} value={jornada.id}>{jornada.nombre}</option>
+                    ))}
+                  </select>
+                  {formik.touched.idJornada && formik.errors.idJornada && (
+                    <p className="text-red-500 text-xs">{formik.errors.idJornada}</p>
                   )}
                 </div>
 
@@ -305,7 +414,7 @@ const CrearGrupos: React.FC<Props> = ({
                   disabled={formik.isSubmitting}
                   className={`px-4 py-2 rounded-lg text-sm text-white transition-colors duration-200 ${formik.isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'}`}
                 >
-                  {formik.isSubmitting ? 'Guardando...' : 'Guardar Grupos'}
+                  {formik.isSubmitting ? 'Guardando...' : editando ? 'Guardar grado' : 'Guardar grados'}
                 </button>
               </div>
             </form>

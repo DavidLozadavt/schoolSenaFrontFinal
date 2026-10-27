@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { AsignarTiposDocumentoModal } from './components/documentos/AsignarTiposDocumentoModal';
 import { VerDocumentosFichaModal } from './components/documentos/VerDocumentosFichaModal';
@@ -55,6 +55,9 @@ interface Ficha {
     };
   };
 
+  clase?: string;
+  grado?: { id: number; nombreGrado: string; numeroGrado?: number };
+  jornada?: { id: number; nombreJornada: string };
   instructorLider?: {
     id: number;
     persona?: {
@@ -78,7 +81,9 @@ interface Program {
 }
 
 export const ProgramacionFichasPage = () => {
-  const { programId } = useParams<{ programId: string }>(); // id de la apertura del programa
+  const { programId } = useParams<{ programId: string }>(); // id de la apertura, o del programa si por=programa
+  const [searchParams] = useSearchParams();
+  const porPrograma = searchParams.get('por') === 'programa';
   const { user } = useAuthContext();
   const navigate = useNavigate();
 
@@ -117,6 +122,7 @@ export const ProgramacionFichasPage = () => {
   const [fichasCreadasEnSesion, setFichasCreadasEnSesion] = useState<number[]>([]);
   const [fichasAntesDeCrear, setFichasAntesDeCrear] = useState<number[]>([]);
   const [crearGrupoModal, setCrearGrupoModal] = useState<boolean>(false);
+  const [gradoEditar, setGradoEditar] = useState<{ id: number; nombre: string; idJornada: number } | null>(null);
 
   const authContext = useContext(AuthContext);
 
@@ -160,18 +166,19 @@ export const ProgramacionFichasPage = () => {
       )?.id;
 
       const aplicarFiltro = (fichasConDocumento: any[]) => {
-        return esInstructorSena
-          ? fichasConDocumento.filter(
-              (ficha: any) =>
-                !ficha.idInstructorLider ||
-                Number(ficha.idInstructorLider) === Number(idContratoUsuario)
-            )
-          : fichasConDocumento;
+        if (porPrograma || !esInstructorSena) return fichasConDocumento;
+        return fichasConDocumento.filter(
+          (ficha: any) =>
+            !ficha.idInstructorLider ||
+            Number(ficha.idInstructorLider) === Number(idContratoUsuario)
+        );
       };
 
       const centroId = Number(centroF) !== 0 ? Number(centroF) : Number(user?.idCentroFormacion);
 
-      const res = await axios.get(`fichas/programa/${programId}`,);
+      const res = await axios.get(`fichas/programa/${programId}`, {
+        params: porPrograma ? { porPrograma: 1 } : undefined
+      });
       const backUrl = import.meta.env.VITE_APP_BACKEND_URL;
 
       if (res.status === 200 && Array.isArray(res.data.data)) {
@@ -188,7 +195,15 @@ export const ProgramacionFichasPage = () => {
                 idCentroFormacion: Number(ficha.sede.idCentroFormacion)
               }
             : undefined,
-          jornada: ficha.jornada ? { ...ficha.jornada, id: Number(ficha.jornada.id) } : undefined,
+          clase: ficha.clase === 'GRADO' ? 'GRADO' : 'FICHA',
+          grado: ficha.grado
+            ? {
+                id: Number(ficha.grado.id),
+                nombreGrado: ficha.grado.nombreGrado,
+                numeroGrado: Number(ficha.grado.numeroGrado)
+              }
+            : undefined,
+          jornada: ficha.jornada ? { ...ficha.jornada, id: Number(ficha.jornada.id), nombreJornada: ficha.jornada.nombreJornada } : undefined,
           regional: ficha.regional
             ? { ...ficha.regional, id: Number(ficha.regional.id) }
             : undefined,
@@ -224,7 +239,15 @@ export const ProgramacionFichasPage = () => {
         }));
 
         setIdCentroFormacion(Number(user?.idCentroFormacion));
-        const filtradas = aplicarFiltro(fichasConDocumento);
+        const filtradas = aplicarFiltro(fichasConDocumento).sort((a: Ficha, b: Ficha) => {
+          const grupoA = a.clase === 'GRADO' ? 0 : 1;
+          const grupoB = b.clase === 'GRADO' ? 0 : 1;
+          if (grupoA !== grupoB) return grupoA - grupoB;
+          const nivelA = a.grado?.numeroGrado ?? 999;
+          const nivelB = b.grado?.numeroGrado ?? 999;
+          if (nivelA !== nivelB) return nivelA - nivelB;
+          return String(a.codigo).localeCompare(String(b.codigo));
+        });
         setFichas(filtradas);
 
         if (idsAnteriores && idsAnteriores.length > 0) {
@@ -251,7 +274,7 @@ export const ProgramacionFichasPage = () => {
       loadProgram();
       loadFichas();
     }
-  }, [programId, evento]);
+  }, [programId, evento, porPrograma]);
 
   useEffect(() => {
     if (showToast) {
@@ -337,16 +360,16 @@ export const ProgramacionFichasPage = () => {
             <h1 className="text-xl font-bold text-gray-800 dark:text-white">{program?.name || 'Grupos del programa'}</h1>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">
-            {esInstructorSena
-                ? 'Grupos asignados a ti y disponibles para autogestión.'
-                : 'Administra los grupos del programa y asigna líderes responsables.'
-            }
+            El grado es el nivel del programa. La ficha es el grupo de ese nivel, con sede, jornada y documento.
           </p>
         </div>
 
         <div className="flex items-center">
           <button
-            onClick={() => setCrearGrupoModal(true)}
+            onClick={() => {
+              setGradoEditar(null);
+              setCrearGrupoModal(true);
+            }}
             className="h-11 px-4 gap-2 flex items-center rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
           >
             <i className="ki-outline ki-plus text-base"></i>
@@ -392,7 +415,7 @@ export const ProgramacionFichasPage = () => {
             <div className="flex flex-col items-center justify-center py-12 text-center bg-white dark:bg-coal-600 rounded-lg border border-gray-200 dark:border-coal-100">
               <i className="mb-4 text-5xl text-gray-400 ki-outline ki-file-deleted"></i>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {esInstructorSena
+                {esInstructorSena && !porPrograma
                   ? 'No tienes grados asignados en este nivel académico'
                   : 'No hay grados registrados para este nivel académico'}
               </p>
@@ -400,12 +423,29 @@ export const ProgramacionFichasPage = () => {
           ) : (
             <>
               <div className="space-y-3 mb-6">
-                {paginatedFichas.map((ficha) => {
+                {[...paginatedFichas]
+                  .sort((a, b) => Number(b.clase === 'GRADO') - Number(a.clase === 'GRADO'))
+                  .map((ficha, index, lista) => {
                   const expandida = fichaExpandida === ficha.id;
+                  const esGrado = ficha.clase === 'GRADO';
+                  const claseAnterior = index > 0 && lista[index - 1].clase === 'GRADO';
+                  const mostrarTitulo = index === 0 || esGrado !== claseAnterior;
                   return (
+                    <div key={ficha.id}>
+                    {mostrarTitulo && (
+                      <div className="pt-2 pb-1">
+                        <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+                          {esGrado ? 'Grados' : 'Fichas'}
+                        </h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {esGrado
+                            ? 'Niveles del programa, como primero o segundo.'
+                            : 'Grupos del nivel, con código, sede, jornada y documento.'}
+                        </p>
+                      </div>
+                    )}
                     <div
-                      key={ficha.id}
-                      className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg shadow-sm overflow-hidden transition-all hover:shadow-md"
+                      className={`bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 border-l-4 ${esGrado ? 'border-l-amber-500' : 'border-l-blue-600'} rounded-lg shadow-sm overflow-hidden transition-all hover:shadow-md`}
                     >
                       <div className="p-4">
                         <div className="flex items-center justify-between">
@@ -468,8 +508,11 @@ export const ProgramacionFichasPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white">
-                                  {ficha.codigo}
+                                  {esGrado ? (ficha.grado?.nombreGrado || ficha.codigo) : ficha.codigo}
                                 </h3>
+                                <span className={`px-2 py-1 text-xs font-bold uppercase rounded ${esGrado ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>
+                                  {esGrado ? 'Grado' : 'Ficha'}
+                                </span>
                                 <span
                                   className={`px-2 py-1 text-xs font-bold uppercase rounded ${
                                     ficha.asignacion?.estado === 'EN CURSO'
@@ -506,7 +549,7 @@ export const ProgramacionFichasPage = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <i className="ki-outline ki-time text-xs"></i>
-                                  <span>Jornada: {ficha.asignacion?.jornada?.nombreJornada || '—'}</span>
+                                  <span>Jornada: {ficha.jornada?.nombreJornada || ficha.asignacion?.jornada?.nombreJornada || '—'}</span>
                                 </div>
                               </div>
                             </div>
@@ -604,7 +647,7 @@ export const ProgramacionFichasPage = () => {
                                 Jornada
                               </p>
                               <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {ficha.asignacion?.jornada?.nombreJornada || '—'}
+                                {ficha.jornada?.nombreJornada || ficha.asignacion?.jornada?.nombreJornada || '—'}
                               </p>
                             </div>
                             <div>
@@ -643,7 +686,7 @@ export const ProgramacionFichasPage = () => {
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
-                                Documento de la Ficha
+                                {esGrado ? 'Documento del grado' : 'Documento de la ficha'}
                               </h4>
                               <div className="bg-white dark:bg-coal-600 border border-gray-200 dark:border-coal-100 rounded-lg p-4 hover:shadow-md transition-shadow">
                                 <div className="flex items-center gap-4">
@@ -675,12 +718,12 @@ export const ProgramacionFichasPage = () => {
                             <div className="pt-4 border-t border-gray-200 dark:border-coal-100 mb-4">
                               <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                 <i className="ki-outline ki-document"></i>
-                                Documento de la Ficha
+                                {esGrado ? 'Documento del grado' : 'Documento de la ficha'}
                               </h4>
                               <div className="bg-gray-50 dark:bg-coal-400 border border-gray-200 dark:border-coal-100 rounded-lg p-4">
                                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2 flex items-center justify-center gap-2">
                                   <i className="ki-outline ki-information-2"></i>
-                                  No hay documento adjunto para esta ficha
+                                  {esGrado ? 'No hay documento adjunto para este grado' : 'No hay documento adjunto para esta ficha'}
                                 </p>
                               </div>
                             </div>
@@ -717,7 +760,7 @@ export const ProgramacionFichasPage = () => {
                                 setFichaIdToClone(ficha.id);
                                 setIsModalOpen(true);
                               }}
-                              title="Generar clone de grupo"
+                              title={esGrado ? 'Crear ficha a partir de este grado' : 'Crear ficha a partir de esta ficha'}
                               className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-lg transition-all"
                             >
                               <i className="ki-outline ki-copy text-base"></i>
@@ -749,8 +792,19 @@ export const ProgramacionFichasPage = () => {
                             {puedeEditarEliminar(ficha) && (
                               <button
                                 type="button"
-                                onClick={() => handleEditarFicha(ficha.id)}
-                                title="Editar"
+                                onClick={() => {
+                                  if (esGrado) {
+                                    setGradoEditar({
+                                      id: ficha.id,
+                                      nombre: ficha.grado?.nombreGrado || '',
+                                      idJornada: Number(ficha.jornada?.id || 0),
+                                    });
+                                    setCrearGrupoModal(true);
+                                    return;
+                                  }
+                                  handleEditarFicha(ficha.id);
+                                }}
+                                title={esGrado ? 'Editar grado' : 'Editar'}
                                 className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 rounded-lg transition-all"
                               >
                                 <i className="ki-outline ki-notepad-edit text-base"></i>
@@ -770,6 +824,7 @@ export const ProgramacionFichasPage = () => {
                           </div>
                         </div>
                       )}
+                    </div>
                     </div>
                   );
                 })}
@@ -870,7 +925,11 @@ export const ProgramacionFichasPage = () => {
 
       <CrearGrupos
         isModalOpen={crearGrupoModal}
-        setIsModalOpen={setCrearGrupoModal}
+        setIsModalOpen={(abierto) => {
+          setCrearGrupoModal(abierto);
+          if (!abierto) setGradoEditar(null);
+        }}
+        gradoEditar={gradoEditar}
         fichaId={fichaIdToEdit}
         setShowToast={setShowToast}
         setMessageToast={setMessageToast}

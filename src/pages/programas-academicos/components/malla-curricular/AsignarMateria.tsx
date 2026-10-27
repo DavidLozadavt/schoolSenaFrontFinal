@@ -12,6 +12,7 @@ interface AsignarMateriaProps {
   onMateriasSeleccionadas: (data: { idGradoPrograma: number; materias: any[] }) => void;
   materiasActuales?: any[];
   idFicha?: number;
+  esGrado?: boolean;
 }
 
 export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
@@ -20,7 +21,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   nivelId,
   onMateriasSeleccionadas,
   materiasActuales = [],
-  idFicha
+  idFicha,
+  esGrado = false
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingCompetenciaId, setEditingCompetenciaId] = useState<number | undefined>(undefined);
@@ -48,7 +50,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
   const cargarMaterias = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`materias-programa`);
+      const response = await axios.get('materias-programa', { params: { idFicha } });
       setMateriasDisponibles(response.data || []);
     } catch (error) {
       setMateriasDisponibles([]);
@@ -162,9 +164,13 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
           <div>
             <h3 className="text-md font-black uppercase text-gray-800 dark:text-white tracking-widest flex items-center gap-2">
               <BookOpen size={16} className="text-primary" />
-              Asignar Competencias
+              {esGrado ? 'Asignar materias' : 'Asignar Competencias'}
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Antes de asignar una competencia, asegúrate de haber cargado los juicios evaluativos de Sofia Plus.</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              {esGrado
+                ? 'Solo aparecen las materias de este grado.'
+                : 'Antes de asignar una competencia, asegúrate de haber cargado los juicios evaluativos de Sofia Plus.'}
+            </p>
           </div>
           <button
             onClick={handleClose}
@@ -206,6 +212,8 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
               onClose={handleFormCancel}
               competenciaId={editingCompetenciaId}
               onSuccess={handleFormSuccess}
+              idFicha={idFicha}
+              esGrado={esGrado}
             />
 
             {/* Lista de Materias */}
@@ -237,7 +245,7 @@ export const AsignarMateria: React.FC<AsignarMateriaProps> = ({
                           <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px] mx-auto leading-relaxed">
                             {buscar 
                               ? `No se encontró nada que coincida con "${buscar}"`
-                              : 'Asegúrate de haber cargado los juicios evaluativos de Sofia Plus para esta ficha.'}
+                              : 'Este grado no tiene competencias asignadas.'}
                           </p>
                         </div>
                       </div>

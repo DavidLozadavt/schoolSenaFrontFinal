@@ -217,11 +217,11 @@ const CrearEditarFicha: React.FC<Props> = ({
         setTimeout(() => {
           resetForm();
           setIsModalOpen(false);
-          enqueueSnackbar( isEditing ?  'Grado actualizado correctamente' : 'Grado creado correctamente', { variant: 'success' });
+          enqueueSnackbar( isEditing ?  'Ficha actualizada correctamente' : 'Ficha creada correctamente', { variant: 'success' });
           onAction();
         }, 700);
       } catch (error: any) {
-        enqueueSnackbar( isEditing ? 'Error al actualizar el grado' : 'Error al crear el grado', { variant: 'error' });
+        enqueueSnackbar( isEditing ? 'Error al actualizar la ficha' : 'Error al crear la ficha', { variant: 'error' });
       } finally {
         setSubmitting(false);
       }
@@ -415,10 +415,10 @@ const CrearEditarFicha: React.FC<Props> = ({
 
         {/* Header */}
         <h2 className="text-lg font-semibold text-gray-900 px-6 py-4 border-b">
-          {isEditing ? 'Editar Grado' : 'Crear Grado'}
+          {isEditing ? 'Editar ficha' : 'Crear ficha'}
           {!isEditing && (
           <p className="text-sm opacity-50 mt-1">
-            Desde esta opción se generará el nuevo grupo con las mismas materias asignadas que el anterior.
+            La ficha es el grupo. Copia las materias de la ficha anterior y lleva su propio código, sede y documento.
           </p>
         )}
         </h2>

@@ -241,10 +241,14 @@ export const MallaCurricular = ({ isOpen, onClose, ficha }: MallaCurricularProps
       {/* Modal AsignarMateria */}
       <AsignarMateria
         isOpen={isMateriaModalOpen}
-        onClose={() => setIsMateriaModalOpen(false)}
+        onClose={() => {
+          setIsMateriaModalOpen(false);
+          if (ficha?.id) cargarMaterias(ficha.id);
+        }}
         nivelId={selectedNivelId}
         onMateriasSeleccionadas={handleMateriasSeleccionadas}
         idFicha={ficha?.id}
+        esGrado={ficha?.clase === 'GRADO'}
         materiasActuales={materias}
       />
 
@@ -254,6 +258,8 @@ export const MallaCurricular = ({ isOpen, onClose, ficha }: MallaCurricularProps
         onClose={() => setIsFormCompetenciaOpen(false)}
         competenciaId={editingCompetenciaId}
         onSuccess={handleFormCompetenciaSuccess}
+        idFicha={ficha?.id}
+        esGrado={ficha?.clase === 'GRADO'}
       />
 
       {/* Modal RAPs */}
