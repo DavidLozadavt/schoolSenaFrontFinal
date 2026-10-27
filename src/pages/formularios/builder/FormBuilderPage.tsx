@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FormData, FormQuestion } from './formBuilderTypes';
+import { FormData, FormQuestion, esSoloNumeros } from './formBuilderTypes';
 import QuestionCard from './QuestionCard';
 import FormResponsesTab from './FormResponsesTab';
+import LogoFormulario from '../public/LogoFormulario';
+import { 
+  ArrowLeft, 
+  Link as LinkIcon, 
+  Copy, 
+  CheckCircle2, 
+  AlertCircle, 
+  ListTodo, 
+  Eye, 
+  BarChart2, 
+  Globe, 
+  Lock, 
+  Save, 
+  Palette, 
+  Plus,
+  UploadCloud,
+  ImagePlus,
+  Trash2
+} from 'lucide-react';
 
 const FormBuilderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +40,8 @@ const FormBuilderPage: React.FC = () => {
   }, [id]);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
   const [formData, setFormData] = useState<FormData>({
     titulo: 'Formulario sin título',
     descripcion: '',
@@ -43,6 +63,9 @@ const FormBuilderPage: React.FC = () => {
   useEffect(() => {
     if (id) {
       fetchForm();
+    } else if (window.history.state?.usr?.importedForm) {
+      // Formulario generado desde un Excel (ExcelImportModal)
+      setFormData(window.history.state.usr.importedForm);
     } else if (window.history.state?.usr?.template) {
       applyTemplate(window.history.state.usr.template);
     }
@@ -300,6 +323,57 @@ const FormBuilderPage: React.FC = () => {
           ]
         };
         break;
+      case 'halloween':
+        templateData = {
+          titulo: '🎃 Formulario Inscripción Institución Halloween',
+          descripcion: 'Inscribe a tu institución en nuestra actividad de Halloween. Déjanos los datos de la persona de contacto y nos comunicaremos contigo.',
+          colorTema: '#f97316', // Pumpkin Orange
+          estado: 'borrador',
+          requiereAutenticacion: false,
+          preguntas: [
+            {
+              id: `q-1`,
+              tipo: 'texto_corto',
+              titulo: '👤 Nombre y apellidos',
+              esObligatoria: true,
+              orden: 1,
+              opciones: []
+            },
+            {
+              id: `q-2`,
+              tipo: 'texto_corto',
+              titulo: '📧 Correo',
+              esObligatoria: true,
+              orden: 2,
+              opciones: []
+            },
+            {
+              id: `q-3`,
+              tipo: 'texto_corto',
+              titulo: '📞 N. Teléfono',
+              esObligatoria: true,
+              orden: 3,
+              configuracion: { soloNumeros: true },
+              opciones: []
+            },
+            {
+              id: `q-4`,
+              tipo: 'desplegable',
+              titulo: '💼 Cargo',
+              descripcion: 'Selecciona tu cargo dentro de la institución.',
+              esObligatoria: true,
+              orden: 4,
+              opciones: [
+                { id: 'c1', texto: 'Coordinador', orden: 1 },
+                { id: 'c2', texto: 'Rector', orden: 2 },
+                { id: 'c3', texto: 'Docente', orden: 3 },
+                { id: 'c4', texto: 'Administrativo', orden: 4 },
+                { id: 'c5', texto: 'Otro', orden: 5 }
+              ]
+            }
+          ]
+        };
+        break;
     }
     if (templateData) {
       setFormData(templateData);
@@ -346,6 +420,36 @@ const FormBuilderPage: React.FC = () => {
       showToast('Error al guardar el formulario', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (file?: File | null) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) {
+      showToast('El logo debe ser una imagen PNG, JPG, WEBP o GIF', 'error');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('El logo supera el tamaño máximo de 2MB', 'error');
+      return;
+    }
+
+    setUploadingLogo(true);
+    // window.FormData: el tipo FormData importado arriba oculta al global
+    const body = new window.FormData();
+    body.append('logo', file);
+
+    try {
+      const { data } = await axios.post('formularios/upload-logo', body, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormData((prev) => ({ ...prev, imagenCabecera: data.url }));
+      showToast('Logo cargado. Guarda el formulario para aplicarlo', 'success');
+    } catch (error) {
+      console.error('Error uploading logo', error);
+      showToast('Error al subir el logo', 'error');
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -432,7 +536,7 @@ const FormBuilderPage: React.FC = () => {
       {/* Simple Toast */}
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl transition-all duration-300 transform scale-100 border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 backdrop-blur-xl animate-bounce-short">
-          <i className={`bi ${toast.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} fs-5`}></i>
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span className="text-xs font-black uppercase tracking-wider">{toast.message}</span>
         </div>
       )}
@@ -440,14 +544,14 @@ const FormBuilderPage: React.FC = () => {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <button className="btn btn-sm btn-light font-black uppercase tracking-widest text-[9px] py-3.5 px-6 rounded-xl flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all border border-neutral-150 dark:border-white/5" onClick={() => navigate('/formularios')}>
-          <i className="bi bi-arrow-left"></i> Volver a formularios
+          <ArrowLeft className="w-4 h-4" /> Volver a formularios
         </button>
 
         {formData.estado === 'publicado' && (
           <div className="flex items-center gap-2 bg-emerald-500/10 border border-dashed border-emerald-500/25 rounded-2xl px-5 py-3 cursor-pointer hover:scale-[1.01] transition-all text-emerald-600 dark:text-emerald-400" onClick={copyPublicLink} title="Copiar enlace">
-            <i className="bi bi-link-45deg fs-4"></i>
+            <LinkIcon className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">Enlace público: /formulario/{id}</span>
-            <i className="bi bi-clipboard fs-6 ms-2"></i>
+            <Copy className="w-4 h-4 ms-2" />
           </div>
         )}
       </div>
@@ -463,23 +567,23 @@ const FormBuilderPage: React.FC = () => {
               {/* Tab Selector inside builder */}
               <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200/20 shadow-inner">
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'editor' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('editor')}
                 >
-                  <i className="bi bi-ui-checks me-1"></i> Preguntas
+                  <ListTodo className="w-3.5 h-3.5" /> Preguntas
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'vista_previa' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('vista_previa')}
                 >
-                  <i className="bi bi-eye me-1"></i> Vista Previa
+                  <Eye className="w-3.5 h-3.5" /> Vista Previa
                 </button>
                 <button
-                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
+                  className={`btn btn-sm font-black uppercase tracking-widest text-[9px] py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'respuestas' ? 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-700'}`}
                   onClick={() => setActiveTab('respuestas')}
                   disabled={!id}
                 >
-                  <i className="bi bi-bar-chart me-1"></i> Respuestas
+                  <BarChart2 className="w-3.5 h-3.5" /> Respuestas
                 </button>
               </div>
 
@@ -489,16 +593,16 @@ const FormBuilderPage: React.FC = () => {
                 disabled={!id} 
                 title="Vista previa"
               >
-                <i className="bi bi-eye fs-5"></i>
+                <Eye className="w-4 h-4" />
               </button>
 
               <button 
-                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
+                className={`btn btn-sm hover:scale-105 active:scale-95 transition-all font-black uppercase tracking-widest text-[9px] py-3 px-6 rounded-xl border flex items-center gap-1.5 ${formData.estado === 'publicado' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`} 
                 onClick={toggleEstado}
                 disabled={saving || !id}
               >
-                <i className={`bi ${formData.estado === 'publicado' ? 'bi-globe2' : 'bi-lock'} me-1.5`}></i>
-                {formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}
+                {formData.estado === 'publicado' ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                <span>{formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}</span>
               </button>
 
               <button 
@@ -509,7 +613,7 @@ const FormBuilderPage: React.FC = () => {
                 {saving ? (
                   <div className="w-3.5 h-3.5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
                 ) : (
-                  <i className="bi bi-save"></i>
+                  <Save className="w-3.5 h-3.5" />
                 )}
                 <span>Guardar</span>
               </button>
@@ -552,7 +656,7 @@ const FormBuilderPage: React.FC = () => {
                  <div className="flex items-center justify-between p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
                    <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-800 shadow-sm">
-                        <i className="bi bi-palette-fill fs-4" style={{ color: formData.colorTema }}></i>
+                        <Palette className="w-5 h-5" style={{ color: formData.colorTema }} />
                      </div>
                      <div className="flex flex-col">
                         <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white">Color del tema</label>
@@ -584,6 +688,54 @@ const FormBuilderPage: React.FC = () => {
                       />
                     </div>
                  </div>
+
+                 {/* Logo de la empresa o colegio (opcional) */}
+                 <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-white/5 shadow-sm">
+                   <div className="flex items-center gap-3 min-w-0">
+                     <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-neutral-50 dark:bg-neutral-800 border border-neutral-100 dark:border-white/5 overflow-hidden shrink-0">
+                       {formData.imagenCabecera ? (
+                         <img src={formData.imagenCabecera} alt="Logo del formulario" className="w-full h-full object-contain" />
+                       ) : (
+                         <ImagePlus className="w-6 h-6 text-neutral-300" />
+                       )}
+                     </div>
+                     <div className="flex flex-col">
+                       <label className="text-xs font-black uppercase tracking-wider text-neutral-800 dark:text-white">Logo de la empresa o colegio</label>
+                       <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">Opcional · PNG, JPG o WEBP (Máx 2MB)</span>
+                     </div>
+                   </div>
+
+                   <div className="flex items-center gap-2 shrink-0">
+                     <label className={`btn btn-sm btn-light font-black uppercase tracking-widest text-[9px] py-3 px-5 rounded-xl flex items-center gap-2 border border-neutral-150 dark:border-white/5 transition-all ${uploadingLogo ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:scale-105 active:scale-95'}`}>
+                       <input
+                         type="file"
+                         className="hidden"
+                         accept="image/png,image/jpeg,image/webp,image/gif"
+                         disabled={uploadingLogo}
+                         onChange={(e) => {
+                           handleLogoUpload(e.target.files?.[0]);
+                           e.target.value = '';
+                         }}
+                       />
+                       {uploadingLogo ? (
+                         <div className="w-3.5 h-3.5 border-2 border-t-transparent border-neutral-500 rounded-full animate-spin"></div>
+                       ) : (
+                         <UploadCloud className="w-3.5 h-3.5" />
+                       )}
+                       <span>{formData.imagenCabecera ? 'Cambiar logo' : 'Subir logo'}</span>
+                     </label>
+                     {formData.imagenCabecera && (
+                       <button
+                         type="button"
+                         className="p-3 rounded-xl bg-neutral-50 hover:bg-rose-500/10 text-neutral-500 hover:text-rose-600 dark:bg-neutral-800/40 transition-all active:scale-90"
+                         onClick={() => setFormData({ ...formData, imagenCabecera: null })}
+                         title="Quitar logo"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                     )}
+                   </div>
+                 </div>
               </div>
 
             </div>
@@ -612,7 +764,7 @@ const FormBuilderPage: React.FC = () => {
           {/* Floating action button for new question */}
           <div className="flex justify-center mt-8 mb-10 pb-10">
             <button className="w-14 h-14 rounded-full shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center transition-all duration-300" onClick={addQuestion} title="Agregar pregunta" style={{ backgroundColor: formData.colorTema }}>
-              <i className="bi bi-plus fs-1 text-white"></i>
+              <Plus className="w-7 h-7 text-white" />
             </button>
           </div>
         </div>
@@ -644,6 +796,12 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
             Vista Previa en Tiempo Real
           </span>
         </div>
+
+        {data.imagenCabecera && (
+          <div className="flex mb-6">
+            <LogoFormulario url={data.imagenCabecera} color={data.colorTema} />
+          </div>
+        )}
 
         <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-neutral-800 dark:text-white mb-4">{data.titulo || 'Formulario sin título'}</h1>
         {data.descripcion && (
@@ -682,7 +840,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
                   type="text" 
                   disabled
                   className="w-full max-w-md bg-neutral-50 dark:bg-coal-400 border border-neutral-250 dark:border-coal-200 px-5 py-4 text-xs font-semibold rounded-2xl outline-none text-neutral-800 dark:text-white"
-                  placeholder="Respuesta corta..."
+                  placeholder={esSoloNumeros(q) ? 'Solo números...' : 'Respuesta corta...'}
                 />
               )}
 
@@ -758,7 +916,7 @@ const FormPreviewSection: React.FC<{ data: FormData }> = ({ data }) => {
               {q.tipo === 'archivo' && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-neutral-300 dark:border-coal-200 rounded-3xl cursor-not-allowed bg-neutral-50/20 dark:bg-coal-400/20">
                   <div className="w-12 h-12 rounded-full bg-neutral-50 dark:bg-coal-300 flex items-center justify-center mb-3">
-                    <i className="bi bi-cloud-upload text-neutral-400 fs-4"></i>
+                    <UploadCloud className="w-6 h-6 text-neutral-400" />
                   </div>
                   <span className="text-xs font-bold text-neutral-800 dark:text-white">Cargar archivo adjunto (PDF o Imagen)</span>
                   <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">Arrastra aquí o haz clic (Máx 5MB)</span>

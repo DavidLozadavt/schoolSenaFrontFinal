@@ -85,10 +85,7 @@ import {
   ConfiguracionValoresEconomicosPage,
   PERMISO_GESTION_VALORES_ECONOMICOS
 } from '@/pages/configuracion-valores-economicos';
-import {
-  FacturasAcademicasPage,
-  PERMISOS_ACCESO_VER_FACTURAS
-} from '@/pages/facturas-academicas';
+import { FacturasAcademicasPage, PERMISOS_ACCESO_VER_FACTURAS } from '@/pages/facturas-academicas';
 import { TarifasPage } from '@/pages/tarifas';
 import CalendarioReunionesPage from '@/pages/calendario-reuniones/ReunionesPage';
 import Pedidos from '@/pages/gestion-pedidos/Pedidos';
@@ -109,6 +106,7 @@ import FormulariosPage from '@/pages/formularios/FormulariosPage';
 import FormBuilderPage from '@/pages/formularios/builder/FormBuilderPage';
 import FormPublicPage from '@/pages/formularios/public/FormPublicPage';
 import StudentInscriptionPage from '@/pages/formularios/public/StudentInscriptionPage';
+import EscarapelaPublicPage from '@/pages/formularios/public/EscarapelaPublicPage';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
@@ -158,6 +156,12 @@ import InscripcionConfigPage from '@/pages/programas-academicos/inscripcion-conf
 import ValidacionSolicitudInscripcionPage from '@/pages/programas-academicos/validacion-inscripcion/ValidacionSolicitudInscripcionPage';
 import { PERMISOS_ACCESO_VALIDACION_INSCRIPCION } from '@/pages/programas-academicos/validacion-inscripcion/permisos';
 import PortalAspirantePage from '@/pages/portal-aspirante/PortalAspirantePage';
+import BoletinGeneralAdmin from '@/pages/boletines/administrativo/BoletinGeneralAdmin';
+import BoletinGeneralEstudiante from '@/pages/boletines/estudiante/BoletinGeneralEstudiante';
+import CarpetasViajeras from '@/pages/ciadet/secretaria/CarpetasViajeras';
+import CarpetaViajera from '@/pages/ciadet/instructores/CarpetaViajera';
+import GestionInstructores from '@/pages/ciadet/secretaria/GestionInstructoresCiadet';
+import GestionInstructoresCiadet from '@/pages/ciadet/secretaria/GestionInstructoresCiadet';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -206,18 +210,19 @@ const AppRoutingSetup = (): ReactElement => {
     <Routes>
       <Route path="/formulario/:slug" element={<FormPublicPage />} />
       <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
+      <Route path="/escarapela/:codigo" element={<EscarapelaPublicPage />} />
       <Route path="/invitado/:token" element={<InvitadoPublic />} />
       <Route path="/evento/:id" element={<EventPublicShowPage />} />
       <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
       <Route path="/portal-aspirante/:token" element={<PortalAspirantePage />} />
 
-
       <Route element={<RequireAuth />}>
-
         <Route
           path="/videoconferencias/standalone"
           element={
-            <ProtectedRoute requiredPermissions={['GESTION_VIDEOCONFERENCIAS', 'GESTION_HORAS_INSTRUCTOR']}>
+            <ProtectedRoute
+              requiredPermissions={['GESTION_VIDEOCONFERENCIAS', 'GESTION_HORAS_INSTRUCTOR']}
+            >
               <JitsiSalasPage standalone={true} />
             </ProtectedRoute>
           }
@@ -339,6 +344,32 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           <Route
+            path="/carpetas-viajeras"
+            element={
+              <ProtectedRoute requiredPermissions={['CIADET_SECRETARIA_CARPETAS']}>
+                <CarpetasViajeras />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ciadet/instructores"
+            element={
+              <ProtectedRoute requiredPermissions={['CIADET_SECRETARIA_INSTRUCTORES']}>
+                <GestionInstructoresCiadet />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/mis_carpetas"
+            element={
+              <ProtectedRoute requiredPermissions={['CIADET_INSTRUCTOR']}>
+                <CarpetaViajera />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="gestion-pedidos-pendientes"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
@@ -414,7 +445,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/pagos/medio-pagos"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
-                <MedioPagoPage/>
+                <MedioPagoPage />
               </ProtectedRoute>
             }
           />
@@ -423,7 +454,7 @@ const AppRoutingSetup = (): ReactElement => {
             path="/pagos/medio-pagos"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_MEDIO_PAGO']}>
-                <MedioPagoPage/>
+                <MedioPagoPage />
               </ProtectedRoute>
             }
           />
@@ -919,6 +950,25 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_CUENTAS_PENDIENTES']}>
                 <CobrosPolizasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* --- SECCIÓN GESTIÓN BOLETÍN --- */}
+          <Route
+            path="/boletin/admin"
+            element={
+              <ProtectedRoute requiredPermissions={['BOLETIN_ADMIN']}>
+                <BoletinGeneralAdmin />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/boletin/estudiante"
+            element={
+              <ProtectedRoute requiredPermissions={['BOLETIN_ESTUDIANTE']}>
+                <BoletinGeneralEstudiante />
               </ProtectedRoute>
             }
           />
@@ -1420,7 +1470,6 @@ const AppRoutingSetup = (): ReactElement => {
             }
           />
 
-
           <Route
             path="/videoconferencias"
             element={
@@ -1429,7 +1478,6 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
-
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorsRouting />} />
