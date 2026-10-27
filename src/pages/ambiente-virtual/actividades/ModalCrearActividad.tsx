@@ -226,8 +226,19 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
       }
       onSave();
       onClose();
-    } catch (err) {
-      console.error('Error al guardar actividad:', err);
+    } catch (err: unknown) {
+      const ax = err as {
+        response?: { data?: { error?: string; message?: string; errors?: Record<string, string[] | string> } };
+      };
+      const fromErrors = ax.response?.data?.errors
+        ? Object.values(ax.response.data.errors).flat().join('\n')
+        : '';
+      alert(
+        fromErrors ||
+          ax.response?.data?.error ||
+          ax.response?.data?.message ||
+          'No se pudo guardar la actividad. Intente de nuevo.'
+      );
     } finally {
       setLoading(false);
     }

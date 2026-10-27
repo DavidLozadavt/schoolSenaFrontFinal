@@ -17,6 +17,18 @@ export const compactReactSelectClassNames = {
     'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
 } as const;
 
+/** Selectores de competencia/RAP con nombres largos: envuelve el texto en control y opciones. */
+export const compactReactSelectWrapClassNames = {
+  ...compactReactSelectClassNames,
+  control: () =>
+    `${compactReactSelectClassNames.control()} h-auto min-h-9 items-start`,
+  singleValue: () =>
+    'text-gray-900 dark:text-gray-100 text-sm !whitespace-normal break-words leading-snug max-w-full',
+  option: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) =>
+    `${compactReactSelectClassNames.option({ isFocused, isSelected })} !whitespace-normal break-words leading-snug py-2`,
+  valueContainer: () => 'flex-wrap py-1 min-w-0',
+} as const;
+
 export const compactReactSelectNoOptions = (): string => 'Sin coincidencias';
 
 export const normalizeText = (value: unknown): string =>

@@ -5,8 +5,8 @@ import Select from 'react-select';
 import { KeenIcon, Toast } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import {
-  compactReactSelectClassNames,
   compactReactSelectNoOptions,
+  compactReactSelectWrapClassNames,
   filterOptionNormalized,
 } from '@/components/forms/compactReactSelect';
 import ModalCrearActividad from '@/pages/ambiente-virtual/actividades/ModalCrearActividad';
@@ -28,17 +28,21 @@ import type {
 const PAGE_SIZE = 30;
 
 const selectClassNames = {
-  ...compactReactSelectClassNames,
+  ...compactReactSelectWrapClassNames,
   control: (state: { isFocused: boolean }) =>
-    `${compactReactSelectClassNames.control()} dark:text-white ${
+    `${compactReactSelectWrapClassNames.control()} dark:text-white ${
       state.isFocused ? '!border-primary ring-2 ring-primary/30' : 'hover:border-primary/40'
     }`,
-  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
-  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
-  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  singleValue: () => `${compactReactSelectWrapClassNames.singleValue()} dark:!text-white`,
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm whitespace-normal',
+  menu: () => `${compactReactSelectWrapClassNames.menu()} dark:text-white`,
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
-    `${compactReactSelectClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
+    `${compactReactSelectWrapClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
 };
+
+const formatMateriaOption = (option: { label: string }) => (
+  <span className="block whitespace-normal break-words leading-snug">{option.label}</span>
+);
 
 const etiquetaMateria = (item?: { codigo?: string | null; nombreMateria?: string | null } | null) => {
   if (!item) return '—';
@@ -120,6 +124,8 @@ const GestionActividadesView: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtrosLoading, setFiltrosLoading] = useState(true);
+  const [filtrosError, setFiltrosError] = useState<string | null>(null);
 
   const [crearTipo, setCrearTipo] = useState<'actividad' | 'cuestionario' | null>(null);
   const [competenciaCrear, setCompetenciaCrear] = useState<number | null>(null);
@@ -158,6 +164,8 @@ const GestionActividadesView: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      setFiltrosLoading(true);
+      setFiltrosError(null);
       try {
         const res = await gestionActividadesService.filtros();
         if (!mounted) return;
@@ -165,7 +173,11 @@ const GestionActividadesView: React.FC = () => {
         setRaps(res.raps);
       } catch (err) {
         if (!mounted) return;
-        setError(gestionActividadesService.errorMessage(err, 'No se pudieron cargar los filtros.'));
+        setCompetencias([]);
+        setRaps([]);
+        setFiltrosError(gestionActividadesService.errorMessage(err, 'No se pudieron cargar competencias y RAP.'));
+      } finally {
+        if (mounted) setFiltrosLoading(false);
       }
     })();
     return () => {
@@ -430,6 +442,7 @@ const GestionActividadesView: React.FC = () => {
                 onChange={(opt) => setIdCompetencia(opt?.value ?? null)}
                 classNames={selectClassNames}
                 filterOption={filterOptionMateria}
+                formatOptionLabel={formatMateriaOption}
                 noOptionsMessage={compactReactSelectNoOptions}
               />
             </div>
@@ -445,7 +458,14 @@ const GestionActividadesView: React.FC = () => {
                 onChange={(opt) => setIdRap(opt?.value ?? null)}
                 classNames={selectClassNames}
                 filterOption={filterOptionMateria}
-                noOptionsMessage={compactReactSelectNoOptions}
+                formatOptionLabel={formatMateriaOption}
+                noOptionsMessage={() =>
+                  filtrosError
+                    ? filtrosError
+                    : idCompetencia
+                      ? 'No hay RAP para esta competencia.'
+                      : compactReactSelectNoOptions()
+                }
               />
             </div>
             <div className="sm:col-span-2 xl:col-span-1">
@@ -476,21 +496,20 @@ const GestionActividadesView: React.FC = () => {
 
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[76rem] table-fixed">
+          <table className="w-full min-w-[68rem] table-fixed">
             <colgroup>
-              <col className="w-[6%]" />
-              <col className="w-[16%]" />
-              <col className="w-[8%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
-              <col className="w-[13%]" />
               <col className="w-[7%]" />
-              <col className="w-[6%]" />
-              <col className="w-[12%]" />
+              <col className="w-[18%]" />
+              <col className="w-[9%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                {['Código', 'Título', 'Tipo', 'Competencia', 'RAP', 'Entregables', 'Fichas asignadas', 'Estado', 'Acciones'].map(
+                {['Código', 'Título', 'Tipo', 'Competencia', 'RAP', 'Entregables', 'Fichas asignadas', 'Acciones'].map(
                   (h) => (
                     <th
                       key={h}
@@ -507,20 +526,20 @@ const GestionActividadesView: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center">
+                  <td colSpan={8} className="py-10 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
                     <p className={`text-xs mt-2 ${TEXTO_SECUNDARIO}`}>Cargando actividades...</p>
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-sm text-red-600 dark:text-red-300">
+                  <td colSpan={8} className="py-8 text-center text-sm text-red-600 dark:text-red-300">
                     {error}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className={`py-8 text-center text-sm ${TEXTO_SECUNDARIO}`}>
+                  <td colSpan={8} className={`py-8 text-center text-sm ${TEXTO_SECUNDARIO}`}>
                     No hay actividades para los filtros seleccionados.
                   </td>
                 </tr>
@@ -567,9 +586,6 @@ const GestionActividadesView: React.FC = () => {
                       ) : (
                         <span className={`tabular-nums ${TEXTO_SECUNDARIO}`}>{row.fichasAsignadas}</span>
                       )}
-                    </td>
-                    <td className={`${CELDA} text-xs ${TEXTO_SECUNDARIO}`}>
-                      <span className="block truncate" title={row.estado || '—'}>{row.estado || '—'}</span>
                     </td>
                     <td className="py-2.5 pl-2 pr-5 align-middle text-right">
                       <button
@@ -672,22 +688,27 @@ const GestionActividadesView: React.FC = () => {
 
       {crearTipo ? (
         <Modal open onClose={() => setCrearTipo(null)}>
-          <ModalContent className="max-w-lg">
-            <ModalHeader>
+          <ModalContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <ModalHeader className="shrink-0">
               <ModalTitle>{crearTipo === 'cuestionario' ? 'Crear cuestionario' : 'Crear actividad'}</ModalTitle>
             </ModalHeader>
-            <ModalBody>
-              <p className="text-xs text-gray-600 dark:text-white mb-3">
+            <ModalBody className="min-h-0 overflow-y-auto">
+              <p className="text-xs text-gray-600 dark:text-white mb-3 leading-relaxed">
                 Selecciona primero la competencia y luego el RAP. La actividad queda asociada al RAP y, por esa
                 relación, a su competencia. No se asigna automáticamente a ninguna ficha.
               </p>
-              <div className="space-y-3">
-                <div>
+              {filtrosError ? (
+                <p className="text-sm text-red-600 dark:text-red-300 mb-3">{filtrosError}</p>
+              ) : null}
+              <div className="space-y-4">
+                <div className="min-w-0">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
                     Competencia *
                   </label>
                   <Select
-                    placeholder="Seleccione una competencia"
+                    placeholder={filtrosLoading ? 'Cargando competencias...' : 'Seleccione una competencia'}
+                    isLoading={filtrosLoading}
+                    isDisabled={filtrosLoading || Boolean(filtrosError)}
                     options={opcionesCompetencia}
                     value={opcionesCompetencia.find((o) => o.value === competenciaCrear) ?? null}
                     onChange={(opt) => {
@@ -696,26 +717,40 @@ const GestionActividadesView: React.FC = () => {
                     }}
                     classNames={selectClassNames}
                     filterOption={filterOptionMateria}
-                    noOptionsMessage={compactReactSelectNoOptions}
+                    formatOptionLabel={formatMateriaOption}
+                    noOptionsMessage={() =>
+                      filtrosError ? filtrosError : 'No hay competencias disponibles para tu usuario.'
+                    }
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
                     RAP *
                   </label>
                   <Select
-                    isDisabled={!competenciaCrear}
+                    isDisabled={!competenciaCrear || filtrosLoading}
+                    isLoading={Boolean(competenciaCrear) && filtrosLoading}
                     placeholder={competenciaCrear ? 'Seleccione un RAP' : 'Seleccione una competencia primero'}
                     options={opcionesRapCrear}
                     value={opcionesRapCrear.find((o) => o.value === rapCrear) ?? null}
                     onChange={(opt) => setRapCrear(opt?.value ?? null)}
                     classNames={selectClassNames}
                     filterOption={filterOptionMateria}
-                    noOptionsMessage={compactReactSelectNoOptions}
+                    formatOptionLabel={formatMateriaOption}
+                    noOptionsMessage={() => {
+                      if (!competenciaCrear) return 'Seleccione una competencia primero.';
+                      if (filtrosError) return filtrosError;
+                      return 'No hay RAP disponibles para esta competencia.';
+                    }}
                   />
+                  {competenciaCrear && !filtrosLoading && !filtrosError && opcionesRapCrear.length === 0 ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5">
+                      Esta competencia no tiene RAP accesibles con tu asignación actual.
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex flex-wrap justify-end gap-2 mt-5">
                 <button type="button" className="btn btn-light" onClick={() => setCrearTipo(null)}>
                   Cancelar
                 </button>

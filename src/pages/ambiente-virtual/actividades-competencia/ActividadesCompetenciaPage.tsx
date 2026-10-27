@@ -4,25 +4,29 @@ import { Toolbar, ToolbarDescription, ToolbarHeading, ToolbarPageTitle } from '@
 import { useLayout } from '@/providers';
 import Select from 'react-select';
 import {
-  compactReactSelectClassNames,
   compactReactSelectNoOptions,
+  compactReactSelectWrapClassNames,
 } from '@/components/forms/compactReactSelect';
 import MaterialCompetenciaView from './MaterialCompetenciaView';
 import { materialCompetenciaService } from './materialCompetenciaService';
 import type { CompetenciaAccesible } from './materialCompetencia.types';
 
 const selectClassNames = {
-  ...compactReactSelectClassNames,
+  ...compactReactSelectWrapClassNames,
   control: (state: { isFocused: boolean }) =>
-    `${compactReactSelectClassNames.control()} dark:text-white ${
+    `${compactReactSelectWrapClassNames.control()} dark:text-white ${
       state.isFocused ? '!border-primary ring-2 ring-primary/30' : 'hover:border-primary/40'
     }`,
-  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
-  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
-  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  singleValue: () => `${compactReactSelectWrapClassNames.singleValue()} dark:!text-white`,
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm whitespace-normal',
+  menu: () => `${compactReactSelectWrapClassNames.menu()} dark:text-white`,
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
-    `${compactReactSelectClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
+    `${compactReactSelectWrapClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
 };
+
+const formatCompetenciaOption = (option: { label: string }) => (
+  <span className="block whitespace-normal break-words leading-snug">{option.label}</span>
+);
 
 const ActividadesCompetenciaPage: React.FC = () => {
   const { currentLayout } = useLayout();
@@ -117,6 +121,7 @@ const ActividadesCompetenciaPage: React.FC = () => {
                     value={opciones.find((o) => o.value === idCompetencia) ?? null}
                     onChange={(opt) => setIdCompetencia(opt?.value ?? null)}
                     classNames={selectClassNames}
+                    formatOptionLabel={formatCompetenciaOption}
                     noOptionsMessage={compactReactSelectNoOptions}
                   />
                 </div>

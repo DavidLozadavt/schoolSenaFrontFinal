@@ -196,7 +196,9 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-300">
             Material de la competencia
           </p>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{competenciaNombre}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words leading-snug">
+            {competenciaNombre}
+          </h2>
           {competencia.totalRaps ? (
             <p className="text-xs text-gray-600 dark:text-gray-200 mt-0.5">
               {competencia.totalRaps} RAP asociados

@@ -24,8 +24,12 @@ const parseErrorPayload = (data: unknown, fallback: string): string => {
 };
 
 const errorMessage = (err: unknown, fallback: string): string => {
-  const data = (err as { response?: { data?: unknown } })?.response?.data;
-  return parseErrorPayload(data, fallback);
+  const response = (err as { response?: { status?: number; data?: unknown } })?.response;
+  const parsed = parseErrorPayload(response?.data, fallback);
+  if (response?.status === 500 && parsed === fallback) {
+    return 'Error del servidor al consultar el material. Intente de nuevo.';
+  }
+  return parsed;
 };
 
 export const materialCompetenciaService = {
