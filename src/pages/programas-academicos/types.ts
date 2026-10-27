@@ -13,6 +13,15 @@ export interface Program {
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
   idRed?:number;
+  clasePrograma?: string;
+  idSede?: number | string;
+  duracion?: number | string;
+  unidadDuracion?: string;
+  vigenciaDesde?: string;
+  idSistemaEvaluacion?: number | string;
+  idEscalaCalificacion?: number | string;
+  nivelesPrograma?: { id?: number; nombre: string; tipoNivel: string }[];
+  sede?: { id: number; nombre: string };
   fichas_count?: number;
   aperturas_count?: number;
   estado?: {

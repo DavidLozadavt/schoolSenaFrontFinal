@@ -53,6 +53,13 @@ export interface Actividad {
   estado?: EstadoRef;
 }
 
+export interface ActividadValoresIniciales {
+  tituloActividad?: string;
+  descripcionActividad?: string;
+  estrategia?: string;
+  entregables?: string;
+}
+
 interface ModalCrearActividadProps {
   open: boolean;
   onClose: () => void;
@@ -60,6 +67,8 @@ interface ModalCrearActividadProps {
   onSuccess?: (message: string) => void;
   actividadEditar?: Actividad | null;
   idMateria?: number;
+  initialValues?: ActividadValoresIniciales | null;
+  onCreated?: (act: Actividad) => void;
 }
 
 const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
@@ -68,7 +77,9 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
   onSave,
   onSuccess,
   actividadEditar,
-  idMateria
+  idMateria,
+  initialValues,
+  onCreated
 }) => {
   const authContext = useAuthContext();
   const [loading, setLoading] = useState(false);
@@ -121,8 +132,8 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
         });
       } else {
         setFormData({
-          tituloActividad: '',
-          descripcionActividad: '',
+          tituloActividad: initialValues?.tituloActividad || '',
+          descripcionActividad: initialValues?.descripcionActividad || '',
           pathDocumentoActividad: '',
           autor: '',
           tipoActividad: 'sin evidencia',
@@ -131,8 +142,8 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
           idCompany: authContext?.empresa?.id || 0,
           idPersona: authContext?.persona?.id,
           idClasificacion: 0,
-          estrategia: '',
-          entregables: ''
+          estrategia: initialValues?.estrategia || '',
+          entregables: initialValues?.entregables || ''
         });
         setDocumentoFile(null);
       }
@@ -203,7 +214,8 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
         onSuccess?.('Actividad actualizada correctamente');
       } else {
         const createRes = await axios.post('actividades', payload);
-        const id = createRes.data?.id;
+        const creada = (createRes.data?.data ?? createRes.data ?? {}) as Partial<Actividad>;
+        const id = creada.id;
         if (id && documentoFile) {
           const fd = new FormData();
           fd.append('documento', documentoFile);
@@ -211,6 +223,17 @@ const ModalCrearActividad: React.FC<ModalCrearActividadProps> = ({
             headers: { 'Content-Type': 'multipart/form-data' }
           });
         }
+        onCreated?.({
+          tituloActividad: creada.tituloActividad || formData.tituloActividad || '',
+          descripcionActividad: creada.descripcionActividad ?? formData.descripcionActividad,
+          estrategia: creada.estrategia ?? formData.estrategia,
+          entregables: creada.entregables ?? formData.entregables,
+          tipoActividad: creada.tipoActividad || formData.tipoActividad || 'sin evidencia',
+          idMateria: Number(creada.idMateria || idMateriaFinal),
+          idEstado: Number(creada.idEstado || formData.idEstado || 1),
+          idCompany: Number(creada.idCompany || formData.idCompany || 0),
+          id
+        });
         onSuccess?.('Actividad creada correctamente');
       }
       onSave();

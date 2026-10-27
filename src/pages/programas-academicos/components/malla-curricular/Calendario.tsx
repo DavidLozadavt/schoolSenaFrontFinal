@@ -6,7 +6,8 @@ import {
   User,
   X,
   Trash2,
-  Plus
+  Plus,
+  Pencil
 } from "lucide-react";
 import { ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components';
 import { enqueueSnackbar } from 'notistack';
@@ -63,6 +64,20 @@ const format12h = (timeStr?: any) => {
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${h}:${m} ${ampm}`;
+};
+
+const claseYaDictada = (fecha?: string) => {
+  if (!fecha) return false;
+  const dia = fecha.split('T')[0];
+  const hoy = new Date();
+  const hoyKey = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+  return dia < hoyKey;
+};
+
+const fechaEnPalabras = (fecha: string) => {
+  const [anio, mes, dia] = fecha.split('T')[0].split('-');
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return `${Number(dia)} de ${meses[Number(mes) - 1]} de ${anio}`;
 };
 
 // ─── Tooltip flotante ────────────────────────────────────────────────────────
@@ -227,6 +242,10 @@ export const Calendario: React.FC<CalendarioProps> = ({
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [showProfesorModal, setShowProfesorModal] = useState(false);
   const [horarioParaAsignar, setHorarioParaAsignar] = useState<any>(null);
+  const [horarioCambio, setHorarioCambio] = useState<any>(null);
+  const [horaInicioCambio, setHoraInicioCambio] = useState('08:00');
+  const [horaFinCambio, setHoraFinCambio] = useState('08:55');
+  const [guardandoCambio, setGuardandoCambio] = useState(false);
 
   // Carrusel
   useEffect(() => {
@@ -497,12 +516,28 @@ const renderEventContent = (arg: EventContentArg) => {
           
           <button
             onMouseEnter={() => setTooltip(null)}
+            onClick={(e) => {
+              e.stopPropagation();
+              const ini = String(hIni || '08:00').slice(0, 5);
+              const fin = String(hFin || '08:55').slice(0, 5);
+              setHoraInicioCambio(ini);
+              setHoraFinCambio(fin);
+              setHorarioCambio(ev);
+            }}
+            className="rounded-full bg-amber-500/10 w-5 h-5 flex items-center justify-center text-amber-700 hover:text-amber-800 transition"
+            title="Cambiar de hoy en adelante"
+          >
+            <Pencil size={11} />
+          </button>
+
+          <button
+            onMouseEnter={() => setTooltip(null)}
             onClick={(e) => { 
               e.stopPropagation(); 
-              handleEliminarHorario(ev.id); 
+              handleEliminarHorario(ev.id, ev._dateStr); 
             }}
             className="rounded-full bg-red-500/10 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-600 transition"
-            title="Eliminar"
+            title={claseYaDictada(ev._dateStr) ? 'Esta clase ya se dictó' : 'Quitar las clases que faltan'}
           >
             <Trash2 size={11} />
           </button>
@@ -512,19 +547,57 @@ const renderEventContent = (arg: EventContentArg) => {
   );
 };
 
-  const handleEliminarHorario = async (idHorario: number) => {
-    if (modoRmi) return;
+  const handleCambiarHorario = async () => {
+    if (!horarioCambio?.id || guardandoCambio) return;
+    if (!horaInicioCambio || !horaFinCambio || horaFinCambio <= horaInicioCambio) {
+      enqueueSnackbar('La hora final debe ser mayor que la hora inicial', { variant: 'warning' });
+      return;
+    }
+    setGuardandoCambio(true);
     try {
-      const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
-      const isDarkMode = theme === 'dark';
-      const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
-      const color = isDarkMode ? 'white' : '#4B5675';
+      const res = await axios.put(`horarios/materia/${horarioCambio.id}/desde-hoy`, {
+        horaInicial: horaInicioCambio,
+        horaFinal: horaFinCambio,
+        idDia: horarioCambio.idDia || horarioCambio.dia?.id,
+      });
+      enqueueSnackbar(res.data?.message || 'Horario actualizado', { variant: 'success' });
+      setHorarioCambio(null);
+      setRefreshTrigger(prev => prev + 1);
+      cargarRaps?.();
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.message || 'Error al cambiar el horario', { variant: 'error' });
+    } finally {
+      setGuardandoCambio(false);
+    }
+  };
+
+  const handleEliminarHorario = async (idHorario: number, fechaClase?: string) => {
+    if (modoRmi) return;
+    const theme = JSON.parse(localStorage.getItem('settings-configs') || '{}')?.themeMode;
+    const isDarkMode = theme === 'dark';
+    const background = isDarkMode ? '#1B1C22' : '#F9F9F9';
+    const color = isDarkMode ? 'white' : '#4B5675';
+
+    if (fechaClase && claseYaDictada(fechaClase)) {
+      await Swal.fire({
+        title: 'Esta clase ya se dictó',
+        text: `La clase del ${fechaEnPalabras(fechaClase)} ya se dio. No se puede eliminar.`,
+        icon: 'info',
+        confirmButtonText: 'Entendido',
+        customClass: { confirmButton: 'btn btn-sm btn-primary' },
+        background,
+        color
+      });
+      return;
+    }
+
+    try {
       const result = await Swal.fire({
-        title: '¿Eliminar horario?',
-        text: '¿Estás seguro de que deseas eliminar este horario?',
+        title: '¿Quitar las clases que faltan?',
+        text: 'Se quitan desde hoy hasta el final. Las clases que ya se dictaron se quedan y no se pueden eliminar.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
+        confirmButtonText: 'Sí, quitar las que faltan',
         cancelButtonText: 'Cancelar',
         customClass: { confirmButton: 'btn btn-sm btn-danger', cancelButton: 'btn btn-sm btn-light' },
         background,
@@ -532,8 +605,13 @@ const renderEventContent = (arg: EventContentArg) => {
       });
       if (!result.isConfirmed) return;
       const res = await axios.delete(`horarios/materia/${idHorario}`);
-      setHorariosFicha(prev => prev.filter(h => h.id !== idHorario));
-      enqueueSnackbar(res.data.message || "Horario eliminado correctamente", { variant: "success" });
+      setRefreshTrigger(prev => prev + 1);
+      enqueueSnackbar(
+        res.data?.conservoHistorial
+          ? 'Se quitaron las clases de hoy en adelante. Las que ya se dictaron se quedan.'
+          : (res.data?.message || 'Horario eliminado correctamente'),
+        { variant: 'success' }
+      );
       cargarRaps?.();
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.message || "Error al eliminar horario", { variant: "error" });
@@ -729,6 +807,56 @@ const renderEventContent = (arg: EventContentArg) => {
             horario={horarioAsignacionSesion}
             fechaSeleccionada={fechaSeleccionada}
           />
+        )}
+
+        {horarioCambio && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-coal-500">
+              <h3 className="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-white">
+                Cambiar de hoy en adelante
+              </h3>
+              <p className="mt-2 text-xs text-gray-500">
+                Las clases que ya se dictaron se quedan con la hora anterior. La hora nueva aplica desde la siguiente clase.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                  Hora inicial
+                  <input
+                    type="time"
+                    value={horaInicioCambio}
+                    onChange={(e) => setHoraInicioCambio(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm dark:border-gray-600 dark:bg-coal-600"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                  Hora final
+                  <input
+                    type="time"
+                    value={horaFinCambio}
+                    onChange={(e) => setHoraFinCambio(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm dark:border-gray-600 dark:bg-coal-600"
+                  />
+                </label>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHorarioCambio(null)}
+                  className="rounded-lg px-3 py-2 text-xs font-bold text-gray-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={guardandoCambio}
+                  onClick={handleCambiarHorario}
+                  className="rounded-lg bg-primary px-3 py-2 text-xs font-black uppercase text-white disabled:opacity-60"
+                >
+                  {guardandoCambio ? 'Guardando' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Modal de Asignación de Profesor Principal */}

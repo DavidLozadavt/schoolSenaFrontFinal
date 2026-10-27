@@ -1,5 +1,3 @@
-import { exportarPlaneacionExcel } from '@/pages/programas-academicos/components/malla-curricular/utils/Exportplaneacion';
-
 export interface FichaPlaneacionMeta {
   id: number;
   codigo: string;
@@ -64,11 +62,16 @@ export function metaPlaneacionDesdeFichaRaw(
 }
 
 export async function descargarPlaneacionFicha(meta: FichaPlaneacionMeta): Promise<void> {
-  await exportarPlaneacionExcel({
-    id: meta.id,
-    codigo: meta.codigo,
-    instructorLider: meta.instructorLiderNombre ?? '',
-    jornada: meta.jornada ?? '',
-    programa: meta.programa ?? ''
-  });
+  const url = meta.docFichaUrl || meta.docProgramaUrl;
+  if (!url) {
+    throw new Error('Esta ficha no tiene un archivo de planeación para descargar.');
+  }
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.target = '_blank';
+  enlace.rel = 'noopener noreferrer';
+  enlace.download = `planeacion_${meta.codigo || meta.id}`;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
 }

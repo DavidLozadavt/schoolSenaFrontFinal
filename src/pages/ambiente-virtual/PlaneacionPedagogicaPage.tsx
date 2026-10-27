@@ -387,7 +387,7 @@ const PlaneacionPedagogicaPage = () => {
               Cargando clases…
             </div>
           )}
-          {!loadingHorario && error && (
+          {!loadingHorario && error != null && (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-4 text-rose-700 text-xs">
               No se pudieron cargar las clases del horario.
             </div>

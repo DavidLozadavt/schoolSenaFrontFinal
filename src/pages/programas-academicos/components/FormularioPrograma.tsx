@@ -3,6 +3,26 @@ import axios from 'axios';
 import { FormularioProgramaProps, CatalogosData } from '../types';
 import { useParams } from 'react-router';
 
+export function precargarRecursosPrograma() {
+  return axios
+    .get('/programas_recursos_crear', {
+      params: { _: Date.now() },
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+    })
+    .then((catalogosRes) => {
+      const data = catalogosRes.data?.data || {};
+      return {
+        catalogos: {
+          niveles: data.niveles_educativos || [],
+          tipos: data.tipos_formacion || [],
+          estados: data.estados_programa || [],
+          redes: []
+        },
+        sedes: data.sedes || []
+      };
+    });
+}
+
 export const FormularioPrograma = ({
   isOpen,
   onClose,
@@ -30,6 +50,27 @@ export const FormularioPrograma = ({
 
   const [documento, setDocumento] = useState<File | null>(null);
   const [documentoError, setDocumentoError] = useState('');
+  const [base, setBase] = useState<any>({
+    sedes: [],
+    jornadas: [],
+    periodos: [],
+    sistemas: [],
+    escalas: [],
+    requisitos: [],
+    consecutivos: [],
+    politicas: [],
+    notificaciones: [],
+    roles: []
+  });
+  const [academico, setAcademico] = useState({
+    sede: '',
+    sistema: '',
+    escala: '',
+    duracion: '',
+    unidad: 'ANOS',
+    vigencia: ''
+  });
+  const [nivelesProg, setNivelesProg] = useState([{ nombre: '', tipoNivel: 'GRADO' }]);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +96,19 @@ export const FormularioPrograma = ({
           description: ''
         });
       }
+      setAcademico({
+        sede: programToEdit?.idSede?.toString() || '',
+        sistema: programToEdit?.idSistemaEvaluacion?.toString() || '',
+        escala: programToEdit?.idEscalaCalificacion?.toString() || '',
+        duracion: programToEdit?.duracion?.toString() || '',
+        unidad: programToEdit?.unidadDuracion || 'ANOS',
+        vigencia: programToEdit?.vigenciaDesde ? String(programToEdit.vigenciaDesde).slice(0, 10) : ''
+      });
+      setNivelesProg(
+        programToEdit?.nivelesPrograma?.length
+          ? programToEdit.nivelesPrograma.map((n) => ({ nombre: n.nombre, tipoNivel: n.tipoNivel }))
+          : [{ nombre: '', tipoNivel: 'GRADO' }]
+      );
       setDocumento(null);
       setDocumentoError('');
     }
@@ -62,18 +116,9 @@ export const FormularioPrograma = ({
 
   const cargarRecursos = async () => {
     try {
-      const [catalogosRes, redesRes] = await Promise.all([
-        axios.get('/programas_recursos_crear'),
-        axios.get('/red')
-      ]);
-      if (catalogosRes.data.status === 'success') {
-        setCatalogos({
-          niveles: catalogosRes.data.data.niveles_educativos,
-          tipos: catalogosRes.data.data.tipos_formacion,
-          estados: catalogosRes.data.data.estados_programa,
-          redes: redesRes.data
-        });
-      }
+      const recursos = await precargarRecursosPrograma();
+      setCatalogos(recursos.catalogos);
+      setBase((prev: any) => ({ ...prev, sedes: recursos.sedes }));
     } catch (error) {
       console.error('Error cargando catálogos:', error);
     }
@@ -95,31 +140,47 @@ export const FormularioPrograma = ({
     return true;
   };
 
+  const mensajeError = (error: any) => {
+    const data = error.response?.data;
+    const primero = data?.errors ? Object.values(data.errors).flat()[0] : null;
+    return primero || data?.message || 'Servidor no disponible';
+  };
+
   const handleSubmit = async () => {
+    const nivelesValidos = nivelesProg.filter((n) => n.nombre.trim());
     if (
       !formData.name ||
       !formData.codigo ||
       !formData.nivel ||
       !formData.formacion ||
-      !formData.status
+      !formData.status ||
+      !academico.sede ||
+      !academico.duracion ||
+      !academico.vigencia ||
+      nivelesValidos.length === 0
     ) {
       alert('Por favor completa todos los campos requeridos');
       return;
     }
     if (!validateDocumento(documento)) return;
-    if (!params.idRed) {
+    if (!params.idRed && !formData.red) {
       alert('No se encontró la red asociada');
       return;
     }
 
-    const basePayload = {
+    const basePayload: Record<string, unknown> = {
       nombrePrograma: formData.name.toUpperCase(),
       codigoPrograma: formData.codigo.toUpperCase(),
       idNivelEducativo: formData.nivel,
       idTipoFormacion: formData.formacion,
       idEstadoPrograma: formData.status,
       descripcionPrograma: formData.description,
-      idRed: Number(formData.red)
+      idRed: Number(formData.red || params.idRed),
+      idSede: academico.sede,
+      duracion: Number(academico.duracion),
+      unidadDuracion: academico.unidad,
+      vigenciaDesde: academico.vigencia,
+      niveles: nivelesValidos
     };
 
     try {
@@ -127,7 +188,7 @@ export const FormularioPrograma = ({
       if (documento) {
         const formDataToSend = new FormData();
         Object.entries(basePayload).forEach(([key, value]) => {
-          formDataToSend.append(key, value as string);
+          formDataToSend.append(key, key === 'niveles' ? JSON.stringify(value) : String(value ?? ''));
         });
         formDataToSend.append('documento', documento);
 
@@ -163,7 +224,7 @@ export const FormularioPrograma = ({
       onClose();
     } catch (error: any) {
       console.error('Error en la operación:', error.response?.data || error.message);
-      alert('Error: ' + (error.response?.data?.message || 'Servidor no disponible'));
+      alert('Error: ' + mensajeError(error));
     }
   };
 
@@ -188,9 +249,7 @@ export const FormularioPrograma = ({
 
         <form className="p-4 sm:p-7.5 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
-              Nombre del Programa
-            </label>
+            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Nombre del Programa</label>
             <textarea
               rows={2}
               value={formData.name}
@@ -203,9 +262,32 @@ export const FormularioPrograma = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
-              Código
-            </label>
+            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Tipo</label>
+            <select value={formData.nivel} onChange={(e) => setFormData({ ...formData, nivel: e.target.value })} className={selectClass}>
+              <option value="">Seleccionar</option>
+              {['BACHILLERATO', 'PRIMARIA', 'JARDIN', 'UNIVERSITARIO', 'TECNICO', 'CURSO', 'CICLICO'].map((codigo) => {
+                const item = catalogos.niveles.find((n) => String(n.nombre).toUpperCase() === codigo);
+                if (!item) return null;
+                const etiqueta: Record<string, string> = {
+                  BACHILLERATO: 'Bachillerato',
+                  PRIMARIA: 'Primaria',
+                  JARDIN: 'Jardín',
+                  UNIVERSITARIO: 'Universitario',
+                  TECNICO: 'Técnico',
+                  CURSO: 'Curso',
+                  CICLICO: 'Cíclico'
+                };
+                return (
+                  <option key={item.id} value={item.id}>
+                    {etiqueta[codigo]}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Código</label>
             <input
               type="text"
               value={formData.codigo}
@@ -216,74 +298,96 @@ export const FormularioPrograma = ({
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
-                Tipo Formación
-              </label>
-              <select
-                value={formData.formacion}
-                onChange={(e) => setFormData({ ...formData, formacion: e.target.value })}
-                className={selectClass}
-              >
-                <option value="">Seleccionar Tipo</option>
-                {catalogos.tipos.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Tipo Formación</label>
+                <select value={formData.formacion} onChange={(e) => setFormData({ ...formData, formacion: e.target.value })} className={selectClass}>
+                  <option value="">Seleccionar Tipo</option>
+                  {catalogos.tipos.map((t) => {
+                    const etiqueta: Record<string, string> = { PRESENCIAL: 'Presencial', VIRTUAL: 'Virtual', HIBRIDA: 'Híbrida' };
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {etiqueta[String(t.nombre).toUpperCase()] || t.nombre}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-gray-700 uppercase text-2xs">Sede</label>
+                <select value={academico.sede} onChange={(e) => setAcademico({ ...academico, sede: e.target.value })} className={selectClass}>
+                  <option value="">Seleccionar</option>
+                  {base.sedes.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="font-bold text-gray-700 uppercase text-2xs">Red</label>
-              <select
-                value={formData.red}
-                onChange={(e) => setFormData({ ...formData, red: e.target.value })}
-                className={selectClass}
-              >
-                <option value="">Seleccionar Red</option>
-                {catalogos.redes.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.nombre}
-                  </option>
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-gray-700 uppercase text-2xs">Duración</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" min={1} value={academico.duracion} onChange={(e) => setAcademico({ ...academico, duracion: e.target.value })} className="w-full border-gray-300 input bg-gray-light-100 text-2sm" />
+                  <select value={academico.unidad} onChange={(e) => setAcademico({ ...academico, unidad: e.target.value })} className={selectClass}>
+                    <option value="ANOS">Años</option>
+                    <option value="SEMESTRES">Semestres</option>
+                    <option value="CICLOS">Ciclos</option>
+                    <option value="MESES">Meses</option>
+                    <option value="HORAS">Horas</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-gray-700 uppercase text-2xs">Niveles</label>
+                {nivelesProg.map((nivel, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_140px_auto] gap-2">
+                    <input
+                      value={nivel.nombre}
+                      placeholder="Nombre"
+                      onChange={(e) => {
+                        const copia = [...nivelesProg];
+                        copia[index] = { ...copia[index], nombre: e.target.value };
+                        setNivelesProg(copia);
+                      }}
+                      className="w-full border-gray-300 input bg-gray-light-100 text-2sm"
+                    />
+                    <select
+                      value={nivel.tipoNivel}
+                      onChange={(e) => {
+                        const copia = [...nivelesProg];
+                        copia[index] = { ...copia[index], tipoNivel: e.target.value };
+                        setNivelesProg(copia);
+                      }}
+                      className={selectClass}
+                    >
+                      <option value="GRADO">Grado</option>
+                      <option value="SEMESTRE">Semestre</option>
+                      <option value="CICLO">Ciclo</option>
+                      <option value="MODULO">Módulo</option>
+                    </select>
+                    <button type="button" className="text-xs text-red-500" onClick={() => setNivelesProg(nivelesProg.filter((_, i) => i !== index))}>Quitar</button>
+                  </div>
                 ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
-                Nivel Educativo
-              </label>
-              <select
-                value={formData.nivel}
-                onChange={(e) => setFormData({ ...formData, nivel: e.target.value })}
-                className={selectClass}
-              >
-                <option value="">Seleccionar Nivel</option>
-                {catalogos.niveles.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+                <button type="button" className="text-xs font-bold text-blue-600 text-left" onClick={() => setNivelesProg([...nivelesProg, { nombre: '', tipoNivel: 'GRADO' }])}>
+                  Agregar
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-bold text-gray-700 uppercase text-2xs">Vigencia</label>
+                <input type="date" value={academico.vigencia} onChange={(e) => setAcademico({ ...academico, vigencia: e.target.value })} className="w-full border-gray-300 input bg-gray-light-100 text-2sm" />
+              </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">
-              Estado Programa
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className={selectClass}
-            >
-              <option value="">Seleccionar Estado</option>
-              {catalogos.estados.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
+            <label className="font-bold text-gray-700 uppercase text-2xs dark:text-gray-dark-700">Estado Programa</label>
+            <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className={selectClass}>
+              <option value="">Seleccionar</option>
+              {catalogos.estados.map((e) => {
+                const etiqueta: Record<string, string> = { BORRADOR: 'Borrador', ACTIVO: 'Activo', INACTIVO: 'Inactivo' };
+                return (
+                  <option key={e.id} value={e.id}>
+                    {etiqueta[String(e.nombre).toUpperCase()] || e.nombre}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

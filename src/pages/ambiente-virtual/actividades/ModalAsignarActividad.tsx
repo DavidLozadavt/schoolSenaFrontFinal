@@ -57,6 +57,9 @@ interface ModalAsignarActividadProps {
   actividad: Actividad | null;
   /** Varias actividades para asignar en bloque */
   actividades?: Actividad[] | null;
+  fechaInicialDefault?: string | null;
+  fechaFinalDefault?: string | null;
+  onAssigned?: (fechas: { fechaInicial: string; fechaFinal: string }) => void;
 }
 
 const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
@@ -66,7 +69,10 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
   onSuccess,
   idFicha,
   actividad,
-  actividades: actividadesProp
+  actividades: actividadesProp,
+  fechaInicialDefault,
+  fechaFinalDefault,
+  onAssigned
 }) => {
   const actividadesAAsignar = actividadesProp?.length ? actividadesProp : (actividad ? [actividad] : []);
   const [aprendices, setAprendices] = useState<Aprendiz[]>([]);
@@ -116,8 +122,8 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
     if (open) {
       setAprendicesSeleccionados([]);
       setGruposSeleccionados([]);
-      setFechaInicial('');
-      setFechaFinal('');
+      setFechaInicial((fechaInicialDefault || '').slice(0, 16));
+      setFechaFinal((fechaFinalDefault || '').slice(0, 16));
       setError('');
     }
   }, [open]);
@@ -217,6 +223,7 @@ const ModalAsignarActividad: React.FC<ModalAsignarActividadProps> = ({
         );
         return;
       }
+      onAssigned?.({ fechaInicial, fechaFinal });
       onSuccess?.('Actividad asignada correctamente');
       onSave();
       onClose();

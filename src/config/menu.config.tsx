@@ -7,6 +7,16 @@ export const MENU_SIDEBAR: TMenuConfig = [
     path: '/'
   },
   {
+    title: 'Planeación pedagógica',
+    icon: 'notepad-edit',
+    path: '/ambiente-virtual/planeacion-pedagogica',
+    requiredPermissions: [
+      'AULA_VIRTUAL_INSTRUCTOR_PLANEACION_PEDAGOGICA',
+      'AULA_VIRTUAL_INSTRUCTOR_HORARIO',
+      'AULA_VIRTUAL_INSTRUCTOR'
+    ]
+  },
+  {
     title: 'Horario',
     icon: 'calendar-tick',
     path: '/ambiente-virtual/horario',

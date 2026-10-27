@@ -4,7 +4,7 @@ import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
 import { useSnackbar } from 'notistack';
 import { ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
-import { Clock, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 
 interface HorarioDia {
   idDia: number;
@@ -75,17 +75,6 @@ export const HorariosMateria: React.FC<HorariosMateriaProps> = ({
   onGuardado,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
-
-  // Estados para estadísticas y proyección
-  const [estadisticas, setEstadisticas] = useState({
-    diasPorSemana: 0,
-    horasSemana: 0,
-    horasProgramadas: 0,
-    fechaFinEstimada: '',
-    sesionesPasadas: 0,
-    totalSesiones: 0,
-    sesionesRestantes: 0
-  });
 
   // Estados adicionales
   const [loadingDias, setLoadingDias] = useState(false);
@@ -511,25 +500,6 @@ const toggleDia = (index: number) => {
                 {errors.horarios && !Array.isArray(errors.horarios) && (
                   <p className="text-red-500 text-xs mt-1">{errors.horarios as string}</p>
                 )}
-              </div>
-
-              {/* Resumen de horas */}
-              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-3">
-                <h4 className="font-semibold text-sm flex items-center gap-2">
-                  <Clock size={16} className="text-primary" />
-                  Resumen y Proyección
-                </h4>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Días/Semana</span>
-                    <span className="font-bold text-lg">{estadisticas.diasPorSemana}</span>
-                  </div>
-                  <div className="p-2 bg-white dark:bg-coal-500 rounded border">
-                    <span className="text-gray-500 block">Horas/Semana</span>
-                    <span className="font-bold text-lg">{estadisticas.horasSemana} h</span>
-                  </div>
-                </div>
               </div>
 
               {/* Botones de acción */}
