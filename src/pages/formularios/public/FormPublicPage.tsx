@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import type { FormData } from '../builder/formBuilderTypes';
+import { esSoloNumeros, type FormData } from '../builder/formBuilderTypes';
+import { combinarOtro, otroSeleccionado, separarOtro } from './otraOpcion';
+import { EscarapelaCard, type EscarapelaDatos } from './EscarapelaCard';
+import { DescargarEscarapela } from './escarapelaExport';
+import { CampoArchivo, esPreguntaDeFoto } from './CampoArchivo';
+import MarcaVirtualT from './MarcaVirtualT';
+import LogoFormulario from './LogoFormulario';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -16,11 +22,7 @@ import {
   UserPlus,
   Layers,
   ArrowLeft,
-  Upload,
-  File,
-  FileText,
-  X,
-  Eye
+  X
 } from 'lucide-react';
 
 const FormPublicPage: React.FC = () => {
@@ -33,11 +35,19 @@ const FormPublicPage: React.FC = () => {
   const emailParam = searchParams.get('email') || '';
   const [form, setForm] = useState<FormData | null>(null);
   const [respuestas, setRespuestas] = useState<any[]>([]);
+  // Texto libre de las preguntas donde se eligió la opción "Otro"
+  const [otros, setOtros] = useState<{ [preguntaId: number | string]: string }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [validationErrors, setValidationErrors] = useState<number[]>([]);
+  // Preguntas de "dato único" cuyo valor ya registró otra persona
+  const [camposDuplicados, setCamposDuplicados] = useState<number[]>([]);
+  // Escarapela del inscrito cuando el formulario la entrega al registrarse
+  const [escarapela, setEscarapela] = useState<EscarapelaDatos | null>(null);
+  // Respuesta recién enviada y su llave: permiten corregirla en vez de crear otra
+  const [edicion, setEdicion] = useState<{ id: number; llave: string } | null>(null);
   const [uploadingFileId, setUploadingFileId] = useState<number | string | null>(null);
   const [filePreviews, setFilePreviews] = useState<{ [preguntaId: number | string]: { name: string; url: string }[] }>({});
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
@@ -49,6 +59,33 @@ const FormPublicPage: React.FC = () => {
   const [fileError, setFileError] = useState<string | null>(null);
   const [alertMsg, setAlertMsg] = useState<{ text: string; tipo: 'error' | 'info' } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ text: string; onConfirm: () => void } | null>(null);
+  
+  // Real-time Countdown Timer State
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  const formatDateSafe = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const str = String(dateStr).trim();
+    let d: Date;
+    if (str.includes('Z') || str.includes('+')) {
+      d = new Date(str);
+    } else {
+      const parts = str.split(/[- :T]/);
+      if (parts.length >= 5) {
+        d = new Date(
+          Number(parts[0]),
+          Number(parts[1]) - 1,
+          Number(parts[2]),
+          Number(parts[3]),
+          Number(parts[4])
+        );
+      } else {
+        d = new Date(str.replace(' ', 'T'));
+      }
+    }
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+  };
 
   const buildEmptyRespuestas = (preguntas: any[]) =>
     preguntas.map((q: any) => ({ idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' }));
@@ -93,13 +130,64 @@ const FormPublicPage: React.FC = () => {
     fetchForm();
   }, [slug]);
 
+  // Real-Time Expiration Countdown Effect
+  useEffect(() => {
+    if (!form || !form.fechaLimite || form.is_expired) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const calculateTimeLeft = () => {
+      const str = String(form.fechaLimite).trim();
+      let targetTime: number;
+      if (str.includes('Z') || str.includes('+')) {
+        targetTime = new Date(str).getTime();
+      } else {
+        const parts = str.split(/[- :T]/);
+        if (parts.length >= 5) {
+          targetTime = new Date(
+            Number(parts[0]),
+            Number(parts[1]) - 1,
+            Number(parts[2]),
+            Number(parts[3]),
+            Number(parts[4])
+          ).getTime();
+        } else {
+          targetTime = new Date(str.replace(' ', 'T')).getTime();
+        }
+      }
+      const now = new Date().getTime();
+      const difference = targetTime - now;
+
+      if (difference <= 0) {
+        setTimeLeft(null);
+        setForm(prev => prev ? { ...prev, is_expired: true, motivo_expiracion: 'expirado' } : null);
+      } else {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [form?.fechaLimite, form?.is_expired]);
+
   const entrarModoEdicion = () => {
     if (!form) return;
+    const otrosPrevios: { [preguntaId: number | string]: string } = {};
     const prefilled = form.preguntas.map((q: any) => {
       const matched = respuestaAnterior.find((r: any) => r.idPregunta === q.id);
-      return { idPregunta: q.id, valor: matched ? matched.valor : (q.tipo === 'casillas' ? [] : '') };
+      if (!matched) return { idPregunta: q.id, valor: q.tipo === 'casillas' ? [] : '' };
+      const { valor, detalle } = separarOtro(matched.valor, q.opciones || []);
+      if (detalle) otrosPrevios[q.id] = detalle;
+      return { idPregunta: q.id, valor };
     });
     setRespuestas(prefilled);
+    setOtros(otrosPrevios);
     setFilePreviews(buildFilePreviews(form.preguntas, respuestaAnterior));
     setYaInscrito(false);
     setModoEdicion(true);
@@ -120,24 +208,28 @@ const FormPublicPage: React.FC = () => {
     if (validationErrors.includes(idPregunta as number)) {
       setValidationErrors(prev => prev.filter(id => id !== idPregunta));
     }
+    if (camposDuplicados.includes(idPregunta as number)) {
+      setCamposDuplicados(prev => prev.filter(id => id !== idPregunta));
+    }
   };
 
   // Handle public multiple files upload
-  const handleMultipleFilesUpload = async (preguntaId: number | string, filesList: FileList) => {
-    const files = Array.from(filesList);
-    let accumulated = filePreviews[preguntaId] || [];
+  // `soloFoto`: pregunta de foto, admite una sola imagen y la nueva reemplaza a la anterior
+  const handleMultipleFilesUpload = async (preguntaId: number | string, filesList: FileList, soloFoto = false) => {
+    const files = soloFoto ? Array.from(filesList).slice(0, 1) : Array.from(filesList);
+    let accumulated = soloFoto ? [] : filePreviews[preguntaId] || [];
 
     for (const file of files) {
-      const allowedTypes = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/jpg',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
+      const imagenes = ['image/jpeg', 'image/png', 'image/jpg'];
+      const allowedTypes = soloFoto
+        ? imagenes
+        : [...imagenes, 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       if (!allowedTypes.includes(file.type)) {
-        setFileError(`El archivo "${file.name}" no es válido. Solo se permiten PDF, Word o imágenes (JPG, PNG).`);
+        setFileError(
+          soloFoto
+            ? `"${file.name}" no es una foto válida. Usa una imagen JPG o PNG.`
+            : `El archivo "${file.name}" no es válido. Solo se permiten PDF, Word o imágenes (JPG, PNG).`
+        );
         setTimeout(() => setFileError(null), 5000);
         continue;
       }
@@ -212,6 +304,7 @@ const FormPublicPage: React.FC = () => {
           valor: q.tipo === 'casillas' ? [] : ''
         })) || [];
         setRespuestas(clearedResp);
+        setOtros({});
         setValidationErrors([]);
       },
     });
@@ -239,6 +332,9 @@ const FormPublicPage: React.FC = () => {
           const resp = respuestas.find(r => r.idPregunta === q.id);
           if (!resp || !resp.valor || (Array.isArray(resp.valor) && resp.valor.length === 0)) {
             errors.push(q.id as number);
+          } else if (otroSeleccionado(resp.valor) && !(otros[q.id!] || '').trim()) {
+            // Eligió "Otro" pero no escribió cuál
+            errors.push(q.id as number);
           }
         }
       }
@@ -262,16 +358,22 @@ const FormPublicPage: React.FC = () => {
       const postParams: Record<string, string> = {};
       if (isEmbed) { postParams.embed = 'true'; if (emailParam) postParams.email = emailParam; }
 
-      await axios.post(
+      const respuestasEnviadas = respuestas.map(r => ({ ...r, valor: combinarOtro(r.valor, otros[r.idPregunta] || '') }));
+      const envio = await axios.post(
         `formulario-publico/${slug}/responder`,
         {
-          respuestas,
+          respuestas: respuestasEnviadas,
           ...(isEmbed ? { embed: true } : {}),
           ...(isEmbed && emailParam ? { nexiEmail: emailParam } : {}),
           ...(modoEdicion ? { forzar_actualizacion: true } : {}),
+          ...(modoEdicion && edicion ? { idRespuesta: edicion.id, llaveEdicion: edicion.llave } : {}),
         },
         { params: postParams },
       );
+
+      // Lo enviado queda listo para "Editar mi respuesta"
+      setRespuestaAnterior(respuestasEnviadas);
+      if (envio.data?.edicion) setEdicion(envio.data.edicion);
 
       // Si el formulario se abrió desde un evento, inscribir automáticamente al usuario
       if (fromEventId) {
@@ -282,11 +384,23 @@ const FormPublicPage: React.FC = () => {
         }
       }
 
+      // Formulario con escarapela al registrarse: se muestra con su QR
+      const codigoEscarapela = envio.data?.escarapela?.codigo;
+      if (codigoEscarapela) {
+        try {
+          setEscarapela((await axios.get(`escarapela/${codigoEscarapela}`)).data);
+        } catch (escErr) {
+          console.error('No se pudo cargar la escarapela:', escErr);
+        }
+      }
+
       setModoEdicion(false);
       setEnviado(true);
       window.scrollTo(0, 0);
       if (isEmbed) {
-        window.parent.postMessage({ type: 'nexiservice:form-submitted' }, '*');
+        // `escarapela` (su código) le dice a la página que incrusta el formulario que no
+        // lo cierre todavía y le permite ofrecer la descarga después
+        window.parent.postMessage({ type: 'nexiservice:form-submitted', escarapela: codigoEscarapela || null }, '*');
       }
     } catch (err: any) {
       if (err.response?.status === 409 && err.response?.data?.ya_inscrito) {
@@ -303,6 +417,13 @@ const FormPublicPage: React.FC = () => {
         }
         setEnviando(false);
         return;
+      }
+      // Pregunta marcada como "dato único" cuyo valor ya registró otra persona
+      const duplicados: number[] = err.response?.status === 422 ? (err.response?.data?.campos_duplicados || []) : [];
+      if (duplicados.length > 0) {
+        setValidationErrors(duplicados);
+        setCamposDuplicados(duplicados);
+        document.getElementById(`question-${duplicados[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       setAlertMsg({ text: err.response?.data?.error || 'Error al enviar formulario. Por favor, inténtalo de nuevo.', tipo: 'error' });
     } finally {
@@ -352,6 +473,104 @@ const FormPublicPage: React.FC = () => {
   }
 
   if (!form) return null;
+
+  if (form.is_expired && !modoEdicion) {
+    const getExpiracionTitulo = () => {
+      switch (form.motivo_expiracion) {
+        case 'no_iniciado': return 'Inscripciones Aún No Abiertas';
+        case 'expirado': return 'Formulario Expirado';
+        case 'limite_alcanzado': return 'Cupos Llenos / Límite Alcanzado';
+        case 'pausado': return 'Formulario Pausado';
+        case 'borrador': return 'Formulario en Borrador';
+        default: return 'Formulario No Disponible';
+      }
+    };
+
+    const getExpiracionMensaje = () => {
+      if (form.mensajeCierre) return form.mensajeCierre;
+      switch (form.motivo_expiracion) {
+        case 'no_iniciado':
+          return `Las respuestas para este formulario abrirán a partir del ${formatDateSafe(form.fechaInicio) || 'próximamente'}.`;
+        case 'expirado':
+          return `El periodo de respuestas para este formulario finalizó el ${formatDateSafe(form.fechaLimite) || 'recientemente'}.`;
+        case 'limite_alcanzado':
+          return 'Se ha alcanzado el límite máximo de cupos/respuestas permitidas para este formulario.';
+        case 'pausado':
+          return 'El organizador ha pausado temporalmente la recepción de respuestas para este formulario.';
+        case 'borrador':
+          return 'Este formulario se encuentra actualmente en borrador y no está publicado.';
+        default:
+          return 'Este formulario no se encuentra disponible actualmente.';
+      }
+    };
+
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
+        <div 
+          className="bg-white dark:bg-neutral-900 p-10 md:p-14 rounded-[2.5rem] shadow-2xl border border-neutral-100 dark:border-white/5 w-full max-w-lg text-center flex flex-col items-center gap-6 overflow-hidden relative"
+          style={{ borderTop: `10px solid ${form.colorTema || '#f59e0b'}` }}
+        >
+          <div className="w-20 h-20 bg-orange-500/10 text-orange-500 rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-500/10">
+            <Clock className="w-10 h-10 animate-pulse" />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 w-fit mx-auto border border-orange-500/20">
+              {getExpiracionTitulo()}
+            </span>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white mt-1">
+              {form.titulo || 'Formulario sin título'}
+            </h1>
+          </div>
+
+          {form.mensajeCierre ? (
+            <div className="w-full p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold leading-relaxed text-center shadow-sm">
+              💬 "{form.mensajeCierre}"
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold leading-relaxed max-w-md">
+              {getExpiracionMensaje()}
+            </p>
+          )}
+
+          {(form.fechaInicio || form.fechaLimite) && (
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-150 dark:border-white/5 text-left">
+              {form.fechaInicio && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-emerald-500" /> Fecha Apertura
+                  </span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">
+                    {formatDateSafe(form.fechaInicio)}
+                  </span>
+                </div>
+              )}
+              {form.fechaLimite && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-neutral-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-rose-500" /> Fecha Expiración
+                  </span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">
+                    {formatDateSafe(form.fechaLimite)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-center w-full mt-2">
+            <button
+              onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
+              className="py-4 px-8 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-black uppercase tracking-widest text-[9px] rounded-2xl transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver a la Página Principal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (yaInscrito) {
     return (
@@ -422,44 +641,73 @@ const FormPublicPage: React.FC = () => {
 
   if (enviado) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-neutral-950 p-4">
+      // `m-auto` en el hijo (y no `items-center` aquí) centra cuando cabe y deja
+      // hacer scroll desde arriba cuando no: dentro de un modal bajito,
+      // `items-center` recortaba el encabezado sin poder subir hasta él.
+      <div className="min-h-screen w-full flex bg-slate-50 dark:bg-neutral-950 p-3 sm:p-4">
+       <div className={`m-auto w-full flex flex-col gap-4 ${escarapela ? 'max-w-3xl' : 'max-w-lg'}`}>
         <div
-          className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-2xl border border-neutral-100 dark:border-white/5 w-full max-w-lg text-center overflow-hidden"
-          style={{ borderTop: `10px solid ${form.colorTema}` }}
+          className="bg-white dark:bg-neutral-900 rounded-[2rem] shadow-2xl border border-neutral-100 dark:border-white/5 w-full text-center overflow-hidden"
+          style={{ borderTop: `8px solid ${form.colorTema}` }}
         >
-          <div className="p-10 md:p-16 flex flex-col items-center gap-6">
+          {/* Con escarapela: texto y acciones a un lado, escarapela al otro, para que todo quepa sin scroll */}
+          <div className={`flex items-center gap-6 ${escarapela ? 'flex-col min-[600px]:flex-row p-5 sm:p-7' : 'flex-col p-8 md:p-12'}`}>
+           <div className="flex-1 min-w-0 flex flex-col items-center gap-4">
             <div
-              className="w-20 h-20 rounded-[2rem] flex items-center justify-center mb-2 shadow-lg shadow-black/5 animate-pulse"
+              className={`rounded-3xl flex items-center justify-center shadow-lg shadow-black/5 ${escarapela ? 'w-14 h-14' : 'w-20 h-20'}`}
               style={{ backgroundColor: `${form.colorTema}10`, color: form.colorTema }}
             >
-              <CheckCircle2 className="w-10 h-10" />
+              <CheckCircle2 className={escarapela ? 'w-7 h-7' : 'w-10 h-10'} />
             </div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white">{form.titulo}</h1>
-            <h2 className="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">¡Registro Exitoso!</h2>
-            <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed">Tu respuesta ha sido registrada y guardada con éxito en nuestra plataforma educativa.</p>
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">¡Registro Exitoso!</h2>
+              <h1 className={`font-black uppercase tracking-tight text-neutral-800 dark:text-white break-words ${escarapela ? 'text-lg' : 'text-2xl'}`}>{form.titulo}</h1>
+            </div>
+            <p className="text-xs text-neutral-450 dark:text-neutral-400 font-semibold leading-relaxed">
+              {escarapela
+                ? 'Tu inscripción quedó registrada. Esta es tu escarapela: descárgala y preséntala en el ingreso.'
+                : 'Tu respuesta ha sido registrada y guardada con éxito.'}
+            </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full mt-4 justify-center">
-              {!form.requiereAutenticacion && !isEmbed && (
+            {escarapela && <DescargarEscarapela datos={escarapela} />}
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full justify-center empty:hidden">
+              {!isEmbed && edicion && (
                 <button
-                  className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
+                  className="text-white font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                   style={{ backgroundColor: form.colorTema, boxShadow: `0 10px 15px -3px ${form.colorTema}35` }}
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    setEnviado(false);
+                    entrarModoEdicion();
+                    window.scrollTo(0, 0);
+                  }}
                 >
-                  Enviar otra respuesta
-                </button>
-              )}
-              {!isEmbed && (
-                <button
-                  className="text-neutral-700 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 font-black uppercase tracking-widest text-[9px] py-4 px-8 rounded-2xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  onClick={() => navigate('/', { state: { openEventId: fromEventId } })}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Volver al Dashboard</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Editar mi respuesta
                 </button>
               )}
             </div>
+
+            {/* En dos columnas el sello va aquí, donde sobra alto, para verse sin scroll */}
+            {escarapela && (
+              <div className="hidden min-[600px]:block scale-[0.82] -my-1">
+                <MarcaVirtualT compacta />
+              </div>
+            )}
+           </div>
+
+           {escarapela && (
+             <div className="shrink-0 w-full max-w-[250px]">
+               <EscarapelaCard datos={escarapela} compacta />
+             </div>
+           )}
           </div>
         </div>
+
+        <div className={escarapela ? 'min-[600px]:hidden' : ''}>
+          <MarcaVirtualT compacta />
+        </div>
+       </div>
       </div>
     );
   }
@@ -537,8 +785,8 @@ const FormPublicPage: React.FC = () => {
       {/* Centered content column */}
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-28">
         
-        {/* Back Button */}
-        {!isEmbed && (
+        {/* Volver al evento: solo si se abrió desde un evento dentro del ERP; en el enlace compartido no hay a dónde volver */}
+        {!isEmbed && fromEventId && (
           <button
             type="button"
             onClick={() => {
@@ -547,8 +795,51 @@ const FormPublicPage: React.FC = () => {
             className="group mb-6 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-white/5 text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest text-[9px] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-fit cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 group-hover:-translate-x-1 transition-transform" />
-            <span>Volver al Dashboard</span>
+            <span>Volver</span>
           </button>
+        )}
+
+        {/* Real-time Expiration Countdown Banner */}
+        {timeLeft && !form.is_expired && (
+          <div className="w-full bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/15 border border-orange-500/30 dark:border-orange-500/20 p-5 rounded-[2rem] mb-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md animate-fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                  ⚡ Vigencia de Inscripción Activa
+                </span>
+                <span className="text-xs font-bold text-neutral-800 dark:text-white">
+                  Este formulario vencerá en:
+                </span>
+              </div>
+            </div>
+
+            {/* Countdown Units */}
+            <div className="flex items-center gap-2 font-mono">
+              {timeLeft.days > 0 && (
+                <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                  <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.days).padStart(2, '0')}</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Días</span>
+                </div>
+              )}
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.hours).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Horas</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl animate-pulse">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-orange-600 dark:text-orange-400">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Min</span>
+              </div>
+              <span className="text-orange-500 font-black text-xl animate-pulse">:</span>
+              <div className="flex flex-col items-center bg-white dark:bg-neutral-900 border border-orange-500/20 px-3.5 py-2 rounded-2xl shadow-sm min-w-[50px]">
+                <span className="text-base font-black text-rose-500">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-neutral-400">Seg</span>
+              </div>
+            </div>
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -558,13 +849,17 @@ const FormPublicPage: React.FC = () => {
             style={{ borderTop: `10px solid ${form.colorTema}` }}
           >
             <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-10" style={{ backgroundColor: form.colorTema }} />
-            
-            {/* Dynamic Banner Header */}
-            <div className={`flex items-center gap-4 p-6 rounded-[2rem] bg-gradient-to-br ${headerMeta.bg} border border-neutral-100/10 dark:border-white/5 mb-8 shadow-inner`}>
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center bg-white dark:bg-coal-300 shadow-lg ${headerMeta.textColor}`}>
-                {headerMeta.icon}
-              </div>
-              <div>
+
+            {/* Dynamic Banner Header: con logo, este ocupa el lugar del ícono */}
+            <div className={`flex flex-wrap items-center gap-4 p-6 rounded-[2rem] bg-gradient-to-br ${headerMeta.bg} border border-neutral-100/10 dark:border-white/5 mb-8 shadow-inner`}>
+              {form.imagenCabecera ? (
+                <LogoFormulario url={form.imagenCabecera} color={form.colorTema} />
+              ) : (
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center bg-white dark:bg-coal-300 shadow-lg ${headerMeta.textColor}`}>
+                  {headerMeta.icon}
+                </div>
+              )}
+              <div className="min-w-0">
                 <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/80 dark:bg-neutral-800 shadow-sm ${headerMeta.textColor}`}>
                   {headerMeta.label}
                 </span>
@@ -655,10 +950,11 @@ const FormPublicPage: React.FC = () => {
                           ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
                           : 'bg-neutral-50 dark:bg-neutral-800/40 border-neutral-250 dark:border-neutral-700 text-neutral-700 dark:text-white'
                       }`}
-                      placeholder="Escribe tu respuesta corta..."
+                      placeholder={esSoloNumeros(q) ? 'Solo números...' : 'Escribe tu respuesta corta...'}
+                      inputMode={esSoloNumeros(q) ? 'numeric' : undefined}
                       value={resp?.valor || ''}
                       readOnly={isLocked}
-                      onChange={(e) => !isLocked && handleChange(q.id!, e.target.value)}
+                      onChange={(e) => !isLocked && handleChange(q.id!, esSoloNumeros(q) ? e.target.value.replace(/\D/g, '') : e.target.value)}
                       onFocus={(e) => {
                         if (!isLocked) { e.target.style.borderColor = form.colorTema; e.target.style.boxShadow = `0 0 0 4px ${form.colorTema}20`; }
                       }}
@@ -807,6 +1103,23 @@ const FormPublicPage: React.FC = () => {
                     </div>
                   )}
 
+                  {/* OTRO: campo para escribir la respuesta cuando se elige la opción "Otro" */}
+                  {['opcion_multiple', 'casillas', 'desplegable'].includes(q.tipo) && otroSeleccionado(resp?.valor) && (
+                    <input
+                      type="text"
+                      autoFocus
+                      className="mt-4 w-full max-w-md border px-5 py-4 text-xs font-semibold rounded-2xl outline-none transition-all bg-neutral-50 dark:bg-neutral-800/40 border-neutral-250 dark:border-neutral-700 text-neutral-700 dark:text-white"
+                      placeholder="Escribe cuál..."
+                      value={otros[q.id!] || ''}
+                      onChange={(e) => {
+                        setOtros(prev => ({ ...prev, [q.id!]: e.target.value }));
+                        if (isError) setValidationErrors(prev => prev.filter(id => id !== q.id));
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = form.colorTema; e.target.style.boxShadow = `0 0 0 4px ${form.colorTema}20`; }}
+                      onBlur={(e) => { e.target.style.borderColor = ''; e.target.style.boxShadow = ''; }}
+                    />
+                  )}
+
                            {q.tipo === 'fecha' && (
                     <div 
                       className="flex items-center gap-3 bg-neutral-50 dark:bg-coal-400 px-5 py-4 rounded-2xl w-full max-w-xs border border-neutral-250 dark:border-coal-200 transition-all"
@@ -859,80 +1172,23 @@ const FormPublicPage: React.FC = () => {
                   )}
                   {/* ARCHIVO */}
                   {q.tipo === 'archivo' && (
-                    <div className="mt-2 w-full max-w-md flex flex-col gap-4">
-                      {(() => {
-                        const files = filePreviews[q.id!] || [];
-                        return (
-                          <>
-                            {files.length > 0 && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {files.map((fileInfo, idx) => {
-                                  const isImage = /\.(jpeg|jpg|gif|png|webp)/i.test(fileInfo.url);
-                                  const isWord = /\.(doc|docx)$/i.test(fileInfo.url);
-                                  return (
-                                    <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-white/5 shadow-inner">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div 
-                                          className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center border border-neutral-200/20 ${isImage ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                                          onClick={() => isImage && setActiveLightboxUrl(fileInfo.url)}
-                                        >
-                                          {isImage ? (
-                                            <img src={fileInfo.url} alt="Archivo" className="w-full h-full object-cover" />
-                                          ) : isWord ? (
-                                            <FileText className="w-5 h-5 text-blue-500" />
-                                          ) : (
-                                            <File className="w-5 h-5 text-rose-500" />
-                                          )}
-                                        </div>
-                                        <div className="min-w-0">
-                                          <h4 className="text-xs font-bold text-neutral-800 dark:text-white truncate max-w-[100px]">{fileInfo.name}</h4>
-                                          <a href={fileInfo.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1 mt-1">
-                                            <Eye className="w-3 h-3" /> Ver
-                                          </a>
-                                        </div>
-                                      </div>
-                                      <button 
-                                        type="button"
-                                        onClick={() => handleRemoveFile(q.id!, idx)}
-                                        className="w-8 h-8 rounded-full hover:bg-rose-500/10 hover:text-rose-500 flex items-center justify-center transition-colors shrink-0"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-neutral-300 dark:border-coal-100 rounded-2xl cursor-pointer hover:border-indigo-500 transition-colors">
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept=".pdf,.doc,.docx,image/*"
-                                multiple
-                                onChange={(e) => e.target.files && handleMultipleFilesUpload(q.id!, e.target.files)}
-                                disabled={uploadingFileId === q.id!}
-                              />
-                              <div className="w-10 h-10 rounded-full bg-neutral-50 dark:bg-neutral-800/50 flex items-center justify-center mb-2">
-                                {uploadingFileId === q.id! ? (
-                                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                  <Upload className="w-4 h-4 text-neutral-450" />
-                                )}
-                              </div>
-                              <span className="text-xs font-bold text-neutral-850 dark:text-neutral-250">Seleccionar archivos</span>
-                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-widest mt-1">PDF, Word o Imagen (Máx 20MB)</span>
-                            </label>
-                            {fileError && (
-                              <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
-                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                                <span>{fileError}</span>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
+                    <>
+                      <CampoArchivo
+                        titulo={q.titulo}
+                        archivos={filePreviews[q.id!] || []}
+                        subiendo={uploadingFileId === q.id!}
+                        color={form.colorTema}
+                        onSubir={(archivos) => handleMultipleFilesUpload(q.id!, archivos, esPreguntaDeFoto(q.titulo))}
+                        onQuitar={(indice) => handleRemoveFile(q.id!, indice)}
+                        onVer={setActiveLightboxUrl}
+                      />
+                      {fileError && (
+                        <div className="mt-3 max-w-md flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold">
+                          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span>{fileError}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -940,7 +1196,11 @@ const FormPublicPage: React.FC = () => {
                 {isError && (
                   <div className="flex items-center gap-2 mt-4 text-rose-500 animate-bounce-short">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Esta pregunta es obligatoria</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {camposDuplicados.includes(q.id as number)
+                        ? 'Este dato ya fue registrado. Ingresa uno diferente'
+                        : otroSeleccionado(resp?.valor) ? 'Escribe cuál es tu respuesta' : 'Esta pregunta es obligatoria'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -990,17 +1250,7 @@ const FormPublicPage: React.FC = () => {
         </form>
 
         {/* Footer Branding */}
-        <div className="text-center pb-12 mt-8 flex flex-col items-center gap-1.5 opacity-80">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/10 via-yellow-500/15 to-amber-500/10 border border-amber-500/20 backdrop-blur-md shadow-[0_4px_12px_rgba(245,158,11,0.05)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-200 text-transparent bg-clip-text">
-              Creado con VirtualT
-            </h4>
-          </div>
-          <p className="text-[7.5px] font-black uppercase tracking-[0.25em] text-amber-500/50">
-            Sistema avanzado de gestión educativa
-          </p>
-        </div>
+        <MarcaVirtualT />
       </div>
 
       {/* Confirm dialog estilizado — reemplaza window.confirm() */}

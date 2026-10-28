@@ -16,6 +16,7 @@ type PropsCompetencia = {
   onSuccess?: () => void;
   idMateriaPadre?: number;
   idFicha?: number;
+  esGrado?: boolean;
 };
 
 type AreaConocimiento = {
@@ -32,7 +33,8 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
   // estos 3 props son para crear rap
   idGradoPrograma,
   idMateriaPadre,
-  idFicha
+  idFicha,
+  esGrado = false
 }) => {
   const [areasConocimientos, setAreasConocimientos] = useState<AreaConocimiento[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,7 +108,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         idAreaConocimiento: data.idAreaConocimiento || null,
         descripcion: data.descripcion || '',
         creditos: data.creditos || 0,
-        idCompany: empresa.id,
+        idCompany: empresa?.id ?? null,
         idMateriaPadre: data.idMateriaPadre || null,
         codigo: data.codigo || '',
         idFicha: data.idFicha || null
@@ -127,7 +129,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
         nombreMateria: values.nombreMateria.toLocaleUpperCase(),
         idAreaConocimiento: values.idAreaConocimiento,
         descripcion: values.descripcion ? values.descripcion.toLocaleUpperCase() : '',
-        idCompany: empresa.id,
+        idCompany: empresa?.id ?? null,
         idFicha: idFicha,
         idGradoPrograma: idGradoPrograma,
         creditos: values.creditos,
@@ -156,7 +158,10 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
           formik.setFieldError(key, backendErrors[key][0]);
         });
       } else {
-        formik.setFieldError('nombreMateria', 'Error al guardar la competencia');
+        formik.setFieldError(
+          'nombreMateria',
+          error.response?.data?.message || 'Error al guardar la materia'
+        );
       }
     } finally {
       setLoading(false);
@@ -205,7 +210,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
               {/* Nombre de la competencia */}
               <div className="space-y-1.5">
                 <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
-                  Nombre {formik.values.idMateriaPadre ? 'del RAP' : 'competencia'} <span className="text-red-500">*</span>
+                  Nombre {esGrado ? 'de la materia' : formik.values.idMateriaPadre ? 'del RAP' : 'competencia'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -222,6 +227,11 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
                 {formik.touched.nombreMateria && formik.errors.nombreMateria && (
                   <p className="text-xs text-red-500 ml-1 mt-1 font-semibold">
                     {formik.errors.nombreMateria}
+                  </p>
+                )}
+                {esGrado && (
+                  <p className="text-xs text-gray-500 ml-1">
+                    Esta materia queda solo en este grado.
                   </p>
                 )}
               </div>
@@ -269,7 +279,7 @@ export const FormCompetencia: React.FC<PropsCompetencia> = ({
               </div>
 
             {/* Área de conocimiento */}
-            {!idMateriaPadre && !idFicha && !idGradoPrograma && 
+            {!idMateriaPadre && !esGrado && 
               <div className="space-y-1.5">
                 <label className="text-4xs font-black uppercase ml-1 text-gray-500 dark:text-gray-400">
                   Área de conocimiento

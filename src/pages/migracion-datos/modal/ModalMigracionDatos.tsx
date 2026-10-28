@@ -91,7 +91,7 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
       console.error('Error en migración:', error);
 
       enqueueSnackbar(
-        error.response?.data?.message || 'Error en la carga o ejecución',
+        error.response?.data?.error || error.response?.data?.message || 'Error en la carga o ejecución',
         { variant: 'error' }
       );
     }
