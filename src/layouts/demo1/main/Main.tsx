@@ -48,7 +48,7 @@ const Main = () => {
   return (
     <Fragment>
       <Helmet>
-        <title>{menuItem?.title}</title>
+        <title>{menuItem?.title ? `${menuItem.title} · School` : 'School · Virtual Technology'}</title>
       </Helmet>
 
       <div className="flex grow">

@@ -220,7 +220,7 @@ const ModalReemplazo = ({ open, onClose, data, onSave }: ModalProps) => {
                       <span className="font-medium">{option.label}</span>
                       <span className="text-xs text-gray-500">CC: {option.identificacion}</span>
                       <span className="text-xs text-green-600">
-                        💰{' '}
+                       {' '}
                         {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP'
@@ -253,7 +253,7 @@ const ModalReemplazo = ({ open, onClose, data, onSave }: ModalProps) => {
                       <span className="font-medium">{option.label}</span>
                       <span className="text-xs text-gray-500">CC: {option.identificacion}</span>
                       <span className="text-xs text-green-600">
-                        💰{' '}
+                       {' '}
                         {new Intl.NumberFormat('es-CO', {
                           style: 'currency',
                           currency: 'COP'

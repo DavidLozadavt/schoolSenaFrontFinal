@@ -748,7 +748,7 @@ const LyraAssistant = () => {
                     </div>
                 </div>
 
-                {voiceError && (<div className="flex-shrink-0 mx-3 mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">⚠️ {voiceError}</div>)}
+                {voiceError && (<div className="flex-shrink-0 mx-3 mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400"> {voiceError}</div>)}
 
                 {/* Messages */}
                 <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-5 scrollbar-hide bg-gradient-to-b from-gray-50/50 to-white/90 dark:from-[#111119] dark:to-[#151521] relative">
@@ -900,7 +900,7 @@ const LyraAssistant = () => {
                         <input
                             type="text"
                             data-no-uppercase
-                            placeholder={!isPoweredOn ? 'Asistente desconectado' : isListening ? '🎙️ Escuchando tu voz...' : 'Escribe tu mensaje...'}
+                            placeholder={!isPoweredOn ? 'Asistente desconectado' : isListening ? 'Escuchando tu voz...' : 'Escribe tu mensaje...'}
                             className={clsx(
                                 "w-full bg-transparent text-[15px] outline-none transition-all placeholder:font-medium",
                                 !isPoweredOn ? "text-gray-400 cursor-not-allowed" : isListening ? "text-red-500 dark:!text-red-400 font-bold placeholder:text-red-500 dark:placeholder-red-400" : "text-gray-800 dark:!text-white placeholder-gray-500 dark:placeholder-gray-300"

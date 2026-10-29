@@ -154,7 +154,7 @@ const ModalProductos = ({ open, almacen, onClose }: Props) => {
       onClose();
     } catch (error: any) {
       console.error('ERROR AL ENVIAR =====>', error?.response?.data || error);
-      alert(error?.response?.data?.message || '❌ Error al enviar productos');
+      alert(error?.response?.data?.message || 'Error al enviar productos');
     } finally {
       setLoading(false);
     }

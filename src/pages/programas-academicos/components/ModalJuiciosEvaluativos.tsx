@@ -152,7 +152,7 @@ const ModalJuiciosEvaluativos: React.FC<ModalProps> = ({
                 `}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <span className="text-2xl">{formik.values.archivo ? '📊' : '📄'}</span>
+                  <KeenIcon icon={formik.values.archivo ? 'chart' : 'document'} className="text-2xl" />
                   <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                     {formik.values.archivo
                       ? formik.values.archivo.name

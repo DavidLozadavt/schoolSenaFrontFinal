@@ -76,7 +76,7 @@ const FormBuilderPage: React.FC = () => {
     switch (templateId) {
       case 'satisfaccion':
         templateData = {
-          titulo: '🌟 Encuesta de Satisfacción de Usuario',
+          titulo: 'Encuesta de Satisfacción de Usuario',
           descripcion: '¡Tu opinión es sumamente valiosa para nosotros! Por favor, tómate unos minutos para evaluar tu experiencia y ayudarnos a perfeccionar continuamente la calidad de nuestros servicios y procesos académicos.',
           colorTema: '#10b981', // Emerald Green
           estado: 'borrador',
@@ -85,45 +85,45 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-1`, 
               tipo: 'escala_lineal', 
-              titulo: '⭐ ¿Qué tan satisfecho estás con la atención recibida por nuestro personal?', 
+              titulo: '¿Qué tan satisfecho estás con la atención recibida por nuestro personal?', 
               descripcion: 'Califica de 1 a 5 tu interacción en general con nuestro equipo.',
               esObligatoria: true, 
               orden: 1, 
-              configuracion: { min: 1, max: 5, minLabel: 'Muy insatisfecho 😞', maxLabel: 'Excelente servicio 😄' }, 
+              configuracion: { min: 1, max: 5, minLabel: 'Muy insatisfecho', maxLabel: 'Excelente servicio' }, 
               opciones: [] 
             },
             { 
               id: `q-2`, 
               tipo: 'opcion_multiple', 
-              titulo: '✨ ¿Recomendarías nuestros programas o servicios a un amigo o colega?', 
+              titulo: '¿Recomendarías nuestros programas o servicios a un amigo o colega?', 
               descripcion: 'Tu recomendación es el reflejo de nuestro compromiso.',
               esObligatoria: true, 
               orden: 2, 
               opciones: [
-                { id: 'o1', texto: 'Sí, definitivamente 💖', orden: 1 }, 
-                { id: 'o2', texto: 'Probablemente sí 👍', orden: 2 }, 
-                { id: 'o3', texto: 'Tal vez, con ciertas mejoras 🤔', orden: 3 },
-                { id: 'o4', texto: 'No, por el momento ❌', orden: 4 }
+                { id: 'o1', texto: 'Sí, definitivamente', orden: 1 }, 
+                { id: 'o2', texto: 'Probablemente sí', orden: 2 }, 
+                { id: 'o3', texto: 'Tal vez, con ciertas mejoras', orden: 3 },
+                { id: 'o4', texto: 'No, por el momento', orden: 4 }
               ] 
             },
             { 
               id: `q-3`, 
               tipo: 'casillas', 
-              titulo: '🛠️ ¿Qué aspectos de nuestro servicio destacarías positivamente? (Selecciona todas las opciones aplicables)', 
+              titulo: '¿Qué aspectos de nuestro servicio destacarías positivamente? (Selecciona todas las opciones aplicables)', 
               descripcion: 'Selecciona las áreas donde sientas que sobresalimos.',
               esObligatoria: false, 
               orden: 3, 
               opciones: [
-                { id: 'o5', texto: 'Amabilidad, respeto y trato profesional del personal 👤', orden: 1 }, 
-                { id: 'o6', texto: 'Rapidez de respuesta y solución efectiva de dudas ⚡', orden: 2 }, 
-                { id: 'o7', texto: 'Calidad, estructura y utilidad del servicio formativo 💎', orden: 3 }, 
-                { id: 'o8', texto: 'Comodidad, tecnología y accesibilidad de las instalaciones 🏢', orden: 4 }
+                { id: 'o5', texto: 'Amabilidad, respeto y trato profesional del personal', orden: 1 }, 
+                { id: 'o6', texto: 'Rapidez de respuesta y solución efectiva de dudas', orden: 2 }, 
+                { id: 'o7', texto: 'Calidad, estructura y utilidad del servicio formativo', orden: 3 }, 
+                { id: 'o8', texto: 'Comodidad, tecnología y accesibilidad de las instalaciones', orden: 4 }
               ] 
             },
             { 
               id: `q-4`, 
               tipo: 'texto_largo', 
-              titulo: '💬 ¿Tienes alguna sugerencia específica o comentario adicional para mejorar?', 
+              titulo: '¿Tienes alguna sugerencia específica o comentario adicional para mejorar?', 
               descripcion: 'Tu feedback es el motor que impulsa nuestro crecimiento continuo.',
               esObligatoria: false, 
               orden: 4, 
@@ -134,7 +134,7 @@ const FormBuilderPage: React.FC = () => {
         break;
       case 'evaluacion':
         templateData = {
-          titulo: '📊 Evaluación y Feedback de Evento',
+          titulo: 'Evaluación y Feedback de Evento',
           descripcion: '¡Muchas gracias por acompañarnos en este evento! Te agradecemos de corazón que completes esta breve evaluación académica y logística, la cual nos permitirá seguir diseñando espacios de formación de altísimo impacto para ti.',
           colorTema: '#3b82f6', // Bright Blue
           estado: 'borrador',
@@ -143,45 +143,45 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-1`, 
               tipo: 'opcion_multiple', 
-              titulo: '🎯 ¿El contenido expuesto en el evento cumplió con tus expectativas iniciales?', 
+              titulo: '¿El contenido expuesto en el evento cumplió con tus expectativas iniciales?', 
               descripcion: 'Indica si los temas abordados se alinearon con los objetivos propuestos.',
               esObligatoria: true, 
               orden: 1, 
               opciones: [
-                { id: 'o1', texto: 'Totalmente de acuerdo ⭐⭐⭐⭐⭐', orden: 1 }, 
-                { id: 'o2', texto: 'De acuerdo ⭐⭐⭐', orden: 2 }, 
-                { id: 'o3', texto: 'En desacuerdo ⭐⭐', orden: 3 },
-                { id: 'o4', texto: 'Totalmente en desacuerdo ⭐', orden: 4 }
+                { id: 'o1', texto: 'Totalmente de acuerdo', orden: 1 }, 
+                { id: 'o2', texto: 'De acuerdo', orden: 2 }, 
+                { id: 'o3', texto: 'En desacuerdo', orden: 3 },
+                { id: 'o4', texto: 'Totalmente en desacuerdo', orden: 4 }
               ] 
             },
             { 
               id: `q-2`, 
               tipo: 'escala_lineal', 
-              titulo: '⏱️ ¿Cómo calificarías la organización logística y el cumplimiento del cronograma?', 
+              titulo: '¿Cómo calificarías la organización logística y el cumplimiento del cronograma?', 
               descripcion: 'Valora la puntualidad de los ponentes, la fluidez técnica y el soporte del evento.',
               esObligatoria: true, 
               orden: 2, 
-              configuracion: { min: 1, max: 5, minLabel: 'Logística deficiente ⚠️', maxLabel: 'Logística impecable 💯' }, 
+              configuracion: { min: 1, max: 5, minLabel: 'Logística deficiente', maxLabel: 'Logística impecable' }, 
               opciones: [] 
             },
             { 
               id: `q-3`, 
               tipo: 'casillas', 
-              titulo: '💡 ¿Qué módulos o dinámicas te resultaron más útiles e interesantes?', 
+              titulo: '¿Qué módulos o dinámicas te resultaron más útiles e interesantes?', 
               descripcion: 'Puedes marcar varias opciones según tu experiencia en la jornada.',
               esObligatoria: false, 
               orden: 3, 
               opciones: [
-                { id: 'o5', texto: 'Conferencias magistrales y ponencias teóricas 🎙️', orden: 1 }, 
-                { id: 'o6', texto: 'Talleres prácticos, laboratorios e interacción en vivo 💻', orden: 2 }, 
-                { id: 'o7', texto: 'Espacio participativo de debate, preguntas y respuestas 🗣️', orden: 3 }, 
-                { id: 'o8', texto: 'Material didáctico interactivo, diapositivas y guías de apoyo 📄', orden: 4 }
+                { id: 'o5', texto: 'Conferencias magistrales y ponencias teóricas', orden: 1 }, 
+                { id: 'o6', texto: 'Talleres prácticos, laboratorios e interacción en vivo', orden: 2 }, 
+                { id: 'o7', texto: 'Espacio participativo de debate, preguntas y respuestas', orden: 3 }, 
+                { id: 'o8', texto: 'Material didáctico interactivo, diapositivas y guías de apoyo', orden: 4 }
               ] 
             },
             { 
               id: `q-4`, 
               tipo: 'texto_largo', 
-              titulo: '🚀 ¿Qué temáticas adicionales o áreas de interés te gustaría que abordáramos en próximos eventos?', 
+              titulo: '¿Qué temáticas adicionales o áreas de interés te gustaría que abordáramos en próximos eventos?', 
               descripcion: 'Escribe libremente los temas académicos o tecnológicos de tu preferencia.',
               esObligatoria: false, 
               orden: 4, 
@@ -192,7 +192,7 @@ const FormBuilderPage: React.FC = () => {
         break;
       case 'registro':
         templateData = {
-          titulo: '📝 Formulario de Inscripción y Registro Oficial',
+          titulo: 'Formulario de Inscripción y Registro Oficial',
           descripcion: '¡Asegura tu cupo de forma inmediata! Completa este registro para reservar tu plaza en nuestra próxima actividad formativa. El enlace de acceso y el cronograma del evento te serán enviados a tu correo electrónico.',
           colorTema: '#f59e0b', // Amber Orange
           estado: 'borrador',
@@ -201,7 +201,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-1`, 
               tipo: 'texto_corto', 
-              titulo: '👤 Nombre completo del participante', 
+              titulo: 'Nombre completo del participante', 
               descripcion: 'Por favor, escribe tu nombre tal como deseas que figure en tu certificado digital.',
               esObligatoria: true, 
               orden: 1, 
@@ -210,7 +210,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-2`, 
               tipo: 'desplegable', 
-              titulo: '🪪 Tipo de documento de identidad', 
+              titulo: 'Tipo de documento de identidad', 
               descripcion: 'Selecciona tu tipo de documento.',
               esObligatoria: true, 
               orden: 2, 
@@ -225,7 +225,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-3`, 
               tipo: 'texto_corto', 
-              titulo: '🔢 Número de documento', 
+              titulo: 'Número de documento', 
               descripcion: 'Escribe tu número de identificación sin puntos ni espacios.',
               esObligatoria: true, 
               orden: 3, 
@@ -234,7 +234,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-4`, 
               tipo: 'texto_corto', 
-              titulo: '📧 Correo electrónico institucional o personal de contacto', 
+              titulo: 'Correo electrónico institucional o personal de contacto', 
               descripcion: 'Aquí te enviaremos las credenciales de acceso a la sala virtual y memorias del evento.',
               esObligatoria: true, 
               orden: 4, 
@@ -243,7 +243,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-5`, 
               tipo: 'texto_corto', 
-              titulo: '📞 Teléfono de contacto', 
+              titulo: 'Teléfono de contacto', 
               descripcion: 'Escribe tu número telefónico o celular principal.',
               esObligatoria: true, 
               orden: 5, 
@@ -252,21 +252,21 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-6`, 
               tipo: 'casillas', 
-              titulo: '📢 ¿Cómo te enteraste de la convocatoria para este evento?', 
+              titulo: '¿Cómo te enteraste de la convocatoria para este evento?', 
               descripcion: 'Nos ayuda a saber qué medios de comunicación son más efectivos.',
               esObligatoria: false, 
               orden: 6, 
               opciones: [
-                { id: 'o5', texto: 'Publicación oficial en Redes Sociales (Facebook, Instagram, LinkedIn) 📱', orden: 1 }, 
-                { id: 'o6', texto: 'Boletín de novedades enviado por Correo Electrónico ✉️', orden: 2 }, 
-                { id: 'o7', texto: 'Recomendación directa de un colega, familiar o amigo 👥', orden: 3 }, 
-                { id: 'o8', texto: 'Anuncio destacado en nuestro Portal Web VirtualT 🌐', orden: 4 }
+                { id: 'o5', texto: 'Publicación oficial en Redes Sociales (Facebook, Instagram, LinkedIn)', orden: 1 }, 
+                { id: 'o6', texto: 'Boletín de novedades enviado por Correo Electrónico', orden: 2 }, 
+                { id: 'o7', texto: 'Recomendación directa de un colega, familiar o amigo', orden: 3 }, 
+                { id: 'o8', texto: 'Anuncio destacado en nuestro Portal Web VirtualT', orden: 4 }
               ] 
             },
             { 
               id: `q-7`, 
               tipo: 'opcion_multiple', 
-              titulo: '🔞 ¿Eres menor de edad (menor de 18 años)?', 
+              titulo: '¿Eres menor de edad (menor de 18 años)?', 
               descripcion: 'Si eres menor de edad, requerimos obligatoriamente la información de tu tutor.',
               esObligatoria: true, 
               orden: 7, 
@@ -278,7 +278,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-8`, 
               tipo: 'texto_corto', 
-              titulo: '👤 Nombre completo del tutor / acudiente', 
+              titulo: 'Nombre completo del tutor / acudiente', 
               descripcion: 'Nombre completo de la persona adulta responsable.',
               esObligatoria: true, 
               orden: 8, 
@@ -287,7 +287,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-9`, 
               tipo: 'texto_corto', 
-              titulo: '🔢 Documento de identidad del tutor / acudiente', 
+              titulo: 'Documento de identidad del tutor / acudiente', 
               descripcion: 'Número de documento de identidad del acudiente.',
               esObligatoria: true, 
               orden: 9, 
@@ -296,7 +296,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-10`, 
               tipo: 'texto_corto', 
-              titulo: '📧 Correo electrónico del tutor / acudiente', 
+              titulo: 'Correo electrónico del tutor / acudiente', 
               descripcion: 'Dirección de correo electrónico de tu tutor o acudiente.',
               esObligatoria: true, 
               orden: 10, 
@@ -305,7 +305,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-11`, 
               tipo: 'texto_corto', 
-              titulo: '📞 Teléfono del tutor / acudiente', 
+              titulo: 'Teléfono del tutor / acudiente', 
               descripcion: 'Número celular o de contacto de tu acudiente.',
               esObligatoria: true, 
               orden: 11, 
@@ -314,7 +314,7 @@ const FormBuilderPage: React.FC = () => {
             { 
               id: `q-12`, 
               tipo: 'archivo', 
-              titulo: '📂 Cargar certificados de estudio', 
+              titulo: 'Cargar certificados de estudio', 
               descripcion: 'Sube tu último certificado de estudios o documentos necesarios en formato PDF o Imagen.',
               esObligatoria: true, 
               orden: 12, 
@@ -325,7 +325,7 @@ const FormBuilderPage: React.FC = () => {
         break;
       case 'halloween':
         templateData = {
-          titulo: '🎃 Formulario Inscripción Institución Halloween',
+          titulo: 'Formulario Inscripción Institución Halloween',
           descripcion: 'Inscribe a tu institución en nuestra actividad de Halloween. Déjanos los datos de la persona de contacto y nos comunicaremos contigo.',
           colorTema: '#f97316', // Pumpkin Orange
           estado: 'borrador',
@@ -334,7 +334,7 @@ const FormBuilderPage: React.FC = () => {
             {
               id: `q-1`,
               tipo: 'texto_corto',
-              titulo: '👤 Nombre y apellidos',
+              titulo: 'Nombre y apellidos',
               esObligatoria: true,
               orden: 1,
               opciones: []
@@ -342,7 +342,7 @@ const FormBuilderPage: React.FC = () => {
             {
               id: `q-2`,
               tipo: 'texto_corto',
-              titulo: '📧 Correo',
+              titulo: 'Correo',
               esObligatoria: true,
               orden: 2,
               opciones: []
@@ -350,7 +350,7 @@ const FormBuilderPage: React.FC = () => {
             {
               id: `q-3`,
               tipo: 'texto_corto',
-              titulo: '📞 N. Teléfono',
+              titulo: 'N. Teléfono',
               esObligatoria: true,
               orden: 3,
               configuracion: { soloNumeros: true },
@@ -359,7 +359,7 @@ const FormBuilderPage: React.FC = () => {
             {
               id: `q-4`,
               tipo: 'desplegable',
-              titulo: '💼 Cargo',
+              titulo: 'Cargo',
               descripcion: 'Selecciona tu cargo dentro de la institución.',
               esObligatoria: true,
               orden: 4,

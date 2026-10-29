@@ -273,7 +273,7 @@ const ModalCerrarCajaTienda = ({ open, idPunto, onClose, onSave }: ModalProps) =
               <div className="flex items-center gap-2 mb-3">
                 <KeenIcon icon="information-2" className="text-xl text-yellow-600" />
                 <h3 className="text-sm font-semibold text-yellow-800">
-                  ⚠️ Productos con Stock Mínimo ({stockMinimo.length})
+                  Productos con Stock Mínimo ({stockMinimo.length})
                 </h3>
               </div>
               <div className="max-h-40 overflow-y-auto">

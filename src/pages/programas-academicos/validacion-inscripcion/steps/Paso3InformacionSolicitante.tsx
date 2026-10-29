@@ -20,7 +20,7 @@ const Paso3InformacionSolicitante = ({
   onRevisadaChange
 }: Props) => (
   <div className="space-y-4">
-    <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">
+    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
       Información del solicitante
     </h3>
     <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -84,7 +84,7 @@ const Paso3InformacionSolicitante = ({
 
     {respuestasFormulario && (
       <div className="p-5 border border-gray-200 rounded-xl bg-gray-50 dark:bg-coal-600 dark:border-white/5 space-y-4">
-        <h4 className="text-xs font-black uppercase text-gray-800 dark:text-white flex items-center gap-2">
+        <h4 className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-2">
           <i className="ki-outline ki-document-text text-sm text-primary" />
           Respuestas del Formulario: {respuestasFormulario.formulario}
         </h4>

@@ -148,7 +148,7 @@ export const CompromisosModal: React.FC<Props> = ({ idAnotacion, onClose }) => {
     <Modal open={true} onClose={onClose}>
       <ModalContent className="max-w-[1000px] top-[5%] p-4">
         <ModalHeader>
-          <ModalTitle>🤝 Acuerdos de Compromiso</ModalTitle>
+          <ModalTitle>Acuerdos de Compromiso</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
             <KeenIcon icon="cross" />
           </button>
@@ -176,7 +176,7 @@ export const CompromisosModal: React.FC<Props> = ({ idAnotacion, onClose }) => {
           {/* 1. SECCIÓN: FORMULARIO */}
           <div className="border border-gray-200 rounded-lg shadow-sm">
             <div className="bg-light px-4 py-3 border-b border-gray-200 rounded-t-lg">
-              <h2 className="text-sm font-semibold tracking-wide text-primary">➕ Establecer Nuevo Compromiso</h2>
+              <h2 className="text-sm font-semibold tracking-wide text-primary">Establecer Nuevo Compromiso</h2>
             </div>
 
             <form onSubmit={handleSubmit} className="p-5">
@@ -213,7 +213,7 @@ export const CompromisosModal: React.FC<Props> = ({ idAnotacion, onClose }) => {
           {/* 2. SECCIÓN: TABLA */}
           <div className="card min-w-full">
             <div className="card-header h-12 flex items-center px-5 border-b">
-              <p className="text-sm font-semibold">📋 Listado de Compromisos</p>
+              <p className="text-sm font-semibold">Listado de Compromisos</p>
             </div>
             <div className="card-table overflow-x-auto min-h-[200px]">
               {isLoading ? (
@@ -242,7 +242,7 @@ export const CompromisosModal: React.FC<Props> = ({ idAnotacion, onClose }) => {
                           <td className="p-2 border text-center w-[100px]">
                             {item.DocUrl ? (
                               <button onClick={() => handleVerDocumento(item.DocUrl)} className="btn btn-sm btn-light">
-                                📄 Ver
+                                Ver
                               </button>
                             ) : (<span className="text-gray-400 text-xs italic">N/A</span>)}
                           </td>

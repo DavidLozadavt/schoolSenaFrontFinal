@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FormularioProgramaProps, CatalogosData } from '../types';
 import { useParams } from 'react-router';
+import { KeenIcon } from '@/components';
 
 export function precargarRecursosPrograma() {
   return axios
@@ -415,7 +416,7 @@ export const FormularioPrograma = ({
               className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-coal-200 focus-within:border-blue-500"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span>📄</span>
+                <KeenIcon icon="document" />
                 <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                   {documento ? documento.name : 'Seleccionar archivo PDF'}
                 </span>

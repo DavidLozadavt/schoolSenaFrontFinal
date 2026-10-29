@@ -9,7 +9,7 @@ interface Props {
 
 const Paso5ValidacionFinal = ({ payload, observaciones, onObservacionesChange }: Props) => (
   <div className="space-y-4">
-    <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">Resumen</h3>
+    <h3 className="text-base font-semibold text-gray-900 dark:text-white">Resumen</h3>
     <p className="text-xs text-gray-600 dark:text-gray-400">
       Revise el resumen. Al confirmar, la solicitud quedará <strong>aprobada</strong> y pasará al
       listado de aprobadas. El único dato financiero que se guarda antes es el pago (paso 4), en{' '}

@@ -525,7 +525,7 @@ const FormPublicPage: React.FC = () => {
 
           {form.mensajeCierre ? (
             <div className="w-full p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold leading-relaxed text-center shadow-sm">
-              💬 "{form.mensajeCierre}"
+              "{form.mensajeCierre}"
             </div>
           ) : (
             <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold leading-relaxed max-w-md">
@@ -808,7 +808,7 @@ const FormPublicPage: React.FC = () => {
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
-                  ⚡ Vigencia de Inscripción Activa
+                  Vigencia de Inscripción Activa
                 </span>
                 <span className="text-xs font-bold text-neutral-800 dark:text-white">
                   Este formulario vencerá en:

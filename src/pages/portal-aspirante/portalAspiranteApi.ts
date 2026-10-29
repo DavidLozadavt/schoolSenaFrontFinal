@@ -14,6 +14,16 @@ export interface IniciarPagoPortalResponse {
 
 export type MetodoPagoPortal = 'PSE' | 'CARD';
 
+export interface VerificarPagoPortalResponse {
+  estado: 'APROBADO' | 'PENDIENTE' | 'RECHAZADO' | 'SIN_PAGOS' | 'ERROR';
+  message: string;
+}
+
+export async function verificarPagoPortalAspirante(token: string): Promise<VerificarPagoPortalResponse> {
+  const res = await axios.post<VerificarPagoPortalResponse>(`portal-aspirante/${token}/verificar-pago`);
+  return res.data;
+}
+
 export async function iniciarPagoPortalAspirante(
   token: string,
   metodo: MetodoPagoPortal

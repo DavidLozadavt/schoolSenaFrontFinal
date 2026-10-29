@@ -15,7 +15,7 @@ const NewTaskModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOp
                 onClick={e => e.stopPropagation()}
             >
                 <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
-                    📝 Crear Nueva Tarea / Evento
+                    Crear Nueva Tarea / Evento
                 </h3>
                 
                 <form className="space-y-4">
@@ -48,7 +48,7 @@ const NewTaskModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOp
 const CalendarView: React.FC<{ tasks: Task[] }> = ({ tasks }) => (
     <div className="flex flex-col h-full p-6 bg-white shadow-2xl dark:bg-gray-800 rounded-xl">
         <h3 className="mb-6 text-2xl font-extrabold text-gray-900 dark:text-gray-100">
-            Calendario de Tareas 🗓️
+            Calendario de Tareas
         </h3>
         <div className="grid flex-grow grid-cols-7 gap-1 p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
             {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (

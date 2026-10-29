@@ -599,7 +599,7 @@ const KnowledgeAreas = ({ contrato, onSave, selectedProgramIds: externalProgramI
                   >
                     {creating ? (
                       <>
-                        <span className="animate-spin">⏳</span>
+                        <KeenIcon icon="loading" className="animate-spin" />
                         Creando...
                       </>
                     ) : (

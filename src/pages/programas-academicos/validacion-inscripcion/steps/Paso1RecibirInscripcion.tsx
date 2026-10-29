@@ -133,7 +133,7 @@ const Paso1RecibirInscripcion = ({
     <div className="space-y-6">
       {/* ── Título ── */}
       <div>
-        <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           Información del aspirante
         </h3>
         <p className="text-xs text-gray-600 dark:text-gray-400">

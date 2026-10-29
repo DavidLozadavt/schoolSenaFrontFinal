@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { iniciarPagoPortalAspirante, MetodoPagoPortal } from './portalAspiranteApi';
+import { iniciarPagoPortalAspirante, MetodoPagoPortal, verificarPagoPortalAspirante } from './portalAspiranteApi';
 import { abrirCheckoutWompi } from './wompiCheckout';
 import {
   CheckCircle,
@@ -12,10 +12,12 @@ import {
   BookOpen,
   FileText,
   CreditCard,
-  ExternalLink,
-  Building2,
   Lock
 } from 'lucide-react';
+import { toAbsoluteUrl } from '@/utils';
+
+/** El aspirante ve la marca de la plataforma, no el nombre de la empresa en BD. */
+const LOGO_SCHOOL = toAbsoluteUrl('/media/app/logoweb.png');
 
 /* ─────────────────────────── types ─────────────────────────── */
 interface SolicitudPortal {
@@ -66,13 +68,21 @@ interface PortalData {
 const formatCOP = (val: number) =>
   val.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
+/** Wompi solo acepta códigos (CC, TI, CE...): "Cédula de Ciudadanía (CC)" → "CC". */
+const codigoTipoDocumento = (tipo?: string): string => {
+  const valor = (tipo ?? '').trim();
+  const enParentesis = valor.match(/\(([A-Za-z]{2,4})\)/);
+  if (enParentesis) return enParentesis[1].toUpperCase();
+  return /^[A-Za-z]{2,4}$/.test(valor) ? valor.toUpperCase() : 'CC';
+};
+
 const estadoBadge = (estado: string) => {
   const e = (estado ?? '').toUpperCase();
   if (e.includes('APROBADA') || e.includes('PAGADA') || e.includes('APROBADO') || e.includes('PAGADO'))
-    return { color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: <CheckCircle className="w-4 h-4" />, label: estado };
+    return { color: 'bg-emerald-50 text-emerald-800 border-emerald-200', icon: <CheckCircle className="w-4 h-4" />, label: 'Aprobada' };
   if (e.includes('ANULADA') || e.includes('RECHAZADA') || e.includes('ANULADO') || e.includes('RECHAZADO'))
-    return { color: 'bg-red-100 text-red-800 border-red-200', icon: <XCircle className="w-4 h-4" />, label: estado };
-  return { color: 'bg-amber-100 text-amber-800 border-amber-200', icon: <Clock className="w-4 h-4" />, label: 'PENDIENTE DE PAGO' };
+    return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-4 h-4" />, label: 'Rechazada' };
+  return { color: 'bg-amber-50 text-amber-800 border-amber-200', icon: <Clock className="w-4 h-4" />, label: 'Pendiente de pago' };
 };
 
 /* ─────────────────────────── component ─────────────────────────── */
@@ -87,6 +97,7 @@ const PortalAspirantePage: React.FC = () => {
   const [iniciandoPago, setIniciandoPago] = useState<MetodoPagoPortal | null>(null);
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [mensajeRetornoPago, setMensajeRetornoPago] = useState<string | null>(null);
+  const [verificandoPago, setVerificandoPago] = useState(false);
 
   // Estados para validación de documento (Flujo de Seguridad)
   const [tipoDocumento, setTipoDocumento] = useState('CC');
@@ -126,14 +137,30 @@ const PortalAspirantePage: React.FC = () => {
     cargarPortal();
   }, [cargarPortal]);
 
-  useEffect(() => {
-    if (searchParams.get('pago') === 'retorno') {
+  // Consulta a Wompi el estado del pago y recarga el portal (respaldo del webhook).
+  const verificarPago = useCallback(async () => {
+    if (!token) return;
+    setVerificandoPago(true);
+    try {
+      const res = await verificarPagoPortalAspirante(token);
+      setMensajeRetornoPago(res.message);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string; message?: string } } };
       setMensajeRetornoPago(
-        'Si completó el pago en Wompi, la confirmación puede tardar unos segundos. Actualizamos el estado de su inscripción.'
+        axiosErr.response?.data?.error ?? axiosErr.response?.data?.message ?? 'No se pudo verificar el pago. Intente de nuevo.'
       );
+    } finally {
+      setVerificandoPago(false);
       cargarPortal(false);
     }
-  }, [searchParams, cargarPortal]);
+  }, [token, cargarPortal]);
+
+  useEffect(() => {
+    if (searchParams.get('pago') === 'retorno') {
+      setMensajeRetornoPago('Verificando su pago en Wompi…');
+      verificarPago();
+    }
+  }, [searchParams, verificarPago]);
 
   // 3. Manejadores de eventos
   const handleValidarIdentidad = (e: React.FormEvent) => {
@@ -162,7 +189,7 @@ const PortalAspirantePage: React.FC = () => {
         fullName: data.estudiante?.nombreCompleto ?? data.solicitud.nombreEstudiante,
         phoneNumber: data.estudiante?.celular ?? data.estudiante?.telefono ?? data.solicitud.telefono,
         legalId: data.estudiante?.documento ?? data.solicitud.documento,
-        legalIdType: (data.estudiante?.tipoDocumento ?? 'CC').toUpperCase()
+        legalIdType: codigoTipoDocumento(data.estudiante?.tipoDocumento)
       });
     } catch (err: unknown) {
       let msg = 'No se pudo iniciar el pago en línea. Intente de nuevo o suba un comprobante manual.';
@@ -207,7 +234,7 @@ const PortalAspirantePage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4 p-10 bg-white rounded-3xl shadow-xl border border-slate-100 w-full max-w-sm text-center">
-          <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin" />
+          <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-blue-700 animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Cargando su información…</p>
         </div>
       </div>
@@ -221,7 +248,7 @@ const PortalAspirantePage: React.FC = () => {
           <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
             <AlertTriangle className="w-8 h-8" />
           </div>
-          <h1 className="text-lg font-black uppercase tracking-tight text-slate-800">Enlace inválido</h1>
+          <h1 className="text-lg font-bold text-slate-800">Enlace inválido</h1>
           <p className="text-sm text-slate-500 leading-relaxed">{error ?? 'El enlace no es válido o ha expirado. Consulte con la institución para obtener un nuevo enlace.'}</p>
         </div>
       </div>
@@ -233,34 +260,29 @@ const PortalAspirantePage: React.FC = () => {
     return (
       <div className="min-h-screen w-full bg-slate-50 flex flex-col justify-between">
         <header className="w-full bg-white border-b border-slate-200/80 py-4 shadow-sm">
-          <div className="max-w-md mx-auto px-5 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 leading-none">{data.nombreInstitucion}</h2>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">Portal de Seguimiento</p>
-            </div>
+          <div className="max-w-md mx-auto px-5 flex items-center justify-between gap-3">
+            <img src={LOGO_SCHOOL} alt="School by Virtual Technology" className="h-9 w-auto" />
+            <span className="text-xs font-medium text-slate-500">Portal del aspirante</span>
           </div>
         </header>
 
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 p-8 w-full max-w-md">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-5">
+            <div className="w-12 h-12 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center mb-5">
               <Lock className="w-6 h-6" />
             </div>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight mb-2">Validación de Identidad</h1>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight mb-2">Validación de Identidad</h1>
             <p className="text-xs text-slate-500 leading-relaxed mb-6">
               Por motivos de seguridad y confidencialidad, ingrese su número de documento para poder acceder a los detalles económicos de su inscripción.
             </p>
 
             <form onSubmit={handleValidarIdentidad} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Tipo de Documento</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo de Documento</label>
                 <select
                   value={tipoDocumento}
                   onChange={(e) => setTipoDocumento(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-colors"
                 >
                   <option value="CC">Cédula de Ciudadanía (CC)</option>
                   <option value="TI">Tarjeta de Identidad (TI)</option>
@@ -271,14 +293,14 @@ const PortalAspirantePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Número de Identificación</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Número de Identificación</label>
                 <input
                   type="text"
                   required
                   placeholder="Ingrese su documento registrado"
                   value={documentoValidar}
                   onChange={(e) => setDocumentoValidar(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 transition-colors"
                 />
               </div>
 
@@ -290,7 +312,7 @@ const PortalAspirantePage: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-colors shadow-md shadow-indigo-200/50"
+                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-colors shadow-sm"
               >
                 Consultar
               </button>
@@ -299,8 +321,8 @@ const PortalAspirantePage: React.FC = () => {
         </main>
 
         <footer className="w-full border-t border-slate-200/60 py-5 text-center bg-white">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            {data.nombreInstitucion} · Sistema de Gestión Académica VirtualT
+          <p className="text-xs font-semibold text-slate-500">
+            School · Virtual Technology · Portal del aspirante
           </p>
         </footer>
       </div>
@@ -308,7 +330,7 @@ const PortalAspirantePage: React.FC = () => {
   }
 
   // 6. Flujo Validado (Muestra de información del aspirante)
-  const { solicitud, estudiante, nombreInstitucion } = data;
+  const { solicitud, estudiante } = data;
   const badge = estadoBadge(solicitud.estado);
   const pendiente = data.saldoPendiente ?? solicitud.saldoPendiente ?? 0;
   const total = data.valorTotal ?? solicitud.totalFactura ?? 0;
@@ -338,18 +360,13 @@ const PortalAspirantePage: React.FC = () => {
   const hayPagoEnLinea = pasarela?.disponible && (mostrarPSE || mostrarTarjetas) && pendiente > 0;
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 flex flex-col">
+    <div className="min-h-screen w-full bg-slate-50 flex flex-col">
       {/* Header */}
       <header className="w-full bg-white border-b border-slate-200/80 shadow-sm sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-300/40">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 leading-none">{nombreInstitucion}</h2>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">Portal de Seguimiento</p>
-            </div>
+            <img src={LOGO_SCHOOL} alt="School by Virtual Technology" className="h-9 w-auto" />
+            <span className="hidden sm:inline text-xs font-medium text-slate-500 border-l border-slate-200 pl-3">Portal del aspirante</span>
           </div>
           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${badge.color}`}>
             {badge.icon}
@@ -362,19 +379,19 @@ const PortalAspirantePage: React.FC = () => {
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
         {/* Solicitud header card */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-700 to-indigo-500 px-6 py-5">
-            <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mb-1">Solicitud de inscripción</p>
-            <h1 className="text-white text-xl font-black tracking-tight">{solicitud.nombrePrograma}</h1>
+          <div className="bg-slate-800 px-6 py-5">
+            <p className="text-slate-300 text-xs font-semibold mb-1">Solicitud de inscripción</p>
+            <h1 className="text-white text-xl font-bold tracking-tight">{solicitud.nombrePrograma}</h1>
             <div className="flex flex-wrap gap-3 mt-3">
-              <span className="text-xs font-semibold text-indigo-100 bg-white/10 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-semibold text-slate-100 bg-white/10 px-2.5 py-1 rounded-full">
                 {solicitud.numeroSolicitud}
               </span>
               {numeroFactura && (
-                <span className="text-xs font-semibold text-indigo-100 bg-white/10 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-semibold text-slate-100 bg-white/10 px-2.5 py-1 rounded-full">
                   Factura: {numeroFactura}
                 </span>
               )}
-              <span className="text-xs font-semibold text-indigo-100 bg-white/10 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-semibold text-slate-100 bg-white/10 px-2.5 py-1 rounded-full">
                 {solicitud.fechaSolicitud}
               </span>
             </div>
@@ -386,38 +403,35 @@ const PortalAspirantePage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-indigo-600" />
-                <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">INFORMACIÓN DE PAGO</h2>
+                <CreditCard className="w-4 h-4 text-blue-700" />
+                <h2 className="text-sm font-semibold text-slate-800">Información de pago</h2>
               </div>
               {pdfUrl && (
                 <a
                   href={pdfUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors"
                 >
-                  [ Descargar factura PDF ]
+                  <FileText className="w-3.5 h-3.5" />
+                  Descargar factura (PDF)
                 </a>
               )}
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Número de factura</p>
-                  <p className="text-sm font-bold text-slate-800">{numeroFactura ?? '—'}</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Número de factura</p>
+                  <p className="text-sm font-semibold text-slate-800">{numeroFactura ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Valor total</p>
-                  <p className="text-sm font-bold text-slate-800">{formatCOP(total)}</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Valor total</p>
+                  <p className="text-sm font-semibold text-slate-800">{formatCOP(total)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Saldo pendiente</p>
-                  <p className="text-sm font-black text-amber-600">{formatCOP(pendiente)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Fecha límite</p>
-                  <p className="text-sm font-bold text-slate-800">Ver en factura</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Saldo pendiente</p>
+                  <p className="text-base font-bold text-slate-900">{formatCOP(pendiente)}</p>
                 </div>
               </div>
 
@@ -430,16 +444,19 @@ const PortalAspirantePage: React.FC = () => {
               {/* Botones de Pasarelas de Pago (WOMPI Web Checkout) */}
               {hayPagoEnLinea && (
                 <div className="border-t border-slate-100 pt-5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Métodos de pago en línea</p>
-                  <div className="flex flex-wrap gap-3">
+                  <p className="text-sm font-semibold text-slate-800 mb-1">Pagar en línea</p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Será redirigido a la página segura de Wompi. La institución no almacena datos de tarjetas ni cuentas bancarias.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
                     {mostrarPSE && (
                       <button
                         type="button"
                         onClick={() => handleIniciarPagoWompi('PSE')}
                         disabled={iniciandoPago !== null}
-                        className="flex-1 min-w-[140px] bg-[#006699] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {iniciandoPago === 'PSE' ? 'Redirigiendo a Wompi…' : '[ Pagar con PSE ]'}
+                        {iniciandoPago === 'PSE' ? 'Redirigiendo a Wompi…' : 'Pagar con PSE'}
                       </button>
                     )}
                     {mostrarTarjetas && (
@@ -447,40 +464,56 @@ const PortalAspirantePage: React.FC = () => {
                         type="button"
                         onClick={() => handleIniciarPagoWompi('CARD')}
                         disabled={iniciandoPago !== null}
-                        className="flex-1 min-w-[140px] bg-[#3B1C55] text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 bg-white border border-blue-700 text-blue-700 hover:bg-blue-50 font-semibold py-3 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {iniciandoPago === 'CARD' ? 'Redirigiendo a Wompi…' : '[ Pagar con tarjeta ]'}
+                        <CreditCard className="w-4 h-4" />
+                        {iniciandoPago === 'CARD' ? 'Redirigiendo a Wompi…' : 'Pagar con tarjeta'}
                       </button>
                     )}
                   </div>
                   {errorPago && (
-                    <div className="mt-3 p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-100">
+                    <div className="mt-3 p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-100">
                       {errorPago}
                     </div>
                   )}
-                  <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">
-                    Será redirigido a la página segura de Wompi para ingresar los datos de pago. No almacenamos datos de tarjeta ni cuenta bancaria.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={verificarPago}
+                    disabled={verificandoPago}
+                    className="mt-4 text-sm font-medium text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline transition-colors disabled:opacity-50"
+                  >
+                    {verificandoPago ? 'Verificando pago…' : '¿Ya pagó en Wompi? Verificar el pago'}
+                  </button>
+                </div>
+              )}
+
+              {!hayPagoEnLinea && pendiente > 0 && (
+                <div className="border-t border-slate-100 pt-5">
+                  <p className="text-sm font-semibold text-slate-800 mb-3">Pagar en línea</p>
+                  <div className="p-3 rounded-lg text-sm bg-amber-50 text-amber-900 border border-amber-100">
+                    El pago en línea no está disponible en este momento. Realice el pago presencial o por transferencia y cargue el comprobante.
+                  </div>
                 </div>
               )}
 
               {/* Carga de Comprobante */}
               <div className="border-t border-slate-100 pt-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Subir comprobante de pago</p>
+                <p className="text-sm font-semibold text-slate-800 mb-1">Cargar comprobante de pago</p>
+                <p className="text-xs text-slate-500 mb-3">Si pagó por transferencia o de forma presencial, adjunte el soporte en PDF o imagen.</p>
                 <form onSubmit={handleSubirComprobante} className="space-y-3">
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       type="file"
                       accept=".pdf,.png,.jpg,.jpeg"
                       onChange={(e) => setComprobanteFile(e.target.files?.[0] ?? null)}
-                      className="flex-1 text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                      className="flex-1 text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
                     />
                     <button
                       type="submit"
                       disabled={!comprobanteFile || subiendoComprobante}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      className="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
-                      {subiendoComprobante ? 'Subiendo...' : '[ Subir comprobante ]'}
+                      {subiendoComprobante ? 'Cargando…' : 'Cargar comprobante'}
                     </button>
                   </div>
                   {mensajeComprobante && (
@@ -502,8 +535,8 @@ const PortalAspirantePage: React.FC = () => {
                 <CheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <p className="text-base font-black text-emerald-800">Factura pagada e inscripción confirmada</p>
-                <p className="text-xs text-emerald-600 mt-0.5">El valor de {formatCOP(total)} ha sido procesado completamente.</p>
+                <p className="text-base font-bold text-emerald-900">Pago recibido</p>
+                <p className="text-sm text-emerald-800 mt-0.5">Registramos el pago de {formatCOP(total)}. Su inscripción continúa en validación final.</p>
               </div>
             </div>
             {pdfUrl && (
@@ -511,9 +544,10 @@ const PortalAspirantePage: React.FC = () => {
                 href={pdfUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-colors shrink-0"
               >
-                [ Descargar factura PDF ]
+                <FileText className="w-4 h-4" />
+                Descargar factura (PDF)
               </a>
             )}
           </div>
@@ -522,8 +556,8 @@ const PortalAspirantePage: React.FC = () => {
         {/* Datos del aspirante */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-            <User className="w-4 h-4 text-indigo-600" />
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">Datos del aspirante</h2>
+            <User className="w-4 h-4 text-blue-700" />
+            <h2 className="text-sm font-semibold text-slate-800">Datos del aspirante</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
             {[
@@ -533,7 +567,7 @@ const PortalAspirantePage: React.FC = () => {
               { label: 'Teléfono', value: estudiante?.celular ?? estudiante?.telefono ?? solicitud.telefono ?? '—' },
             ].map((item) => (
               <div key={item.label} className="px-5 py-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{item.label}</p>
+                <p className="text-xs font-medium text-slate-500 mb-1">{item.label}</p>
                 <p className="text-sm font-semibold text-slate-800 break-all">{item.value}</p>
               </div>
             ))}
@@ -543,11 +577,11 @@ const PortalAspirantePage: React.FC = () => {
         {/* Programa */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-indigo-600" />
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">Programa académico</h2>
+            <BookOpen className="w-4 h-4 text-blue-700" />
+            <h2 className="text-sm font-semibold text-slate-800">Programa académico</h2>
           </div>
           <div className="px-5 py-4">
-            <p className="text-base font-black text-slate-800">{solicitud.nombrePrograma}</p>
+            <p className="text-base font-bold text-slate-800">{solicitud.nombrePrograma}</p>
             {solicitud.codigoPrograma && (
               <p className="text-xs text-slate-400 font-semibold mt-1">{solicitud.codigoPrograma}</p>
             )}
@@ -558,18 +592,23 @@ const PortalAspirantePage: React.FC = () => {
         {pendiente > 0 && (
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-600" />
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">¿Cómo realizar el pago?</h2>
+              <FileText className="w-4 h-4 text-blue-700" />
+              <h2 className="text-sm font-semibold text-slate-800">¿Cómo realizar el pago?</h2>
             </div>
             <div className="px-5 py-5 space-y-3">
               {[
-                { num: 1, texto: 'Comuníquese con la institución para obtener las instrucciones de pago.' },
-                { num: 2, texto: `Realice el pago del valor indicado: ${formatCOP(pendiente)} según el medio habilitado.` },
-                { num: 3, texto: 'Guarde el comprobante de pago para presentarlo al equipo administrativo.' },
-                { num: 4, texto: 'Una vez verificado el pago, recibirá confirmación por correo electrónico.' },
+                {
+                  num: 1,
+                  texto: hayPagoEnLinea
+                    ? `Pague ${formatCOP(pendiente)} en línea con PSE o tarjeta desde la sección de pago.`
+                    : `Realice el pago de ${formatCOP(pendiente)} por el medio indicado por la institución.`
+                },
+                { num: 2, texto: 'Si pagó por transferencia o de forma presencial, cargue el comprobante en esta página.' },
+                { num: 3, texto: 'El equipo administrativo validará el pago.' },
+                { num: 4, texto: 'Recibirá la confirmación de su inscripción por correo electrónico.' },
               ].map((step) => (
                 <div key={step.num} className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                     {step.num}
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">{step.texto}</p>
@@ -580,25 +619,19 @@ const PortalAspirantePage: React.FC = () => {
         )}
 
         {/* Contacto */}
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-sm text-indigo-700 font-semibold">
-            ¿Tiene preguntas? Comuníquese con el equipo de admisiones de <strong>{nombreInstitucion}</strong>.
+        <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-4">
+          <p className="text-sm text-slate-600">
+            ¿Tiene preguntas sobre su inscripción? Comuníquese con el área de admisiones de la institución.
           </p>
-          <a
-            href={`mailto:${solicitud.email ?? ''}`}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap"
-          >
-            Contactar <ExternalLink className="w-3.5 h-3.5" />
-          </a>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="w-full border-t border-slate-200/60 py-5 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          {nombreInstitucion} · Sistema de Gestión Académica VirtualT
+        <p className="text-xs font-medium text-slate-500">
+          School · Virtual Technology · Portal del aspirante
         </p>
-        <p className="text-[9px] text-slate-300 mt-1">Esta página es de acceso personal e intransferible.</p>
+        <p className="text-xs text-slate-400 mt-1">Esta página es de acceso personal e intransferible.</p>
       </footer>
     </div>
   );

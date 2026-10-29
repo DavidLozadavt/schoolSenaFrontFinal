@@ -4,6 +4,7 @@ import axios from 'axios';
 import { QRCodeCanvas } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import { Download, QrCode, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { KeenIcon } from '@/components';
 
 interface Hermano {
   nombre: string;
@@ -97,7 +98,7 @@ export const InvitadoPublic: React.FC = () => {
       <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 dark:bg-zinc-900 px-4">
         <div className="flex flex-col items-center justify-center text-center gap-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-md p-8 w-full max-w-sm">
           <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
-            <span className="text-red-500 text-xl">⚠️</span>
+            <KeenIcon icon="information-2" className="text-danger text-xl" />
           </div>
 
           <h2 className="text-lg font-bold text-gray-800 dark:text-white">

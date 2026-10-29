@@ -9,6 +9,7 @@ import { ModalBody } from '@/components/modal';
 import { AuthContext } from '@/auth/providers/JWTProvider';
 import { enqueueSnackbar } from 'notistack';
 import { useParams } from 'react-router-dom';
+import { KeenIcon } from '@/components';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -645,7 +646,7 @@ const CrearEditarFicha: React.FC<Props> = ({
                   className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500"
                 >
                   <div className="flex items-center gap-3">
-                    📄
+                    <KeenIcon icon="document" />
                     <span className="text-sm text-gray-700">
                       {formik.values.documento
                         ? formik.values.documento.name
