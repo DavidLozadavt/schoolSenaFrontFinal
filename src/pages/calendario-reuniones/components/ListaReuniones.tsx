@@ -40,7 +40,7 @@ const MeetingItem: React.FC<MeetingItemProps> = ({ task }) => {
 
       <div className="mt-3">
           <span className={`text-center text-sm font-medium ${isCompleted ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
-              {isCompleted ? '✅ Tarea Finalizada' : '⏳ Tarea Programada'}
+              {isCompleted ? 'Tarea Finalizada' : 'Tarea Programada'}
           </span>
       </div>
     </div>

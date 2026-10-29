@@ -815,7 +815,7 @@ const PermissionsToggle = React.memo(() => {
                   onChange={(v) => setEditFormData({ ...editFormData, icon: v })}
                 />
                 <p className="text-2xs text-gray-600 mt-1">
-                  🎨 Nombre del ícono (KeenIcon) para mostrar visualmente
+                  Nombre del ícono (KeenIcon) para mostrar visualmente
                 </p>
               </div>
 
@@ -833,7 +833,7 @@ const PermissionsToggle = React.memo(() => {
                   onChange={(e) => setEditFormData({ ...editFormData, path: e.target.value })}
                 />
                 <p className="text-2xs text-gray-600 mt-1">
-                  🔗 Ruta de navegación asociada a este permiso
+                  Ruta de navegación asociada a este permiso
                 </p>
               </div>
 

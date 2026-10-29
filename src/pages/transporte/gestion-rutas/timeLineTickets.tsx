@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ViajesModel } from '../cronograma-rutas/model/ViajesInterface';
 import ModalCreateTicket from '@/pages/puntos-de-venta/Caja/VentaTickets/ModalCreateTicket';
 import { formatCOP } from '@/utils/formatters';
+import { KeenIcon } from '@/components';
 
 interface TimelineTicketsProps {
     viajeData: ViajesModel | null;
@@ -107,7 +108,7 @@ const TimelineTickets = ({ viajeData, idCaja }: TimelineTicketsProps) => {
                     <span className="text-red-600">{destino}</span>
                 </h1>
                 <p className="text-sm text-gray-600 font-medium">
-                    📍 Haz clic en cualquier parada para vender tickets
+                    Haz clic en cualquier parada para vender tickets
                 </p>
             </div>
 
@@ -244,10 +245,10 @@ const TimelineTickets = ({ viajeData, idCaja }: TimelineTicketsProps) => {
                                     <div className="absolute w-4 h-4 transform rotate-45 -translate-x-1/2 border-t border-l border-gray-200 -top-2 left-1/2 "></div>
                                     <h3 className="mb-2 text-lg font-bold text-gray-800">{stop.name}</h3>
                                     <p className="flex items-center mb-2 text-xl font-bold text-green-600">
-                                        <span className="mr-2">💰</span>{formatCOP(stop.price)}
+                                        <KeenIcon icon="dollar" className="mr-2" />{formatCOP(stop.price)}
                                     </p>
                                     <p className="flex items-center mb-3 text-sm text-gray-600">
-                                        <span className="mr-2">📍</span>{stop.distance}
+                                        <KeenIcon icon="geolocation" className="mr-2" />{stop.distance}
                                     </p>
                                     <button 
                                         className="w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2"

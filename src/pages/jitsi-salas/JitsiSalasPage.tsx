@@ -19,6 +19,7 @@ import '@livekit/components-styles';
 import axios from 'axios';
 import { Track } from 'livekit-client';
 import { Container } from '@/components/container';
+import { KeenIcon } from '@/components';
 import type { TrackReferenceOrPlaceholder } from '@livekit/components-react';
 
 interface Reunion {
@@ -275,17 +276,17 @@ const SalaVideoLayout = () => {
             onClick={toggleMic}
             className={`lk-button ${micOn ? 'bg-primary/20' : ''}`}
           >
-            {micOn ? '🔊 Micrófono' : '🔇 Micrófono'}
+            {micOn ? 'Silenciar micrófono' : 'Activar micrófono'}
           </button>
           <button
             type="button"
             onClick={toggleCam}
             className={`lk-button ${camOn ? 'bg-primary/20' : ''}`}
           >
-            {camOn ? '📷 Cámara' : '🚫 Cámara'}
+            {camOn ? 'Apagar cámara' : 'Encender cámara'}
           </button>
           <button type="button" onClick={toggleScreenShare} className="lk-button">
-            🖥️ Compartir pantalla
+            Compartir pantalla
           </button>
 
           <button
@@ -294,7 +295,7 @@ const SalaVideoLayout = () => {
             className={`lk-button ${showChat ? 'bg-primary/20' : ''}`}
             title="Chat"
           >
-            💬 Chat
+            Chat
           </button>
 
           <button type="button" onClick={() => room.disconnect()} className="lk-button">
@@ -327,7 +328,7 @@ class VideoErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-muted bg-background p-12 shadow-xl" style={{ height: '80vh' }}>
-          <div className="text-5xl">⚠️</div>
+          <KeenIcon icon="information-2" className="text-5xl text-danger" />
           <h3 className="text-xl font-semibold text-foreground">Error al renderizar la sala</h3>
           <p className="text-sm text-foreground/70 text-center max-w-md">
             Ocurrió un error interno al conectar la videollamada. Puedes intentar reconectar.
@@ -340,7 +341,7 @@ class VideoErrorBoundary extends React.Component<
             }}
             className="rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-foreground shadow-lg transition hover:scale-[1.02]"
           >
-            🔄 Reconectar
+            Reconectar
           </button>
         </div>
       );
@@ -605,7 +606,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
       <Container className="py-12">
         <div className="mx-auto max-w-2xl rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-lg dark:border-muted dark:bg-background/20">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary text-4xl">
-            📺
+            <KeenIcon icon="screen" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">
             Videollamada activa en ventana flotante
@@ -767,7 +768,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                         }
                         className="rounded-2xl border border-blue-400/40 px-5 py-2.5 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {reunionCreada.extended ? '⏱️ Ya extendida' : 'Extender +30 min'}
+                        {reunionCreada.extended ? 'Ya extendida' : 'Extender +30 min'}
                       </button>
                     </div>
                   </div>
@@ -799,9 +800,9 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                         )}
                         <div className="mt-1 text-sm text-foreground/60">
                           {reunion.start_at && new Date(reunion.start_at).getTime() > Date.now() ? (
-                            <>📅 Inicia: {new Date(reunion.start_at).toLocaleString()}</>
+                            <>Inicia: {new Date(reunion.start_at).toLocaleString()}</>
                           ) : (
-                            <>⏱️{' '}
+                            <>{' '}
                             {formatearRestante(new Date(reunion.expires_at).getTime() - Date.now())}{' '}
                             restantes</>
                           )}
@@ -826,7 +827,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
                           }
                           className="rounded-xl border border-blue-400/40 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {reunion.extended ? '⏱️ Ext.' : '+30 min'}
+                          {reunion.extended ? 'Ext.' : '+30 min'}
                         </button>
                         <button
                           type="button"
@@ -894,7 +895,7 @@ const JitsiSalasPage = ({ standalone = false }: { standalone?: boolean }) => {
               title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
               className="absolute bottom-4 right-4 z-[1100] flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-background/60 text-lg text-foreground backdrop-blur-sm transition hover:bg-background/80"
             >
-              {isFullscreen ? '🡼' : '⛶'}
+              <KeenIcon icon={isFullscreen ? 'exit-down' : 'maximize'} />
             </button>
           </div>
         ) : (

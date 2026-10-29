@@ -186,7 +186,7 @@ const ModalTerceroTicket = ({ open, onClose, onTerceroCreado, esEmpresa = false 
             if (tipoSeleccionado?.codigo === 'TI') {
               return (
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm text-blue-800">
-                  <strong>💡 Ayuda:</strong> La <em>Tarjeta de Identidad</em> es usada por menores
+                  <strong>Ayuda:</strong> La <em>Tarjeta de Identidad</em> es usada por menores
                   de edad. Por favor, asegúrate de ingresar los datos correctos del{' '}
                   <strong>acudiente o representante legal</strong>.
                 </div>
@@ -196,7 +196,7 @@ const ModalTerceroTicket = ({ open, onClose, onTerceroCreado, esEmpresa = false 
             if (tipoSeleccionado?.codigo === 'CE') {
               return (
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg text-sm text-amber-800">
-                  <strong>💡 Ayuda:</strong> La <em>Cédula de Extranjería</em> corresponde a
+                  <strong>Ayuda:</strong> La <em>Cédula de Extranjería</em> corresponde a
                   ciudadanos extranjeros. Verifica que el número del documento y el país de origen
                   estén correctamente registrados.
                 </div>

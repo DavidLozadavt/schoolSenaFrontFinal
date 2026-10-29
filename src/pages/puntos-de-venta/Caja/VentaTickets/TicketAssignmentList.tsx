@@ -81,16 +81,16 @@ const TicketAssignmentList = ({
                           </p>
                         </div>
                         <p className="text-xs text-gray-600">
-                          📄 {asignacion.tercero.identificacion}
+                          <KeenIcon icon="profile-circle" className="me-1" />{asignacion.tercero.identificacion}
                         </p>
                         {asignacion.tercero.email && (
                           <p className="text-xs text-gray-600">
-                            ✉️ {asignacion.tercero.email}
+                            <KeenIcon icon="sms" className="me-1" />{asignacion.tercero.email}
                           </p>
                         )}
                         {asignacion.tercero.telefono && (
                           <p className="text-xs text-gray-600">
-                            📞 {asignacion.tercero.telefono}
+                            <KeenIcon icon="phone" className="me-1" />{asignacion.tercero.telefono}
                           </p>
                         )}
                       </div>

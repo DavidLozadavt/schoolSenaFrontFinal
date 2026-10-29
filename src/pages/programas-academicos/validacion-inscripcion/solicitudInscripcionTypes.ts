@@ -96,5 +96,14 @@ export interface SolicitudInscripcionDetalleResponse {
       estado: string;
     };
   }>;
+  pagoWompi?: {
+    metodo: string;
+    referencia: string;
+    transactionId?: string | null;
+    fechaTransaccion?: string;
+    estado: string;
+    monto?: number;
+    currency?: string;
+  } | null;
 }
 

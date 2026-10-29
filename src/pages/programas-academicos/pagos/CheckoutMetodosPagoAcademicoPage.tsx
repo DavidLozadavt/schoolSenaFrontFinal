@@ -145,7 +145,7 @@ const CheckoutMetodosPagoAcademicoPage = () => {
             <i className="ki-outline ki-left text-sm" />
             Volver
           </button>
-          <h1 className="text-xl font-black tracking-tight text-gray-900 uppercase dark:text-white">
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 uppercase dark:text-white">
             Registro de pago académico
           </h1>
           <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
@@ -169,7 +169,7 @@ const CheckoutMetodosPagoAcademicoPage = () => {
 
       {/* Resumen */}
       <div className="p-5 border border-gray-200 shadow-sm rounded-2xl bg-white dark:bg-coal-500 dark:border-white/10">
-        <h2 className="text-sm font-black uppercase text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
           Resumen de pago académico
         </h2>
         <div className="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2">
@@ -212,7 +212,7 @@ const CheckoutMetodosPagoAcademicoPage = () => {
           </div>
         </div>
 
-        <p className="mt-4 text-2xl font-black text-primary">
+        <p className="mt-4 text-2xl font-bold text-primary">
           Total a registrar: {formatearPeso(payload.totalSeleccionado)}
         </p>
 
@@ -259,7 +259,7 @@ const CheckoutMetodosPagoAcademicoPage = () => {
         <>
           {/* Tipo de pago */}
           <div className="p-5 border border-gray-200 rounded-2xl bg-white dark:bg-coal-500 dark:border-white/10">
-            <h2 className="mb-1 text-sm font-black uppercase text-gray-900 dark:text-white">
+            <h2 className="mb-1 text-base font-semibold text-gray-900 dark:text-white">
               Tipo de registro
             </h2>
             <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
@@ -291,7 +291,7 @@ const CheckoutMetodosPagoAcademicoPage = () => {
 
           {/* Medios de pago */}
           <div className="p-5 border border-gray-200 rounded-2xl bg-white dark:bg-coal-500 dark:border-white/10">
-            <h2 className="mb-1 text-sm font-black uppercase text-gray-900 dark:text-white">
+            <h2 className="mb-1 text-base font-semibold text-gray-900 dark:text-white">
               Medio de pago
             </h2>
             <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">

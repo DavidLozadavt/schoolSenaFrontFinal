@@ -200,7 +200,7 @@ const FormularioRedes: React.FC<ModalProps> = ({
                             `}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className="text-2xl">{formik.values.foto ? '🌄' : '🖼️'}</span>
+                    <KeenIcon icon="picture" className="text-2xl" />
                     <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                       {formik.values.foto ? formik.values.foto.name : 'seleccionar imagen'}
                     </span>

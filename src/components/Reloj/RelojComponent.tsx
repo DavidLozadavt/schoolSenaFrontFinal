@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { KeenIcon } from '@/components';
 
 const RelojComponent = () => {
   const getHoraActual = () => {
@@ -25,7 +26,7 @@ const RelojComponent = () => {
     <div className="inline-block p-4 bg-gray-100 border border-gray-200 rounded-lg shadow-lg bg backdrop-blur-sm">
       <div className="flex items-center space-x-2">
         <span className="text-lg font-semibold text-gray-800">
-          🕒
+          <KeenIcon icon="time" />
         </span>
         <span className="text-xl font-bold text-blue-600 ">
           {hora}

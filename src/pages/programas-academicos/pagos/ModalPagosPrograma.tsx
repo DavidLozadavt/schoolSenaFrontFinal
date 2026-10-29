@@ -170,7 +170,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex items-center gap-2">
               <i className="text-xl text-emerald-600 ki-outline ki-wallet dark:text-emerald-400" />
-              <h2 className="text-lg font-black tracking-tight text-gray-900 uppercase dark:text-white">
+              <h2 className="text-lg font-bold tracking-tight text-gray-900 uppercase dark:text-white">
                 Billetera académica
               </h2>
             </div>
@@ -314,7 +314,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
                   <span className="text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300">
                     Total pendiente
                   </span>
-                  <p className="text-lg font-black text-amber-900 dark:text-amber-200">
+                  <p className="text-lg font-bold text-amber-900 dark:text-amber-200">
                     {formatearPeso(totalPendiente)}
                   </p>
                 </div>
@@ -322,7 +322,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
                   <span className="text-[10px] font-bold uppercase text-emerald-800 dark:text-emerald-300">
                     Total pagado
                   </span>
-                  <p className="text-lg font-black text-emerald-900 dark:text-emerald-200">
+                  <p className="text-lg font-bold text-emerald-900 dark:text-emerald-200">
                     {formatearPeso(totalPagado)}
                   </p>
                 </div>
@@ -330,7 +330,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
                   <span className="text-[10px] font-bold uppercase text-primary">
                     Total seleccionado
                   </span>
-                  <p className="text-lg font-black text-primary">{formatearPeso(totalSeleccionado)}</p>
+                  <p className="text-lg font-bold text-primary">{formatearPeso(totalSeleccionado)}</p>
                 </div>
               </div>
 
@@ -393,7 +393,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
                               <span className="text-sm font-bold text-gray-900 dark:text-white">
                                 {concepto.concepto}
                               </span>
-                              <span className="text-sm font-black text-primary">
+                              <span className="text-sm font-bold text-primary">
                                 {formatearPeso(concepto.valor)}
                               </span>
                             </div>
@@ -471,7 +471,7 @@ const ModalPagosPrograma = ({ open, onClose, programa }: ModalPagosProgramaProps
               <span className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400">
                 Total a registrar
               </span>
-              <p className="text-xl font-black text-primary">{formatearPeso(totalSeleccionado)}</p>
+              <p className="text-xl font-bold text-primary">{formatearPeso(totalSeleccionado)}</p>
             </div>
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400">

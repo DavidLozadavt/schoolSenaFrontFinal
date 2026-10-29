@@ -954,7 +954,7 @@ const ModalConfigurarAsientos = ({
                         className="input w-full p-3 border  rounded-lg focus:ring-2 focus:ring-purple-500"
                       />
                       <p className="text-xs  mt-2">
-                        💡 Común: 5 asientos en la última fila trasera sin pasillo
+                        Común: 5 asientos en la última fila trasera sin pasillo
                       </p>
                     </div>
                   )}
@@ -968,7 +968,7 @@ const ModalConfigurarAsientos = ({
                     <KeenIcon icon="information-2" className="w-5 h-5 text-white shrink-0" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold  mb-1">💡 Información Importante</p>
+                    <p className="text-sm font-semibold mb-1">Información Importante</p>
                     <p className="text-xs  leading-relaxed">
                       Configura la cantidad de asientos y la distribución del vehículo. 
                       Luego podrás <strong>visualizar en vista aérea</strong> y personalizar cada asiento haciendo click sobre ellos.
@@ -1300,7 +1300,7 @@ const ModalConfigurarAsientos = ({
                       <KeenIcon icon="information-2" className="w-5 h-5 text-white shrink-0" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-sm font-semibold text-amber-900">💡 Cómo Usar el Editor</p>
+                      <p className="text-sm font-semibold text-amber-900">Cómo Usar el Editor</p>
                       <ul className="text-xs text-amber-800 leading-relaxed space-y-1 list-disc list-inside">
                         <li><strong>Click simple:</strong> Cambiar disponibilidad (verde = disponible, gris = bloqueado)</li>
                         <li><strong>Doble click:</strong> Editar etiqueta del asiento (Ej: A1, B2, C12, etc.)</li>

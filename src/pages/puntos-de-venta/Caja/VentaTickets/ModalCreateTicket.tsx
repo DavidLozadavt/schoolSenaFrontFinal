@@ -627,7 +627,7 @@ const ModalCreateTicket = ({
                         <div className="flex-1">
                           {nombreRutaSeleccionada && (
                             <p className="text-sm font-semibold text-gray-800 mb-1 flex items-center gap-1">
-                              📍 {nombreRutaSeleccionada}
+                              {nombreRutaSeleccionada}
                             </p>
                           )}
                           <p className="text-xs font-medium text-gray-600 mb-1">Precio por ticket</p>

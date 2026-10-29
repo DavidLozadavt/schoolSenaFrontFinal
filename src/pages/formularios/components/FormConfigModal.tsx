@@ -296,9 +296,9 @@ export const FormConfigModal: React.FC<FormConfigModalProps> = ({
                     onChange={(e) => setEstado(e.target.value as any)}
                     className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-neutral-800 dark:text-white outline-none cursor-pointer"
                   >
-                    <option value="publicado">🟢 Publicado (Abierto al público)</option>
-                    <option value="borrador">🟠 Borrador (Solo vista previa)</option>
-                    <option value="pausado">🔴 Pausado (Cerrado manualmente)</option>
+                    <option value="publicado">Publicado (Abierto al público)</option>
+                    <option value="borrador">Borrador (Solo vista previa)</option>
+                    <option value="pausado">Pausado (Cerrado manualmente)</option>
                   </select>
                 </div>
 

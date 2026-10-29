@@ -139,7 +139,7 @@ const ModalMigracionDatos = ({ open, onClose, onSave, entity = 'trabajadores' }:
                   className="flex items-center justify-between gap-4 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-coal-100 rounded-xl cursor-pointer transition hover:border-blue-500 focus-within:border-blue-500 bg-white dark:bg-coal-400"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">📄</span>
+                    <KeenIcon icon="document" className="text-xl" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {file ? file.name : 'Seleccionar archivo Excel'}
                     </span>

@@ -468,7 +468,7 @@ const SolicitudesInscripcionContent = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-2xl overflow-hidden bg-white rounded-2xl shadow-xl dark:bg-coal-600 flex flex-col max-h-[85vh] border border-gray-150 dark:border-white/10">
             <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-white/10">
-              <h3 className="text-base font-black text-gray-900 dark:text-white uppercase flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <KeenIcon icon="document-text" className="text-primary text-lg" />
                 Detalle de Inscripción
               </h3>
@@ -678,7 +678,7 @@ const SolicitudesInscripcionContent = () => {
                 <KeenIcon icon="trash" className="text-red-600 dark:text-red-400 text-xl" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wide">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Eliminar solicitud
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Esta acción no se puede deshacer</p>

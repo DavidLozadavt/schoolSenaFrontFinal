@@ -121,7 +121,7 @@ const Paso4PagoMatricula = ({
   if (!requiereRegistroPago) {
     return (
       <div className="space-y-4">
-        <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           Pago de matrícula
         </h3>
         <div className="p-5 border border-emerald-200 rounded-xl bg-emerald-50/80 dark:bg-emerald-500/10">
@@ -138,7 +138,7 @@ const Paso4PagoMatricula = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white">Pago de matrícula</h3>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white">Pago de matrícula</h3>
       <p className="text-xs text-gray-600 dark:text-gray-400">
         Registre el pago del administrador según la factura asociada a la solicitud.
       </p>
@@ -146,7 +146,7 @@ const Paso4PagoMatricula = ({
       {factura && (
         <div className="p-4 border border-primary/30 rounded-xl bg-primary/5 dark:bg-primary/10">
           <p className="text-[10px] font-bold uppercase text-gray-500">Factura {factura.numeroFactura}</p>
-          <p className="text-2xl font-black text-primary">{formatearPeso(totalFactura)}</p>
+          <p className="text-2xl font-bold text-primary">{formatearPeso(totalFactura)}</p>
           <p className="text-xs text-gray-600 dark:text-gray-400">
             Saldo pendiente: {formatearPeso(factura.saldoPendiente)}
           </p>

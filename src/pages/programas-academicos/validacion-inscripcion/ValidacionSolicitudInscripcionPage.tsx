@@ -19,7 +19,8 @@ import {
 import {
   EstudianteSolicitudInscripcion,
   SolicitudInscripcion,
-  RespuestasFormulario
+  RespuestasFormulario,
+  SolicitudInscripcionDetalleResponse
 } from './solicitudInscripcionTypes';
 import { fetchSolicitudInscripcionDetalle, mapFacturaApiToMock, aprobarValidacionSolicitudInscripcion, notificarRecepcionSolicitudInscripcion } from './validacionInscripcionApi';
 import Paso1RecibirInscripcion from './steps/Paso1RecibirInscripcion';
@@ -49,6 +50,7 @@ const ValidacionSolicitudInscripcionPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [wizard, setWizard] = useState<ValidacionSolicitudWizardState>(initialWizardState);
   const [documentosPago, setDocumentosPago] = useState<any[]>([]);
+  const [pagoWompi, setPagoWompi] = useState<SolicitudInscripcionDetalleResponse['pagoWompi']>(null);
   const [finalizando, setFinalizando] = useState(false);
 
   useEffect(() => {
@@ -72,6 +74,7 @@ const ValidacionSolicitudInscripcionPage = () => {
         setFactura(mapFacturaApiToMock(detalle.factura, detalle.solicitud.idSolicitud));
         setRespuestasFormulario(detalle.respuestasFormulario);
         setDocumentosPago(detalle.documentosPago ?? []);
+        setPagoWompi(detalle.pagoWompi ?? null);
       } catch (err) {
         console.error(err);
         if (!cancelado) {
@@ -81,6 +84,7 @@ const ValidacionSolicitudInscripcionPage = () => {
           setFactura(null);
           setRespuestasFormulario(null);
           setDocumentosPago([]);
+          setPagoWompi(null);
         }
       } finally {
         if (!cancelado) setLoading(false);
@@ -300,7 +304,16 @@ const ValidacionSolicitudInscripcionPage = () => {
                 onRecibidaChange={(v) => setWizard((w) => ({ ...w, recibida: v }))}
               />
             )}
-            {currentStep === 1 && <Paso2RevisionPago solicitud={solicitud} factura={factura} documentosPago={documentosPago} onAprobado={() => { setCurrentStep(2); }} onRechazado={() => { setCurrentStep(2); }} />}
+            {currentStep === 1 && (
+              <Paso2RevisionPago
+                solicitud={solicitud}
+                factura={factura}
+                documentosPago={documentosPago}
+                pagoWompi={pagoWompi}
+                onAprobado={() => { setCurrentStep(2); }}
+                onRechazado={() => { setCurrentStep(2); }}
+              />
+            )}
             {currentStep === 2 && (
               <Paso4PagoMatricula
                 factura={factura}

@@ -102,7 +102,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
                   <div className="grid grid-cols-3 gap-6 text-sm">
                     {/* Total Tiqueteado */}
                     <div>
-                      <p className="font-bold text-gray-900">🎟️ Total Tiqueteado</p>
+                      <p className="font-bold text-gray-900">Total Tiqueteado</p>
                       <p className="text-gray-800">
                         Cantidad de Tickets:{' '}
                         <span className="text-blue-600 font-semibold">{totales.totalTickets}</span>
@@ -117,7 +117,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
 
                     {/* Total Despachado */}
                     <div>
-                      <p className="font-bold text-gray-900">🚌 Total Despachado</p>
+                      <p className="font-bold text-gray-900">Total Despachado</p>
                       <p className="text-gray-800">
                         Cantidad de Tickets:{' '}
                         <span className="text-blue-600 font-semibold">
@@ -134,7 +134,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
 
                     {/* Total por Despachar */}
                     <div>
-                      <p className="font-bold text-gray-900">📦 Total por Despachar</p>
+                      <p className="font-bold text-gray-900">Total por Despachar</p>
                       <p className="text-gray-800">
                         Cantidad de Tickets:{' '}
                         <span className="text-blue-600 font-semibold">
@@ -158,7 +158,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
                   {planilla.viaje.rutas.map((ruta: any) => (
                     <div key={ruta.idRutaPadre} className="mb-4">
                       <h4 className="font-medium text-blue-600">
-                        Trayecto: {ruta.nombreRuta} (Tickets: {ruta.totalTicketsRuta}) - 💵{' '}
+                        Trayecto: {ruta.nombreRuta} (Tickets: {ruta.totalTicketsRuta}) -{' '}
                         {formatCOP(ruta.valorTotalRuta)}
                       </h4>
                       <table className="w-full text-sm border mt-2">
@@ -179,7 +179,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
                               <td className="p-2">{lugar.nombre}</td>
                               <td className="p-2 text-right">{lugar.cantidadTickets}</td>
                               <td className="p-2 text-right font-semibold">
-                                💵 {formatCOP(lugar.valorTotalLugar)}
+                                {formatCOP(lugar.valorTotalLugar)}
                               </td>
                             </tr>
                           ))}
@@ -197,7 +197,7 @@ const ModalReporteVentanillas = ({ open, onClose, idPunto }: ModalProps) => {
 
               {relacionPlanillas.length > 0 && (
                 <div className="border rounded-xl shadow p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">📋 Relación de Planillas Despachadas</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Relación de Planillas Despachadas</h4>
                   <table className="w-full text-sm border rounded-lg overflow-hidden">
                     <thead className="bg-gray-100">
                       <tr>
