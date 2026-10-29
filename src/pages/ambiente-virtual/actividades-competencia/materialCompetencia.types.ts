@@ -1,11 +1,36 @@
 export type MaterialCompetenciaOrigen = 'DIRECTO' | 'ACTIVIDAD' | 'MATERIAL_APOYO';
 
+export type MaterialCompetenciaRecursoTipo = 'DOCUMENTO' | 'MULTIMEDIA' | 'ENLACE';
+
+export type MaterialCompetenciaNaturaleza =
+  | 'documento'
+  | 'video'
+  | 'audio'
+  | 'youtube'
+  | 'pdf_externo'
+  | 'enlace';
+
 export interface MaterialCompetenciaCreador {
   idPersona?: number | null;
   nombreCompleto?: string | null;
   email?: string | null;
   rutaFoto?: string | null;
   rutaFotoUrl?: string | null;
+}
+
+export interface MaterialCompetenciaRecursoItem {
+  id?: number | null;
+  tipo: MaterialCompetenciaRecursoTipo | string;
+  titulo?: string | null;
+  nombre?: string | null;
+  ruta?: string | null;
+  url?: string | null;
+  urlExterna?: string | null;
+  formato?: string | null;
+  naturaleza?: MaterialCompetenciaNaturaleza | string;
+  youtubeEmbedUrl?: string | null;
+  youtubeWatchUrl?: string | null;
+  legacy?: boolean;
 }
 
 export interface MaterialCompetenciaItem {
@@ -19,6 +44,9 @@ export interface MaterialCompetenciaItem {
   urlDocumento?: string | null;
   urlDocumentoUrl?: string | null;
   urlAdicional?: string | null;
+  urlVideo?: string | null;
+  urlVideoUrl?: string | null;
+  recursos?: MaterialCompetenciaRecursoItem[];
   idActividad?: number | null;
   idMaterialApoyoActividad?: number | null;
   actividadOrigen?: { id: number; titulo?: string | null } | null;

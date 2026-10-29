@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { KeenIcon, ImageZoomModal, DefaultTooltip } from '@/components';
+import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import axios from 'axios';
 import Select from 'react-select';
@@ -16,6 +17,23 @@ const DROPDOWN_PADDING = 16;
 /** Panel alineado al de tooltips informativos del calendario (ClaseDetallePage). */
 const TOOLTIP_COBERTURA_SURFACE =
   '!rounded-xl !max-w-[min(100vw-1rem,18rem)] !p-0 !text-left !font-sans !normal-case !bg-white !text-slate-900 !border !border-slate-200/90 !shadow-lg !overflow-hidden dark:!bg-coal-600 dark:!text-white dark:!border-gray-500/50';
+
+/** Tooltip de texto largo (RAP, título, entregables, autor): portal MUI, no se recorta con overflow de la tabla. */
+const TOOLTIP_TEXTO_LARGO =
+  '!text-white !rounded-md !text-xs !font-normal !bg-[--tw-tooltip-background-color] !box-shadow[--tw-tooltip-box-shadow] !border[--tw-tooltip-border] !px-2.5 !py-1.5 !max-w-[min(100vw-1.5rem,22rem)] !whitespace-normal !leading-snug !text-left';
+
+const TOOLTIP_TEXTO_SLOTS = {
+  popper: {
+    modifiers: [
+      { name: 'offset', options: { offset: [0, 8] } },
+      { name: 'preventOverflow', options: { padding: 10, altBoundary: true } },
+      {
+        name: 'flip',
+        options: { padding: 10, fallbackPlacements: ['bottom', 'top', 'left', 'right'] }
+      }
+    ]
+  }
+};
 
 type CoberturaActividadItem = { total: number; asignados: number; faltan: number; entregaron?: number; pendientesEntrega?: number };
 
@@ -112,7 +130,8 @@ const SeleccionActividadSwitch: React.FC<{
       if (!disabled) onChange();
     }}
     className={`
-      relative inline-flex h-7 w-[52px] shrink-0 items-center rounded-full border transition-colors duration-200
+      relative inline-flex h-[22px] w-10 shrink-0 items-center rounded-full border transition-colors duration-200
+      before:absolute before:-inset-y-2 before:-inset-x-1.5 before:content-['']
       focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
       ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
       ${
@@ -124,8 +143,8 @@ const SeleccionActividadSwitch: React.FC<{
   >
     <span
       className={`
-        pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ease-out
-        ${checked ? 'translate-x-7' : 'translate-x-0.5'}
+        pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ease-out
+        ${checked ? 'translate-x-[1.125rem]' : 'translate-x-0.5'}
       `}
     />
   </button>
@@ -215,11 +234,11 @@ const DropdownAcciones: React.FC<{
   );
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={ref} className="relative inline-block max-w-full">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer whitespace-nowrap"
+        className="inline-flex max-w-full truncate px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer whitespace-nowrap"
         title="Ver acciones"
       >
         Ver acciones
@@ -283,15 +302,26 @@ const formatearFechaCompacta = (value?: string | null): { fecha: string; hora: s
   }
 };
 
-const CeldaConTooltip: React.FC<{ textoCompleto: string; textoTruncado: string }> = ({ textoCompleto, textoTruncado }) => {
-  const necesitaTooltip = textoCompleto !== textoTruncado && textoCompleto.length > 0 && textoCompleto !== '-';
+const CeldaConTooltip: React.FC<{
+  texto: string;
+  className?: string;
+}> = ({ texto, className }) => {
+  const valor = texto && String(texto).trim() ? String(texto).trim() : '-';
+  const mostrarTooltip = valor !== '-';
   return (
-    <span
-      className={`${necesitaTooltip ? 'cursor-help underline decoration-dotted decoration-gray-400' : ''}`}
-      title={necesitaTooltip ? `Más información: ${textoCompleto}` : undefined}
+    <DefaultTooltip
+      title={valor}
+      placement="top"
+      disableHoverListener={!mostrarTooltip}
+      classes={{ tooltip: TOOLTIP_TEXTO_LARGO }}
+      slotProps={TOOLTIP_TEXTO_SLOTS}
+      enterDelay={250}
+      leaveDelay={0}
     >
-      {textoTruncado}
-    </span>
+      <span className={`block min-w-0 max-w-full cursor-default truncate ${className ?? ''}`}>
+        {valor}
+      </span>
+    </DefaultTooltip>
   );
 };
 
@@ -400,6 +430,12 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
     if (!p) return 'Sin asignar';
     return `${p.nombre1 || ''} ${p.nombre2 || ''} ${p.apellido1 || ''} ${p.apellido2 || ''}`.trim() || 'Sin asignar';
   };
+  const primerNombreAutor = (p: Actividad['persona']) => {
+    const primero = (p?.nombre1 || '').trim();
+    return primero || nombreCompleto(p);
+  };
+  const etiquetaRap = (act: Actividad) =>
+    `${act.materia?.codigo ? `${act.materia.codigo} · ` : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-';
   const [busqueda, setBusqueda] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
   /** Selección en la tabla principal (modo agregar, asignación masiva) */
@@ -812,13 +848,13 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
   const tituloSeccion = modo === 'agregar' ? 'Agregar actividades' : 'Actividades asignadas';
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 animate-fade-in">
-      <div className="flex flex-col gap-3 min-w-0 sm:gap-4">
+    <div className="min-w-0 max-w-full space-y-5 animate-fade-in">
+      <div className="flex flex-col gap-4 min-w-0 sm:gap-5">
         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white text-center uppercase tracking-tight">
           {tituloSeccion}
         </h2>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="relative w-full sm:max-w-md">
+          <div className="relative w-full min-w-0">
             <KeenIcon icon="search" className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-white" />
             <input
               type="text"
@@ -835,31 +871,28 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
           No hay resultados para tu búsqueda. Intenta con otros términos.
         </div>
       ) : (
-      <div className="w-full min-w-0 max-w-full overflow-x-auto md:overflow-x-visible">
-        <table
-          className="w-full min-w-0 table-fixed"
-          style={{ tableLayout: 'fixed' }}
-        >
+      <div className="w-full min-w-0 max-w-full overflow-hidden max-md:overflow-x-auto rounded-lg border border-gray-200/80 dark:border-gray-700">
+        <table className="w-full max-w-full table-fixed max-md:min-w-[40rem]" style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            {mostrarColumnaSeleccion && <col style={{ width: 48 }} />}
-            <col style={{ width: '4.5%' }} />
-            <col style={{ width: '6.5%' }} />
-            <col style={{ width: modo === 'asignadas' ? '16%' : '20%' }} />
-            <col style={{ width: modo === 'asignadas' ? '12%' : '14%' }} />
-            <col style={{ width: modo === 'asignadas' ? '12%' : '14%' }} />
-            <col style={{ width: '7.5rem' }} />
+            {mostrarColumnaSeleccion && <col style={{ width: '6%' }} />}
+            <col style={{ width: '8%' }} />
+            <col style={{ width: modo === 'asignadas' ? '12%' : '11%' }} />
+            <col style={{ width: modo === 'asignadas' ? '19%' : '21%' }} />
+            <col style={{ width: modo === 'asignadas' ? '11%' : '12%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: modo === 'asignadas' ? '9%' : '10%' }} />
             {modo === 'asignadas' && <col style={{ width: '9%' }} />}
-            <col style={{ width: '6.5rem' }} />
-            <col style={{ width: '7.25rem' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
+            <tr className="border-b border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-coal-500/20">
               {headers.map((h, hi) => (
                 <th
                   key={h || `col-${hi}`}
-                  className={`py-2.5 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold text-gray-600 dark:text-white tracking-wider uppercase ${
-                    h === 'Código' ? 'pr-2 sm:pr-4' : ''
-                  } ${h === 'Autor' ? 'pl-1 pr-2' : ''} ${['Estado', 'Tipo', 'Acciones'].includes(h) ? 'px-2 sm:px-3 text-center' : h === '' ? 'text-center w-11' : 'text-left'}`}
+                  className={`py-2 px-1.5 text-[10px] font-bold text-gray-600 dark:text-white tracking-wider uppercase ${
+                    ['Estado', 'Tipo', 'Acciones'].includes(h) ? 'text-center' : h === '' ? 'text-center' : 'text-left'
+                  }`}
                 >
                   {h === '' && mostrarColumnaSeleccion ? (
                     <span className="sr-only">Incluir en asignación</span>
@@ -870,19 +903,21 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 [&>tr>td]:overflow-hidden">
             {actividadesPaginadas.map((item, idx) => {
               const act = item.actividad || item;
               const indiceGlobal = (paginaActual - 1) * ACTIVIDADES_POR_PAGINA + idx;
-              const codigo = indiceGlobal + 1;
-              const { fecha, hora } = formatearFechaCompacta((item as ItemActividad).fechaFinal);
+              const codigoMostrado = codigoVistaActividad(act, indiceGlobal);
+              const autorNombre = nombreCompleto(act.persona);
+              const autorCorto = primerNombreAutor(act.persona);
+              const rapTexto = etiquetaRap(act);
               return (
                 <tr
                   key={act.id || act.tituloActividad}
                   className="hover:bg-gray-50 dark:hover:bg-coal-400/50 transition-colors"
                 >
                   {mostrarColumnaSeleccion && (
-                    <td className="py-3 px-0.5 align-middle text-center w-12 min-w-0">
+                    <td className="px-1 py-2 align-middle text-center">
                       {act.id != null && (
                         <SeleccionActividadSwitch
                           checked={seleccionIds.has(act.id)}
@@ -904,56 +939,56 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                       )}
                     </td>
                   )}
-                  <td className="py-3 px-2 sm:px-3 text-xs font-semibold text-gray-700 dark:text-white align-middle min-w-0" style={{ minWidth: 48 }}>
-                    {codigo}
+                  <td className="px-1.5 py-2 align-middle">
+                    <span className="block truncate text-[11px] font-semibold tabular-nums text-gray-700 dark:text-white" title={codigoMostrado}>
+                      {codigoMostrado}
+                    </span>
                   </td>
-                  <td className="py-3 pl-1 pr-2 align-middle min-w-0" style={{ minWidth: 52 }}>
-                    <div className="flex items-center justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setZoomFoto({
-                          src: getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto),
-                          alt: nombreCompleto(act.persona)
-                        })}
-                        title={nombreCompleto(act.persona)}
-                        className="relative shrink-0 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 block"
-                      >
-                        <img
-                          src={getFotoUrl(act.persona?.rutaFotoUrl || act.persona?.rutaFoto)}
-                          alt={nombreCompleto(act.persona)}
-                          className="w-11 h-11 rounded-full object-cover border-2 border-gray-100 dark:border-gray-700 shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+                  <td className="px-1.5 py-2 align-middle">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="relative shrink-0">
+                        <UserProfileAvatar
+                          persona={act.persona}
+                          variant="sm"
+                          alt=""
+                          enableZoom
                         />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-coal-200 rounded-full" />
-                      </button>
+                        <div className="pointer-events-none absolute bottom-0 right-0 h-2 w-2 rounded-full border border-white bg-green-500 dark:border-coal-200" />
+                      </div>
+                      <DefaultTooltip
+                        title={autorNombre}
+                        placement="top"
+                        disableHoverListener={autorCorto === autorNombre}
+                        classes={{ tooltip: TOOLTIP_TEXTO_LARGO }}
+                        slotProps={TOOLTIP_TEXTO_SLOTS}
+                        enterDelay={250}
+                        leaveDelay={0}
+                      >
+                        <span className="min-w-0 truncate text-[11px] font-medium leading-tight text-gray-800 dark:text-white">
+                          {autorCorto}
+                        </span>
+                      </DefaultTooltip>
                     </div>
                   </td>
-                  <td className="py-3 px-2 sm:px-3 align-middle overflow-hidden min-w-0 max-w-0">
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-800 dark:text-white uppercase leading-relaxed truncate block" title={act.tituloActividad || ''}>
-                        {act.tituloActividad || '-'}
-                      </span>
-                      {onVer && (
-                        <button
-                          type="button"
-                          onClick={() => onVer(act)}
-                          className="self-start text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 uppercase tracking-tighter decoration-dotted underline underline-offset-2"
-                        >
-                          Ver más
-                        </button>
-                      )}
-                    </div>
+                  <td className="min-w-0 overflow-hidden px-1.5 py-2 align-middle">
+                    <CeldaConTooltip
+                      texto={act.tituloActividad || '-'}
+                      className="text-[11px] font-bold uppercase leading-tight text-gray-800 dark:text-white"
+                    />
                   </td>
-                  <td className="py-3 px-2 sm:px-3 align-middle overflow-hidden min-w-0 max-w-0">
-                    <span className="text-[9px] sm:text-[10px] text-gray-600 dark:text-white uppercase font-medium leading-relaxed truncate block" title={act.entregables || '-'}>
-                      {act.entregables || '-'}
-                    </span>
+                  <td className="min-w-0 overflow-hidden px-1.5 py-2 align-middle">
+                    <CeldaConTooltip
+                      texto={act.entregables || '-'}
+                      className="text-[10px] font-medium leading-tight text-gray-600 dark:text-white"
+                    />
                   </td>
-                  <td className="py-3 px-2 sm:px-3 align-middle overflow-hidden min-w-0 max-w-0">
-                    <span className="text-[10px] text-gray-600 dark:text-white uppercase font-medium leading-relaxed truncate block" title={`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}>
-                      {`${act.materia?.codigo ? act.materia.codigo + ' - ' : ''}${act.materia?.nombreMateria || '-'}`.trim() || '-'}
-                    </span>
+                  <td className="min-w-0 overflow-hidden px-1.5 py-2 align-middle">
+                    <CeldaConTooltip
+                      texto={rapTexto}
+                      className="text-[10px] font-medium leading-tight text-gray-600 dark:text-white"
+                    />
                   </td>
-                  <td className="py-3 px-1.5 sm:px-2 align-middle text-center min-w-0 w-[6.5rem] sm:w-[7.5rem] max-w-[7.5rem]">
+                  <td className="px-1 py-2 align-middle text-center">
                     {modo === 'agregar' ? (
                       (() => {
                         const c = act.id != null ? coberturaActividades?.[act.id] : undefined;
@@ -998,14 +1033,14 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                               <button
                                 type="button"
                                 onClick={() => abrirModalCoberturaAsignacion(act)}
-                                className={`inline-flex max-w-full cursor-pointer px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-coal-400 ${estadoClases}`}
+                                className={`inline-flex max-w-full cursor-pointer truncate whitespace-nowrap px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 dark:focus-visible:ring-offset-coal-400 ${estadoClases}`}
                                 title="Ver cobertura de asignación por estudiante"
                               >
                                 {estadoTexto}
                               </button>
                             ) : (
                               <span
-                                className={`inline-flex max-w-full px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border cursor-help ${estadoClases}`}
+                                className={`inline-flex max-w-full truncate whitespace-nowrap px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border cursor-help ${estadoClases}`}
                               >
                                 {estadoTexto}
                               </span>
@@ -1066,14 +1101,14 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                               <button
                                 type="button"
                                 onClick={() => abrirModalEntregables(act)}
-                                className={`inline-flex max-w-full cursor-pointer px-3 py-1 sm:px-4 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap shrink-0 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-coal-400 ${estadoClases}`}
+                                className={`inline-flex max-w-full cursor-pointer truncate px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 dark:focus-visible:ring-offset-coal-400 ${estadoClases}`}
                                 title="Ver estudiantes y estado de entrega"
                               >
                                 {estadoTexto}
                               </button>
                             ) : (
                               <span
-                                className={`inline-flex max-w-full cursor-help px-3 py-1 sm:px-4 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap shrink-0 ${estadoClases}`}
+                                className={`inline-flex max-w-full cursor-help truncate px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap ${estadoClases}`}
                               >
                                 {estadoTexto}
                               </span>
@@ -1084,20 +1119,20 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
                     )}
                   </td>
                   {modo === 'asignadas' && (
-                    <td className="py-3 px-1.5 sm:px-2 align-middle overflow-hidden text-center min-w-0 max-w-0">
-                      <div className="flex min-w-0 flex-col leading-tight" title={formatearFecha((item as ItemActividad).fechaFinal, true)}>
-                        <span className="text-[11px] font-medium text-gray-700 dark:text-white truncate">{fecha}</span>
-                        {hora && <span className="text-[10px] text-gray-500 dark:text-white truncate">{hora}</span>}
-                      </div>
+                    <td className="min-w-0 overflow-hidden px-1.5 py-2 align-middle text-center">
+                      <CeldaConTooltip
+                        texto={formatearFecha((item as ItemActividad).fechaFinal, true)}
+                        className="text-[10px] font-medium text-gray-700 dark:text-white"
+                      />
                     </td>
                   )}
-                  <td className="py-3 px-1 sm:px-2 align-middle text-center min-w-0 max-w-[7rem]">
-                    <span className="inline-flex max-w-full px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wide border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 whitespace-nowrap shrink-0 justify-center truncate" title={act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}>
+                  <td className="px-1 py-2 align-middle text-center">
+                    <span className="inline-flex max-w-full truncate justify-center whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300" title={act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}>
                       {act.tipoActividad === 'cuestionario' ? 'Cuestionario' : (act.tipoActividad || '-')}
                     </span>
                   </td>
-                  <td className="py-3 px-1.5 sm:px-2 align-middle text-center min-w-0 w-[6.5rem] sm:w-[7.5rem]">
-                    <div className="flex items-center justify-center min-w-0">
+                  <td className="px-1 py-2 align-middle text-center">
+                    <div className="flex min-w-0 items-center justify-center">
                       <DropdownAcciones
                         act={act}
                         item={item}
@@ -1243,7 +1278,7 @@ const ListaActividades: React.FC<ListaActividadesProps> = ({
       {modo === 'agregar' && (onCrear || onCrearCuestionario || onAsignarActividades) && (
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4">
           {onAsignarActividades && (
-            <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-white">
+            <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-white min-w-0">
               <span>
                 <strong className="text-gray-900 dark:text-white">{seleccionIds.size}</strong> actividad(es) con asignación activa (switch)
               </span>

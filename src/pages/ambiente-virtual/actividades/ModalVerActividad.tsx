@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalTitle } from '@/components/modal';
 import { KeenIcon } from '@/components';
+import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
 import axios from 'axios';
 import type { Actividad } from './ModalCrearActividad';
 
@@ -99,15 +100,18 @@ const ModalVerActividad: React.FC<ModalVerActividadProps> = ({ open, onClose, ac
               )}
             </div>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <img
-                  src={act.persona?.rutaFotoUrl || act.persona?.rutaFoto || '/media/avatars/blank.png'}
-                  alt={nombreCompleto(act.persona)}
-                  className="w-10 h-10 rounded-full object-cover"
+              <div className="flex items-center gap-2.5 min-w-0">
+                <UserProfileAvatar
+                  persona={act.persona}
+                  variant="sm"
+                  alt=""
+                  enableZoom
                 />
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400">Autor</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{nombreCompleto(act.persona)}</p>
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white" title={nombreCompleto(act.persona)}>
+                    {nombreCompleto(act.persona)}
+                  </p>
                 </div>
               </div>
               <div>

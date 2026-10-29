@@ -4,25 +4,30 @@ import { Toolbar, ToolbarDescription, ToolbarHeading, ToolbarPageTitle } from '@
 import { useLayout } from '@/providers';
 import Select from 'react-select';
 import {
-  compactReactSelectClassNames,
   compactReactSelectNoOptions,
+  compactReactSelectWrapClassNames,
 } from '@/components/forms/compactReactSelect';
 import MaterialCompetenciaView from './MaterialCompetenciaView';
+import MaterialCompetenciaAprendizView from './MaterialCompetenciaAprendizView';
 import { materialCompetenciaService } from './materialCompetenciaService';
 import type { CompetenciaAccesible } from './materialCompetencia.types';
 
 const selectClassNames = {
-  ...compactReactSelectClassNames,
+  ...compactReactSelectWrapClassNames,
   control: (state: { isFocused: boolean }) =>
-    `${compactReactSelectClassNames.control()} dark:text-white ${
+    `${compactReactSelectWrapClassNames.control()} dark:text-white ${
       state.isFocused ? '!border-primary ring-2 ring-primary/30' : 'hover:border-primary/40'
     }`,
-  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
-  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
-  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  singleValue: () => `${compactReactSelectWrapClassNames.singleValue()} dark:!text-white`,
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm whitespace-normal',
+  menu: () => `${compactReactSelectWrapClassNames.menu()} dark:text-white`,
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
-    `${compactReactSelectClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
+    `${compactReactSelectWrapClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
 };
+
+const formatCompetenciaOption = (option: { label: string }) => (
+  <span className="block whitespace-normal break-words leading-snug">{option.label}</span>
+);
 
 const ActividadesCompetenciaPage: React.FC = () => {
   const { currentLayout } = useLayout();
@@ -77,11 +82,14 @@ const ActividadesCompetenciaPage: React.FC = () => {
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <ToolbarPageTitle text="Actividades competencias RAP" />
+              <ToolbarPageTitle text="Material de Apoyo" />
               <ToolbarDescription>
                 <span className="dark:text-white">
-                  Material general de la competencia, compartido entre instructores y aprendices autorizados
-                  de todos sus RAP.
+                  {loading
+                    ? 'Material de apoyo de las competencias autorizadas.'
+                    : puedeAdministrar
+                      ? 'Selecciona una competencia para consultar y administrar su material de apoyo.'
+                      : 'Aquí encontrarás documentos, videos, audios y enlaces de apoyo asociados a cada competencia.'}
                 </span>
               </ToolbarDescription>
             </ToolbarHeading>
@@ -104,6 +112,8 @@ const ActividadesCompetenciaPage: React.FC = () => {
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-5 text-sm text-gray-600 dark:text-gray-200">
               No tienes competencias asignadas. El acceso al material depende de tus horarios o matrículas vigentes.
             </div>
+          ) : !puedeAdministrar ? (
+            <MaterialCompetenciaAprendizView />
           ) : (
             <>
               {competencias.length > 1 ? (
@@ -117,6 +127,7 @@ const ActividadesCompetenciaPage: React.FC = () => {
                     value={opciones.find((o) => o.value === idCompetencia) ?? null}
                     onChange={(opt) => setIdCompetencia(opt?.value ?? null)}
                     classNames={selectClassNames}
+                    formatOptionLabel={formatCompetenciaOption}
                     noOptionsMessage={compactReactSelectNoOptions}
                   />
                 </div>
@@ -130,7 +141,7 @@ const ActividadesCompetenciaPage: React.FC = () => {
                 />
               ) : (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-5 text-sm text-gray-600 dark:text-gray-200">
-                  Selecciona una competencia para consultar su material.
+                  Selecciona una competencia para consultar su material de apoyo.
                 </div>
               )}
             </>

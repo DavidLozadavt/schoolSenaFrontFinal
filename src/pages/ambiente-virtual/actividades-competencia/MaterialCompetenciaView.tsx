@@ -2,16 +2,22 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { KeenIcon, Toast } from '@/components';
 import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAvatarFallback';
-import {
-  extensionFromPath,
-  materialDocumentoActionLabel,
-  materialDocumentoTypeLabel,
-} from '@/pages/ambiente-virtual/actividades/materialDocumentoSupport';
 import { tipoMaterialDisplay } from '@/pages/ambiente-virtual/actividades/tipoMaterialApoyo';
 import ModalSubirMaterialCompetencia from './ModalSubirMaterialCompetencia';
 import ModalIncorporarMaterialCompetencia from './ModalIncorporarMaterialCompetencia';
+import ModalMoverMaterialCompetencia from './ModalMoverMaterialCompetencia';
+import MaterialVideoPlayerModal from './MaterialVideoPlayerModal';
 import { materialCompetenciaService } from './materialCompetenciaService';
-import type { CompetenciaAccesible, MaterialCompetenciaItem } from './materialCompetencia.types';
+import type { CompetenciaAccesible, MaterialCompetenciaItem, MaterialCompetenciaRecursoItem } from './materialCompetencia.types';
+import {
+  accionRecurso,
+  etiquetaTipoRecurso,
+  nombreRecurso,
+  recursosPorTipo,
+  tieneDocumentoMaterial,
+  tieneEnlaceMaterial,
+  tieneVideoMaterial,
+} from './materialCompetenciaRecurso';
 
 interface MaterialCompetenciaViewProps {
   competencia: CompetenciaAccesible;
@@ -53,8 +59,14 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
   const [search, setSearch] = useState('');
   const [pagina, setPagina] = useState(1);
   const [subirOpen, setSubirOpen] = useState(false);
+  const [materialEditar, setMaterialEditar] = useState<MaterialCompetenciaItem | null>(null);
   const [incorporarOpen, setIncorporarOpen] = useState(false);
+  const [materialMover, setMaterialMover] = useState<MaterialCompetenciaItem | null>(null);
   const [recursosMenu, setRecursosMenu] = useState<MenuState | null>(null);
+  const [reproduciendo, setReproduciendo] = useState<{
+    material: MaterialCompetenciaItem;
+    recurso: MaterialCompetenciaRecursoItem;
+  } | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
@@ -116,6 +128,8 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
         it.rapOrigen?.nombre,
         it.creador?.nombreCompleto,
         tipoMaterialDisplay(it.tipoMaterial),
+        etiquetaTipoRecurso(it),
+        ...(it.recursos || []).map((r) => `${r.titulo || ''} ${r.nombre || ''} ${r.urlExterna || ''}`),
       ]
         .filter(Boolean)
         .join(' ')
@@ -160,10 +174,28 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
     };
   }, [recursosMenu]);
 
-  const manejarRecurso = async (item: MaterialCompetenciaItem, inline: boolean) => {
+  const manejarRecurso = async (
+    item: MaterialCompetenciaItem,
+    inline: boolean,
+    recurso?: MaterialCompetenciaRecursoItem
+  ) => {
     setRecursosMenu(null);
+    const naturaleza = recurso?.naturaleza;
+    if (recurso && (naturaleza === 'video' || naturaleza === 'audio' || naturaleza === 'youtube')) {
+      setReproduciendo({ material: item, recurso });
+      return;
+    }
+    if (recurso && naturaleza === 'pdf_externo') {
+      setReproduciendo({ material: item, recurso });
+      return;
+    }
+    if (recurso && naturaleza === 'enlace') {
+      const href = recurso.urlExterna || recurso.url;
+      if (href) window.open(href, '_blank', 'noopener,noreferrer');
+      return;
+    }
     try {
-      await materialCompetenciaService.descargarOPrevisualizar(item, competencia.id, inline);
+      await materialCompetenciaService.descargarOPrevisualizar(item, competencia.id, inline, recurso);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Descarga o previsualización no disponible.', 'error');
     }
@@ -194,9 +226,11 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-4 sm:p-5 space-y-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-300">
-            Material de la competencia
+            Material de apoyo
           </p>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{competenciaNombre}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words leading-snug">
+            {competenciaNombre}
+          </h2>
           {competencia.totalRaps ? (
             <p className="text-xs text-gray-600 dark:text-gray-200 mt-0.5">
               {competencia.totalRaps} RAP asociados
@@ -221,7 +255,14 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
                 <KeenIcon icon="document" className="text-sm mr-1.5" />
                 Agregar material existente
               </button>
-              <button type="button" className="btn btn-primary text-sm" onClick={() => setSubirOpen(true)}>
+              <button
+                type="button"
+                className="btn btn-primary text-sm"
+                onClick={() => {
+                  setMaterialEditar(null);
+                  setSubirOpen(true);
+                }}
+              >
                 <KeenIcon icon="plus" className="text-sm mr-1.5" />
                 Agregar material
               </button>
@@ -282,8 +323,8 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
                 const actividadFull = mat.actividadOrigen?.titulo || '—';
                 const nombreCreador = mat.creador?.nombreCompleto?.trim() || '—';
                 const fotoCreador = getPerfilPublicUrl(mat.creador?.rutaFotoUrl || mat.creador?.rutaFoto);
-                const tieneRecurso = Boolean(mat.urlDocumento || mat.urlDocumentoUrl || mat.urlAdicional);
-                const ext = extensionFromPath(mat.urlDocumentoUrl || mat.urlDocumento || mat.titulo);
+                const tieneRecurso =
+                  tieneDocumentoMaterial(mat) || tieneEnlaceMaterial(mat) || tieneVideoMaterial(mat);
                 const rapOrigenFull = mat.rapOrigen?.nombre
                   ? `${mat.rapOrigen.codigo ? `${mat.rapOrigen.codigo} · ` : ''}${mat.rapOrigen.nombre}`
                   : '';
@@ -316,8 +357,8 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
                       <span className="block line-clamp-2 break-words" title={tituloFull}>
                         {tituloFull}
                       </span>
-                      <span className="block truncate text-[10px] text-gray-500 dark:text-gray-300" title={tipoMaterialDisplay(mat.tipoMaterial)}>
-                        {ext ? materialDocumentoTypeLabel(ext) : tipoMaterialDisplay(mat.tipoMaterial)}
+                      <span className="block truncate text-[10px] text-gray-500 dark:text-gray-300" title={etiquetaTipoRecurso(mat)}>
+                        {etiquetaTipoRecurso(mat)}
                       </span>
                     </td>
                     <td className="py-3 px-2 text-xs text-gray-700 dark:text-gray-200 min-w-0">
@@ -350,17 +391,40 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
                       </div>
                     </td>
                     <td className="py-3 pl-2 pr-5 text-right align-middle">
-                      {mat.puedeDesvincular ? (
-                        <button
-                          type="button"
-                          className="text-[10px] font-bold uppercase tracking-wide text-red-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
-                          onClick={() => void desvincular(mat)}
-                        >
-                          Desvincular
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-gray-500 dark:text-gray-300">Solo lectura</span>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {mat.puedeDesvincular && mat.origen === 'DIRECTO' ? (
+                          <button
+                            type="button"
+                            className="text-[10px] font-bold uppercase tracking-wide text-primary hover:underline"
+                            onClick={() => {
+                              setMaterialEditar(mat);
+                              setSubirOpen(true);
+                            }}
+                          >
+                            Editar
+                          </button>
+                        ) : null}
+                        {mat.puedeDesvincular ? (
+                          <button
+                            type="button"
+                            className="text-[10px] font-bold uppercase tracking-wide text-primary hover:underline"
+                            onClick={() => setMaterialMover(mat)}
+                          >
+                            Mover
+                          </button>
+                        ) : null}
+                        {mat.puedeDesvincular ? (
+                          <button
+                            type="button"
+                            className="text-[10px] font-bold uppercase tracking-wide text-red-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
+                            onClick={() => void desvincular(mat)}
+                          >
+                            Desvincular
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-gray-500 dark:text-gray-300">Solo lectura</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -394,53 +458,33 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
           (() => {
             const active = items.find((mat) => mat.id === recursosMenu.id);
             if (!active) return null;
-            const ext = extensionFromPath(active.urlDocumentoUrl || active.urlDocumento || active.titulo);
-            const tieneDoc = Boolean(active.urlDocumento || active.urlDocumentoUrl);
-            const tieneLink = Boolean(active.urlAdicional?.trim());
+            const lista = recursosPorTipo(active).todos;
             return (
               <div
                 data-id="material-competencia-recursos-menu"
-                className="fixed z-[9999] min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1"
+                className="fixed z-[9999] min-w-[240px] max-w-[min(100vw-1rem,22rem)] max-h-[min(70vh,24rem)] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-coal-500 shadow-xl p-1"
                 style={{ top: recursosMenu.top, left: recursosMenu.left }}
               >
                 <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600">
                   Recursos disponibles
                 </p>
-                {tieneDoc ? (
+                {lista.map((rec, i) => (
                   <button
+                    key={rec.id ?? `rec-${i}`}
                     type="button"
                     className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                    onClick={() => void manejarRecurso(active, true)}
+                    onClick={() => void manejarRecurso(active, true, rec)}
                   >
-                    {ext ? materialDocumentoActionLabel(ext) : 'Abrir documento'}
+                    <span className="block truncate">{nombreRecurso(rec)}</span>
+                    <span className="block text-[11px] text-gray-500">{accionRecurso(rec)}</span>
                   </button>
-                ) : null}
-                {tieneDoc ? (
-                  <button
-                    type="button"
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                    onClick={() => void manejarRecurso(active, false)}
-                  >
-                    Descargar
-                  </button>
-                ) : null}
-                {tieneLink ? (
-                  <a
-                    href={active.urlAdicional || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-coal-400 rounded"
-                    onClick={() => setRecursosMenu(null)}
-                  >
-                    Abrir enlace adicional
-                  </a>
-                ) : null}
+                ))}
                 {active.actividadOrigen?.titulo ? (
                   <div className="px-3 py-2 text-[11px] text-gray-500 dark:text-gray-300 border-t border-gray-100 dark:border-gray-600">
                     Origen: {active.actividadOrigen.titulo}
                   </div>
                 ) : null}
-                {!tieneDoc && !tieneLink ? (
+                {lista.length === 0 ? (
                   <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-200">Sin recursos disponibles</div>
                 ) : null}
               </div>
@@ -455,9 +499,22 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
             open={subirOpen}
             idCompetencia={competencia.id}
             competenciaNombre={competenciaNombre}
-            onClose={() => setSubirOpen(false)}
-            onSuccess={(msg) => {
+            material={materialEditar}
+            onClose={() => {
+              setSubirOpen(false);
+              setMaterialEditar(null);
+            }}
+            onSuccess={(msg, saved) => {
               showToast(msg);
+              if (saved) {
+                setItems((prev) => {
+                  const idx = prev.findIndex((row) => row.id === saved.id);
+                  if (idx === -1) return [saved, ...prev];
+                  const next = [...prev];
+                  next[idx] = saved;
+                  return next;
+                });
+              }
               void cargar(competencia.id).then((result) => {
                 setItems(result.items);
                 setError(result.error);
@@ -481,8 +538,32 @@ const MaterialCompetenciaView: React.FC<MaterialCompetenciaViewProps> = ({ compe
             }}
             onError={(msg) => showToast(msg, 'error')}
           />
+          <ModalMoverMaterialCompetencia
+            open={Boolean(materialMover)}
+            material={materialMover}
+            competenciaActual={competencia}
+            onClose={() => setMaterialMover(null)}
+            onSuccess={(msg) => {
+              const idMovido = materialMover?.id;
+              setMaterialMover(null);
+              if (idMovido != null) {
+                setItems((prev) => prev.filter((row) => row.id !== idMovido));
+              }
+              showToast(msg);
+            }}
+            onError={(msg) => showToast(msg, 'error')}
+          />
         </>
       ) : null}
+
+      <MaterialVideoPlayerModal
+        open={Boolean(reproduciendo)}
+        titulo={reproduciendo?.material.titulo}
+        urlVideo={reproduciendo?.recurso.urlExterna || reproduciendo?.recurso.url}
+        urlVideoUrl={reproduciendo?.recurso.url}
+        recurso={reproduciendo?.recurso}
+        onClose={() => setReproduciendo(null)}
+      />
 
       <Toast isOpen={toastOpen} message={toastMessage} type={toastType} onClose={() => setToastOpen(false)} />
     </div>

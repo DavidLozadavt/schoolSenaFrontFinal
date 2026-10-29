@@ -8,6 +8,7 @@ import type {
   CompetenciasAccesiblesResponse,
   MaterialCompetenciaElegible,
   MaterialCompetenciaItem,
+  MaterialCompetenciaRecursoItem,
 } from './materialCompetencia.types';
 
 const BASE = 'ambiente-virtual/actividades-competencia';
@@ -24,8 +25,15 @@ const parseErrorPayload = (data: unknown, fallback: string): string => {
 };
 
 const errorMessage = (err: unknown, fallback: string): string => {
-  const data = (err as { response?: { data?: unknown } })?.response?.data;
-  return parseErrorPayload(data, fallback);
+  const response = (err as { response?: { status?: number; data?: unknown } })?.response;
+  const parsed = parseErrorPayload(response?.data, fallback);
+  if (/failed to upload/i.test(parsed)) {
+    return 'El servidor no pudo recibir el archivo multimedia.';
+  }
+  if (response?.status === 500 && parsed === fallback) {
+    return 'Error del servidor al consultar el material. Intente de nuevo.';
+  }
+  return parsed;
 };
 
 export const materialCompetenciaService = {
@@ -56,13 +64,41 @@ export const materialCompetenciaService = {
     return Array.isArray(res.data) ? res.data : [];
   },
 
+  async listarMaterialesAutorizados(): Promise<MaterialCompetenciaItem[]> {
+    const res = await axios.get<{ data?: MaterialCompetenciaItem[] } | MaterialCompetenciaItem[]>(
+      `${BASE}/materiales`
+    );
+    const payload = res.data;
+    if (Array.isArray(payload)) return payload;
+    return Array.isArray(payload?.data) ? payload.data : [];
+  },
+
   async subir(idCompetencia: number, form: FormData): Promise<MaterialCompetenciaItem> {
     const res = await axios.post<MaterialCompetenciaItem>(
       `${BASE}/competencias/${idCompetencia}/materiales`,
-      form,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      form
     );
     return res.data;
+  },
+
+  async actualizar(idCompetencia: number, id: number, form: FormData): Promise<MaterialCompetenciaItem> {
+    const res = await axios.post<MaterialCompetenciaItem>(
+      `${BASE}/competencias/${idCompetencia}/materiales/${id}`,
+      form
+    );
+    return res.data;
+  },
+
+  async eliminarRecurso(idCompetencia: number, id: number, idRecurso: number): Promise<MaterialCompetenciaItem> {
+    const res = await axios.delete<MaterialCompetenciaItem>(
+      `${BASE}/competencias/${idCompetencia}/materiales/${id}/recursos/${idRecurso}`
+    );
+    return res.data;
+  },
+
+  recursoDownloadUrl(idCompetencia: number, id: number, idRecurso: number, inline = false): string {
+    const q = inline ? '?inline=1' : '';
+    return `${BASE}/competencias/${idCompetencia}/materiales/${id}/recursos/${idRecurso}/descargar${q}`;
   },
 
   async elegibles(idCompetencia: number, q = ''): Promise<MaterialCompetenciaElegible[]> {
@@ -84,6 +120,18 @@ export const materialCompetenciaService = {
     return res.data;
   },
 
+  async mover(
+    idCompetencia: number,
+    id: number,
+    idCompetenciaDestino: number
+  ): Promise<{ message?: string; data?: MaterialCompetenciaItem }> {
+    const res = await axios.post<{ message?: string; data?: MaterialCompetenciaItem }>(
+      `${BASE}/competencias/${idCompetencia}/materiales/${id}/mover`,
+      { idCompetenciaDestino }
+    );
+    return res.data;
+  },
+
   async desvincular(idCompetencia: number, id: number): Promise<void> {
     await axios.delete(`${BASE}/competencias/${idCompetencia}/materiales/${id}`);
   },
@@ -96,12 +144,19 @@ export const materialCompetenciaService = {
   async descargarOPrevisualizar(
     item: MaterialCompetenciaItem,
     idCompetencia: number,
-    inline = false
+    inline = false,
+    recurso?: MaterialCompetenciaRecursoItem | null
   ): Promise<void> {
-    const ext = extensionFromPath(item.urlDocumentoUrl || item.urlDocumento || item.titulo);
+    const ext = extensionFromPath(
+      recurso?.url || recurso?.ruta || item.urlDocumentoUrl || item.urlDocumento || item.titulo
+    );
     const previsualizar = inline || materialDocumentoShouldOpenInBrowser(ext);
+    const endpoint =
+      recurso?.id != null
+        ? this.recursoDownloadUrl(idCompetencia, item.id, recurso.id, previsualizar)
+        : this.downloadUrl(idCompetencia, item.id, previsualizar);
     try {
-      const response = await axios.get(this.downloadUrl(idCompetencia, item.id, previsualizar), {
+      const response = await axios.get(endpoint, {
         responseType: 'blob',
       });
       const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
