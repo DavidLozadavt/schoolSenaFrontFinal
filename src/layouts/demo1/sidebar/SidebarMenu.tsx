@@ -18,7 +18,7 @@ import {
 } from '@/components/menu';
 import { useMenus } from '@/providers';
 import { useAuthContext } from '@/auth';
-import { userHasAnyPermission } from '@/utils/permissionUtils';
+import { filterMenuByPermissions, isMenuItemAllowed } from '@/utils/menuPermissions';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
@@ -30,26 +30,6 @@ const SidebarMenu = () => {
   if (activacion?.state_id === 18) {
     return null;
   }
-
-  const hasPermission = (
-    requiredPermissions: string[] | undefined,
-    userPermissions: string[],
-    userRoles: string[]
-  ): boolean => {
-    if (!requiredPermissions || requiredPermissions.length === 0) {
-      return true;
-    }
-
-    const safePermissions = userPermissions ?? [];
-    const isAllowedByPermission = userHasAnyPermission(requiredPermissions, safePermissions);
-
-    const instructorSenaBypass =
-      Array.isArray(userRoles) &&
-      userRoles.includes('INSTRUCTOR SENA') &&
-      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
-
-    return isAllowedByPermission || instructorSenaBypass;
-  };
 
   const linkPl = 'ps-[10px]';
   const linkPr = 'pe-[10px]';
@@ -97,40 +77,6 @@ const SidebarMenu = () => {
       .filter(Boolean);
   };
 
-  const filterMenuByPermissions = (
-    items: TMenuConfig,
-    userPermissions: string[],
-    userRoles: string[]
-  ): TMenuConfig => {
-    return items
-      .map((item) => {
-        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
-          return null;
-        }
-
-        if (item.children && item.children.length > 0) {
-          const filteredChildren = filterMenuByPermissions(item.children, userPermissions, userRoles);
-          const parentAllowed = hasPermission(item.requiredPermissions, userPermissions, userRoles);
-
-          if (filteredChildren.length === 0) {
-            if (!parentAllowed || !item.path) {
-              return null;
-            }
-            return { ...item, children: [] };
-          }
-
-          return { ...item, children: filteredChildren };
-        }
-
-        if (!hasPermission(item.requiredPermissions, userPermissions, userRoles)) {
-          return null;
-        }
-
-        return item;
-      })
-      .filter(Boolean) as TMenuConfig;
-  };
-
   const filterMenuByTitleAndPermissions = (
     items: TMenuConfig,
     query: string,
@@ -145,7 +91,7 @@ const SidebarMenu = () => {
           return null;
         }
 
-        if (!hasPermission(item.requiredPermissions, userPermissions, userRoles)) {
+        if (!isMenuItemAllowed(item.requiredPermissions, userPermissions, userRoles)) {
           return null;
         }
 

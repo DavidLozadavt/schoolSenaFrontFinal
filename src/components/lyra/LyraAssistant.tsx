@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { KeenIcon } from '@/components';
 import clsx from 'clsx';
-import { useLyra, usePusher } from '@/providers';
+import { useLyra, usePusher, useMenus } from '@/providers';
+import { buildNavCatalog } from '@/utils/menuPermissions';
 import { useLyraVoice } from '@/hooks/useLyraVoice';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/auth';
@@ -137,7 +138,8 @@ const Particle = ({ i, count }: { i: number, count: number }) => {
 const LyraAssistant = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { persona, roles } = useAuthContext();
+    const { persona, roles, permissions } = useAuthContext();
+    const { getMenuConfig } = useMenus();
     const { messages, setMessages, isOpen, setIsOpen, conversationId, setHighlightedBusinessId, setFiltersApplied, isPoweredOn, setIsPoweredOn, checkHealth } = useLyra();
     const { pusher } = usePusher();
     const [input, setInput] = useState('');
@@ -149,7 +151,15 @@ const LyraAssistant = () => {
     const [showMenu, setShowMenu] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const API_URL = import.meta.env.VITE_LYRA_API_URL || 'http://127.0.0.1:8099';
+    const API_URL = import.meta.env.VITE_LYRA_API_URL || 'http://127.0.0.1:8098';
+
+    // Secciones que este usuario ve en su menú (misma regla que el sidebar).
+    // Lyra sólo puede llevarlo a una de ellas: no inventa rutas.
+    const primaryMenu = getMenuConfig('primary');
+    const navCatalog = useMemo(
+        () => buildNavCatalog(primaryMenu, permissions ?? [], roles ?? []),
+        [primaryMenu, permissions, roles]
+    );
     const PROJECT_ID = import.meta.env.VITE_LYRA_PROJECT_ID || 'schoolsena';
 
     const didHighlightInThisResponse = useRef(false);
@@ -282,26 +292,66 @@ const LyraAssistant = () => {
     }, []);
     // ================================
 
-    const handleVisit = (id: number, type?: string) => {
-        setIsOpen(false);
-        
-        // SchoolSena routing logic
-        if (type === 'ficha') {
-            navigate('/gestion-academica/configuracion/programas/1/fichas');
-        } else if (type === 'actividad') {
-            navigate('/ambiente-virtual/actividades');
-        } else if (type === 'clase') {
-            navigate('/ambiente-virtual/mis-clases');
-        } else if (type === 'persona') {
-            navigate('/gestion-usuarios/usuarios');
-        } else {
-            navigate('/');
+    // Sección del menú que corresponde a cada tipo de tarjeta. Sólo se navega
+    // si el usuario tiene esa sección en su menú; antes había rutas fijas
+    // (incluida una con el programa 1 escrito a mano).
+    const CARD_SECTIONS: Record<string, string[]> = {
+        actividad: ['/ambiente-virtual/actividades', '/ambiente-virtual/instructor/mis-actividades'],
+        clase: ['/ambiente-virtual/mis-clases', '/ambiente-virtual/horario'],
+        ficha: ['/ambiente-virtual/grupos', '/ambiente-virtual/mis-clases'],
+        persona: ['/gestion-usuarios/usuarios'],
+    };
+
+    const handleVisit = (_id: number, type?: string) => {
+        const allowed = new Set(navCatalog.map((c) => c.path));
+        const target = (CARD_SECTIONS[type || ''] || []).find((path) => allowed.has(path));
+        if (!target) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'No tienes en tu menú una sección para abrir este elemento.'
+            }]);
+            return;
         }
+        navigate(target);
     };
 
     const handleExploreOnMap = (business: any) => {
         // Disabled for SchoolSena
         console.log('Explore on map disabled', business);
+    };
+
+    /**
+     * Lleva al usuario a una sección y comprueba que llegó.
+     *
+     * Lyra responde "te llevo a X"; quien confirma es la aplicación: si una
+     * guarda de permisos devuelve al usuario a otra ruta, se le dice en el chat
+     * en lugar de dar por hecha la navegación.
+     */
+    const goToSection = (url: string, title?: string) => {
+        if (!url.startsWith('/') || url.startsWith('//')) return;
+        const label = title || url;
+        setMessages(prev => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last && last.role === 'assistant') {
+                next[next.length - 1] = { ...last, navStatus: 'pending', navTitle: label };
+            }
+            return next;
+        });
+        navigate(url);
+        window.setTimeout(() => {
+            const arrived = window.location.pathname.replace(/\/$/, '') === url.split(/[?#]/)[0].replace(/\/$/, '');
+            setMessages(prev => {
+                const next = [...prev];
+                for (let i = next.length - 1; i >= 0; i--) {
+                    if (next[i].navStatus === 'pending' && next[i].navTitle === label) {
+                        next[i] = { ...next[i], navStatus: arrived ? 'ok' : 'failed' };
+                        break;
+                    }
+                }
+                return next;
+            });
+        }, 1200);
     };
 
     const handleSendText = async (text: string) => {
@@ -343,7 +393,9 @@ const LyraAssistant = () => {
                 lat,
                 lng,
                 active_city: activeCity || undefined,
-                active_company_id: activeCompanyId
+                active_company_id: activeCompanyId,
+                nav_catalog: navCatalog,
+                current_path: location.pathname
             });
 
             if (response.data?.reply) {
@@ -382,150 +434,31 @@ const LyraAssistant = () => {
                     speak(reply, hasBusinesses);
                 }
 
-                // Helper para asegurar que estamos en el home antes de disparar eventos de mapa
-                const ensureHome = (callback: () => void) => {
-                    if (location.pathname !== '/') {
-                        console.log('[LyraAssistant] No estamos en home. Redirigiendo antes de acción de mapa.');
-                        navigate('/');
-                        // Esperamos a que el componente HomeEcommerce monte sus listeners
-                        setTimeout(callback, 1000);
-                    } else {
-                        callback();
-                    }
-                };
-
-                // ── ACCIONES DE MAPA (EventBus) ────────────────────────────
-                // 1. Centrar mapa en coordenadas específicas (viene de map_center)
-                if (map_center?.lat && map_center?.lng) {
-                    ensureHome(() => {
-                        lyraMapShow();
-                        setTimeout(() => {
-                            lyraMapFlyTo(map_center.lat, map_center.lng, map_center.zoom || 16);
-                        }, 500);
-                    });
-                }
-
-                // 2. Acciones explícitas de voz sobre el mapa
-                if (voice_action === 'gps_granted') {
-                    // GPS accepted: city is already set via active_city; fire set_city event
-                    const confirmedCity = voice_action_payload?.city || activeCity;
-                    if (confirmedCity) {
-                        sessionStorage.setItem('home_locationTerm', confirmedCity);
-                        lyraSetCity(confirmedCity);
-                    }
-                } else if (voice_action === 'show_city_input') {
-                    // GPS denied or no signal: show city manual input
-                    lyraShowCityInput(voice_action_payload?.reason);
-                } else if (voice_action === 'set_city') {
-                    // User set city manually via chat
-                    const city = voice_action_payload?.city;
-                    if (city) {
-                        sessionStorage.setItem('home_locationTerm', city);
-                        lyraSetCity(city);
-                    }
-                } else if (voice_action === 'show_map') {
-                    console.log('[LyraAssistant] Acción: show_map');
-                    ensureHome(() => lyraMapShow());
-                } else if (voice_action === 'locate_me') {
-                    console.log('[LyraAssistant] Acción: locate_me');
-                    ensureHome(() => {
-                        lyraMapShow();
-                        setTimeout(() => lyraMapLocate(), 500);
-                    });
-                } else if (voice_action === 'fly_to_business' && voice_action_payload?.business_id) {
-                    ensureHome(() => {
-                        lyraMapShow();
-                        setHighlightedBusinessId(Number(voice_action_payload.business_id));
-                        setTimeout(() => {
-                            lyraMapHighlight(Number(voice_action_payload.business_id));
-                            if (voice_action_payload?.lat && voice_action_payload?.lng) {
-                                lyraMapFlyTo(
-                                    Number(voice_action_payload.lat),
-                                    Number(voice_action_payload.lng),
-                                    17
-                                );
-                            }
-                        }, 500);
-                    });
-                } else if (voice_action === 'fly_to' && voice_action_payload?.lat) {
-                    ensureHome(() => {
-                        lyraMapShow();
-                        setTimeout(() => {
-                            lyraMapFlyTo(
-                                Number(voice_action_payload.lat),
-                                Number(voice_action_payload.lng),
-                                voice_action_payload?.zoom || 15
-                            );
-                        }, 500);
-                    });
-                } else if (voice_action === 'fit_all_businesses') {
-                    ensureHome(() => {
-                        lyraMapShow();
-                        lyraMapFitAll();
-                    });
-                } else if (voice_action === 'zoom_in') {
-                    lyraMapZoomIn();
-                } else if (voice_action === 'zoom_out') {
-                    lyraMapZoomOut();
-                } else if (voice_action === 'open_url' && voice_action_payload?.url) {
-                    // Abrir URL externa en nueva pestaña
-                    setTimeout(() => {
-                        window.open(voice_action_payload.url, '_blank');
-                    }, 1500);
+                // SchoolSena no tiene mapa: sólo se atienden las acciones que
+                // tienen sentido aquí.
+                if (voice_action === 'open_url' && voice_action_payload?.url) {
+                    const url = String(voice_action_payload.url);
+                    if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener');
                 } else if (voice_action === 'navigate' && voice_action_payload?.url) {
-                    // Redirección a página
-                    const targetUrl = voice_action_payload.url;
-                    const shouldShowMap = voice_action_payload.show_map;
-
-                    setTimeout(() => {
-                        // setIsOpen(false); // Eliminado para mantener la conversación continua
-                        navigate(targetUrl);
-                        
-                        // Si se solicitó el mapa o mostrar todos, activamos tras un delay
-                        if (shouldShowMap || voice_action_payload.fit_all) {
-                            setTimeout(() => {
-                                console.log('[LyraAssistant] Activando mapa pos-navegación');
-                                lyraMapShow();
-                                if (voice_action_payload.fit_all) {
-                                    setTimeout(() => lyraMapFitAll(), 500);
-                                }
-                            }, 1000);
-                        }
-                    }, 2000);
-                }
-
-                // 3. Si hay negocios encontrados, mostrar mapa y manejar vista
-                if (businesses.length > 0) {
-                    ensureHome(() => {
-                        lyraMapShow();
-
-                        if (businesses.length === 1 && businesses[0].id) {
-                            // Si es solo uno, destacar y abrir modal flotante
-                            setHighlightedBusinessId(Number(businesses[0].id));
-                            lyraMapHighlight(Number(businesses[0].id));
-                            
-                            // Si la API no proveyó map_center, lo deducimos
-                            if (!map_center && businesses[0].lat && businesses[0].lng) {
-                                setTimeout(() => {
-                                    lyraMapFlyTo(
-                                        Number(businesses[0].lat),
-                                        Number(businesses[0].lng),
-                                        16
-                                    );
-                                }, 500);
-                            }
-                        } else if (businesses.length > 1) {
-                            // Si son varios, limpiar cualquier destacado previo y mostrar vista panorámica
-                            setHighlightedBusinessId(null);
-                            setTimeout(() => lyraMapFitAll(), 800);
-                        }
-                    });
+                    goToSection(String(voice_action_payload.url), voice_action_payload.title);
                 }
             }
-        } catch (err) {
-            console.warn('Lyra connection error. Marking as offline.');
-            setIsPoweredOn(false);
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, tuve un problema al conectar. ¡Intenta de nuevo!' }]);
+        } catch (err: any) {
+            // Sólo un fallo de red significa que Lyra está apagada. Un 429 o un
+            // 5xx son respuestas del servidor: se informan sin desconectar el chat.
+            const status = err?.response?.status;
+            let content = 'Lo siento, tuve un problema al conectar. ¡Intenta de nuevo!';
+            if (!err?.response) {
+                console.warn('Lyra connection error. Marking as offline.');
+                setIsPoweredOn(false);
+            } else if (status === 429) {
+                content = 'Estás enviando mensajes muy seguido. Espera un momento y vuelve a intentarlo.';
+            } else if (status === 422) {
+                content = 'No pude procesar ese mensaje. ¿Puedes escribirlo de otra forma (más corto)?';
+            } else {
+                content = 'Tuve un problema técnico al responder. Intenta de nuevo en unos segundos.';
+            }
+            setMessages(prev => [...prev, { role: 'assistant', content }]);
         } finally {
             setIsLoading(false);
         }
@@ -847,6 +780,23 @@ const LyraAssistant = () => {
                                                     .trim()}
                                             </ReactMarkdown>
                                         </div>
+
+                                        {!isUser && msg.navStatus && (
+                                            <div
+                                                data-testid="lyra-nav-status"
+                                                data-status={msg.navStatus}
+                                                className={clsx(
+                                                    'mt-2 text-xs font-semibold',
+                                                    msg.navStatus === 'ok' && 'text-green-600 dark:text-green-400',
+                                                    msg.navStatus === 'failed' && 'text-red-600 dark:text-red-400',
+                                                    msg.navStatus === 'pending' && 'text-gray-500'
+                                                )}
+                                            >
+                                                {msg.navStatus === 'ok' && `Listo: estás en ${msg.navTitle}.`}
+                                                {msg.navStatus === 'failed' && `No pude abrir ${msg.navTitle}: la aplicación no permitió el acceso.`}
+                                                {msg.navStatus === 'pending' && `Abriendo ${msg.navTitle}…`}
+                                            </div>
+                                        )}
 
                                         {/* Business Cards inside message */}
                                         {msg.businesses && msg.businesses.length > 0 && (
