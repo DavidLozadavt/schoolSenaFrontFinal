@@ -17,6 +17,9 @@ const Breadcrumbs = () => {
       if (segment === 'horario' && segments[0] === 'ambiente-virtual') {
         title = 'Horario';
       }
+      if (segment === 'actividades-competencia' && segments[0] === 'ambiente-virtual') {
+        title = 'Material de Apoyo';
+      }
       if (index > 0 && segments[index - 1] === 'clase' && /^\d+$/.test(segment)) {
         title = 'Detalle'; // Ocultar el ID, mostrar "Detalle"
       }

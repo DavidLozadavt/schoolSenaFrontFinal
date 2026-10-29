@@ -43,6 +43,7 @@ import {
   puedeDescargarPlaneacion
 } from './utils/descargarPlaneacionFicha';
 import { KeenIcon, ImageZoomModal, Toast, DefaultTooltip } from '@/components';
+import { UserProfileAvatar } from '@/components/user/UserProfileAvatar';
 import { Container } from '@/components/container';
 import StudentListByMateria from './ListaHorarioEstudiantes';
 import ModalVerOpinionesClase from './calificaciones/modal/ModalVerOpinionesClase';
@@ -2796,20 +2797,15 @@ const ClaseDetallePage: React.FC = () => {
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center p-1.5">
                               <DefaultTooltip title={inst.nombre} placement="top">
-                                <button
-                                  type="button"
-                                  onClick={() => setZoomFoto({
-                                    src: inst.rutaFotoUrl || '/media/avatars/blank.png',
-                                    alt: inst.nombre
-                                  })}
-                                  className="w-full h-full rounded-full focus:ring-2 focus:ring-primary focus:ring-offset-1 overflow-hidden"
-                                >
-                                  <img
-                                    src={inst.rutaFotoUrl || '/media/avatars/blank.png'}
-                                    alt={inst.nombre}
-                                    className="w-full h-full rounded-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                                <span className="flex size-full items-center justify-center overflow-hidden rounded-full">
+                                  <UserProfileAvatar
+                                    persona={{ rutaFotoUrl: inst.rutaFotoUrl }}
+                                    variant="md"
+                                    alt=""
+                                    enableZoom
+                                    className="!size-[3.35rem] !h-[3.35rem] !w-[3.35rem]"
                                   />
-                                </button>
+                                </span>
                               </DefaultTooltip>
                             </div>
                           </div>

@@ -27,7 +27,7 @@ export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export const FILE_SIZE_EXCEEDED_MESSAGE =
-  'El archivo supera el límite permitido de 50 MB. Selecciona un archivo más liviano.';
+  'El archivo supera el límite máximo permitido de 50 MB.';
 
 export const MATERIAL_DOCUMENTO_FORMATOS_LABEL =
   'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, ZIP, RAR. Máximo 50 MB.';
@@ -436,4 +436,37 @@ export async function actOnMaterialDocumento(
 
 export function materialDocumentoActionIcon(ext: string): string {
   return materialDocumentoShouldOpenInBrowser(ext) ? 'eye' : 'download';
+}
+
+export function youtubeVideoId(raw?: string | null): string | null {
+  const u = String(raw ?? '').trim();
+  if (!u) return null;
+  try {
+    const url = new URL(u.startsWith('http') ? u : `https://${u}`);
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    const youtubeHosts = ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com', 'youtu.be'];
+    if (!youtubeHosts.some((h) => host === h || host.endsWith(`.${h}`))) return null;
+    const v = url.searchParams.get('v');
+    if (v && /^[A-Za-z0-9_-]{6,32}$/.test(v)) return v;
+    const pathMatch = url.pathname.match(/\/(embed|shorts|live|v)\/([A-Za-z0-9_-]{6,32})/);
+    if (pathMatch?.[2]) return pathMatch[2];
+    if (host === 'youtu.be') {
+      const id = url.pathname.replace(/^\//, '').split('/')[0];
+      return /^[A-Za-z0-9_-]{6,32}$/.test(id) ? id : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/** Si la URL es de YouTube, devuelve URL embed; si no, null. */
+export function youtubeEmbedUrl(raw: string): string | null {
+  const id = youtubeVideoId(raw);
+  return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
+}
+
+export function youtubeWatchUrl(raw?: string | null): string | null {
+  const id = youtubeVideoId(raw);
+  return id ? `https://www.youtube.com/watch?v=${id}` : null;
 }

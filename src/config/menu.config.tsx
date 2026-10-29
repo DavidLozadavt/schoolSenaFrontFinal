@@ -10,7 +10,7 @@ const GESTION_ACTIVIDADES_ITEM: IMenuItemConfig = {
 };
 
 const ACTIVIDADES_COMPETENCIA_ITEM: IMenuItemConfig = {
-  title: 'Actividades competencias RAP',
+  title: 'Material de Apoyo',
   path: ACTIVIDADES_COMPETENCIA_PATH,
   requiredPermissions: [
     'AULA_VIRTUAL_INSTRUCTOR',
@@ -237,7 +237,7 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
-        title: 'Actividades competencias RAP',
+        title: 'Material de Apoyo',
         path: '/ambiente-virtual/actividades-competencia',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ']
       },

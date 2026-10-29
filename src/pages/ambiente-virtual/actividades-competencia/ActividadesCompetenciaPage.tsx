@@ -8,6 +8,7 @@ import {
   compactReactSelectWrapClassNames,
 } from '@/components/forms/compactReactSelect';
 import MaterialCompetenciaView from './MaterialCompetenciaView';
+import MaterialCompetenciaAprendizView from './MaterialCompetenciaAprendizView';
 import { materialCompetenciaService } from './materialCompetenciaService';
 import type { CompetenciaAccesible } from './materialCompetencia.types';
 
@@ -81,11 +82,14 @@ const ActividadesCompetenciaPage: React.FC = () => {
         <Container>
           <Toolbar>
             <ToolbarHeading>
-              <ToolbarPageTitle text="Actividades competencias RAP" />
+              <ToolbarPageTitle text="Material de Apoyo" />
               <ToolbarDescription>
                 <span className="dark:text-white">
-                  Material general de la competencia, compartido entre instructores y aprendices autorizados
-                  de todos sus RAP.
+                  {loading
+                    ? 'Material de apoyo de las competencias autorizadas.'
+                    : puedeAdministrar
+                      ? 'Selecciona una competencia para consultar y administrar su material de apoyo.'
+                      : 'Aquí encontrarás documentos, videos, audios y enlaces de apoyo asociados a cada competencia.'}
                 </span>
               </ToolbarDescription>
             </ToolbarHeading>
@@ -108,6 +112,8 @@ const ActividadesCompetenciaPage: React.FC = () => {
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-5 text-sm text-gray-600 dark:text-gray-200">
               No tienes competencias asignadas. El acceso al material depende de tus horarios o matrículas vigentes.
             </div>
+          ) : !puedeAdministrar ? (
+            <MaterialCompetenciaAprendizView />
           ) : (
             <>
               {competencias.length > 1 ? (
@@ -135,7 +141,7 @@ const ActividadesCompetenciaPage: React.FC = () => {
                 />
               ) : (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-5 text-sm text-gray-600 dark:text-gray-200">
-                  Selecciona una competencia para consultar su material.
+                  Selecciona una competencia para consultar su material de apoyo.
                 </div>
               )}
             </>
