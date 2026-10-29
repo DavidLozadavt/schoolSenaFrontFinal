@@ -1,5 +1,5 @@
 import { useLayout } from "@/providers";
-import { Fragment, useState } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 import {
     Toolbar,
     ToolbarActions,
@@ -10,11 +10,14 @@ import {
   import { Container } from '@/components/container';
 import { ModalConfiguracionPagos } from "./ModalConfiguracionPagos";
 import { ConfiguracionPagosContent } from "./ConfiguracionPagosContent";
+import { ModalLlavesWompi } from "./ModalLlavesWompi";
 
 const ConfiguracionPagosPage = () => {
  const { currentLayout } = useLayout();
   const [modalOpen, setModalOpen]=useState(false);
   const [reloadContent, setReloadContent] = useState(false);
+  const [llavesWompiOpen, setLlavesWompiOpen] = useState(false);
+  const cerrarLlavesWompi = useCallback(() => setLlavesWompiOpen(false), []);
   
   const handleModalOpen = () => {
     setModalOpen(true);
@@ -39,6 +42,10 @@ const ConfiguracionPagosPage = () => {
             <ToolbarDescription>Gestiona la configuración de pagos</ToolbarDescription>
           </ToolbarHeading>
           <ToolbarActions>
+            <button onClick={() => setLlavesWompiOpen(true)} className="btn btn-sm btn-light">
+              <i className="ki-filled ki-key"></i>
+              Llaves de Wompi
+            </button>
             <button onClick={handleModalOpen} className="btn btn-sm btn-light">
               Nueva configuración de pago
             </button>
@@ -51,6 +58,7 @@ const ConfiguracionPagosPage = () => {
         open={modalOpen} 
         onClose={handleModalClose}
         onSave={handleAfterSave}/>
+      <ModalLlavesWompi open={llavesWompiOpen} onClose={cerrarLlavesWompi} />
       <ConfiguracionPagosContent reload={reloadContent} />
     </Container>
   </Fragment>
