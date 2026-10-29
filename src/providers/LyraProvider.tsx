@@ -14,7 +14,7 @@ interface Business {
     direccion?: string;
 }
 
-interface Message {
+export interface Message {
     role: 'user' | 'assistant';
     content: string;
     businesses?: Business[];           // Negocios encontrados (con resultados)
@@ -22,6 +22,8 @@ interface Message {
     suggestedCity?: string;            // Ciudad de los negocios sugeridos
     searchedCategory?: string;         // Categoría que se buscó originalmente
     isZeroResult?: boolean;
+    navStatus?: 'pending' | 'ok' | 'failed';  // Resultado de una navegación pedida a Lyra
+    navTitle?: string;
 }
 
 interface LyraContextType {
@@ -81,7 +83,7 @@ export const LyraProvider = ({ children }: { children: ReactNode }) => {
 
     const checkHealth = useCallback(async () => {
         try {
-            const lyraUrl = import.meta.env.VITE_LYRA_API_URL || 'http://127.0.0.1:8099';
+            const lyraUrl = import.meta.env.VITE_LYRA_API_URL || 'http://127.0.0.1:8098';
             const response = await fetch(`${lyraUrl}/status`, { 
                 signal: AbortSignal.timeout(2000) 
             });
