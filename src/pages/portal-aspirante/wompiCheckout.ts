@@ -69,7 +69,10 @@ export function abrirCheckoutWompi(
   if (customerData) {
     agregarParametro(params, 'customer-data:email', customerData.email?.trim());
     agregarParametro(params, 'customer-data:full-name', customerData.fullName?.trim());
-    agregarParametro(params, 'customer-data:phone-number', soloDigitos(customerData.phoneNumber));
+    const telefono = soloDigitos(customerData.phoneNumber);
+    agregarParametro(params, 'customer-data:phone-number', telefono);
+    // Wompi exige el prefijo junto al número; sin él no precarga el celular.
+    if (telefono) agregarParametro(params, 'customer-data:phone-number-prefix', '+57');
     agregarParametro(params, 'customer-data:legal-id', soloDigitos(customerData.legalId));
     agregarParametro(params, 'customer-data:legal-id-type', customerData.legalIdType?.trim());
   }
