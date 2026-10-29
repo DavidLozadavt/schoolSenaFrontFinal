@@ -232,7 +232,7 @@ const PortalAspirantePage: React.FC = () => {
   // 4. Retornos tempranos de carga o error general
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4">
         <div className="flex flex-col items-center gap-4 p-10 bg-white rounded-3xl shadow-xl border border-slate-100 w-full max-w-sm text-center">
           <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-blue-700 animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Cargando su información…</p>
@@ -243,7 +243,7 @@ const PortalAspirantePage: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4">
         <div className="bg-white rounded-3xl shadow-xl border border-red-100 p-10 md:p-14 w-full max-w-lg text-center flex flex-col items-center gap-5">
           <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
             <AlertTriangle className="w-8 h-8" />
