@@ -7,7 +7,9 @@ import type { MaterialCompetenciaElegible } from './materialCompetencia.types';
 interface ModalIncorporarMaterialCompetenciaProps {
   open: boolean;
   idCompetencia: number;
+  idFicha: number;
   competenciaNombre?: string;
+  fichaEtiqueta?: string;
   onClose: () => void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -33,7 +35,9 @@ const formatearFecha = (value?: string | null) => {
 const ModalIncorporarMaterialCompetencia: React.FC<ModalIncorporarMaterialCompetenciaProps> = ({
   open,
   idCompetencia,
+  idFicha,
   competenciaNombre,
+  fichaEtiqueta,
   onClose,
   onSuccess,
   onError,
@@ -51,11 +55,11 @@ const ModalIncorporarMaterialCompetencia: React.FC<ModalIncorporarMaterialCompet
   }, [q]);
 
   const cargar = useCallback(async () => {
-    if (!open || idCompetencia <= 0) return;
+    if (!open || idCompetencia <= 0 || idFicha <= 0) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await materialCompetenciaService.elegibles(idCompetencia, qDebounced);
+      const data = await materialCompetenciaService.elegibles(idCompetencia, idFicha, qDebounced);
       setItems(data);
     } catch (err) {
       setItems([]);
@@ -65,7 +69,7 @@ const ModalIncorporarMaterialCompetencia: React.FC<ModalIncorporarMaterialCompet
     } finally {
       setLoading(false);
     }
-  }, [open, idCompetencia, qDebounced]);
+  }, [open, idCompetencia, idFicha, qDebounced]);
 
   useEffect(() => {
     void cargar();
@@ -78,12 +82,12 @@ const ModalIncorporarMaterialCompetencia: React.FC<ModalIncorporarMaterialCompet
     const key = clave(it);
     setSavingKey(key);
     try {
-      await materialCompetenciaService.incorporar(idCompetencia, {
+      await materialCompetenciaService.incorporar(idCompetencia, idFicha, {
         origen: it.origen,
         idActividad: it.idActividad,
         idMaterialApoyoActividad: it.idMaterialApoyoActividad,
       });
-      onSuccess('Material incorporado a la competencia.');
+      onSuccess('Material incorporado a la competencia y ficha.');
       setItems((prev) => prev.filter((row) => clave(row) !== key));
     } catch (err) {
       onError(materialCompetenciaService.errorMessage(err, 'Error al incorporar el material.'));
@@ -100,11 +104,21 @@ const ModalIncorporarMaterialCompetencia: React.FC<ModalIncorporarMaterialCompet
         </ModalHeader>
         <ModalBody>
           <div className="space-y-3">
-            {competenciaNombre ? (
-              <p className="text-xs text-gray-600 dark:text-gray-200">
-                Se listan recursos de todos los RAP de{' '}
-                <span className="font-semibold text-gray-900 dark:text-white">{competenciaNombre}</span>.
-              </p>
+            {competenciaNombre || fichaEtiqueta ? (
+              <div className="text-xs text-gray-600 dark:text-gray-200 space-y-0.5">
+                {fichaEtiqueta ? (
+                  <p>
+                    Ficha destino:{' '}
+                    <span className="font-semibold text-gray-900 dark:text-white">{fichaEtiqueta}</span>
+                  </p>
+                ) : null}
+                {competenciaNombre ? (
+                  <p>
+                    Se listan recursos de todos los RAP de{' '}
+                    <span className="font-semibold text-gray-900 dark:text-white">{competenciaNombre}</span>.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
             <input

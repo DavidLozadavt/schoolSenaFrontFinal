@@ -22,7 +22,9 @@ import {
 interface ModalSubirMaterialCompetenciaProps {
   open: boolean;
   idCompetencia: number;
+  idFicha: number;
   competenciaNombre?: string;
+  fichaEtiqueta?: string;
   material?: MaterialCompetenciaItem | null;
   onClose: () => void;
   onSuccess: (message: string, material?: MaterialCompetenciaItem) => void;
@@ -40,7 +42,9 @@ const nuevoEnlace = (): EnlaceDraft => ({ key: `${Date.now()}-${Math.random()}`,
 const ModalSubirMaterialCompetencia: React.FC<ModalSubirMaterialCompetenciaProps> = ({
   open,
   idCompetencia,
+  idFicha,
   competenciaNombre,
+  fichaEtiqueta,
   material,
   onClose,
   onSuccess,
@@ -175,8 +179,8 @@ const ModalSubirMaterialCompetencia: React.FC<ModalSubirMaterialCompetenciaProps
       }
       const saved = esEdicion
         ? await materialCompetenciaService.actualizar(idCompetencia, material!.id, fd)
-        : await materialCompetenciaService.subir(idCompetencia, fd);
-      onSuccess(esEdicion ? 'Material actualizado.' : 'Material agregado a la competencia.', saved);
+        : await materialCompetenciaService.subir(idCompetencia, fd, idFicha);
+      onSuccess(esEdicion ? 'Material actualizado.' : 'Material agregado a la competencia y ficha.', saved);
       onClose();
     } catch (err) {
       onError(materialCompetenciaService.errorMessage(err, 'Error al guardar el material.'));
@@ -197,11 +201,21 @@ const ModalSubirMaterialCompetencia: React.FC<ModalSubirMaterialCompetenciaProps
         </ModalHeader>
         <ModalBody className="overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {competenciaNombre ? (
-              <p className="text-xs text-gray-600 dark:text-gray-200">
-                Competencia destino:{' '}
-                <span className="font-semibold text-gray-900 dark:text-white">{competenciaNombre}</span>
-              </p>
+            {competenciaNombre || fichaEtiqueta ? (
+              <div className="text-xs text-gray-600 dark:text-gray-200 space-y-0.5">
+                {fichaEtiqueta ? (
+                  <p>
+                    Ficha destino:{' '}
+                    <span className="font-semibold text-gray-900 dark:text-white">{fichaEtiqueta}</span>
+                  </p>
+                ) : null}
+                {competenciaNombre ? (
+                  <p>
+                    Competencia:{' '}
+                    <span className="font-semibold text-gray-900 dark:text-white">{competenciaNombre}</span>
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
             <div>

@@ -1328,7 +1328,13 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/ambiente-virtual/biblioteca-conocimiento"
             element={
-              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_BIBLIOTECA']}>
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR',
+                  'AULA_VIRTUAL_APRENDIZ',
+                  'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA',
+                ]}
+              >
                 <BibliotecaConocimientoPage />
               </ProtectedRoute>
             }

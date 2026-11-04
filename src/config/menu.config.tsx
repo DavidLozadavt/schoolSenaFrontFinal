@@ -2,6 +2,7 @@ import { type IMenuItemConfig, type TMenuConfig } from '@/components/menu';
 
 const ACTIVIDADES_COMPETENCIA_PATH = '/ambiente-virtual/actividades-competencia';
 const GESTION_ACTIVIDADES_PATH = '/ambiente-virtual/gestion-actividades';
+const BIBLIOTECA_CONOCIMIENTO_PATH = '/ambiente-virtual/biblioteca-conocimiento';
 
 const GESTION_ACTIVIDADES_ITEM: IMenuItemConfig = {
   title: 'Gestión de actividades',
@@ -17,6 +18,16 @@ const ACTIVIDADES_COMPETENCIA_ITEM: IMenuItemConfig = {
     'AULA_VIRTUAL_APRENDIZ',
     'AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES_COMPETENCIA',
     'AULA_VIRTUAL_APRENDIZ_ACTIVIDADES_COMPETENCIA'
+  ]
+};
+
+const BIBLIOTECA_CONOCIMIENTO_ITEM: IMenuItemConfig = {
+  title: 'Biblioteca de conocimiento',
+  path: BIBLIOTECA_CONOCIMIENTO_PATH,
+  requiredPermissions: [
+    'AULA_VIRTUAL_INSTRUCTOR',
+    'AULA_VIRTUAL_APRENDIZ',
+    'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA'
   ]
 };
 
@@ -93,6 +104,54 @@ export const ensureGestionActividadesMenu = (menu: TMenuConfig): TMenuConfig =>
     if (!esGrupoAmbienteVirtual(node)) return [node];
     return [{ ...node, children: insertGestionActividades(children) }];
   });
+
+/** Inserta Biblioteca de conocimiento también para instructor (el permiso de menú histórico es solo aprendiz). */
+export const ensureBibliotecaConocimientoMenu = (menu: TMenuConfig): TMenuConfig => {
+  const insertInChildren = (children: TMenuConfig): TMenuConfig => {
+    if (children.some((child) => child.path === BIBLIOTECA_CONOCIMIENTO_PATH)) {
+      return children.map((child) =>
+        child.path === BIBLIOTECA_CONOCIMIENTO_PATH
+          ? {
+              ...child,
+              title: BIBLIOTECA_CONOCIMIENTO_ITEM.title,
+              requiredPermissions: mergeRequiredPermissions(
+                child.requiredPermissions,
+                BIBLIOTECA_CONOCIMIENTO_ITEM.requiredPermissions
+              )
+            }
+          : child
+      );
+    }
+    const next = [...children];
+    const afterGestion = next.findIndex((child) => child.path === GESTION_ACTIVIDADES_PATH);
+    if (afterGestion >= 0) {
+      next.splice(afterGestion + 1, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    const beforeMaterial = next.findIndex((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH);
+    if (beforeMaterial >= 0) {
+      next.splice(beforeMaterial, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    const beforeClases = next.findIndex((child) => child.path === '/ambiente-virtual/mis-clases');
+    if (beforeClases >= 0) {
+      next.splice(beforeClases, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    next.push(BIBLIOTECA_CONOCIMIENTO_ITEM);
+    return next;
+  };
+
+  return menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      return [node];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertInChildren(children) }];
+  });
+};
 
 /** Inserta o corrige el ítem si el menú dinámico de permisos aún no lo trae. */
 export const ensureActividadesCompetenciaMenu = (menu: TMenuConfig): TMenuConfig => {
@@ -237,6 +296,15 @@ export const MENU_SIDEBAR: TMenuConfig = [
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
+        title: 'Biblioteca de conocimiento',
+        path: '/ambiente-virtual/biblioteca-conocimiento',
+        requiredPermissions: [
+          'AULA_VIRTUAL_INSTRUCTOR',
+          'AULA_VIRTUAL_APRENDIZ',
+          'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA'
+        ]
+      },
+      {
         title: 'Material de Apoyo',
         path: '/ambiente-virtual/actividades-competencia',
         requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ']
@@ -254,11 +322,6 @@ export const MENU_SIDEBAR: TMenuConfig = [
       {
         title: 'Grupos',
         path: '/ambiente-virtual/grupos',
-        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
-      },
-      {
-        title: 'Biblioteca de conocimiento',
-        path: '/ambiente-virtual/biblioteca-conocimiento',
         requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       }
     ]

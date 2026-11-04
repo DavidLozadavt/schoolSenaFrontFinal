@@ -5,7 +5,10 @@ import {
   resolveMaterialDocumentoFileName,
 } from '@/pages/ambiente-virtual/actividades/materialDocumentoSupport';
 import type {
+  ClaseReferenciaMaterial,
+  CompetenciaAccesible,
   CompetenciasAccesiblesResponse,
+  FichaMaterialCompetencia,
   MaterialCompetenciaElegible,
   MaterialCompetenciaItem,
   MaterialCompetenciaRecursoItem,
@@ -57,9 +60,69 @@ export const materialCompetenciaService = {
     };
   },
 
-  async listarMateriales(idCompetencia: number): Promise<MaterialCompetenciaItem[]> {
+  async listarFichasInstructor(): Promise<FichaMaterialCompetencia[]> {
+    const res = await axios.get<{ data?: FichaMaterialCompetencia[] }>(`${BASE}/fichas`);
+    const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+    const seen = new Set<number>();
+    return raw
+      .map((f) => {
+        const id = Number(f?.id);
+        return {
+          ...f,
+          id: Number.isFinite(id) && id > 0 ? id : 0,
+        };
+      })
+      .filter((f) => {
+        if (f.id <= 0 || seen.has(f.id)) return false;
+        seen.add(f.id);
+        return true;
+      });
+  },
+
+  async listarCompetenciasDeFicha(idFicha: number): Promise<CompetenciaAccesible[]> {
+    const res = await axios.get<{ data?: CompetenciaAccesible[] }>(`${BASE}/fichas/${idFicha}/competencias`);
+    const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+    return raw
+      .map((c) => {
+        const id = Number(c?.id);
+        return {
+          ...c,
+          id: Number.isFinite(id) && id > 0 ? id : 0,
+        };
+      })
+      .filter((c) => c.id > 0);
+  },
+
+  async listarFichas(idCompetencia: number): Promise<FichaMaterialCompetencia[]> {
+    const res = await axios.get<{ data?: FichaMaterialCompetencia[] }>(
+      `${BASE}/competencias/${idCompetencia}/fichas`
+    );
+    const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+    return raw
+      .map((f) => {
+        const id = Number(f?.id);
+        return {
+          ...f,
+          id: Number.isFinite(id) && id > 0 ? id : 0,
+        };
+      })
+      .filter((f) => f.id > 0);
+  },
+
+  async listarClasesReferencia(idCompetencia: number): Promise<{ fecha?: string; data: ClaseReferenciaMaterial[] }> {
+    const res = await axios.get<{ fecha?: string; data?: ClaseReferenciaMaterial[] }>(
+      `${BASE}/competencias/${idCompetencia}/clases-referencia`
+    );
+    return {
+      fecha: res.data?.fecha,
+      data: Array.isArray(res.data?.data) ? res.data.data : [],
+    };
+  },
+
+  async listarMateriales(idCompetencia: number, idFicha: number): Promise<MaterialCompetenciaItem[]> {
     const res = await axios.get<MaterialCompetenciaItem[]>(
-      `${BASE}/competencias/${idCompetencia}/materiales`
+      `${BASE}/competencias/${idCompetencia}/materiales`,
+      { params: { idFicha } }
     );
     return Array.isArray(res.data) ? res.data : [];
   },
@@ -73,7 +136,8 @@ export const materialCompetenciaService = {
     return Array.isArray(payload?.data) ? payload.data : [];
   },
 
-  async subir(idCompetencia: number, form: FormData): Promise<MaterialCompetenciaItem> {
+  async subir(idCompetencia: number, form: FormData, idFicha: number): Promise<MaterialCompetenciaItem> {
+    form.append('idFicha', String(idFicha));
     const res = await axios.post<MaterialCompetenciaItem>(
       `${BASE}/competencias/${idCompetencia}/materiales`,
       form
@@ -101,21 +165,22 @@ export const materialCompetenciaService = {
     return `${BASE}/competencias/${idCompetencia}/materiales/${id}/recursos/${idRecurso}/descargar${q}`;
   },
 
-  async elegibles(idCompetencia: number, q = ''): Promise<MaterialCompetenciaElegible[]> {
+  async elegibles(idCompetencia: number, idFicha: number, q = ''): Promise<MaterialCompetenciaElegible[]> {
     const res = await axios.get<MaterialCompetenciaElegible[]>(
       `${BASE}/competencias/${idCompetencia}/materiales-elegibles`,
-      { params: q.trim() ? { q: q.trim() } : undefined }
+      { params: { idFicha, ...(q.trim() ? { q: q.trim() } : {}) } }
     );
     return Array.isArray(res.data) ? res.data : [];
   },
 
   async incorporar(
     idCompetencia: number,
+    idFicha: number,
     payload: { origen: string; idActividad?: number | null; idMaterialApoyoActividad?: number | null }
   ): Promise<MaterialCompetenciaItem> {
     const res = await axios.post<MaterialCompetenciaItem>(
       `${BASE}/competencias/${idCompetencia}/materiales/incorporar`,
-      payload
+      { ...payload, idFicha }
     );
     return res.data;
   },
@@ -123,11 +188,12 @@ export const materialCompetenciaService = {
   async mover(
     idCompetencia: number,
     id: number,
-    idCompetenciaDestino: number
+    idCompetenciaDestino: number,
+    idFichaDestino: number
   ): Promise<{ message?: string; data?: MaterialCompetenciaItem }> {
     const res = await axios.post<{ message?: string; data?: MaterialCompetenciaItem }>(
       `${BASE}/competencias/${idCompetencia}/materiales/${id}/mover`,
-      { idCompetenciaDestino }
+      { idCompetenciaDestino, idFichaDestino }
     );
     return res.data;
   },

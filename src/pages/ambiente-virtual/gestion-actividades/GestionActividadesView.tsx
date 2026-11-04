@@ -5,10 +5,14 @@ import Select from 'react-select';
 import { KeenIcon, Toast } from '@/components';
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/modal';
 import {
+  compactReactSelectClassNames,
   compactReactSelectNoOptions,
-  compactReactSelectWrapClassNames,
-  filterOptionNormalized,
 } from '@/components/forms/compactReactSelect';
+import {
+  etiquetaAcademica,
+  propsSelectAcademico,
+  selectStylesBiblioteca,
+} from '@/pages/ambiente-virtual/actividades/etiquetaAcademicaSelect';
 import ModalCrearActividad from '@/pages/ambiente-virtual/actividades/ModalCrearActividad';
 import ModalCrearCuestionario from '@/pages/ambiente-virtual/actividades/ModalCrearCuestionario';
 import ModalVerActividad from '@/pages/ambiente-virtual/actividades/ModalVerActividad';
@@ -28,26 +32,38 @@ import type {
 const PAGE_SIZE = 30;
 
 const selectClassNames = {
-  ...compactReactSelectWrapClassNames,
+  ...compactReactSelectClassNames,
   control: (state: { isFocused: boolean }) =>
-    `${compactReactSelectWrapClassNames.control()} dark:text-white ${
+    `${compactReactSelectClassNames.control()} h-9 min-h-9 overflow-hidden dark:text-white ${
       state.isFocused ? '!border-primary ring-2 ring-primary/30' : 'hover:border-primary/40'
     }`,
-  singleValue: () => `${compactReactSelectWrapClassNames.singleValue()} dark:!text-white`,
-  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm whitespace-normal',
-  menu: () => `${compactReactSelectWrapClassNames.menu()} dark:text-white`,
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm overflow-hidden min-w-0',
+  singleValue: () =>
+    'text-gray-900 dark:!text-white text-sm !whitespace-nowrap overflow-hidden text-ellipsis max-w-full',
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm truncate',
+  input: () => 'text-gray-900 dark:!text-white text-sm',
+  menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
+  menuList: () => `${compactReactSelectClassNames.menuList()} dark:text-white max-h-[20rem]`,
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
-    `${compactReactSelectWrapClassNames.option(state)} dark:!text-white ${state.isSelected ? '!text-white' : ''}`,
+    `${compactReactSelectClassNames.option(state)} dark:!text-white !whitespace-normal break-words leading-snug py-1.5 ${
+      state.isSelected ? '!text-white' : ''
+    }`,
+  dropdownIndicator: () =>
+    'text-gray-500 dark:!text-white hover:text-gray-700 dark:hover:!text-white/80',
+  clearIndicator: () =>
+    'text-gray-400 dark:!text-white/80 hover:text-gray-600 dark:hover:!text-white',
 };
 
-const formatMateriaOption = (option: { label: string }) => (
-  <span className="block whitespace-normal break-words leading-snug">{option.label}</span>
-);
+const propsSelectGestion = {
+  ...propsSelectAcademico,
+  maxMenuHeight: 320,
+  styles: selectStylesBiblioteca,
+  classNames: selectClassNames,
+};
 
 const etiquetaMateria = (item?: { codigo?: string | null; nombreMateria?: string | null } | null) => {
   if (!item) return '—';
-  if (item.codigo && item.nombreMateria) return `${item.codigo} · ${item.nombreMateria}`;
-  return item.nombreMateria || item.codigo || '—';
+  return etiquetaAcademica(item.codigo, item.nombreMateria) || '—';
 };
 
 const tipoLabel = (tipo?: string | null) => {
@@ -58,10 +74,51 @@ const tipoLabel = (tipo?: string | null) => {
   return tipo;
 };
 
+const tipoActividadVisual = (tipo?: string | null) => {
+  switch (String(tipo ?? '')) {
+    case 'cuestionario':
+      return {
+        label: 'Cuestionario',
+        icon: 'notepad',
+        iconClass: 'text-violet-600 dark:text-violet-300',
+        badgeClass:
+          'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-800/60',
+      };
+    case 'con evidencia':
+      return {
+        label: 'Con evidencia',
+        icon: 'document',
+        iconClass: 'text-blue-600 dark:text-blue-300',
+        badgeClass:
+          'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800/60',
+      };
+    case 'sin evidencia':
+      return {
+        label: 'Sin evidencia',
+        icon: 'notepad-edit',
+        iconClass: 'text-emerald-600 dark:text-emerald-300',
+        badgeClass:
+          'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800/60',
+      };
+    default:
+      return {
+        label: tipoLabel(tipo),
+        icon: 'document',
+        iconClass: 'text-gray-400 dark:text-gray-500',
+        badgeClass:
+          'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800/60 dark:text-gray-300 dark:border-gray-700',
+      };
+  }
+};
+
 /** En modo oscuro gray-200 del tema es un gris oscuro (#26272F); el texto de tabla debe ser blanco. */
-const CELDA = 'py-2.5 px-2 align-middle overflow-hidden min-w-0 max-w-0';
+const CELDA = 'py-2 px-2 align-middle overflow-hidden min-w-0 max-w-0';
 const TEXTO_PRINCIPAL = 'text-gray-900 dark:text-white';
-const TEXTO_SECUNDARIO = 'text-gray-700 dark:text-white';
+const TEXTO_SECUNDARIO = 'text-gray-700 dark:text-gray-200';
+const clsLabelFiltro =
+  'text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block';
+const clsTh =
+  'text-left py-2.5 px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300';
 
 const compactarEntregables = (value?: string | null): { visible: string; completo: string } => {
   const completo = (value || '').trim() || '—';
@@ -82,11 +139,6 @@ const rapPerteneceACompetencia = (rap: RapFiltro | undefined, idCompetencia: num
   if (!rap || !idCompetencia) return false;
   return Number(rap.idCompetencia) === Number(idCompetencia);
 };
-
-const filterOptionMateria = (
-  option: { label?: string; value?: unknown },
-  input: string
-): boolean => filterOptionNormalized([option.label, option.value], input);
 
 type AccionesMenuState = { id: number; top: number; left: number };
 
@@ -234,7 +286,9 @@ const GestionActividadesView: React.FC = () => {
     () =>
       competencias.map((c) => ({
         value: c.id,
-        label: etiquetaMateria(c),
+        label: etiquetaAcademica(c.codigo, c.nombreMateria),
+        codigo: c.codigo ?? undefined,
+        nombre: c.nombreMateria ?? undefined,
       })),
     [competencias]
   );
@@ -243,7 +297,9 @@ const GestionActividadesView: React.FC = () => {
     () =>
       rapsFiltrados.map((r) => ({
         value: r.id,
-        label: etiquetaMateria(r),
+        label: etiquetaAcademica(r.codigo, r.nombreMateria),
+        codigo: r.codigo ?? undefined,
+        nombre: r.nombreMateria ?? undefined,
       })),
     [rapsFiltrados]
   );
@@ -257,7 +313,9 @@ const GestionActividadesView: React.FC = () => {
     () =>
       rapsCrearFiltrados.map((r) => ({
         value: r.id,
-        label: etiquetaMateria(r),
+        label: etiquetaAcademica(r.codigo, r.nombreMateria),
+        codigo: r.codigo ?? undefined,
+        nombre: r.nombreMateria ?? undefined,
       })),
     [rapsCrearFiltrados]
   );
@@ -427,66 +485,89 @@ const GestionActividadesView: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 p-4 sm:p-5 space-y-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 flex-1 min-w-0">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
-                Competencia
-              </label>
-              <Select
-                isClearable
-                placeholder="Todas las competencias"
-                options={opcionesCompetencia}
-                value={opcionesCompetencia.find((o) => o.value === idCompetencia) ?? null}
-                onChange={(opt) => setIdCompetencia(opt?.value ?? null)}
-                classNames={selectClassNames}
-                filterOption={filterOptionMateria}
-                formatOptionLabel={formatMateriaOption}
-                noOptionsMessage={compactReactSelectNoOptions}
-              />
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:px-4 sm:py-3 dark:border-gray-700 dark:bg-coal-400">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(15rem,1.15fr)_minmax(15rem,1.15fr)_minmax(12rem,1.5fr)] gap-3 flex-1 min-w-0">
+            <div className="min-w-0">
+              <label className={clsLabelFiltro}>Competencia</label>
+              <div className="relative">
+                <KeenIcon
+                  icon="book"
+                  className="pointer-events-none absolute left-2.5 top-1/2 z-[1] -translate-y-1/2 text-sm text-gray-400 dark:text-gray-300"
+                />
+                <Select
+                  {...propsSelectGestion}
+                  isClearable
+                  placeholder="Todas las competencias"
+                  options={opcionesCompetencia}
+                  value={opcionesCompetencia.find((o) => o.value === idCompetencia) ?? null}
+                  onChange={(opt) => setIdCompetencia(opt?.value ?? null)}
+                  classNames={{
+                    ...selectClassNames,
+                    control: (state) => `${selectClassNames.control(state)} !pl-7`,
+                  }}
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
-                RAP
-              </label>
-              <Select
-                isClearable
-                placeholder="Todos los RAP"
-                options={opcionesRap}
-                value={opcionesRap.find((o) => o.value === idRap) ?? null}
-                onChange={(opt) => setIdRap(opt?.value ?? null)}
-                classNames={selectClassNames}
-                filterOption={filterOptionMateria}
-                formatOptionLabel={formatMateriaOption}
-                noOptionsMessage={() =>
-                  filtrosError
-                    ? filtrosError
-                    : idCompetencia
-                      ? 'No hay RAP para esta competencia.'
-                      : compactReactSelectNoOptions()
-                }
-              />
+            <div className="min-w-0">
+              <label className={clsLabelFiltro}>RAP</label>
+              <div className="relative">
+                <KeenIcon
+                  icon="notepad"
+                  className="pointer-events-none absolute left-2.5 top-1/2 z-[1] -translate-y-1/2 text-sm text-gray-400 dark:text-gray-300"
+                />
+                <Select
+                  {...propsSelectGestion}
+                  isClearable
+                  placeholder="Todos los RAP"
+                  options={opcionesRap}
+                  value={opcionesRap.find((o) => o.value === idRap) ?? null}
+                  onChange={(opt) => setIdRap(opt?.value ?? null)}
+                  classNames={{
+                    ...selectClassNames,
+                    control: (state) => `${selectClassNames.control(state)} !pl-7`,
+                  }}
+                  noOptionsMessage={() =>
+                    filtrosError
+                      ? filtrosError
+                      : idCompetencia
+                        ? 'No hay RAP para esta competencia.'
+                        : compactReactSelectNoOptions()
+                  }
+                />
+              </div>
             </div>
-            <div className="sm:col-span-2 xl:col-span-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
-                Buscar
-              </label>
-              <input
-                type="text"
-                className="input w-full dark:bg-[#111827] dark:text-white dark:border-gray-600"
-                placeholder="Buscar por título, autor, RAP o entregables..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            <div className="sm:col-span-2 xl:col-span-1 min-w-0">
+              <label className={`${clsLabelFiltro} xl:opacity-0 xl:select-none`}>Buscar</label>
+              <div className="relative">
+                <KeenIcon
+                  icon="magnifier"
+                  className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-sm text-gray-400 dark:text-gray-300"
+                />
+                <input
+                  type="search"
+                  className="input h-9 w-full pl-9 dark:bg-[#111827] dark:text-white dark:border-gray-600 dark:placeholder:text-gray-400"
+                  placeholder="Buscar por título, autor, RAP o entregables..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
-            <button type="button" className="btn btn-light text-sm" onClick={() => abrirCrear('cuestionario')}>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              className="btn btn-light h-9 text-sm"
+              onClick={() => abrirCrear('cuestionario')}
+            >
               <KeenIcon icon="notepad" className="text-sm mr-1.5" />
               Crear cuestionario
             </button>
-            <button type="button" className="btn btn-primary text-sm" onClick={() => abrirCrear('actividad')}>
+            <button
+              type="button"
+              className="btn btn-primary h-9 text-sm"
+              onClick={() => abrirCrear('actividad')}
+            >
               <KeenIcon icon="plus" className="text-sm mr-1.5" />
               Crear actividad
             </button>
@@ -495,32 +576,33 @@ const GestionActividadesView: React.FC = () => {
       </div>
 
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-coal-400 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Actividades registradas ({meta.total})
+          </h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[68rem] table-fixed">
             <colgroup>
-              <col className="w-[7%]" />
+              <col className="w-[8%]" />
               <col className="w-[18%]" />
-              <col className="w-[9%]" />
-              <col className="w-[18%]" />
-              <col className="w-[18%]" />
-              <col className="w-[14%]" />
+              <col className="w-[11%]" />
+              <col className="w-[17%]" />
+              <col className="w-[17%]" />
+              <col className="w-[13%]" />
               <col className="w-[8%]" />
               <col className="w-[8%]" />
             </colgroup>
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                {['Código', 'Título', 'Tipo', 'Competencia', 'RAP', 'Entregables', 'Fichas asignadas', 'Acciones'].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className={`py-2.5 text-xs font-semibold text-gray-600 dark:text-white ${
-                        h === 'Acciones' ? 'text-right pl-2 pr-5' : 'text-left px-2 first:pl-3'
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
+              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-coal-500/30">
+                <th className={`${clsTh} pl-3`}>Código</th>
+                <th className={clsTh}>Título</th>
+                <th className={clsTh}>Tipo</th>
+                <th className={clsTh}>Competencia</th>
+                <th className={clsTh}>RAP</th>
+                <th className={clsTh}>Entregables</th>
+                <th className={clsTh}>Fichas asignadas</th>
+                <th className={`${clsTh} text-right pl-2 pr-4`}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -548,20 +630,34 @@ const GestionActividadesView: React.FC = () => {
                   const competenciaTxt = etiquetaMateria(row.competencia);
                   const rapTxt = etiquetaMateria(row.rap);
                   const entregables = compactarEntregables(row.entregables);
+                  const visual = tipoActividadVisual(row.tipoActividad);
                   return (
                   <tr
                     key={row.id}
-                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+                    className="h-14 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50/80 dark:hover:bg-white/[0.03] transition-colors"
                   >
                     <td className={`${CELDA} pl-3 text-xs tabular-nums ${TEXTO_SECUNDARIO}`}>
                       <span className="block truncate" title={row.codigo}>{row.codigo}</span>
                     </td>
                     <td className={CELDA}>
-                      <CeldaClamp texto={row.tituloActividad} principal title={row.tituloActividad} />
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-50 dark:bg-coal-500/60 ${visual.iconClass}`}
+                          aria-hidden
+                        >
+                          <KeenIcon icon={visual.icon} className="text-sm" />
+                        </span>
+                        <span className={`block min-w-0 flex-1 truncate text-sm font-medium ${TEXTO_PRINCIPAL}`} title={row.tituloActividad}>
+                          {row.tituloActividad}
+                        </span>
+                      </div>
                     </td>
-                    <td className={`${CELDA} text-xs ${TEXTO_SECUNDARIO}`}>
-                      <span className="block truncate" title={tipoLabel(row.tipoActividad)}>
-                        {tipoLabel(row.tipoActividad)}
+                    <td className={`${CELDA} text-xs`}>
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[11px] font-medium ${visual.badgeClass}`}
+                        title={visual.label}
+                      >
+                        {visual.label}
                       </span>
                     </td>
                     <td className={CELDA}>
@@ -587,13 +683,13 @@ const GestionActividadesView: React.FC = () => {
                         <span className={`tabular-nums ${TEXTO_SECUNDARIO}`}>{row.fichasAsignadas}</span>
                       )}
                     </td>
-                    <td className="py-2.5 pl-2 pr-5 align-middle text-right">
+                    <td className="py-2 pl-2 pr-4 align-middle text-right">
                       <button
                         type="button"
                         data-id="gestion-actividades-acciones-btn"
                         aria-haspopup="menu"
                         aria-expanded={accionesMenu?.id === row.id}
-                        className="inline-flex items-center gap-1 btn btn-sm btn-light text-[11px] font-semibold dark:text-white"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/25 dark:text-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/40"
                         onClick={(e) => {
                           if (accionesMenu?.id === row.id) {
                             setAccionesMenu(null);
@@ -613,7 +709,7 @@ const GestionActividadesView: React.FC = () => {
             </tbody>
           </table>
         </div>
-        <div className={`flex flex-wrap items-center justify-between gap-2 pl-3 pr-5 py-2 border-t border-gray-200 dark:border-gray-700 text-xs ${TEXTO_SECUNDARIO}`}>
+        <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-t border-gray-200 dark:border-gray-700 text-xs ${TEXTO_SECUNDARIO}`}>
           <span>
             Mostrando {meta.from}-{meta.to} de {meta.total} actividades.
           </span>
@@ -688,12 +784,12 @@ const GestionActividadesView: React.FC = () => {
 
       {crearTipo ? (
         <Modal open onClose={() => setCrearTipo(null)}>
-          <ModalContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <ModalContent className="w-[95vw] max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
             <ModalHeader className="shrink-0">
               <ModalTitle>{crearTipo === 'cuestionario' ? 'Crear cuestionario' : 'Crear actividad'}</ModalTitle>
             </ModalHeader>
-            <ModalBody className="min-h-0 overflow-y-auto">
-              <p className="text-xs text-gray-600 dark:text-white mb-3 leading-relaxed">
+            <ModalBody className="min-h-0 overflow-y-auto overflow-x-hidden">
+              <p className="text-xs text-gray-600 dark:text-white mb-3 leading-snug">
                 Selecciona primero la competencia y luego el RAP. La actividad queda asociada al RAP y, por esa
                 relación, a su competencia. No se asigna automáticamente a ninguna ficha.
               </p>
@@ -706,6 +802,7 @@ const GestionActividadesView: React.FC = () => {
                     Competencia *
                   </label>
                   <Select
+                    {...propsSelectGestion}
                     placeholder={filtrosLoading ? 'Cargando competencias...' : 'Seleccione una competencia'}
                     isLoading={filtrosLoading}
                     isDisabled={filtrosLoading || Boolean(filtrosError)}
@@ -715,9 +812,6 @@ const GestionActividadesView: React.FC = () => {
                       setCompetenciaCrear(opt?.value ?? null);
                       setRapCrear(null);
                     }}
-                    classNames={selectClassNames}
-                    filterOption={filterOptionMateria}
-                    formatOptionLabel={formatMateriaOption}
                     noOptionsMessage={() =>
                       filtrosError ? filtrosError : 'No hay competencias disponibles para tu usuario.'
                     }
@@ -728,15 +822,13 @@ const GestionActividadesView: React.FC = () => {
                     RAP *
                   </label>
                   <Select
+                    {...propsSelectGestion}
                     isDisabled={!competenciaCrear || filtrosLoading}
                     isLoading={Boolean(competenciaCrear) && filtrosLoading}
                     placeholder={competenciaCrear ? 'Seleccione un RAP' : 'Seleccione una competencia primero'}
                     options={opcionesRapCrear}
                     value={opcionesRapCrear.find((o) => o.value === rapCrear) ?? null}
                     onChange={(opt) => setRapCrear(opt?.value ?? null)}
-                    classNames={selectClassNames}
-                    filterOption={filterOptionMateria}
-                    formatOptionLabel={formatMateriaOption}
                     noOptionsMessage={() => {
                       if (!competenciaCrear) return 'Seleccione una competencia primero.';
                       if (filtrosError) return filtrosError;
