@@ -4,3 +4,6 @@ export * from './AboutPerson';
 export * from './ContractFiles';
 export * from './TrazabilityContract';
 export * from './TrazabilityContractInterrumpido';
+export * from './AcademicLevel';
+export * from './KnowledgeAreas';
+export * from './AssignedPrograms';

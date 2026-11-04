@@ -1,4 +1,3 @@
-
 export interface Program {
   id: number;
   name: string;
@@ -7,11 +6,18 @@ export interface Program {
   codigo: string;
   nivel: string;
   formacion: string;
-  description?: string; 
+  description?: string;
+  documento?: string | null;
   idNivelEducativo?: number | string;
   idTipoFormacion?: number | string;
   idEstadoPrograma?: number | string;
+  idRed?: number;
+  fichas_count?: number;
   estado?: {
+    id: number;
+    nombre: string;
+  };
+  red?: {
     id: number;
     nombre: string;
   };
@@ -27,7 +33,7 @@ export interface FormularioProgramaProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProgram: (newProgram: any) => void;
-  programToEdit?: Program | null; 
+  programToEdit?: Program | null;
   onUpdateProgram?: (updatedProgram: any) => void;
 }
 
@@ -36,6 +42,7 @@ export interface ToastProps {
   message: string;
   isOpen: boolean;
   onClose: () => void;
+  type?: 'success' | 'error' | 'warning';
 }
 
 // Tipos auxiliares para los catálogos del Formulario
@@ -48,18 +55,30 @@ export interface CatalogosData {
   niveles: CatalogoItem[];
   tipos: CatalogoItem[];
   estados: CatalogoItem[];
+  redes: any[];
 }
 
 export interface MallaCurricularProps {
-  isOpen: boolean;
-  onClose: () => void;
-  program: Program | null;
+  isOpen?: boolean;
+  onClose?: () => void;
+  program?: Program | any;
+  ficha?: any;
+}
+
+export interface ProyectoFormativoProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onUpdated?: () => void;
+  program?: Program | any;
+  ficha?: any;
 }
 
 export interface AsignarMateriaProps {
+  idPrograma: number;
   isOpen: boolean;
   onClose: () => void;
-  nivelId: string;
+  nivelId: number | null; // Este es el idGradoPrograma
+  onMateriasSeleccionadas: (data: { idGradoPrograma: number; materias: number[] }) => void;
 }
 
 export interface RecursoItem {

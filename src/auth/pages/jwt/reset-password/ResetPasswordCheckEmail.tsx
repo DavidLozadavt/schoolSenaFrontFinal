@@ -1,54 +1,59 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-import { toAbsoluteUrl } from '@/utils';
 import { useLayout } from '@/providers';
+import clsx from 'clsx';
+import {
+  AuthBrandLogo,
+  authCardClass,
+  authCardStyle,
+  authPageShellClass,
+  authPrimaryButtonClass
+} from '../authVisual';
 
 const ResetPasswordCheckEmail = () => {
   const { currentLayout } = useLayout();
+  const [email, setEmail] = useState<string>('');
+
+  useEffect(() => {
+    sessionStorage.removeItem('resetEmail');
+    sessionStorage.removeItem('resetToken');
+
+    const storedEmail = sessionStorage.getItem('resetEmail') || '';
+    setEmail(storedEmail);
+  }, []);
 
   return (
-    <div className="card max-w-[440px] w-full">
-      <div className="card-body p-10">
-        <div className="flex justify-center py-10">
-          <img
-            src={toAbsoluteUrl('/media/illustrations/30.svg')}
-            className="dark:hidden max-h-[130px]"
-            alt=""
-          />
-          <img
-            src={toAbsoluteUrl('/media/illustrations/30-dark.svg')}
-            className="light:hidden max-h-[130px]"
-            alt=""
-          />
-        </div>
+    <div className={authPageShellClass}>
+      <div className={authCardClass} style={authCardStyle}>
+        <div className="flex flex-col gap-6 px-6 py-10 sm:px-10">
+          <div className="flex flex-col items-center gap-3">
+            <AuthBrandLogo />
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+              <svg
+                className="h-8 w-8 text-[#1e6fd9]"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-900 text-center">
+              ¡Contraseña restablecida!
+            </h3>
+            <div className="text-sm text-center text-gray-600">
+              <p className="mb-3">Tu contraseña ha sido cambiada exitosamente.</p>
+              <p>Ahora puedes iniciar sesión con tu nueva contraseña.</p>
+              {email ? <p className="mt-2 text-xs text-gray-400">{email}</p> : null}
+            </div>
+          </div>
 
-        <h3 className="text-lg font-medium text-gray-900 text-center mb-3">Check your email</h3>
-        <div className="text-2sm text-center text-gray-700 mb-7.5">
-          Please click the link sent to your email
-          <a href="#" className="text-2sm text-gray-800 font-medium hover:text-primary-active">
-            bob@reui.io
-          </a>
-          <br />
-          to reset your password. Thank you
-        </div>
-
-        <div className="flex justify-center mb-5">
           <Link
-            to={
-              currentLayout?.name === 'auth-branded'
-                ? '/auth/reset-password/changed'
-                : '/auth/classic/reset-password/changed'
-            }
-            className="btn btn-primary flex justify-center"
+            to={currentLayout?.name === 'auth-branded' ? '/auth/login' : '/auth/classic/login'}
+            className={clsx(authPrimaryButtonClass, 'flex items-center justify-center')}
           >
-            Skip for now
-          </Link>
-        </div>
-
-        <div className="flex items-center justify-center gap-1">
-          <span className="text-xs text-gray-600">Didn’t receive an email?</span>
-          <Link to="/auth/classic/reset-password/enter-email" className="text-xs font-medium link">
-            Resend
+            Iniciar sesión
           </Link>
         </div>
       </div>

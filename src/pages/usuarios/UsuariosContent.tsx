@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, useMemo, useContext, useCallback, useRef } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
-import { KeenIcon } from '@/components';
+import { KeenIcon, DataGrid } from '@/components';
 import { CommonAvatar } from '@/partials/common';
 
 import { ActivationCompanyUser } from '../network/models/_ActivationCompanyUser';
@@ -11,6 +12,7 @@ import { useConfirm } from '@/hooks';
 import { enqueueSnackbar } from 'notistack';
 import { RoleModel } from '../account/members/roles/models/_Role';
 import clsx from 'clsx';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface IAvatar {
   className: string;
@@ -33,6 +35,8 @@ interface usuariosContentTypeProps {
 }
 
 const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
+  const authContext = useContext(AuthContext);
+
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [roles, setRoles] = useState<RoleModel[]>([]);
   const [activation, setActivation] = useState<ActivationCompanyUser | null>(null);
@@ -45,12 +49,13 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   const [user, setUser] = useState<ActivationCompanyUser[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const [sortOrder, setSortOrder] = useState('1');
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(15);
   const [total, setTotal] = useState(0);
 
   const fetchRoles = async () => {
@@ -64,27 +69,36 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
     }
   };
 
-  const fetchUsers = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await axios.get('lista_usuarios_paginado', {
-        params: {
-          search: search,
-          per_page: perPage,
-          page: page
-        }
-      });
+  const fetchUsers = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const response = await axios.get('lista_usuarios_paginado', {
+          params: {
+            search: search || undefined,
+            per_page: perPage,
+            page,
+            state_id: statusFilter || undefined,
+            sort_order: sortOrder,
+            role_id: roleFilter || undefined
+          }
+        });
 
-      setUsers(response.data.data);
-      setCurrentPage(response.data.current_page);
-      setTotalPages(response.data.last_page);
-      setTotal(response.data.total);
-    } catch (err) {
-      setError('Hubo un error al obtener los usuarios');
-    } finally {
-      setLoading(false);
-    }
-  };
+        setUsers(response.data.data);
+        setCurrentPage(response.data.current_page);
+        setTotalPages(response.data.last_page);
+        setTotal(response.data.total);
+      } catch (err) {
+        setError('Hubo un error al obtener los usuarios');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, perPage, statusFilter, sortOrder, roleFilter]
+  );
+
+  const fetchUsersRef = useRef(fetchUsers);
+  fetchUsersRef.current = fetchUsers;
 
   const handleOpenRoles = (activation: ActivationCompanyUser) => {
     setRolesModalOpen(true);
@@ -156,27 +170,21 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
   };
 
   useEffect(() => {
-    fetchUsers();
     fetchRoles();
   }, []);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsersRef.current(currentPage);
   }, [reload]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchUsers(1);
-    }, 500);
+      setCurrentPage(1);
+      fetchUsersRef.current(1);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [search]);
-
-  useEffect(() => {
-    if (perPage) {
-      fetchUsers(1);
-    }
-  }, [perPage]);
+  }, [search, statusFilter, sortOrder, roleFilter, perPage]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -185,84 +193,133 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
     }
   };
 
-  const renderItem = (item: any, index: number) => {
-    const estado = item?.estado?.estado;
-
-    return (
-      <div key={index} className="card flex flex-col items-center p-5 lg:py-10 relative">
-        {estado && (
-          <button
-            onClick={() => handleToggleStatus(item.user.id, estado)}
-            className={clsx(
-              'badge badge-outline absolute top-2 right-2 cursor-pointer transition',
-              {
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorFn: (row) => row.user?.persona,
+        id: 'usuario',
+        header: () => 'Usuario',
+        enableSorting: true,
+        cell: (info) => {
+          const persona = info.getValue() as any;
+          const row = info.row.original;
+          const nombreCompleto = persona
+            ? `${persona.nombre1 ?? ''} ${persona.apellido1 ?? ''}`.trim()
+            : 'Centro de formación';
+          const foto = persona?.rutaFotoUrl;
+          return (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden relative">
+                <CommonAvatar
+                  className="w-full h-full object-cover"
+                  image={foto}
+                  fallback={nombreCompleto.charAt(0)}
+                  imageClass="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900">{nombreCompleto}</span>
+                <span className="text-xs text-gray-500">{row.user?.email}</span>
+              </div>
+            </div>
+          );
+        },
+        meta: { className: 'min-w-[250px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.user?.persona?.identificacion ?? '—',
+        id: 'identificacion',
+        header: () => 'Identificación',
+        enableSorting: true,
+        cell: (info) => <span className="text-sm text-gray-700">{info.getValue() as string}</span>,
+        meta: { className: 'w-[150px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.roles,
+        id: 'rol',
+        header: () => 'Rol',
+        enableSorting: false,
+        cell: (info) => {
+          const roles = info.getValue() as any[];
+          if (!roles || roles.length === 0) {
+            return <span className="text-sm text-gray-500">Sin rol</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1">
+              {roles.map((rol: any) => (
+                <span key={rol.id} className="badge badge-light badge-sm">
+                  {rol.name}
+                </span>
+              ))}
+            </div>
+          );
+        },
+        meta: { className: 'w-[150px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        accessorFn: (row) => row.estado?.estado,
+        id: 'estado',
+        header: () => 'Estado',
+        enableSorting: true,
+        cell: (info) => {
+          const estado = info.getValue() as string;
+          return estado ? (
+            <button
+              onClick={() => handleToggleStatus(info.row.original.user.id, estado)}
+              className={clsx('badge badge-outline cursor-pointer transition', {
                 'badge-danger': estado === 'INACTIVO',
                 'badge-primary': estado === 'ACTIVO'
-              }
-            )}
-          >
-            {estado}
-          </button>
-        )}
+              })}
+            >
+              {estado}
+            </button>
+          ) : null;
+        },
+        meta: { className: 'w-[120px]', cellClassName: 'text-gray-700 font-normal' }
+      },
+      {
+        id: 'acciones',
+        header: () => 'Acciones',
+        enableSorting: false,
+        cell: (info) => {
+          const item = info.row.original;
+          const persona = item.user?.persona;
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                title="Asignar Roles"
+                className="btn btn-sm btn-icon btn-clear btn-primary"
+                onClick={() => handleOpenRoles(item)}
+              >
+                <KeenIcon icon="toggle-on" />
+              </button>
 
-        <div className="mb-3.5">
-          {item?.user?.persona.rutaFotoUrl && (
-            <div className="w-20 h-20 rounded-full overflow-hidden relative">
-              <CommonAvatar
-                className="w-full h-full object-cover"
-                image={item?.user?.persona.rutaFotoUrl}
-                imageClass="w-full h-full object-cover"
-              />
+              {persona && (
+                <button
+                  className="btn btn-sm btn-icon btn-clear btn-secondary"
+                  title="Editar Usuario"
+                  onClick={() => handleEdit(item)}
+                >
+                  <KeenIcon icon="pencil" />
+                </button>
+              )}
+
+              <button
+                title="Eliminar Usuario"
+                className="btn btn-sm btn-icon btn-clear btn-danger"
+                onClick={() => handleConfirmDelete(item.user.id)}
+              >
+                <KeenIcon icon="trash" />
+              </button>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-center gap-1.5 mb-2">
-          <a
-            href="#"
-            className="hover:text-primary-active text-base leading-5 font-medium text-gray-900"
-          >
-            {item?.user?.persona.nombre1} {item?.user?.persona.apellido1}
-          </a>
-        </div>
-
-        <div className="flex items-center justify-center gap-1.5 mb-1">
-          <span className="text-gray-600 text-sm font-medium">
-            {item?.user?.persona.identificacion}
-          </span>
-        </div>
-
-        <a href="#" className="text-gray-700 text-sm hover:text-primary-active">
-          {item?.user?.email}
-        </a>
-
-        <div className="mt-4 w-full border-t pt-3 flex justify-center gap-3">
-          <button
-            title="Asignar Roles"
-            className="btn btn-sm btn-primary"
-            onClick={() => handleOpenRoles(item)}
-          >
-            <KeenIcon icon="toggle-on" />
-          </button>
-
-          <button
-            className="btn btn-sm btn-secondary"
-            title="Editar Usuario"
-            onClick={() => handleEdit(item)}
-          >
-            <KeenIcon icon="pencil" />
-          </button>
-          <button
-            title="Eliminar Usuario"
-            className="btn btn-sm btn-danger"
-            onClick={() => handleConfirmDelete(item.user.id)}
-          >
-            <KeenIcon icon="trash" />
-          </button>
-        </div>
-      </div>
-    );
-  };
+          );
+        },
+        meta: { className: 'w-[120px]' }
+      }
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   return (
     <Fragment>
@@ -277,9 +334,24 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">Todos</option>
+            <option value="">Todos los estados</option>
             <option value="1">Activos</option>
             <option value="2">Inactivos</option>
+            <option value="4">Pendientes</option>
+            <option value="18">Por actualizar</option>
+          </select>
+
+          <select
+            className="select select-sm w-36"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">Todos los roles</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id?.toString() ?? ''}>
+                {role.name}
+              </option>
+            ))}
           </select>
 
           <select
@@ -305,8 +377,15 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-7.5">
-        {users.map((item, index) => renderItem(item, index))}
+      <div className="card card-grid min-w-full">
+        <div className="card-body">
+          <DataGrid
+            columns={columns}
+            data={users}
+            nativePagination={false}
+            pagination={{ page: 0, size: perPage }}
+          />
+        </div>
       </div>
 
       <div className="card-footer mt-3 justify-center md:justify-between flex-col md:flex-row gap-3 text-gray-600 text-2sm font-medium">
@@ -320,12 +399,10 @@ const UsuariosContent = ({ reload }: usuariosContentTypeProps) => {
               setCurrentPage(1);
             }}
           >
-            <option value="10">10</option>
-            <option value="20">20</option>
+            <option value="15">15</option>
             <option value="50">50</option>
             <option value="100">100</option>
             <option value="200">200</option>
-            <option value="500">500</option>
           </select>
           Por página
         </div>

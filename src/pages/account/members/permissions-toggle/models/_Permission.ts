@@ -3,9 +3,13 @@ export interface PermissionModel {
     name: string;
     guard_name: string;
     description: string;
+    idPermissionPadre: number | null;
 
     checked: boolean;
-    icon: string;
+    icon: string | null;
+    path?: string | null;
+
+    children?: PermissionModel[];
 
     created_at?: Date;
     updated_at?: Date;

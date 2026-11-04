@@ -1,0 +1,5 @@
+allowBuilds:
+  '@firebase/util': true
+  browser-tabs-lock: true
+  esbuild: true
+  protobufjs: true

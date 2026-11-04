@@ -21,8 +21,36 @@ import { useAuthContext } from '@/auth';
 import { useState } from 'react';
 
 const SidebarMenu = () => {
-  const { permissions } = useAuthContext();
+  const { permissions, activacion, roles } = useAuthContext();
   const [searchText, setSearchText] = useState('');
+  const { getMenuConfig } = useMenus();
+
+  // Usuarios pendientes de activación: no deben ver opciones de navegación.
+  if (activacion?.state_id === 18) {
+    return null;
+  }
+
+  const hasPermission = (
+    requiredPermissions: string[] | undefined,
+    userPermissions: string[],
+    userRoles: string[]
+  ): boolean => {
+    if (!requiredPermissions || requiredPermissions.length === 0) {
+      return true;
+    }
+
+    const safePermissions = userPermissions ?? [];
+    const isAllowedByPermission = requiredPermissions.some((perm) =>
+      safePermissions.includes(perm)
+    );
+
+    const instructorSenaBypass =
+      Array.isArray(userRoles) &&
+      userRoles.includes('INSTRUCTOR SENA') &&
+      requiredPermissions.includes('AULA_VIRTUAL_INSTRUCTOR');
+
+    return isAllowedByPermission || instructorSenaBypass;
+  };
 
   const linkPl = 'ps-[10px]';
   const linkPr = 'pe-[10px]';
@@ -65,32 +93,88 @@ const SidebarMenu = () => {
         if (item.disabled) {
           return buildMenuItemRootDisabled(item, index);
         }
-        if (item.children) {
-          const filteredChildren = item.children.filter((child) => {
-            return (
-              child.requiredPermissions &&
-              child.requiredPermissions.some((perm) => permissions.includes(perm))
-            );
-          });
-
-          if (filteredChildren.length > 0) {
-            return buildMenuItemRoot({ ...item, children: filteredChildren }, index);
-          } else {
-            return null;
-          }
-        }
-        if (item.requiredPermissions) {
-          const hasRequiredPermissions = item.requiredPermissions.some((perm) =>
-            permissions.includes(perm)
-          );
-          if (!hasRequiredPermissions) {
-            return null;
-          }
-        }
         return buildMenuItemRoot(item, index);
       })
       .filter(Boolean);
   };
+
+  const filterMenuByPermissions = (
+    items: TMenuConfig,
+    userPermissions: string[],
+    userRoles: string[]
+  ): TMenuConfig => {
+    return items
+      .map((item) => {
+        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+          return null;
+        }
+
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = filterMenuByPermissions(item.children, userPermissions, userRoles);
+          const parentAllowed = hasPermission(item.requiredPermissions, userPermissions, userRoles);
+
+          if (filteredChildren.length === 0) {
+            if (!parentAllowed || !item.path) {
+              return null;
+            }
+            return { ...item, children: [] };
+          }
+
+          return { ...item, children: filteredChildren };
+        }
+
+        if (!hasPermission(item.requiredPermissions, userPermissions, userRoles)) {
+          return null;
+        }
+
+        return item;
+      })
+      .filter(Boolean) as TMenuConfig;
+  };
+
+  const filterMenuByTitleAndPermissions = (
+    items: TMenuConfig,
+    query: string,
+    userPermissions: string[],
+    userRoles: string[]
+  ): TMenuConfig => {
+    const lowerQuery = query.toLowerCase();
+
+    return items
+      .map((item) => {
+        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+          return null;
+        }
+
+        if (!hasPermission(item.requiredPermissions, userPermissions, userRoles)) {
+          return null;
+        }
+
+        const matchesTitle = item.title?.toLowerCase().includes(lowerQuery) ?? false;
+
+        const filteredChildren = item.children
+          ? filterMenuByTitleAndPermissions(item.children, query, userPermissions, userRoles)
+          : undefined;
+
+        if (matchesTitle || (filteredChildren && filteredChildren.length > 0)) {
+          return { ...item, children: filteredChildren };
+        }
+
+        return null;
+      })
+      .filter(Boolean) as TMenuConfig;
+  };
+
+  const menuConfig = getMenuConfig('primary');
+  const safePermissions = permissions ?? [];
+  const safeRoles = roles ?? [];
+  const menuByPermission = menuConfig
+    ? filterMenuByPermissions(menuConfig, safePermissions, safeRoles)
+    : null;
+  const menuSource =
+    menuByPermission && searchText.trim()
+      ? filterMenuByTitleAndPermissions(menuByPermission, searchText, safePermissions, safeRoles)
+      : menuByPermission;
 
   const buildMenuItemRoot = (item: IMenuItemConfig, index: number) => {
     if (item.children) {
@@ -129,34 +213,34 @@ const SidebarMenu = () => {
           </MenuSub>
         </MenuItem>
       );
-    } else {
-      return (
-        <MenuItem key={index}>
-          <MenuLink
-            path={item.path}
+    }
+
+    return (
+      <MenuItem key={index}>
+        <MenuLink
+          path={item.path}
+          className={clsx(
+            'border border-transparent menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg',
+            accordionLinkGap[0],
+            linkPy,
+            linkPl,
+            linkPr
+          )}
+        >
+          <MenuIcon
             className={clsx(
-              'border border-transparent menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg',
-              accordionLinkGap[0],
-              linkPy,
-              linkPl,
-              linkPr
+              'items-start text-gray-500 dark:text-gray-400 menu-item-active:text-primary menu-link-hover:!text-primary',
+              iconWidth
             )}
           >
-            <MenuIcon
-              className={clsx(
-                'items-start text-gray-500 dark:text-gray-400 menu-item-active:text-primary menu-link-hover:!text-primary',
-                iconWidth
-              )}
-            >
-              {item.icon && <KeenIcon icon={item.icon} className={iconSize} />}
-            </MenuIcon>
-            <MenuTitle className="text-sm font-semibold text-gray-700 menu-item-active:text-primary menu-link-hover:!text-primary">
-              {item.title}
-            </MenuTitle>
-          </MenuLink>
-        </MenuItem>
-      );
-    }
+            {item.icon && <KeenIcon icon={item.icon} className={iconSize} />}
+          </MenuIcon>
+          <MenuTitle className="text-sm font-semibold text-gray-700 menu-item-active:text-primary menu-link-hover:!text-primary">
+            {item.title}
+          </MenuTitle>
+        </MenuLink>
+      </MenuItem>
+    );
   };
 
   const buildMenuItemRootDisabled = (item: IMenuItemConfig, index: number) => {
@@ -181,6 +265,9 @@ const SidebarMenu = () => {
       if (item.disabled) {
         return buildMenuItemChildDisabled(item, index, level);
       } else {
+        if (item.requiredPermissions?.some((perm) => perm.includes('HIDDEN'))) {
+          return null;
+        }
         return buildMenuItemChild(item, index, level);
       }
     });
@@ -311,68 +398,25 @@ const SidebarMenu = () => {
     );
   };
 
-  const filterMenuByTitleAndPermissions = (
-    items: TMenuConfig,
-    query: string,
-    permissions: any
-  ): TMenuConfig => {
-    const lowerQuery = query.toLowerCase();
-
-    return items
-      .map((item) => {
-        const matchesTitle = item.title?.toLowerCase().includes(lowerQuery);
-
-        if (item.requiredPermissions) {
-          const hasRequiredPermissions = item.requiredPermissions.some((perm) =>
-            permissions.includes(perm)
-          );
-          if (!hasRequiredPermissions) {
-            return null;
-          }
-        }
-
-        let filteredChildren: TMenuConfig | undefined;
-        if (item.children) {
-          filteredChildren = filterMenuByTitleAndPermissions(item.children, query, permissions);
-        }
-
-        if (matchesTitle || (filteredChildren && filteredChildren.length > 0)) {
-          return {
-            ...item,
-            children: filteredChildren
-          };
-        }
-
-        return null;
-      })
-      .filter(Boolean) as TMenuConfig;
-  };
-
-  const { getMenuConfig } = useMenus();
-  const menuConfig = getMenuConfig('primary');
-
   return (
-    <Menu highlight={true} multipleExpand={false} className="flex flex-col grow gap-0.5">
-      <div className="relative">
-        <KeenIcon
-          icon="magnifier"
-          className="absolute left-0 ml-3 top-1/2 -translate-y-1/2 text-gray-500"
-        />
-        <input
-          type="text"
-          placeholder="Buscar menú"
-          className="pl-8 input input-sm"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-        />
+    <Menu highlight={true} multipleExpand={false} className="flex min-h-0 flex-col grow gap-0.5">
+      <div className="sticky top-0 z-[1] -mx-1 mb-2 shrink-0 bg-light px-1 pb-1 pt-0 dark:bg-coal-600">
+        <div className="relative">
+          <KeenIcon
+            icon="magnifier"
+            className="absolute left-0 ml-3 top-1/2 -translate-y-1/2 text-gray-500"
+          />
+          <input
+            type="text"
+            placeholder="Buscar menú"
+            className="pl-8 input input-sm"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
       </div>
 
-      {menuConfig &&
-        buildMenu(
-          searchText
-            ? filterMenuByTitleAndPermissions(menuConfig, searchText, permissions)
-            : menuConfig
-        )}
+      {menuSource && buildMenu(menuSource)}
     </Menu>
   );
 };

@@ -11,6 +11,9 @@ import { App } from './App';
 import { setupAxios } from './auth';
 import { ProvidersWrapper } from './providers';
 import React from 'react';
+import { installGoogleTranslateDomPatch } from './utils/googleTranslateDomPatch';
+
+installGoogleTranslateDomPatch();
 
 /**
  * Inject interceptors for axios.
@@ -21,19 +24,9 @@ setupAxios(axios);
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
-  <React.StrictMode>
+
     <ProvidersWrapper>
       <App />
     </ProvidersWrapper>
-  </React.StrictMode>
-);
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/firebase-messaging-sw.js')
-    .then((registration) => {
-    })
-    .catch((err) => {
-      console.error('Service Worker registration failed:', err);
-    });
-}
+);

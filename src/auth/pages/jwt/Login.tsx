@@ -7,18 +7,26 @@ import { KeenIcon } from '@/components';
 import { useAuthContext } from '@/auth';
 import { getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../../../../src/firebase/firebaseConfig';
-import { token } from 'stylis';
+import {
+  AuthBrandLogo,
+  authCardClass,
+  authCardStyle,
+  authFormClass,
+  authInputClass,
+  authLinkClass,
+  authPageShellClass,
+  authPrimaryButtonClass
+} from './authVisual';
 
 const loginSchema = Yup.object().shape({
   email: Yup.string()
-    .email('Wrong email format')
-    .min(3, 'Minimum 3 symbols')
-    .max(50, 'Maximum 50 symbols')
-    .required('Email is required'),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(120, 'Máximo 120 caracteres')
+    .required('Correo o número de documento es requerido'),
   password: Yup.string()
-    .min(3, 'Minimum 3 symbols')
-    .max(50, 'Maximum 50 symbols')
-    .required('Password is required'),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(120, 'Máximo 120 caracteres')
+    .required('Contraseña es requerida'),
   remember: Yup.boolean()
 });
 
@@ -30,22 +38,22 @@ const initialValues = {
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuthContext();
+  const { login, roles, activacion } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [deviceToken, setDeviceToken] = useState<string>('');
-  const from = location.state?.from?.pathname || '/';
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { VITE_APP_VAPID_KEY } = import.meta.env;
 
 
 
-  
+
   const requestPermission = useCallback(async () => {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const token = await getToken(messaging, { vapidKey: VITE_APP_VAPID_KEY });
-      setDeviceToken(token); 
+      setDeviceToken(token);
     } else if (permission === 'denied') {
       alert('Has denegado las notificaciones.');
     }
@@ -54,18 +62,25 @@ const Login = () => {
   useEffect(() => {
     requestPermission();
 
-  
     onMessage(messaging, (payload) => {
       console.log('Mensaje recibido: ', payload);
     });
   }, [requestPermission]);
-    useEffect(() => {
-      requestPermission();
-  
-      onMessage(messaging, (payload) => {
-      
-      });
-    }, [requestPermission]);
+
+  // Redirect after login once roles and activacion are loaded
+  useEffect(() => {
+    if (!shouldRedirect) return;
+    // Wait until roles have been populated from the server
+    if (roles.length === 0) return;
+    
+    // We only depend on activacion now for the redirect logic
+    const isAllowed = activacion?.state_id == 18;
+    if (isAllowed) {
+      navigate('/perfil');
+    } else {
+      navigate('/');
+    }
+  }, [shouldRedirect, roles, activacion, navigate]);
 
 
 
@@ -74,6 +89,7 @@ const Login = () => {
     validationSchema: loginSchema,
     onSubmit: async (values, { setStatus, setSubmitting }) => {
       setLoading(true);
+
 
       try {
         if (!login) {
@@ -88,7 +104,7 @@ const Login = () => {
           localStorage.removeItem('email');
         }
 
-        navigate('/');
+        setShouldRedirect(true);
       } catch {
         setStatus('Los datos de inicio de sesión son incorrectos.');
         setSubmitting(false);
@@ -103,144 +119,103 @@ const Login = () => {
   };
 
   return (
-    <div className="card max-w-[370px] w-full" style={{ border: '2px solid aquamarine' }}>
-      <form
-        className="card-body flex flex-col gap-5 p-10"
-        onSubmit={formik.handleSubmit}
-        noValidate
-      >
-        <div className="text-center mb-2.5">
-          <h3 className="text-lg font-semibold text-gray-900 leading-none mb-2.5">Iniciar sesión</h3>
-          {/* <div className="flex items-center justify-center font-medium">
-            <span className="text-2sm text-gray-600 me-1.5">Need an account?</span>
-            <Link
-              to={currentLayout?.name === 'auth-branded' ? '/auth/signup' : '/auth/classic/signup'}
-              className="text-2sm link"
-            >
-              Sign up
-            </Link>
-          </div> */}
-        </div>
-
-        {/* <div className="grid grid-cols-2 gap-2.5">
-          <a href="#" className="btn btn-light btn-sm justify-center">
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/google.svg')}
-              className="size-3.5 shrink-0"
-            />
-            Use Google
-          </a>
-
-          <a href="#" className="btn btn-light btn-sm justify-center">
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/apple-black.svg')}
-              className="size-3.5 shrink-0 dark:hidden"
-            />
-            <img
-              src={toAbsoluteUrl('/media/brand-logos/apple-white.svg')}
-              className="size-3.5 shrink-0 light:hidden"
-            />
-            Use Apple
-          </a>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="border-t border-gray-200 w-full"></span>
-          <span className="text-2xs text-gray-500 font-medium uppercase">Or</span>
-          <span className="border-t border-gray-200 w-full"></span>
-        </div> */}
-
-        {/* <div className="flex gap-2.5 border border-primary-clarity rounded-md p-3 bg-primary-light">
-          <KeenIcon icon="information-2" style="solid" className="text-primary text-lg" />
-          <div className="text-gray-700 text-xs">
-            Use <span className="font-semibold text-gray-900">demo@keenthemes.com</span> username
-            with <span className="font-semibold text-gray-900">demo1234</span> password.
-          </div>
-        </div> */}
-
-        <div className="flex flex-col gap-1">
-          <label className="form-label text-gray-900">Correo eletrónico</label>
-          <label className="input">
-            <input
-              placeholder="Enter username"
-              autoComplete="off"
-              {...formik.getFieldProps('email')}
-              className={clsx('form-control', {
-                'is-invalid': formik.touched.email && formik.errors.email
-              })}
-            />
-          </label>
-          {formik.touched.email && formik.errors.email && (
-            <span role="alert" className="text-danger text-xs mt-1">
-              {formik.errors.email}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-1">
-            <label className="form-label text-gray-900">Contraseña</label>
-            {/* <Link
-              to={
-                currentLayout?.name === 'auth-branded'
-                  ? '/auth/reset-password'
-                  : '/auth/classic/reset-password'
-              }
-              className="text-2sm link shrink-0"
-            >
-              Forgot Password?
-            </Link> */}
-          </div>
-          <label className="input">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter Password"
-              autoComplete="off"
-              {...formik.getFieldProps('password')}
-              className={clsx('form-control', {
-                'is-invalid': formik.touched.password && formik.errors.password
-              })}
-            />
-            <button className="btn btn-icon" onClick={togglePassword}>
-              <KeenIcon icon="eye" className={clsx('text-gray-500', { hidden: showPassword })} />
-              <KeenIcon
-                icon="eye-slash"
-                className={clsx('text-gray-500', { hidden: !showPassword })}
-              />
-            </button>
-          </label>
-          {formik.touched.password && formik.errors.password && (
-            <span role="alert" className="text-danger text-xs mt-1">
-              {formik.errors.password}
-            </span>
-          )}
-        </div>
-
-        {/* <label className="checkbox-group">
-          <input
-            className="checkbox checkbox-sm"
-            type="checkbox"
-            {...formik.getFieldProps('remember')}
-          />
-          <span className="checkbox-label">Remember me</span>
-        </label> */}
-
-        <button
-          type="submit"
-          className="btn btn-primary flex justify-center grow"
-          disabled={loading || formik.isSubmitting}
+    <div className={authPageShellClass}>
+      <div className={authCardClass} style={authCardStyle}>
+        <form
+          className={authFormClass}
+          onSubmit={formik.handleSubmit}
+          noValidate
         >
-          {loading ? 'Por favor espera...' : 'Iniciar sesión'}
-        </button>
-
-        {formik.status && (
-          <div className="text-danger text-xs mt-1" role="alert">
-            {formik.status}
+          <div className="text-center flex flex-col items-center gap-3">
+            <AuthBrandLogo pulse={loading} />
+            <h3 className="text-2xl font-semibold text-gray-900">
+              Iniciar sesión
+            </h3>
+            <p className="text-sm text-gray-500">
+              Ingresa tus credenciales para continuar
+            </p>
           </div>
-        )}
-      </form>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Correo electrónico o número de documento
+            </label>
+            <input
+              placeholder="correo@ejemplo.com o número de documento"
+              autoComplete="off"
+              type="text"
+              {...formik.getFieldProps('email')}
+              data-preserve-case
+              data-no-uppercase
+              className={authInputClass(!!(formik.touched.email && formik.errors.email))}
+            />
+            {formik.touched.email && formik.errors.email && (
+              <span className="text-xs text-red-500">
+                {formik.errors.email}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                autoComplete="off"
+                {...formik.getFieldProps('password')}
+                data-no-uppercase
+                className={clsx(
+                  authInputClass(!!(formik.touched.password && formik.errors.password)),
+                  'pr-12'
+                )}
+              />
+              <button
+                onClick={togglePassword}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 transition"
+              >
+                <KeenIcon icon="eye" className={clsx({ hidden: showPassword })} />
+                <KeenIcon icon="eye-slash" className={clsx({ hidden: !showPassword })} />
+              </button>
+            </div>
+            {formik.touched.password && formik.errors.password && (
+              <span className="text-xs text-red-500">
+                {formik.errors.password}
+              </span>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || formik.isSubmitting}
+            className={clsx(authPrimaryButtonClass, 'mt-2')}
+          >
+            {loading ? 'Por favor espera…' : 'Iniciar sesión'}
+          </button>
+
+          {formik.status && (
+            <div className="text-center text-xs text-red-500">
+              {formik.status}
+            </div>
+          )}
+
+          <div className="flex items-center justify-center">
+            <Link
+              to="/auth/classic/reset-password"
+              className={authLinkClass}
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
+
+
 };
 
 export { Login };
+

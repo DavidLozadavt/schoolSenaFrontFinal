@@ -5,7 +5,7 @@ export const validateContratoField = (name: string, value: string | number): str
       break;
 
     case 'fechaFinalContrato':
-      if (value && !value) return 'La fecha de fin de contrato es requerida';
+      // Obligatoriedad según tipo de contrato (p. ej. indefinido) se valida en el paso del formulario.
       break;
 
     case 'idtipoContrato':
@@ -28,6 +28,11 @@ export const validateContratoField = (name: string, value: string | number): str
       if (!value) return 'El grupo de nómina es requerido';
       break;
 
+    case 'horasmes':
+      if (!value) return 'Las horas al mes son requeridas';
+      if (!/^\d+$/.test(String(value))) return 'Las horas al mes deben ser un número entero';
+      break;
+
     case 'valorTotalContrato':
       if (!value) return 'El valor total del contrato es requerido';
       break;
@@ -36,8 +41,24 @@ export const validateContratoField = (name: string, value: string | number): str
       if (!value) return 'El período de pago es requerido';
       break;
 
+    case 'formaPago':
+      if (!value) return 'La forma de pago es requerida';
+      break;
+
+    case 'supervisorContrato':
+      if (!String(value || '').trim()) return 'El nombre del supervisor del contrato es requerido';
+      break;
+
+    case 'cargoSupervisor':
+      if (!String(value || '').trim()) return 'El cargo del supervisor es requerido';
+      break;
+
     case 'objetoContrato':
       if (!value) return 'El objeto de contrato es requerido';
+      break;
+
+    case 'perfilProfesional':
+      if (!String(value || '').trim()) return 'El perfil profesional es requerido';
       break;
 
     case 'idTipoCotizante':

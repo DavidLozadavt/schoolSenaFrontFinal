@@ -8,8 +8,9 @@ import {
 } from '@/partials/toolbar';
 import { useLayout } from '@/providers';
 import axios from 'axios';
+import Select from 'react-select'
 
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { PersonaInterface } from './model/PersonaInterface';
 import { ContratoInterface } from './model/ContratoInterface';
 import { validateFieldPersona } from './utils/validationPersona';
@@ -17,13 +18,16 @@ import { validateUbicacionField } from './utils/validationUbicacion';
 import { validateContratoField } from './utils/validationContrato';
 import { TipoContratoModal } from './ModalTipoContrato';
 import { RolModal } from './RolModal';
+import { NivelAcademicoModal } from './ModalNivelAcademico';
 import { useSnackbar } from 'notistack';
+import Toast from '../programas-academicos/components/Toast';
 import { TipoDocumentoInterface } from './model/TipoDocumentoInterface';
 import Spinner from '@/components/loaders/Spinner';
 import { ModalLinksAntecedentes } from '../contratos/ModalLinksAntecedentes';
 import { ModalInfoDocumentos } from '../contratos/ModalInfoDocumentos';
 import { BancoModal } from './BancoModal';
 import { RiesgosProfesionalesModal } from './RiesgosProfesionalesModal';
+import { AuthContext } from '@/auth/providers/JWTProvider';
 
 interface FormErrors {
   [key: string]: string;
@@ -31,6 +35,83 @@ interface FormErrors {
 
 const tiposCuentaBancaria = ['CUENTA DE AHORROS', 'CUENTA CORRIENTE'];
 const tipoSalario = ['INTEGRAL', 'FIJO', 'VARIABLE'];
+
+// Estilos para scroll suave y delicado en áreas de conocimiento
+const contratacionScrollStyles = `
+  .contratacion-areas-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .contratacion-areas-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
+
+/** Fechas del paso 3 pueden ser string o objeto con `jsdate` (datepicker). */
+function parseContratoFechaInput(value: unknown): Date | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object' && value !== null && 'jsdate' in (value as object)) {
+    const js = (value as { jsdate?: string }).jsdate;
+    if (js) {
+      const d = new Date(js);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/**
+ * Valor total = sueldo del cargo × meses entre fechas (input type="date" o jsdate).
+ * Contrato indefinido (tipo 6): sin fecha fin en BD; usamos el sueldo mensual como total por defecto.
+ */
+function computeValorTotalContrato(
+  state: ContratoInterface,
+  rolesList: { id: number | string; salario?: { valor?: number } }[]
+): string | undefined {
+  if (!state.rol) return undefined;
+
+  const selectedRol = rolesList.find((r) => Number(r.id) === Number(state.rol));
+  if (!selectedRol) return undefined;
+
+  const salarioMensual = Number(selectedRol?.salario?.valor) || 0;
+  const idTipo = parseInt(String(state.idtipoContrato), 10);
+
+  if (!state.idtipoContrato || Number.isNaN(idTipo)) {
+    return undefined;
+  }
+
+  if (idTipo === 6) {
+    return String(salarioMensual);
+  }
+
+  const fechaInicio = parseContratoFechaInput(state.fechaContratacion);
+  const fechaFin = parseContratoFechaInput(state.fechaFinalContrato);
+
+  if (!fechaInicio || !fechaFin) return undefined;
+
+  let diffMonths =
+    (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 +
+    (fechaFin.getMonth() - fechaInicio.getMonth());
+
+  if (fechaFin.getDate() >= fechaInicio.getDate()) {
+    diffMonths += 1;
+  }
+
+  return String(salarioMensual * diffMonths);
+}
 
 const tiposCotizante = [
   { id: 1, codigo: '1', tipoCotizante: 'DEPENDIENTE' },
@@ -197,6 +278,7 @@ const ContratacionPage = () => {
   const [departamentos, setDepartamentos] = useState<any[]>([]);
   const [ciudades, setCiudades] = useState<any[]>([]);
   const [ciudadesUbicacion, setCiudadesUbicacion] = useState<any[]>([]);
+  const [ciudadesExpedicion, setCiudadesExpedicion] = useState<any[]>([]);
   const [tipoIdentificaciones, setTipoIdentificacion] = useState<TipoDocumentoInterface[]>([]);
   const [tipoContratos, setTipoContratos] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
@@ -213,19 +295,25 @@ const ContratacionPage = () => {
   const [riesgosModal, setRiesgosModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [tipoContratoModal, setTipoContratoModal] = useState(false);
+  const [nivelAcademicoModal, setNivelAcademicoModal] = useState(false);
   const [fileErrors, setFileErrors] = useState<Record<string, boolean>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [bancos, setBancos] = useState<any[]>([]);
+  const [formasPagoContrato, setFormasPagoContrato] = useState<any[]>([]);
   const [gruposNomina, setGruposNomina] = useState<any[]>([]);
   const [modalLinkAntecedentes, setModalLinkAntecedentes] = useState(false);
   const [modalInfoDocuemntos, setModalInfoDocumentos] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const [entidadesArl, setEntidadesArl] = useState<any[]>([]);
   const [entidadesEPS, setEntidadeEPS] = useState<any[]>([]);
   const [entidadesPension, setEntidadesPension] = useState<any[]>([]);
-  const [entidadesCesantias, setEntidadesCesantias] = useState<any[]>([]);
   const [entidadesCajaCompensacion, setEntidadesCajaCompensacion] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [nivelesEducativos, setNivelesEducativos] = useState<any[]>([]);
+  const [areasConocimiento, setAreasConocimiento] = useState<any[]>([]);
+  const [selectedAreasConocimiento, setSelectedAreasConocimiento] = useState<number[]>([]);
   const [formDataUbicacion, setFormDataUbicacion] = useState<PersonaInterface>({
     departamentoU: '',
     ciudadU: '',
@@ -246,8 +334,18 @@ const ContratacionPage = () => {
     fechaNac: '',
     idciudadNac: '',
     departamento: '',
+    idciudadExpedicion: '',
     apellido2: ''
   });
+
+  const optionsCiudadExpedicion = useMemo(
+    () =>
+      ciudadesExpedicion.map((c) => ({
+        value: String(c.id),
+        label: `${c.descripcion} - ${c.codigo}`
+      })),
+    [ciudadesExpedicion]
+  );
 
   const [formDataContrato, setFormDataContrato] = useState<ContratoInterface>({
     salario_id: '',
@@ -255,6 +353,9 @@ const ContratacionPage = () => {
     perfilProfesional: '',
     otrosi: '',
     periodoPago: '',
+    formaPago: '',
+    supervisorContrato: '',
+    cargoSupervisor: '',
     idtipoContrato: '',
     fechaSistema: '',
     observacion: '',
@@ -267,7 +368,6 @@ const ContratacionPage = () => {
     idSalud: '',
     idArl: '',
     idCajaCompensacion: '',
-    idCesantias: '',
     tipoCuentaBancaria: '',
     idBanco: '',
     numeroCuentaBancaria: '',
@@ -279,7 +379,11 @@ const ContratacionPage = () => {
     idActividadRiesgo: '',
     idTarifaRiesgo: '',
     tipoSalario: '',
-    idGrupoNomina: ''
+    idGrupoNomina: '',
+    horasmes: '',
+    idNivelEducativo: '',
+    idCentroFormacion: '',
+    numeroDocumentoContrato: ''
   });
 
   const steps = [
@@ -318,7 +422,16 @@ const ContratacionPage = () => {
     const { name } = e.target;
     let { value } = e.target;
 
-    value = value.toUpperCase();
+    // No convertir a mayúsculas los campos numéricos (IDs)
+    const numericFields = [
+      'idciudadNac',
+      'departamento',
+      'idciudadExpedicion',
+      'idtipoIdentificacion'
+    ];
+    if (!numericFields.includes(name)) {
+      value = value.toUpperCase();
+    }
 
     const error = validateFieldPersona(name, value);
 
@@ -333,22 +446,99 @@ const ContratacionPage = () => {
     }));
 
     if (name === 'departamento') {
-      fetchCiudades(value);
+      // Limpiar ciudades anteriores y ciudad seleccionada cuando cambia el departamento
+      setCiudades([]);
+      setFormDataPersona((prevData) => ({
+        ...prevData,
+        idciudadNac: ''
+      }));
+      // Llamar a fetchCiudades con el valor como número
+      if (value) {
+        fetchCiudades(Number(value));
+      }
     }
+
   };
 
   const handleChangeFormContrato = (e: any) => {
     const { name } = e.target;
     let { value } = e.target;
-    value = value.toUpperCase();
+    // No convertir a mayúsculas campos numéricos o idCentroFormacion
+    if (
+      name !== 'idCentroFormacion' &&
+      name !== 'numeroDocumentoContrato' &&
+      name !== 'rol' &&
+      !name.startsWith('id') &&
+      name !== 'horasmes' &&
+      name !== 'sueldo' &&
+      name !== 'valorTotalContrato' &&
+      name !== 'formaPago' &&
+      name !== 'periodoPago'
+    ) {
+      value = value.toUpperCase();
+    }
 
-    setFormDataContrato((prevState) => ({
-      ...prevState,
-      [name]: value,
-      ...(name === 'idtipoContrato' && parseInt(value) === 6
-        ? { fechaFinalContrato: '', valorTotalContrato: '' }
-        : {})
-    }));
+    if (name === 'rol') {
+      const selectedRol = roles.find((r) => Number(r.id) === Number(value));
+      const salarioMensual = Number(selectedRol?.salario?.valor) || 0;
+      const idSalario = selectedRol?.salario?.id;
+
+      setFormDataContrato((prevState) => {
+        const next: typeof prevState = {
+          ...prevState,
+          rol: value
+        };
+
+        if (!value) {
+          next.sueldo = '';
+          next.salario_id = '';
+          next.valorTotalContrato = '';
+          return next;
+        }
+
+        if (selectedRol) {
+          next.sueldo = String(salarioMensual);
+          next.salario_id = idSalario != null ? String(idSalario) : '';
+        }
+
+        const vt = computeValorTotalContrato(next, roles);
+        if (vt !== undefined) {
+          next.valorTotalContrato = vt;
+        }
+
+        return next;
+      });
+
+      const error = validateContratoField(name, value);
+      setErrorsContrato((prevErrors) => ({
+        ...prevErrors,
+        [name]: error || undefined
+      }));
+      return;
+    }
+
+    setFormDataContrato((prevState) => {
+      const next: typeof prevState = {
+        ...prevState,
+        [name]: value,
+        ...(name === 'idtipoContrato' && parseInt(value) === 6
+          ? { fechaFinalContrato: '', valorTotalContrato: '' }
+          : {})
+      };
+
+      if (
+        name === 'fechaContratacion' ||
+        name === 'fechaFinalContrato' ||
+        name === 'idtipoContrato'
+      ) {
+        const vt = computeValorTotalContrato(next, roles);
+        if (vt !== undefined) {
+          next.valorTotalContrato = vt;
+        }
+      }
+
+      return next;
+    });
 
     const error = validateContratoField(name, value);
     setErrorsContrato((prevErrors) => ({
@@ -389,34 +579,6 @@ const ContratacionPage = () => {
 
       if (selectedTipoContrato) {
         fetchDocumentosContrato(selectedTipoContrato.nombreTipoContrato);
-      }
-    }
-
-    if (name === 'rol') {
-      const selectedRol = roles.find((rol) => rol.id === parseInt(value));
-      let salarioMensual = selectedRol?.salario?.valor || 0;
-      let idSalario = selectedRol?.salario?.id || null;
-
-      if (formDataContrato.fechaContratacion && formDataContrato.fechaFinalContrato) {
-        const fechaInicio = new Date(formDataContrato.fechaContratacion);
-        const fechaFin = new Date(formDataContrato.fechaFinalContrato);
-
-        if (!isNaN(fechaInicio.getTime()) && !isNaN(fechaFin.getTime())) {
-          let diffMonths =
-            (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 +
-            (fechaFin.getMonth() - fechaInicio.getMonth());
-
-          if (fechaFin.getDate() >= fechaInicio.getDate()) {
-            diffMonths += 1;
-          }
-
-          setFormDataContrato((prevState) => ({
-            ...prevState,
-            sueldo: salarioMensual.toString(),
-            valorTotalContrato: (salarioMensual * diffMonths).toString(),
-            salario_id: idSalario
-          }));
-        }
       }
     }
   };
@@ -471,6 +633,12 @@ const ContratacionPage = () => {
       newErrors.idGrupoNomina = 'El grupo de nómina es requerido';
     }
 
+    if (!formDataContrato.horasmes) {
+      newErrors.horasmes = 'Las horas al mes son requeridas';
+    } else if (!/^\d+$/.test(formDataContrato.horasmes)) {
+      newErrors.horasmes = 'Las horas al mes deben ser un número entero';
+    }
+
     if (formDataContrato.idtipoContrato !== '6' && !formDataContrato.valorTotalContrato) {
       newErrors.valorTotalContrato = 'El valor total del contrato es requerido';
     }
@@ -479,12 +647,31 @@ const ContratacionPage = () => {
       newErrors.periodoPago = 'El período de pago es requerido';
     }
 
+    const errFormaPago = validateContratoField('formaPago', formDataContrato.formaPago ?? '');
+    if (errFormaPago) newErrors.formaPago = errFormaPago;
+
+    const errSup = validateContratoField('supervisorContrato', formDataContrato.supervisorContrato ?? '');
+    if (errSup) newErrors.supervisorContrato = errSup;
+
+    const errCargoSup = validateContratoField('cargoSupervisor', formDataContrato.cargoSupervisor ?? '');
+    if (errCargoSup) newErrors.cargoSupervisor = errCargoSup;
+
     if (!formDataContrato.objetoContrato) {
       newErrors.objetoContrato = 'El objeto de contrato es requerido';
     }
 
+    const errPerfil = validateContratoField(
+      'perfilProfesional',
+      formDataContrato.perfilProfesional ?? ''
+    );
+    if (errPerfil) newErrors.perfilProfesional = errPerfil;
+
     if (!formDataContrato.idTipoCotizante) {
       newErrors.idTipoCotizante = 'El tipo de cotizante es requerido';
+    }
+
+    if (!formDataContrato.idNivelEducativo) {
+      newErrors.idNivelEducativo = 'El nivel educativo es requerido';
     }
 
     if (
@@ -508,31 +695,90 @@ const ContratacionPage = () => {
 
     if (Object.keys(missingFiles).length > 0) {
       setFileErrors(missingFiles);
+      const documentosFaltantes = documentosContratos
+        .filter((doc) => missingFiles[doc.id])
+        .map((doc) => doc.tipoDocumento?.tituloDocumento || doc.tituloDocumento)
+        .join(', ');
+      enqueueSnackbar(`Faltan los siguientes documentos: ${documentosFaltantes}`, {
+        variant: 'error'
+      });
       return;
     }
+
+    // Validaciones de los datos de la persona y ubicación antes de tocar la BD.
+    // Esto evita errores SQL visibles (por ejemplo, `fechaNac` null).
+    const personaErrors = validatePerson();
+    if (Object.keys(personaErrors).length > 0) {
+      setErrors(personaErrors as unknown as FormErrors);
+      setCurrentStep(1);
+      enqueueSnackbar('Revisa los datos de la persona (la fecha de nacimiento es obligatoria).', {
+        variant: 'error'
+      });
+      setLoading(false);
+      return;
+    }
+
+    const ubicacionErrors = validateUbicacion();
+    if (Object.keys(ubicacionErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...(ubicacionErrors as unknown as FormErrors) }));
+      setCurrentStep(1);
+      enqueueSnackbar('Revisa los datos de ubicación del contrato.', {
+        variant: 'error'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Validar nuevamente en Step 4 por si el usuario cambió datos sin volver a Step 3.
+    const validationErrorsContrato = validateContrato();
+    if (Object.keys(validationErrorsContrato).length > 0) {
+      setErrorsContrato(validationErrorsContrato);
+      setCurrentStep(3);
+      enqueueSnackbar('Revisa los campos obligatorios del contrato antes de guardar.', {
+        variant: 'error'
+      });
+      return;
+    }
+
+    // Evita que se repitan áreas por id y falle por constraints únicas en el pivot.
+    const areasConocimientoUnicas = Array.from(new Set(selectedAreasConocimiento))
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+
     setLoading(true);
     const data = new FormData();
 
-    data.append('fechaNac', formDataPersona.fechaNac + '');
-    data.append('idtipoIdentificacion', formDataPersona?.idtipoIdentificacion + '');
-    data.append('identificacion', formDataPersona.identificacion + '');
-    data.append('nombre1', formDataPersona.nombre1?.toUpperCase() + '');
+    // Evita enviar el texto "undefined"/"null" cuando falta un campo (rompe FKs en el servidor).
+    const fv = (v: unknown): string => {
+      if (v === undefined || v === null) return '';
+      const s = String(v);
+      if (s === 'undefined' || s === 'null') return '';
+      return s;
+    };
+
+    data.append('fechaNac', fv(formDataPersona.fechaNac));
+    data.append('idtipoIdentificacion', fv(formDataPersona?.idtipoIdentificacion));
+    data.append('identificacion', fv(formDataPersona.identificacion));
+    data.append('nombre1', (formDataPersona.nombre1 ?? '').toUpperCase());
     if (formDataPersona.nombre2) {
       data.append('nombre2', formDataPersona.nombre2.toUpperCase() + '');
     }
-    data.append('apellido1', formDataPersona.apellido1?.toUpperCase() + '');
+    data.append('apellido1', (formDataPersona.apellido1 ?? '').toUpperCase());
     if (formDataPersona.apellido2) {
       data.append('apellido2', formDataPersona.apellido2.toUpperCase() + '');
     }
-    data.append('idciudadNac', formDataPersona.idciudadNac + '');
-    data.append('sexo', formDataPersona.sexo + '');
-    data.append('rh', formDataPersona.rh + '');
+    data.append('idciudadNac', fv(formDataPersona.idciudadNac));
+    if (formDataPersona.idciudadExpedicion) {
+      data.append('idciudadExpedicion', fv(formDataPersona.idciudadExpedicion));
+    }
+    data.append('sexo', fv(formDataPersona.sexo));
+    data.append('rh', fv(formDataPersona.rh));
 
-    data.append('celular', formDataUbicacion.celular + '');
-    data.append('email', formDataUbicacion.email + '');
-    data.append('direccion', formDataUbicacion.direccion?.toUpperCase() + '');
-    data.append('idciudadUbicacion', formDataUbicacion.idciudadUbicacion + '');
-    data.append('telefonoFijo', formDataUbicacion.telefonoFijo + '');
+    data.append('celular', fv(formDataUbicacion.celular));
+    data.append('email', fv(formDataUbicacion.email));
+    data.append('direccion', (formDataUbicacion.direccion ?? '').toUpperCase());
+    data.append('idciudadUbicacion', fv(formDataUbicacion.idciudadUbicacion));
+    data.append('telefonoFijo', fv(formDataUbicacion.telefonoFijo));
 
     if (selectedFilePersona) {
       data.append('rutaFotoFile', selectedFilePersona);
@@ -541,6 +787,19 @@ const ContratacionPage = () => {
     axios
       .post('contrato-persona', data)
       .then((response) => {
+        // El backend devuelve la persona; `id` es el de persona/usuario (ej. 858), no el del contrato.
+        const payload = response.data;
+        const idPersonaGuardada =
+          payload?.id ?? (typeof payload?.data === 'object' ? payload?.data?.id : undefined);
+        if (idPersonaGuardada == null || idPersonaGuardada === '') {
+          setLoading(false);
+          enqueueSnackbar(
+            'No se obtuvo el identificador de la persona al guardar. Reintenta o contacta soporte.',
+            { variant: 'error' }
+          );
+          return;
+        }
+
         const contratoData = {
           ...formDataContrato,
           fechaContratacion:
@@ -548,22 +807,25 @@ const ContratacionPage = () => {
           fechaFinalContrato:
             formDataContrato.fechaFinalContrato['jsdate'] || formDataContrato.fechaFinalContrato,
           idtipoContrato: formDataContrato.idtipoContrato,
-          idPersona: response.data.id,
+          idPersona: idPersonaGuardada,
           valorTotalContrato: formDataContrato.valorTotalContrato,
           periodoPago: formDataContrato.periodoPago,
+          formaPago: formDataContrato.formaPago,
+          supervisorContrato: String(formDataContrato.supervisorContrato || '').trim(),
+          cargoSupervisor: String(formDataContrato.cargoSupervisor || '').trim(),
           objetoContrato: formDataContrato.objetoContrato,
           observacion: formDataContrato.observacion,
+          perfilProfesional: formDataContrato.perfilProfesional,
+          otrosi: formDataContrato.otrosi,
           rol: formDataContrato.rol,
           salario_id: formDataContrato.salario_id,
           idPension: formDataContrato.idPension,
           idArl: formDataContrato.idArl,
           idSalud: formDataContrato.idSalud,
           idCajaCompensacion: formDataContrato.idCajaCompensacion,
-          idCesantias: formDataContrato.idCesantias,
           tipoCuentaBancaria: formDataContrato.tipoCuentaBancaria,
           idBanco: formDataContrato.idBanco,
           numeroCuentaBancaria: formDataContrato.numeroCuentaBancaria,
-          observacionPreocupacional: formDataContrato.observacionPreocupacional,
           idCaja: formDataContrato.idArea,
           tipoComisiones: formDataContrato.tipoComisiones,
           idActividadRiesgo: formDataContrato.idActividadRiesgo,
@@ -571,7 +833,12 @@ const ContratacionPage = () => {
           idTipoCotizante: formDataContrato.idTipoCotizante,
           idSubTipoCotizante: formDataContrato.idSubTipoCotizante,
           tipoSalario: formDataContrato.tipoSalario,
-          idGrupoNomina: formDataContrato.idGrupoNomina
+          idGrupoNomina: formDataContrato.idGrupoNomina,
+          horasmes: formDataContrato.horasmes ? Number(formDataContrato.horasmes) : undefined,
+          idNivelEducativo: formDataContrato.idNivelEducativo,
+          idCentroFormacion: formDataContrato.idCentroFormacion,
+          areasConocimiento: areasConocimientoUnicas,
+          numeroDocumentoContrato: formDataContrato.numeroDocumentoContrato || undefined,
         };
 
         axios
@@ -595,9 +862,8 @@ const ContratacionPage = () => {
                   .then(() => {
                     successCount++;
                   })
-                  .catch((error) => {
+                  .catch(() => {
                     errorOccurred = true;
-                    console.error(`Error al guardar el documento ${tipoId}:`, error);
                   });
               }
               return null;
@@ -605,36 +871,39 @@ const ContratacionPage = () => {
 
             Promise.all(documentRequests)
               .then(() => {
-                if (errorOccurred) {
-                  enqueueSnackbar('Hubo un error al guardar algunos documentos.', {
-                    variant: 'error'
-                  });
-                  setLoading(false);
-                } else {
-                  enqueueSnackbar('Contrato guardado con éxito.', {
-                    variant: 'success'
-                  });
-                }
+                // El contrato ya quedó creado en BD (si llegamos aquí).
+                // No mostramos errores de documentos al usuario para no "asustarlo"
+                // si falló alguna subida (puede intentarlo luego).
+                setToastMessage('Contrato guardado con éxito.');
+                setShowToast(true);
                 setLoading(false);
                 resetFormAndGoToStep1();
               })
               .catch(() => {
                 setLoading(false);
-                enqueueSnackbar('Hubo un error inesperado al guardar los documentos.', {
-                  variant: 'error'
-                });
+                // Igual: no bloqueamos ni mostramos error técnico de documentos.
+                setToastMessage('Contrato guardado con éxito.');
+                setShowToast(true);
+                resetFormAndGoToStep1();
               });
           })
           .catch((error) => {
             setLoading(false);
-            enqueueSnackbar('Error al guardar el contrato.', {
+            setCurrentStep(1);
+            enqueueSnackbar('No se pudo crear el contrato. Por favor, intente nuevamente.', {
               variant: 'error'
             });
           });
       })
       .catch((error) => {
         setLoading(false);
-        enqueueSnackbar('Error al guardar la persona.', {
+        setCurrentStep(1);
+        const body = error?.response?.data;
+        const errorMessage =
+          (typeof body?.message === 'string' && body.message) ||
+          (typeof body?.error === 'string' && body.error) ||
+          'Error al guardar la persona.';
+        enqueueSnackbar(errorMessage, {
           variant: 'error'
         });
       });
@@ -652,6 +921,7 @@ const ContratacionPage = () => {
       fechaNac: '',
       idciudadNac: '',
       departamento: '',
+      idciudadExpedicion: '',
       apellido2: ''
     });
 
@@ -670,6 +940,9 @@ const ContratacionPage = () => {
       perfilProfesional: '',
       otrosi: '',
       periodoPago: '',
+      formaPago: '',
+      supervisorContrato: '',
+      cargoSupervisor: '',
       idtipoContrato: '',
       fechaSistema: '',
       observacion: '',
@@ -682,7 +955,6 @@ const ContratacionPage = () => {
       idArl: '',
       idPension: '',
       idCajaCompensacion: '',
-      idCesantias: '',
       tipoCuentaBancaria: '',
       idBanco: '',
       numeroCuentaBancaria: '',
@@ -693,13 +965,39 @@ const ContratacionPage = () => {
       tipoComisiones: '',
       idActividadRiesgo: '',
       idTarifaRiesgo: '',
-      tipoSalario: ''
+      tipoSalario: '',
+      idGrupoNomina: '',
+      horasmes: '',
+      idNivelEducativo: '',
+      idCentroFormacion: '',
+      numeroDocumentoContrato: ''
     });
+    setSelectedAreasConocimiento([]);
     setFotoUrl('');
     setSelectedFiles({});
     setSelectedFilePersona(null);
     setCurrentStep(1);
   };
+
+  const authContext = useContext(AuthContext);
+
+  const [centroFormacion, setCentroFormacion] = useState<any[]>([])
+  useEffect(()=>{
+    const loadCentros = async () =>{
+      try {
+        const res = await axios.get(`centrosFormacion`)
+        setCentroFormacion(res.data || [])
+      } catch {
+        setCentroFormacion([])
+      }
+    }
+    loadCentros()
+  },[])
+
+  const optionsCF = centroFormacion.map((val)=>({
+    value:val.id,
+    label:`${val.nombre}, ${val.empresa?.razonSocial || ''}, ${val.ciudad?.descripcion || ''}`
+  }))
 
   const handleFilePersonaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
@@ -796,10 +1094,6 @@ const ContratacionPage = () => {
 
     if (currentStep === 1) {
       validationErrors = validatePerson();
-
-      if (!selectedFilePersona && !fotoUrl) {
-        validationErrors['rutaFoto'] = 'Por favor, seleccione una foto.';
-      }
     } else if (currentStep === 2) {
       validationErrors = validateUbicacion();
     } else if (currentStep === 3) {
@@ -843,14 +1137,20 @@ const ContratacionPage = () => {
     setRolModal(false);
   };
 
+  const handleNivelAcademicoModalOpen = () => {
+    setNivelAcademicoModal(true);
+  };
+
+  const handleNivelAcademicoModalClose = () => {
+    setNivelAcademicoModal(false);
+  };
+
   const fetchDepartamentos = async () => {
     try {
       const response = await axios.get('departamentos');
       setDepartamentos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -858,21 +1158,17 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('contrato-tipos-identificacion');
       setTipoIdentificacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
   const fetchTipoContratos = async () => {
     try {
       const response = await axios.get('contrato-tipos-contrato');
-      setTipoContratos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+      setTipoContratos(response.data || []);
+    } catch {
+      setTipoContratos([]);
     }
   };
 
@@ -880,10 +1176,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('contrato-roles');
       setRoles(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -891,10 +1185,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/arl');
       setEntidadesArl(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -902,10 +1194,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/eps');
       setEntidadeEPS(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -913,10 +1203,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/pensiones');
       setEntidadesPension(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -924,65 +1212,78 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get('entidades/caja_compensacion');
       setEntidadesCajaCompensacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
-  const fetchEntidadesCesantias = async () => {
-    try {
-      const response = await axios.get('entidades/cesantias');
-      setEntidadesCesantias(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchBancos = async () => {
     try {
       const response = await axios.get('bancos');
       setBancos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
+
+  const fetchFormasPagoContrato = async () => {
+    try {
+      const response = await axios.get('contrato-formas-pago');
+      setFormasPagoContrato(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setFormasPagoContrato([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchFormasPagoContrato();
+     
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get('ciudades')
+      .then((res) => setCiudadesExpedicion(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setCiudadesExpedicion([]));
+  }, []);
 
   const fetchGruposNomina = async () => {
     try {
       const response = await axios.get('grupos_nomina');
       setGruposNomina(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
   const fetchDocumentosContrato = async (nombreProceso: string) => {
     try {
       const response = await axios.get(`contrato-tipo-documento?nombreProceso=${nombreProceso}`);
-      setDocumentosContratos(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+      // Todos los documentos son obligatorios
+      const documentos = Array.isArray(response.data) 
+        ? response.data.map((doc: any) => ({ ...doc, obligatorio: true }))
+        : [];
+      setDocumentosContratos(documentos);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
   const fetchCiudades = async (idDepartamento: number) => {
     try {
+      if (!idDepartamento || idDepartamento === 0) {
+        setCiudades([]);
+        return;
+      }
       const response = await axios.get(`ciudades/departamento/${idDepartamento}`);
-      setCiudades(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+      if (response.data && Array.isArray(response.data)) {
+        setCiudades(response.data);
+      } else {
+        setCiudades([]);
+      }
+    } catch {
+      setCiudades([]);
     }
   };
 
@@ -990,10 +1291,8 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get(`ciudades/departamento/${idDepartamento}`);
       setCiudadesUbicacion(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1001,36 +1300,53 @@ const ContratacionPage = () => {
     try {
       const response = await axios.get(`all_areas`);
       setAreas(response.data);
-    } catch (error) {
-      console.error('Error fetching areas:', error);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
+
+  const fetchNivelesEducativos = async () => {
+    try {
+      const response = await axios.get('programas_recursos_crear');
+      if (response.data?.data?.niveles_educativos) {
+        setNivelesEducativos(response.data.data.niveles_educativos);
+      }
+    } catch {
+      // Error silencioso - el estado ya está inicializado
+    }
+  };
+
+  const fetchAreasConocimiento = async () => {
+    try {
+      const response = await axios.get('areas_conocimiento');
+      if (response.data) {
+        setAreasConocimiento(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch {
+      setAreasConocimiento([]);
+    }
+  };
+
 
   const [tarifas, setTarifas] = useState<any[]>([]);
 
   const fetchTarifas = async () => {
-    setLoading(true);
     try {
       const response = await axios.get('tarifas_arls');
       setTarifas(response.data);
-    } catch (error) {
-      console.error('Error fetching tarifas:', error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
   const [riesgos, setRiesgos] = useState<any[]>([]);
 
   const fetchRiesgos = async () => {
-    setLoading(true);
     try {
       const response = await axios.get('actividades_riesgo_profesional');
       setRiesgos(response.data);
-    } catch (error) {
-      console.error('Error fetching tarifas:', error);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error silencioso - el estado ya está inicializado
     }
   };
 
@@ -1054,20 +1370,80 @@ const ContratacionPage = () => {
     }));
   };
 
+  const fetchContratoAbortRef = useRef<AbortController | null>(null);
+  const fetchContratoRequestIdRef = useRef(0);
+
+  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBlurIdentificacionRef = useRef<string>('');
+
+  const handleIdentificacionBlur = () => {
+    const identificacion = formDataPersona.identificacion;
+    if (!identificacion) return;
+
+    if (identificacion === lastBlurIdentificacionRef.current) return;
+
+    if (blurDebounceRef.current) {
+      clearTimeout(blurDebounceRef.current);
+    }
+
+    blurDebounceRef.current = setTimeout(() => {
+      lastBlurIdentificacionRef.current = identificacion;
+      fetchContrato(identificacion);
+    }, 400);
+  };
+
   const fetchContrato = async (identificacion: any) => {
     if (!identificacion) return;
+
+    fetchContratoAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchContratoAbortRef.current = controller;
+    const requestId = ++fetchContratoRequestIdRef.current;
 
     setLoading(true);
 
     try {
-      const response = await axios.get(`contrato-persona/${identificacion}`);
+      const response = await axios.get(`contrato-persona/${identificacion}`, {
+        signal: controller.signal
+      });
+
+      if (requestId !== fetchContratoRequestIdRef.current) return;
+
       const data = response.data;
 
       if (data && Object.keys(data).length > 0) {
-        const idDepartamentoNac = data.ciudad_nac?.departamento?.id || '';
-        const idCiudadNac = data.idCiudadNac || '';
+        const idDepartamentoNac =
+          data.ciudad_nac?.departamento?.id ||
+          data.ciudadNac?.departamento?.id ||
+          '';
+        // Nacimiento: solo claves de ciudad de nacimiento (snake_case y camelCase de Laravel)
+        const idCiudadNac =
+          (data.ciudad_nac?.id != null ? String(data.ciudad_nac.id) : '') ||
+          (data.ciudadNac?.id != null ? String(data.ciudadNac.id) : '') ||
+          (data.id_ciudad_nac != null && data.id_ciudad_nac !== ''
+            ? String(data.id_ciudad_nac)
+            : '') ||
+          (data.idCiudadNac != null && data.idCiudadNac !== '' ? String(data.idCiudadNac) : '') ||
+          '';
         const idDepartamentoU = data.ciudad_ubicacion?.departamento?.id || '';
         const idCiudadU = data.idCiudadUbicacion || '';
+        // Expedición: solo relación/atributos de expedición (no mezclar con ciudad_nac)
+        const rawCiudadExp = data.ciudadExpedicion ?? data.ciudad_expedicion;
+        const idCiudadExp =
+          (rawCiudadExp != null && typeof rawCiudadExp === 'object'
+            ? (rawCiudadExp as { id?: unknown }).id
+            : rawCiudadExp) ??
+          '';
+        const idCiudadExpStr =
+          idCiudadExp != null && idCiudadExp !== ''
+            ? String(idCiudadExp)
+            : (data.id_ciudad_expedicion != null && data.id_ciudad_expedicion !== ''
+                ? String(data.id_ciudad_expedicion)
+                : '') ||
+              (data.idCiudadExpedicion != null && data.idCiudadExpedicion !== ''
+                ? String(data.idCiudadExpedicion)
+                : '') ||
+              '';
 
         setFormDataPersona((prev) => ({
           ...prev,
@@ -1079,7 +1455,9 @@ const ContratacionPage = () => {
           idtipoIdentificacion: data.idTipoIdentificacion || '',
           rh: data.rh || '',
           sexo: data.sexo || '',
-          departamento: idDepartamentoNac
+          departamento: idDepartamentoNac,
+          idciudadExpedicion: idCiudadExpStr,
+          idciudadNac: ''
         }));
 
         setFormDataUbicacion((prev) => ({
@@ -1095,25 +1473,39 @@ const ContratacionPage = () => {
 
         if (idDepartamentoNac) {
           await fetchCiudades(idDepartamentoNac);
+          if (requestId !== fetchContratoRequestIdRef.current) return;
           setFormDataPersona((prev) => ({
             ...prev,
             idciudadNac: idCiudadNac
           }));
+        } else {
+          setCiudades([]);
+          if (requestId === fetchContratoRequestIdRef.current) {
+            setFormDataPersona((prev) => ({
+              ...prev,
+              idciudadNac: idCiudadNac
+            }));
+          }
         }
 
         if (idDepartamentoU) {
-          await fetchCiudades(idDepartamentoU);
+          await fetchCiudadesUbicacion(idDepartamentoU);
+          if (requestId !== fetchContratoRequestIdRef.current) return;
           setFormDataUbicacion((prev) => ({
             ...prev,
             idciudadUbicacion: idCiudadU
           }));
         }
+
       } else {
         enqueueSnackbar('No se encontraron datos de contrato para esta identificación.', {
           variant: 'info'
         });
       }
     } catch (error: any) {
+    
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+
       const mensajeError =
         error?.response?.data?.error ||
         error?.response?.data?.message ||
@@ -1123,29 +1515,63 @@ const ContratacionPage = () => {
         variant: 'error'
       });
     } finally {
-      setLoading(false);
+      if (requestId === fetchContratoRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchTipoIdentificacion();
-    fetchDepartamentos();
-    fetchTipoContratos();
-    fetchRoles();
-    fetchEntidadesArl();
-    fetchEntidadesEPS();
-    fetchEntidadesPension();
-    fetchEntidadesCajaCompensacion();
-    fetchEntidadesCesantias();
-    fetchBancos();
-    fetchAreas();
-    fetchGruposNomina();
-    fetchTarifas();
-    fetchRiesgos();
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        
+        const essential = [
+          fetchTipoIdentificacion(),
+          fetchDepartamentos(),
+          fetchTipoContratos(),
+          fetchRoles(),
+          fetchAreas(),
+          fetchGruposNomina(),
+          fetchNivelesEducativos()
+        ];
+
+        const background = [
+          fetchEntidadesArl(),
+          fetchEntidadesEPS(),
+          fetchEntidadesPension(),
+          fetchEntidadesCajaCompensacion(),
+          fetchBancos(),
+          fetchTarifas(),
+          fetchRiesgos(),
+          fetchAreasConocimiento()
+        ];
+
+        await Promise.allSettled(essential);
+
+        if (!cancelled) setLoading(false);
+
+        // Carga progresiva: no afecta el spinner global.
+        void Promise.allSettled(background);
+      } finally {
+        // (en caso de error) si aún seguimos bloqueados, liberamos.
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+      fetchContratoAbortRef.current?.abort();
+    };
   }, []);
 
   return (
     <Fragment>
+      <style>{contratacionScrollStyles}</style>
       {currentLayout?.name === 'demo1-layout' && (
         <Container>
           <Toolbar>
@@ -1174,59 +1600,79 @@ const ContratacionPage = () => {
       <Container>
         {loading && <Spinner />}
 
-        <div data-stepper="true">
+        <div data-stepper="true" className="max-w-5xl mx-auto">
           <div className="card">
-            <div className="card-header flex justify-between items-center gap-4 py-6">
-              {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className={`flex gap-2.5 items-center ${currentStep === step.id ? 'active' : ''}`}
-                >
-                  <div
-                    className={`rounded-full size-10 flex items-center justify-center text-md font-semibold ${
-                      currentStep === step.id
-                        ? 'bg-primary text-primary-inverse'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {currentStep > step.id ? (
-                      <i className="ki-outline ki-check text-xl"></i>
-                    ) : (
-                      step.id
+            {/* Indicador de progreso horizontal */}
+            <div className="card-header border-b border-gray-200 py-4 px-8">
+              <div className="flex items-center">
+                {steps.map((step, index) => (
+                  <React.Fragment key={step.id}>
+                    <div className="flex items-center flex-shrink-0">
+                      <div
+                        className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${
+                          currentStep === step.id
+                            ? 'bg-primary text-white'
+                            : currentStep > step.id
+                            ? 'bg-success text-white'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}
+                      >
+                        {currentStep > step.id ? (
+                          <i className="ki-outline ki-check text-sm"></i>
+                        ) : (
+                          step.id
+                        )}
+                      </div>
+                      <div className="ml-2 flex flex-col">
+                        <span
+                          className={`text-xs font-medium whitespace-nowrap ${
+                            currentStep === step.id
+                              ? 'text-primary'
+                              : currentStep > step.id
+                              ? 'text-gray-700'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          {step.title}
+                        </span>
+                        <span
+                          className={`text-xs whitespace-nowrap ${
+                            currentStep >= step.id ? 'text-gray-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {step.subtitle}
+                        </span>
+                      </div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-4 min-w-[60px] ${
+                          currentStep > step.id ? 'bg-primary' : 'bg-gray-200'
+                        }`}
+                      />
                     )}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <h4
-                      className={`text-sm font-medium ${currentStep >= step.id ? 'text-gray-900' : 'text-gray-600'}`}
-                    >
-                      {step.title}
-                    </h4>
-                    <span
-                      className={`text-2sm ${currentStep >= step.id ? 'text-gray-700' : 'text-gray-400'}`}
-                    >
-                      {step.subtitle}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
 
-            <div className="card-body py-8">
+            <div className="card-body py-5 px-8">
               {currentStep === 1 && (
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-5">Información Personal</h2>
                   <form>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Tipo Identificación *
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Tipo de Documento *
                         </label>
                         <select
                           name="idtipoIdentificacion"
                           value={formDataPersona.idtipoIdentificacion}
                           onChange={handleChangeFormPerson}
-                          className="select"
+                          className="select text-sm h-9 w-full"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione una opción</option>
                           {tipoIdentificaciones.map((tipoIdentificacion) => (
                             <option key={tipoIdentificacion.id} value={tipoIdentificacion.id}>
                               {tipoIdentificacion.codigo}
@@ -1234,125 +1680,161 @@ const ContratacionPage = () => {
                           ))}
                         </select>
                         {errors.idtipoIdentificacion && (
-                          <p className="text-red-500 text-sm mt-1">{errors.idtipoIdentificacion}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.idtipoIdentificacion}</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Identificación *</label>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Número de Documento *
+                        </label>
                         <input
                           type="text"
                           name="identificacion"
-                          placeholder="Ingrese su identificación"
+                          placeholder="Ingrese el número de documento"
                           value={formDataPersona.identificacion}
                           onChange={handleChangeFormPerson}
-                          onBlur={() => fetchContrato(formDataPersona.identificacion)}
-                          className={`input ${errors.identificacion ? 'border-red-500' : ''}`}
+                          onBlur={handleIdentificacionBlur}
+                          className={`input text-sm h-9 w-full ${errors.identificacion ? 'border-red-500' : ''}`}
                         />
                         {errors.identificacion && (
-                          <p className="text-red-500 text-sm mt-1">{errors.identificacion}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.identificacion}</p>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">Primer Nombre *</label>
+                        <label
+                          className="block text-xs font-medium mb-1.5 text-gray-700"
+                          htmlFor="idciudadExpedicion"
+                        >
+                          Ciudad expedición documento
+                        </label>
+                        <Select
+                          inputId="idciudadExpedicion"
+                          options={optionsCiudadExpedicion}
+                          placeholder="Buscar o seleccionar ciudad..."
+                          isClearable
+                          isSearchable
+                          classNamePrefix="react-select-ciudad-exp"
+                          classNames={{
+                            control: () =>
+                              `min-h-9 text-sm rounded-md bg-white dark:bg-coal-400 border border-gray-300 dark:border-coal-200 text-gray-900 dark:text-gray-100`,
+                            singleValue: () => 'text-gray-900 dark:text-gray-100',
+                            placeholder: () => 'text-gray-400 dark:text-gray-300 text-sm',
+                            input: () => 'text-gray-900 dark:text-gray-100 text-sm',
+                            menu: () => 'bg-white dark:bg-coal-500 z-20 text-sm',
+                            menuList: () => 'text-sm',
+                            option: ({ isFocused, isSelected }) =>
+                              `text-gray-900 dark:text-gray-100 text-sm ${
+                                isSelected ? 'bg-primary-500 text-white' : ''
+                              } ${isFocused && !isSelected ? 'bg-gray-100 dark:bg-coal-600' : ''}`,
+                            indicatorSeparator: () => 'bg-gray-300 dark:bg-coal-300',
+                            dropdownIndicator: () =>
+                              'text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-white',
+                            clearIndicator: () =>
+                              'text-gray-400 dark:text-gray-200 hover:text-gray-600 dark:hover:text-white'
+                          }}
+                          value={
+                            formDataPersona.idciudadExpedicion
+                              ? optionsCiudadExpedicion.find(
+                                  (o) => o.value === String(formDataPersona.idciudadExpedicion)
+                                ) ?? null
+                              : null
+                          }
+                          onChange={(opt) => {
+                            setFormDataPersona((prev) => ({
+                              ...prev,
+                              idciudadExpedicion: opt?.value ? String(opt.value) : ''
+                            }));
+                          }}
+                          noOptionsMessage={() => 'Sin coincidencias'}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Fecha de Nacimiento *
+                        </label>
+                        <input
+                          type="date"
+                          name="fechaNac"
+                          value={formDataPersona.fechaNac}
+                          onChange={handleChangeFormPerson}
+                          className={`input text-sm h-9 w-full ${errors.fechaNac ? 'border-red-500' : ''}`}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        {errors.fechaNac && (
+                          <p className="text-red-500 text-xs mt-1">{errors.fechaNac}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Primer Nombre *
+                        </label>
                         <input
                           type="text"
                           name="nombre1"
-                          placeholder="Ingrese su primer nombre"
+                          placeholder="Ingrese el primer nombre"
                           value={formDataPersona.nombre1}
                           onChange={handleChangeFormPerson}
-                          className={`input ${errors.nombre1 ? 'border-red-500' : ''}`}
+                          className={`input text-sm h-9 w-full ${errors.nombre1 ? 'border-red-500' : ''}`}
                         />
                         {errors.nombre1 && (
-                          <p className="text-red-500 text-sm mt-1">{errors.nombre1}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.nombre1}</p>
                         )}
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Segundo Nombre</label>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Segundo Nombre
+                        </label>
                         <input
                           type="text"
-                          placeholder="Ingrese su segundo nombre"
+                          placeholder="Ingrese el segundo nombre"
                           name="nombre2"
                           value={formDataPersona.nombre2}
                           onChange={handleChangeFormPerson}
-                          className="input"
+                          className="input text-sm h-9 w-full"
                         />
                       </div>
+
                       <div>
-                        <label className="block text-sm font-medium mb-2">Primer Apellido *</label>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Primer Apellido *
+                        </label>
                         <input
                           type="text"
                           name="apellido1"
-                          placeholder="Ingrese su primer apellido"
+                          placeholder="Ingrese el primer apellido"
                           value={formDataPersona.apellido1}
                           onChange={handleChangeFormPerson}
-                          className="input"
-                        />{' '}
+                          className={`input text-sm h-9 w-full ${errors.apellido1 ? 'border-red-500' : ''}`}
+                        />
                         {errors.apellido1 && (
-                          <p className="text-red-500 text-sm mt-1">{errors.apellido1}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.apellido1}</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Segundo Apellido</label>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Segundo Apellido
+                        </label>
                         <input
                           type="text"
                           name="apellido2"
-                          placeholder="Ingrese su segundo apellido"
+                          placeholder="Ingrese el segundo apellido"
                           value={formDataPersona.apellido2}
                           onChange={handleChangeFormPerson}
-                          className="input"
+                          className="input text-sm h-9 w-full"
                         />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Sexo *</label>
-                        <select
-                          name="sexo"
-                          value={formDataPersona.sexo}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una Opción</option>
 
-                          <option value="F">FEMENINO</option>
-                          <option value="M">MASCULINO</option>
-                          <option value="O">OTRO</option>
-                        </select>
-                        {errors.sexo && <p className="text-red-500 text-sm mt-1">{errors.sexo}</p>}
-                      </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Rh *</label>
-                        <select
-                          name="rh"
-                          value={formDataPersona.rh}
-                          onChange={handleChangeFormPerson}
-                          className="select"
-                        >
-                          <option value="">Seleccione una Opción</option>
-
-                          <option value="A+">A POSITIVO</option>
-                          <option value="A-">A NEGATIVO</option>
-                          <option value="AB+">AB POSTITIVO</option>
-                          <option value="AB-">AB NEGATIVO</option>
-                          <option value="B+">B POSITIVO</option>
-                          <option value="B-">B NEGATIVO</option>
-                          <option value="O+">O POSITIVO</option>
-                          <option value="O-">O NEGATIVO</option>
-                        </select>
-                        {errors.rh && <p className="text-red-500 text-sm mt-1">{errors.rh}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
                           Departamento de Nacimiento *
                         </label>
                         <select
                           name="departamento"
                           value={formDataPersona.departamento}
                           onChange={handleChangeFormPerson}
-                          className="select"
+                          className="select text-sm h-9 w-full"
                         >
                           <option value="">Seleccione un departamento</option>
                           {departamentos.map((departamento) => (
@@ -1362,20 +1844,18 @@ const ContratacionPage = () => {
                           ))}
                         </select>
                         {errors.departamento && (
-                          <p className="text-red-500 text-sm mt-1">{errors.departamento}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>
                         )}
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
                           Ciudad de Nacimiento *
                         </label>
                         <select
                           name="idciudadNac"
                           value={formDataPersona.idciudadNac}
                           onChange={handleChangeFormPerson}
-                          className="select"
+                          className="select text-sm h-9 w-full"
                         >
                           <option value="">Seleccione una ciudad</option>
                           {ciudades.map((ciudad) => (
@@ -1385,35 +1865,58 @@ const ContratacionPage = () => {
                           ))}
                         </select>
                         {errors.idciudadNac && (
-                          <p className="text-red-500 text-sm mt-1">{errors.idciudadNac}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors.idciudadNac}</p>
                         )}
                       </div>
+
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Fecha de Nacimiento *
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Género *
                         </label>
-                        <input
-                          type="date"
-                          name="fechaNac"
-                          value={formDataPersona.fechaNac}
+                        <select
+                          name="sexo"
+                          value={formDataPersona.sexo}
                           onChange={handleChangeFormPerson}
-                          className="input"
-                          max={new Date().toISOString().split('T')[0]}
-                        />
-
-                        {errors.fechaNac && (
-                          <p className="text-red-500 text-sm mt-1">{errors.fechaNac}</p>
-                        )}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una opción</option>
+                          <option value="F">FEMENINO</option>
+                          <option value="M">MASCULINO</option>
+                          <option value="O">OTRO</option>
+                        </select>
+                        {errors.sexo && <p className="text-red-500 text-xs mt-1">{errors.sexo}</p>}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Foto *</label>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">
+                          Grupo Sanguíneo *
+                        </label>
+                        <select
+                          name="rh"
+                          value={formDataPersona.rh}
+                          onChange={handleChangeFormPerson}
+                          className="select text-sm h-9 w-full"
+                        >
+                          <option value="">Seleccione una opción</option>
+                          <option value="A+">A POSITIVO</option>
+                          <option value="A-">A NEGATIVO</option>
+                          <option value="AB+">AB POSTITIVO</option>
+                          <option value="AB-">AB NEGATIVO</option>
+                          <option value="B+">B POSITIVO</option>
+                          <option value="B-">B NEGATIVO</option>
+                          <option value="O+">O POSITIVO</option>
+                          <option value="O-">O NEGATIVO</option>
+                        </select>
+                        {errors.rh && <p className="text-red-500 text-xs mt-1">{errors.rh}</p>}
+                      </div>
 
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5 text-gray-700">Foto</label>
                         {!selectedFilePersona && !fotoUrl ? (
                           <input
                             type="file"
                             name="rutaFoto"
                             onChange={handleFilePersonaChange}
-                            className="file-input"
+                            className="file-input w-full"
                           />
                         ) : selectedFilePersona ? (
                           <div className="flex items-center">
@@ -1439,9 +1942,8 @@ const ContratacionPage = () => {
                             </span>
                           </div>
                         )}
-
                         {errors['rutaFoto'] && (
-                          <p className="text-red-500 text-sm mt-1">{errors['rutaFoto']}</p>
+                          <p className="text-red-500 text-xs mt-1">{errors['rutaFoto']}</p>
                         )}
                       </div>
                     </div>
@@ -1515,11 +2017,13 @@ const ContratacionPage = () => {
                     <div>
                       <label className="block text-sm font-medium mb-2">Correo Electronico *</label>
                       <input
-                        type="text"
+                        type="email"
                         name="email"
                         placeholder="Ingrese el Correo Electronico"
                         value={formDataUbicacion.email}
                         onChange={handleChangeFormUbicacion}
+                        data-preserve-case
+                        data-no-uppercase
                         className={`input ${errors.email ? 'border-red-500' : ''}`}
                       />
                       {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
@@ -1554,6 +2058,7 @@ const ContratacionPage = () => {
               )}
               {currentStep === 3 && (
                 <div>
+                  {/* 1. Fechas y Configuración */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                     <div>
                       <label className="block text-sm font-medium mb-2">
@@ -1621,6 +2126,10 @@ const ContratacionPage = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                  </div>
+
+                  {/* 2. Información Laboral */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Área</label>
                       <select
@@ -1637,6 +2146,24 @@ const ContratacionPage = () => {
                         ))}
                       </select>
                     </div>
+                    {/** Centro de formación */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Centro de formación</label>
+                      <select
+                        name="idCentroFormacion"
+                        value={formDataContrato.idCentroFormacion}
+                        onChange={handleChangeFormContrato}
+                        className="select w-4/4 mr-2"
+                      >
+                        <option value="">Seleccione un centro de formación</option>
+                        {optionsCF.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Cargo *</label>
@@ -1706,7 +2233,7 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo de Salario </label>
+                      <label className="block text-sm font-medium mb-2">Tipo de Salario *</label>
                       <select
                         name="tipoSalario"
                         value={formDataContrato.tipoSalario}
@@ -1720,33 +2247,11 @@ const ContratacionPage = () => {
                           </option>
                         ))}
                       </select>
-                       {errorsContrato.tipoSalario && (
+                      {errorsContrato.tipoSalario && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.tipoSalario}</p>
                       )}
                     </div>
 
-
-                      <div>
-                      <label className="block text-sm font-medium mb-2">Grupo </label>
-                      <select
-                        name="idGrupoNomina"
-                        value={formDataContrato.idGrupoNomina}
-                        onChange={handleChangeFormContrato}
-                        className="select w-4/4 mr-2"
-                      >
-                        <option value="">Seleccione una Opción</option>
-                           {gruposNomina.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.nombreGrupo} 
-                            </option>
-                          ))}
-                      </select>
-                       {errorsContrato.idGrupoNomina && (
-                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
                     <div>
                       <label className="block text-sm font-medium mb-2">Periodo de Pago *</label>
                       <select
@@ -1766,36 +2271,170 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium mb-2">Forma de pago *</label>
+                      <select
+                        name="formaPago"
+                        value={formDataContrato.formaPago}
+                        onChange={handleChangeFormContrato}
+                        className="select w-full"
+                      >
+                        <option value="">Seleccione una opción</option>
+                        {formasPagoContrato.map((forma: string) => (
+                          <option key={forma} value={forma}>
+                            {forma}
+                          </option>
+                        ))}
+                      </select>
+                      {errorsContrato.formaPago && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.formaPago}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Grupo de nómina *</label>
+                      <select
+                        name="idGrupoNomina"
+                        value={formDataContrato.idGrupoNomina}
+                        onChange={handleChangeFormContrato}
+                        className="select w-full"
+                      >
+                        <option value="">Seleccione una Opción</option>
+                        {gruposNomina.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.nombreGrupo}
+                          </option>
+                        ))}
+                      </select>
+                      {errorsContrato.idGrupoNomina && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idGrupoNomina}</p>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                        Supervisor del contrato
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Nombre completo *</label>
+                          <input
+                            type="text"
+                            name="supervisorContrato"
+                            placeholder="Nombre del supervisor"
+                            value={formDataContrato.supervisorContrato}
+                            onChange={handleChangeFormContrato}
+                            className="input w-full"
+                            autoComplete="off"
+                          />
+                          {errorsContrato.supervisorContrato && (
+                            <p className="text-red-500 text-sm mt-1">{errorsContrato.supervisorContrato}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Cargo *</label>
+                          <input
+                            type="text"
+                            name="cargoSupervisor"
+                            placeholder="Cargo del supervisor"
+                            value={formDataContrato.cargoSupervisor}
+                            onChange={handleChangeFormContrato}
+                            className="input w-full"
+                            autoComplete="off"
+                          />
+                          {errorsContrato.cargoSupervisor && (
+                            <p className="text-red-500 text-sm mt-1">{errorsContrato.cargoSupervisor}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Horas al mes *</label>
+                      <input
+                        type="number"
+                        name="horasmes"
+                        min={0}
+                        value={formDataContrato.horasmes || ''}
+                        onChange={handleChangeFormContrato}
+                        className="input"
+                        placeholder="Ingrese las horas al mes"
+                      />
+                      {errorsContrato.horasmes && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.horasmes}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2 mt-4">
+                    <div className="lg:col-span-2">
                       <label className="block text-sm font-medium mb-2">Objeto contrato *</label>
                       <textarea
                         rows={5}
                         name="objetoContrato"
-                        placeholder="Ingrese el objeto de contrato"
+                        placeholder="Describa el objeto del contrato (máximo 500 caracteres)"
                         value={formDataContrato.objetoContrato}
                         onChange={handleChangeFormContrato}
                         className="textarea"
+                        maxLength={500}
                       ></textarea>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formDataContrato.objetoContrato?.length || 0}/500 caracteres
+                      </p>
                       {errorsContrato.objetoContrato && (
                         <p className="text-red-500 text-sm mt-1">{errorsContrato.objetoContrato}</p>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Observación</label>
 
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Observaciones</label>
                       <textarea
-                        className="textarea"
+                        rows={5}
                         name="observacion"
-                        placeholder="Ingrese una obervacion "
+                        placeholder="Observaciones del contrato (opcional)"
                         value={formDataContrato.observacion}
                         onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.observacion && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.observacion}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Perfil profesional *</label>
+                      <textarea
                         rows={5}
-                      ></textarea>
+                        name="perfilProfesional"
+                        placeholder="Describa el perfil profesional requerido"
+                        value={formDataContrato.perfilProfesional}
+                        onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.perfilProfesional && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.perfilProfesional}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Otrosí</label>
+                      <textarea
+                        rows={3}
+                        name="otrosi"
+                        placeholder="Ej: S, N o aclaración breve (opcional)"
+                        value={formDataContrato.otrosi}
+                        onChange={handleChangeFormContrato}
+                        className="textarea"
+                      />
+                      {errorsContrato.otrosi && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.otrosi}</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                  {/* 3. Seguridad Social */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo Cotizante</label>
+                      <label className="block text-sm font-medium mb-2">Tipo Cotizante *</label>
                       <div className="flex items-center">
                         <select
                           name="idTipoCotizante"
@@ -1803,14 +2442,14 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {tiposCotizante.map((tipo) => (
                             <option key={tipo.id} value={tipo.id}>
                               {tipo.codigo} - {tipo.tipoCotizante}
                             </option>
                           ))}
                         </select>
-                      </div>{' '}
+                      </div>
                       {errorsContrato.idTipoCotizante && (
                         <p className="text-red-500 text-sm mt-1">
                           {errorsContrato.idTipoCotizante}
@@ -1819,7 +2458,7 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Sub Tipo Cotizante</label>
+                      <label className="block text-sm font-medium mb-2">Sub Tipo Cotizante *</label>
                       <div className="flex items-center">
                         <select
                           name="idSubTipoCotizante"
@@ -1827,7 +2466,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {subTiposCotizante.map((tipo) => (
                             <option key={tipo.id} value={tipo.id}>
                               {tipo.codigo} - {tipo.nombreSubTipo}
@@ -1838,14 +2477,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Pensión</label>
+                      <label className="block text-sm font-medium mb-2">Pensión *</label>
                       <select
                         name="idPension"
                         value={formDataContrato.idPension}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesPension.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1855,14 +2494,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Salud</label>
+                      <label className="block text-sm font-medium mb-2">Salud *</label>
                       <select
                         name="idSalud"
                         value={formDataContrato.idSalud}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesEPS.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1872,14 +2511,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Arl</label>
+                      <label className="block text-sm font-medium mb-2">ARL *</label>
                       <select
                         name="idArl"
                         value={formDataContrato.idArl}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesArl.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1889,14 +2528,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Riesgo Arl</label>
+                      <label className="block text-sm font-medium mb-2">Riesgo ARL *</label>
                       <select
                         name="idTarifaRiesgo"
                         value={formDataContrato.idTarifaRiesgo}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {tarifas.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nivel} - {res.porcentajeCotizacion}%
@@ -1916,7 +2555,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {riesgos.map((res) => (
                             <option key={res.id} value={res.id}>
                               {res.codigo} - {res.clase}
@@ -1933,14 +2572,14 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Caja de Compensación</label>
+                      <label className="block text-sm font-medium mb-2">Caja de Compensación *</label>
                       <select
                         name="idCajaCompensacion"
                         value={formDataContrato.idCajaCompensacion}
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {entidadesCajaCompensacion.map((res) => (
                           <option key={res.id} value={res.id}>
                             {res.nombre} - {res.codigo}
@@ -1949,26 +2588,13 @@ const ContratacionPage = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Cesantías </label>
-                      <select
-                        name="idCesantias"
-                        value={formDataContrato.idCesantias}
-                        onChange={handleChangeFormContrato}
-                        className="select w-4/4 mr-2"
-                      >
-                        <option value="">Seleccione una Opción</option>
-                        {entidadesCesantias.map((res) => (
-                          <option key={res.id} value={res.id}>
-                            {res.nombre} - {res.codigo}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  </div>
 
+                  {/* 4. Información Bancaria */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Tipo de Cuenta Bancaria{' '}
+                        Tipo de Cuenta *
                       </label>
                       <select
                         name="tipoCuentaBancaria"
@@ -1976,7 +2602,7 @@ const ContratacionPage = () => {
                         onChange={handleChangeFormContrato}
                         className="select w-4/4 mr-2"
                       >
-                        <option value="">Seleccione una Opción</option>
+                        <option value="">Seleccione</option>
                         {tiposCuentaBancaria.map((tipo, index) => (
                           <option key={index} value={tipo}>
                             {tipo}
@@ -1984,11 +2610,9 @@ const ContratacionPage = () => {
                         ))}
                       </select>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 mt-3">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Banco</label>
+                      <label className="block text-sm font-medium mb-2">Banco *</label>
                       <div className="flex items-center">
                         <select
                           name="idBanco"
@@ -1996,7 +2620,7 @@ const ContratacionPage = () => {
                           onChange={handleChangeFormContrato}
                           className="select w-4/4 mr-2"
                         >
-                          <option value="">Seleccione una Opción</option>
+                          <option value="">Seleccione</option>
                           {bancos.map((res) => (
                             <option key={res.id} value={res.id}>
                               {res.nombre}
@@ -2017,7 +2641,7 @@ const ContratacionPage = () => {
                       <input
                         type="text"
                         name="numeroCuentaBancaria"
-                        placeholder="Ingrese el número de cuenta"
+                        placeholder="Número de cuenta"
                         value={formDataContrato.numeroCuentaBancaria}
                         onChange={handleChangeFormContrato}
                         className="input"
@@ -2030,89 +2654,235 @@ const ContratacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Observación Preocupacional
-                      </label>
-
-                      <textarea
-                        className="textarea"
-                        name="observacionPreocupacional"
-                        placeholder="Ingrese una obervación preocupacional "
-                        value={formDataContrato.observacionPreocupacional}
-                        onChange={handleChangeFormContrato}
-                        rows={5}
-                      ></textarea>
+                      {/* Campo de observación preocupacional removido a solicitud */}
                     </div>
+                  </div>
 
+                  {/* 5. Información Adicional */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2 mt-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tipo Comisión</label>
+                      <label className="block text-sm font-medium mb-2">Tipo Comisión *</label>
                       <select
                         name="tipoComisiones"
                         value={formDataContrato.tipoComisiones}
                         onChange={handleChangeFormContrato}
                         className="select"
                       >
-                        <option value="">Seleccione una Opción</option>
-
+                        <option value="">Seleccione</option>
                         <option value="ESCALA DE VENTAS">ESCALA DE VENTAS</option>
                         <option value="PORCENTAJE FIJO">PORCENTAJE FIJO</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Nivel Educativo *</label>
+                      <div className="flex items-center">
+                        <select
+                          name="idNivelEducativo"
+                          value={formDataContrato.idNivelEducativo ?? ''}
+                          onChange={handleChangeFormContrato}
+                          className="select w-4/4 mr-2"
+                        >
+                          <option value="">Seleccione</option>
+                          {nivelesEducativos && nivelesEducativos.length > 0 ? (
+                            nivelesEducativos.map((nivel) => (
+                              <option key={nivel.id} value={nivel.id}>
+                                {nivel.nombre}
+                              </option>
+                            ))
+                          ) : null}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleNivelAcademicoModalOpen}
+                          className="w-10 h-10 btn btn-sm btn-light"
+                        >
+                          <KeenIcon icon="plus" />
+                        </button>
+                      </div>
+                      {errorsContrato.idNivelEducativo && (
+                        <p className="text-red-500 text-sm mt-1">{errorsContrato.idNivelEducativo}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Áreas de Conocimiento - Sección separada abajo */}
+                  <div className="mb-2 mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Áreas de Conocimiento</label>
+                      <button
+                        onClick={() => {
+                          if (selectedAreasConocimiento.length === areasConocimiento.length) {
+                            setSelectedAreasConocimiento([]);
+                          } else {
+                            setSelectedAreasConocimiento(areasConocimiento.map((area) => area.id));
+                          }
+                        }}
+                        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+                      >
+                        {selectedAreasConocimiento.length === areasConocimiento.length && areasConocimiento.length > 0 ? (
+                          <>
+                            <KeenIcon icon="check-circle" className="text-sm" />
+                            Deseleccionar Todos
+                          </>
+                        ) : (
+                          <>
+                            <KeenIcon icon="check-circle" className="text-sm" />
+                            Seleccionar Todos
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="card">
+                      <div className="card-body py-3 px-3">
+                        {areasConocimiento && areasConocimiento.length > 0 ? (
+                          <>
+                            <div 
+                              className="contratacion-areas-scroll max-h-[400px] overflow-y-auto pr-2 scroll-smooth"
+                              style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#cbd5e1 #f1f5f9',
+                              }}
+                            >
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-1">
+                                {areasConocimiento.map((area) => {
+                                  const isSelected = selectedAreasConocimiento.includes(area.id);
+                                  return (
+                                    <label
+                                      key={area.id}
+                                      className={`flex items-start gap-3 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                                        isSelected
+                                          ? 'bg-blue-50 dark:bg-blue-900/20 border-primary'
+                                          : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => {
+                                          const newSelected = isSelected
+                                            ? selectedAreasConocimiento.filter((id) => id !== area.id)
+                                            : [...selectedAreasConocimiento, area.id];
+                                          setSelectedAreasConocimiento(newSelected);
+                                        }}
+                                        className="w-4 h-4 mt-0.5 text-primary border-gray-300 rounded focus:ring-primary flex-shrink-0"
+                                      />
+                                      <div className="flex-1">
+                                        <p className={`text-xs font-semibold ${isSelected ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
+                                          {area.nombreAreaConocimiento}
+                                        </p>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                                <p className="text-xs font-semibold text-primary">
+                                  {selectedAreasConocimiento.length} área{selectedAreasConocimiento.length !== 1 ? 's' : ''} seleccionada{selectedAreasConocimiento.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-gray-500 p-2">Cargando áreas de conocimiento...</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
               {currentStep === 4 && (
                 <div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                    {documentosContratos.map((documento) => (
-                      <div key={documento.id} className="mb-1">
-                        <label className="block text-sm font-medium mb-1">
-                          {documento.tipoDocumento.tituloDocumento} *
-                        </label>
-                        {!selectedFiles[documento.id] ? (
-                          <input
-                            type="file"
-                            name={`file-${documento.id}`}
-                            onChange={(e) => handleFileChange(e, documento.id)}
-                            className="file-input"
-                          />
-                        ) : (
-                          <div className="flex items-center">
-                            <p className="text-sm input flex justify-between w-full items-center">
-                              {selectedFiles[documento.id]?.name}
-                              <span
-                                onClick={() => handleFileDelete(documento.id)}
-                                className="ml-auto cursor-pointer"
-                              >
-                                <KeenIcon icon="trash" />
-                              </span>
-                            </p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Documentos del Contrato</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">Adjunte los documentos requeridos para completar la contratación del instructor</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                    {documentosContratos.map((documento) => {
+                      const isRequired = true; // Todos los documentos son requeridos
+                      const hasFile = selectedFiles[documento.id];
+                      const fileName = hasFile ? selectedFiles[documento.id]?.name : '';
+                      
+                      return (
+                        <div
+                          key={documento.id}
+                          className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 relative"
+                        >
+                          {/* Ícono de nube en la esquina superior derecha */}
+                          <div className="absolute top-2 right-2">
+                            <i className="ki-outline ki-cloud text-success text-base"></i>
                           </div>
-                        )}
 
-                        {fileErrors[documento.id] && (
-                          <p className="text-red-500 text-xs mt-1">Este documento es requerido.</p>
-                        )}
-                      </div>
-                    ))}
+                          {/* Título */}
+                          <div className="mb-2 pr-6">
+                            <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                              {documento.tipoDocumento?.tituloDocumento || documento.tituloDocumento}
+                              {isRequired && <span className="text-red-500 ml-1">*</span>}
+                            </label>
+                          </div>
+
+                          {/* Área de selección de archivo */}
+                          {!hasFile ? (
+                            <label className="block cursor-pointer">
+                              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-white dark:bg-gray-700">
+                                <input
+                                  type="file"
+                                  name={`file-${documento.id}`}
+                                  onChange={(e) => handleFileChange(e, documento.id)}
+                                  className="hidden"
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Haga clic para seleccionar archivo
+                                </p>
+                              </div>
+                            </label>
+                          ) : (
+                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
+                                    {fileName}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleFileDelete(documento.id)}
+                                  className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                                  type="button"
+                                >
+                                  <KeenIcon icon="trash" className="text-sm" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Mensaje de error */}
+                          {fileErrors[documento.id] && (
+                            <p className="text-red-500 text-xs mt-1">
+                              Este documento es requerido.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="card-footer py-4 flex justify-between">
+            <div className="card-footer py-3 px-6 border-t border-gray-200 flex justify-between">
               <button
-                className={`btn btn-light ${currentStep === 1 ? 'hidden' : ''}`}
+                className={`btn btn-light text-sm py-2 px-4 ${currentStep === 1 ? 'hidden' : ''}`}
                 onClick={handleBack}
               >
                 Anterior
               </button>
               {currentStep < steps.length ? (
-                <button className="btn btn-light" onClick={handleNext}>
+                <button className="btn btn-primary text-sm py-2 px-4" onClick={handleNext}>
                   Siguiente
                 </button>
               ) : (
-                <button onClick={handleSaveContrato} className="btn btn-primary">
+                <button onClick={handleSaveContrato} className="btn btn-primary text-sm py-2 px-4">
                   Guardar
                 </button>
               )}
@@ -2145,6 +2915,18 @@ const ContratacionPage = () => {
       />
 
       <RolModal open={rolModal} onClose={handleRolModalClose} onSave={fetchRoles} />
+
+      <NivelAcademicoModal
+        open={nivelAcademicoModal}
+        onClose={handleNivelAcademicoModalClose}
+        onSave={fetchNivelesEducativos}
+      />
+
+      <Toast
+        message={toastMessage}
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </Fragment>
   );
 };

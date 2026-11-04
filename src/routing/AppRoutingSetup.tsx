@@ -50,6 +50,7 @@ import CajaPage from '@/pages/puntos-de-venta/Caja/CajaPage';
 import PosTiendaPage from '@/pages/Pos/PosTiendaPage';
 import { PosPage } from '@/pages/Pos/components/PosPage';
 import { ConfiguracionEmpresaPage } from '@/pages/configuracion-empresa/ConfiguracionEmpresaPage';
+import MigracionDatosPage from '@/pages/migracion-datos/MigracionDatosPage';
 import { UsuariosPage } from '@/pages/usuarios/UsuariosPage';
 import { PerfilPage } from '@/pages/perfil/PerfilPage';
 import { TipoContratoPage } from '@/pages/tipo-contrato/TipoContratoPage';
@@ -91,16 +92,66 @@ import { ConfigurarAsientosPage } from '@/pages/configurar-asientos';
 import { AhorroTerceroPage } from '@/pages/ahorro-tercero';
 import { CobrosPolizasPage } from '@/pages/cobros-polizas';
 import MultimediaPage from '@/pages/multimedia/gestion-multimedia/MultimediaPage';
+import GestionEventos from '@/pages/gestion-eventos/GestionEventos';
+import { EventForm } from '@/pages/gestion-eventos/eventos/EventForm';
+import { EventShowPage } from '@/pages/gestion-eventos/eventos/EventShowPage';
+import { EventPublicShowPage } from '@/pages/gestion-eventos/eventos/EventPublicShowPage';
+import { InvitadoPublic } from '@/pages/gestion-eventos/invitados/InvitadoPublic';
+import FormulariosPage from '@/pages/formularios/FormulariosPage';
+import FormBuilderPage from '@/pages/formularios/builder/FormBuilderPage';
+import FormPublicPage from '@/pages/formularios/public/FormPublicPage';
+import StudentInscriptionPage from '@/pages/formularios/public/StudentInscriptionPage';
 import ProfesoresPage from '@/pages/profesores/profes/ProfesoresPage';
 import PeriodosPage from '@/pages/periodos/PeriodosPage';
 import JornadasPage from '@/pages/gestion-jornadas/JornadasPage';
+import { SeguimientoAspirantesPage } from '@/pages/seguimiento-aspirantes/SeguimientoAspirantesPage';
+import { SolicitudesPlanesPage } from '@/pages/solicitudes-planes/SolicitudesPlanesPage';
+import { PagoResultadoPage } from '@/pages/pago-plan/PagoResultadoPage';
+import { TelecomConfigPage } from '@/pages/telecom-config/TelecomConfigPage';
+import { FormularioAspirantePublicPage } from '@/pages/solicitudes-inscripcion/FormularioAspirantePublicPage';
 
 import DashboardCoordinador from '@/pages/cordinador/DashboardCordinador';
 import GestionProgramas from '@/pages/programas-academicos/GestionProgramas';
+import ProgramasEntryPage from '@/pages/programas-academicos/ProgramasEntryPage';
+import { ProgramacionFichasPage } from '@/pages/programas-academicos/ProgramacionFichasPage';
 import ProfesoresContent from '@/pages/profesores/profes/ProfesoresContent';
 import EstudiantesPage from '@/pages/estudiantes/EstudiantesPage';
 import DashboardRector from '@/pages/rector/DashboardRector';
-
+import Regionales from '@/pages/gestion-regional/Regionales';
+import CentrosFormacion from '@/pages/gestion-centros-formacion/CentrosFormacion';
+import SedesSena from '@/pages/gestion-sedes-sena/SedesSena';
+import Fichas from '@/pages/gestion-fichas/Fichas';
+import Infraestructura from '@/pages/gestion-infraestructura/Infraestructura';
+import HistorialRAPsPage from '@/pages/ambiente-virtual/HistorialRAPsPage';
+import MisActividadesInstructorPage from '@/pages/ambiente-virtual/MisActividadesInstructorPage';
+import GestionActividadesPage from '@/pages/ambiente-virtual/gestion-actividades/GestionActividadesPage';
+import HorarioInstructorPage from '@/pages/ambiente-virtual/HorarioInstructorPage';
+import ClaseDetallePage from '@/pages/ambiente-virtual/ClaseDetallePage';
+import MisClasesPage from '@/pages/ambiente-virtual/MisClasesPage';
+import ActividadesPage from '@/pages/ambiente-virtual/ActividadesPage';
+import GruposPage from '@/pages/ambiente-virtual/GruposPage';
+import JustificacionesInstructorPage from '@/pages/ambiente-virtual/JustificacionesInstructorPage';
+import BibliotecaConocimientoPage from '@/pages/ambiente-virtual/BibliotecaConocimientoPage';
+import ActividadesCompetenciaPage from '@/pages/ambiente-virtual/actividades-competencia/ActividadesCompetenciaPage';
+import { ResetPassword, ResetPasswordChange, VerifyOtp } from '@/auth/pages/jwt';
+import { ResetPasswordModal } from '@/auth/pages/jwt/reset-password/ModalResetPassword/ModalResetPassword';
+import Redes from '@/pages/gestion-red/Redes';
+import RedesProgramas from '@/pages/programas-academicos/filtro-red/RedesProgramas';
+import RmiGeneral from '@/pages/gestion-rmi/RmiGeneral';
+import GCGeneral from '@/pages/gestion-rmi/GCGeneral';
+import CFGeneral from '@/pages/gestion-rmi/CFGeneral';
+import InformePagoGeneral from '@/pages/proceso/informePagoInstructor/InformePagoGeneral';
+import ProyectoFormativoEntry from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoEntry';
+import ProyectoFormativoDetalle from '@/pages/programas-academicos/proyectoFormativo/ProyectoFormativoDetalle';
+import ActividadProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/ActividadProyectoEntry';
+import CompetenciasProyectoEntry from '@/pages/programas-academicos/proyectoFormativo/CompetenciasProyectoEntry';
+import ActasInstructorGeneral from '@/pages/actasInstructor/ActasInstructorGeneral';
+import InstructorLider from '@/pages/proceso/instructor-lider/InstructorLider';
+import SolicitudInstructorPage from '@/pages/solicitud-instructor/SolicitudInstructorPage';
+import MisSolicitudesInstructorPage from '@/pages/solicitud-instructor/MisSolicitudesInstructor';
+import PortafolioInstructorGeneral from '@/pages/proceso/portafolio/PortafolioInstructorGeneral';
+import SeguimientoAprendiz from '@/pages/programas-academicos/components/malla-curricular/SeguimientoAprendiz';
+import SeguimientoInstructor from '@/pages/programas-academicos/components/malla-curricular/SeguimientoInstructor';
 // Componentes temporales para pruebas
 
 const InfraestructuraPage = () => (
@@ -121,19 +172,24 @@ const DASHBOARD_CONFIG = [
     component: <DashboardCoordinador />
   },
   {
-    permission: 'GESTION_PROFESOR',
+    permission: 'AULA_VIRTUAL_INSTRUCTOR',
     component: <ProfesoresPage />
   },
   {
-    permission: 'GESTION_ESTUDIANTE',
+    permission: 'AULA_VIRTUAL_APRENDIZ',
     component: <EstudiantesPage />
   }
 ];
 const AppRoutingSetup = (): ReactElement => {
-  const { permissions } = useAuthContext();
+  const { permissions, roles } = useAuthContext();
 
   // Función lógica para seleccionar el dashboard
   const getActiveDashboard = () => {
+    // Prioridad para INSTRUCTOR SENA si tiene el rol
+    if (roles?.includes('INSTRUCTOR SENA')) {
+      return <ProfesoresPage />;
+    }
+
     const active = DASHBOARD_CONFIG.find((item) => permissions?.includes(item.permission));
 
     // Si hay coincidencia retornamos su componente, si no, el DefaultPage original
@@ -142,9 +198,42 @@ const AppRoutingSetup = (): ReactElement => {
 
   return (
     <Routes>
+      <Route path="/formulario/:slug" element={<FormPublicPage />} />
+      <Route path="/formulario-publico/:slug" element={<FormPublicPage />} />
+      <Route path="/invitado/:token" element={<InvitadoPublic />} />
+      <Route path="/evento/:id" element={<EventPublicShowPage />} />
+      <Route path="/inscripcion-estudiante" element={<StudentInscriptionPage />} />
+      <Route path="/formulario-aspirante/:token" element={<FormularioAspirantePublicPage />} />
+
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
           <Route path="/" element={getActiveDashboard()} />
+          <Route
+            path="seguimiento-aspirantes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_SEGUIMIENTO_ASPIRANTES']}>
+                <SeguimientoAspirantesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Retorno del Checkout de Wompi (compra de planes de mensajes) */}
+          <Route path="pago-plan/resultado" element={<PagoResultadoPage />} />
+          <Route
+            path="solicitudes-planes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_SOLICITUDES_PLANES']}>
+                <SolicitudesPlanesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="telecom-config"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_TELECOM_CONFIG']}>
+                <TelecomConfigPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="gestion-usuarios/usuarios"
             element={
@@ -216,7 +305,38 @@ const AppRoutingSetup = (): ReactElement => {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/informeInstructor"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_PAGO']}>
+                <InformePagoGeneral />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/actas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_ACTAS']}>
+                <ActasInstructorGeneral />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor-lider"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_NOVEDADES']}>
+                <InstructorLider />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portafolios-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_PORTAFOLIO']}>
+                <PortafolioInstructorGeneral />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/gestion-contratos/entidades-seguridad-social"
             element={
@@ -696,6 +816,15 @@ const AppRoutingSetup = (): ReactElement => {
           />
 
           <Route
+            path="/empresa/migracion-datos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CONFIGURACION_EMPRESA']}>
+                <MigracionDatosPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/gestion-vinculaciones/vinculaciones"
             element={
               <ProtectedRoute requiredPermissions={['GESTION_AFILIACIONES']}>
@@ -716,7 +845,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/perfil"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute requiredPermissions={[]}>
                 <PerfilPage />
               </ProtectedRoute>
             }
@@ -770,8 +899,64 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gestion-academica/configuracion/programas"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProgramasEntryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <RedesProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
                 <GestionProgramas />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProyectoFormativoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/detalle/:idProyecto"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProyectoFormativoDetalle />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ActividadProyectoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/redes/programas/:idRed/proyecto/:idPrograma/fase/:idFase/competencias"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <CompetenciasProyectoEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion-academica/configuracion/programas/:programId/fichas"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_ACADEMICA']}>
+                <ProgramacionFichasPage />
               </ProtectedRoute>
             }
           />
@@ -779,7 +964,7 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gestion-academica/configuracion/periodos"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute requiredPermissions={['GESTION_PERIODOS']}>
                 <PeriodosPage />
               </ProtectedRoute>
             }
@@ -795,8 +980,34 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/gestion-academica/configuracion/jornadas"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIO']}>
+              <ProtectedRoute requiredPermissions={['GESTION_JORNADAS']}>
                 <JornadasPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* --- SECCIÓN PARA EL RMI --- */}
+          <Route
+            path="/rmi"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR_RMI']}>
+                <RmiGeneral />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gc"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR_GC']}>
+                <GCGeneral />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cf"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_HORAS_INSTRUCTOR']}>
+                <CFGeneral />
               </ProtectedRoute>
             }
           />
@@ -804,8 +1015,87 @@ const AppRoutingSetup = (): ReactElement => {
           <Route
             path="/multimedia/gestion-multimedia"
             element={
-              <ProtectedRoute requiredPermissions={['GESTION_USUARIOS']}>
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
                 <MultimediaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/formularios"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormulariosPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formularios/builder"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formularios/builder/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <FormBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/gestion-eventos"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <GestionEventos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/gestion-eventos/nuevo"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/solicitudes-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_SOLICITUDES']}>
+                <SolicitudInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/mis-solicitudes-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_INSTRUCTOR_MIS_SOLICITUDES']}>
+                <MisSolicitudesInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/gestion-eventos/editar/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/gestion-eventos/show/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']}>
+                <EventShowPage />
               </ProtectedRoute>
             }
           />
@@ -909,6 +1199,174 @@ const AppRoutingSetup = (): ReactElement => {
             element={
               <ProtectedRoute requiredPermissions={['GESTION_ESTUDIANTE']}>
                 <EstudiantesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/regionales"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_REGIONAL']}>
+                <Regionales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aprendizJornada"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_APRENDIZ']}>
+                <PerfilPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/centrosFormacion"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <CentrosFormacion />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sedesSena"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <SedesSena />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambientes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Infraestructura />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/redes"
+            element={
+              <ProtectedRoute requiredPermissions={['GESTION_CENTROS_FORMACION']}>
+                <Redes />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ambiente Virtual */}
+          <Route
+            path="/ambiente-virtual/horario"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_HORARIO']}>
+                <HorarioInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/historial-raps"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_FORMACIONES']}>
+                <HistorialRAPsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/instructor/mis-actividades"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES']}>
+                <MisActividadesInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/gestion-actividades"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR']}>
+                <GestionActividadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/mis-clases"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_CLASES']}>
+                <MisClasesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/actividades"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_ACTIVIDADES']}>
+                <ActividadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/seguimiento-aprendiz"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_SEGUIMIENTO']}>
+                <SeguimientoAprendiz />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/seguimiento-instructor"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR_SEGUIMIENTO']}>
+                <SeguimientoInstructor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/grupos"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_APRENDIZ_GRUPOS']}>
+                <GruposPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/biblioteca-conocimiento"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR',
+                  'AULA_VIRTUAL_APRENDIZ',
+                  'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA',
+                ]}
+              >
+                <BibliotecaConocimientoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/actividades-competencia"
+            element={
+              <ProtectedRoute
+                requiredPermissions={[
+                  'AULA_VIRTUAL_INSTRUCTOR',
+                  'AULA_VIRTUAL_APRENDIZ',
+                  'AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES_COMPETENCIA',
+                  'AULA_VIRTUAL_APRENDIZ_ACTIVIDADES_COMPETENCIA',
+                ]}
+              >
+                <ActividadesCompetenciaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/justificaciones-pendientes"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}>
+                <JustificacionesInstructorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ambiente-virtual/clase/:id"
+            element={
+              <ProtectedRoute requiredPermissions={['AULA_VIRTUAL_INSTRUCTOR', 'GESTION_USUARIO']}>
+                <ClaseDetallePage />
               </ProtectedRoute>
             }
           />

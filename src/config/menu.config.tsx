@@ -1,34 +1,347 @@
-import { type TMenuConfig } from '@/components/menu';
+import { type IMenuItemConfig, type TMenuConfig } from '@/components/menu';
+
+const ACTIVIDADES_COMPETENCIA_PATH = '/ambiente-virtual/actividades-competencia';
+const GESTION_ACTIVIDADES_PATH = '/ambiente-virtual/gestion-actividades';
+const BIBLIOTECA_CONOCIMIENTO_PATH = '/ambiente-virtual/biblioteca-conocimiento';
+
+const GESTION_ACTIVIDADES_ITEM: IMenuItemConfig = {
+  title: 'Gestión de actividades',
+  path: GESTION_ACTIVIDADES_PATH,
+  requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+};
+
+const ACTIVIDADES_COMPETENCIA_ITEM: IMenuItemConfig = {
+  title: 'Material de Apoyo',
+  path: ACTIVIDADES_COMPETENCIA_PATH,
+  requiredPermissions: [
+    'AULA_VIRTUAL_INSTRUCTOR',
+    'AULA_VIRTUAL_APRENDIZ',
+    'AULA_VIRTUAL_INSTRUCTOR_ACTIVIDADES_COMPETENCIA',
+    'AULA_VIRTUAL_APRENDIZ_ACTIVIDADES_COMPETENCIA'
+  ]
+};
+
+const BIBLIOTECA_CONOCIMIENTO_ITEM: IMenuItemConfig = {
+  title: 'Biblioteca de conocimiento',
+  path: BIBLIOTECA_CONOCIMIENTO_PATH,
+  requiredPermissions: [
+    'AULA_VIRTUAL_INSTRUCTOR',
+    'AULA_VIRTUAL_APRENDIZ',
+    'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA'
+  ]
+};
+
+const mergeRequiredPermissions = (
+  current: string[] | undefined,
+  extra: string[] | undefined
+): string[] => Array.from(new Set([...(current ?? []), ...(extra ?? [])]));
+
+const esGrupoAmbienteVirtual = (node: IMenuItemConfig): boolean => {
+  const title = String(node.title ?? '').toLowerCase();
+  const perms = node.requiredPermissions ?? [];
+  if (title === 'ambiente virtual' || perms.includes('AMBIENTE_VIRTUAL')) return true;
+  const children = node.children ?? [];
+  return children.some(
+    (child) =>
+      child.path === '/ambiente-virtual/instructor/mis-actividades' ||
+      child.path === '/ambiente-virtual/mis-clases' ||
+      child.path === '/ambiente-virtual/historial-raps'
+  );
+};
+
+const esRaizAulaVirtualRol = (node: IMenuItemConfig): boolean => {
+  const title = String(node.title ?? '').toLowerCase();
+  const perms = node.requiredPermissions ?? [];
+  if (title.startsWith('aula virtual para')) return true;
+  return (
+    (perms.includes('AULA_VIRTUAL_INSTRUCTOR') || perms.includes('AULA_VIRTUAL_APRENDIZ')) &&
+    !esGrupoAmbienteVirtual(node)
+  );
+};
+
+const insertGestionActividades = (children: TMenuConfig): TMenuConfig => {
+  if (children.some((child) => child.path === GESTION_ACTIVIDADES_PATH)) {
+    return children.map((child) =>
+      child.path === GESTION_ACTIVIDADES_PATH
+        ? {
+            ...child,
+            title: GESTION_ACTIVIDADES_ITEM.title,
+            requiredPermissions: mergeRequiredPermissions(
+              child.requiredPermissions,
+              GESTION_ACTIVIDADES_ITEM.requiredPermissions
+            )
+          }
+        : child
+    );
+  }
+  const next = [...children];
+  const afterMisActividades = next.findIndex(
+    (child) => child.path === '/ambiente-virtual/instructor/mis-actividades'
+  );
+  if (afterMisActividades >= 0) {
+    next.splice(afterMisActividades + 1, 0, GESTION_ACTIVIDADES_ITEM);
+    return next;
+  }
+  const beforeCompetencia = next.findIndex((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH);
+  if (beforeCompetencia >= 0) {
+    next.splice(beforeCompetencia, 0, GESTION_ACTIVIDADES_ITEM);
+    return next;
+  }
+  next.push(GESTION_ACTIVIDADES_ITEM);
+  return next;
+};
+
+/** Inserta Gestión de actividades (solo instructor) en Ambiente Virtual. */
+export const ensureGestionActividadesMenu = (menu: TMenuConfig): TMenuConfig =>
+  menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      const rest = children.filter((child) => child.path !== GESTION_ACTIVIDADES_PATH);
+      if (rest.length === 0 && (!node.path || node.path === '#')) return [];
+      return [{ ...node, children: rest }];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertGestionActividades(children) }];
+  });
+
+/** Inserta Biblioteca de conocimiento también para instructor (el permiso de menú histórico es solo aprendiz). */
+export const ensureBibliotecaConocimientoMenu = (menu: TMenuConfig): TMenuConfig => {
+  const insertInChildren = (children: TMenuConfig): TMenuConfig => {
+    if (children.some((child) => child.path === BIBLIOTECA_CONOCIMIENTO_PATH)) {
+      return children.map((child) =>
+        child.path === BIBLIOTECA_CONOCIMIENTO_PATH
+          ? {
+              ...child,
+              title: BIBLIOTECA_CONOCIMIENTO_ITEM.title,
+              requiredPermissions: mergeRequiredPermissions(
+                child.requiredPermissions,
+                BIBLIOTECA_CONOCIMIENTO_ITEM.requiredPermissions
+              )
+            }
+          : child
+      );
+    }
+    const next = [...children];
+    const afterGestion = next.findIndex((child) => child.path === GESTION_ACTIVIDADES_PATH);
+    if (afterGestion >= 0) {
+      next.splice(afterGestion + 1, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    const beforeMaterial = next.findIndex((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH);
+    if (beforeMaterial >= 0) {
+      next.splice(beforeMaterial, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    const beforeClases = next.findIndex((child) => child.path === '/ambiente-virtual/mis-clases');
+    if (beforeClases >= 0) {
+      next.splice(beforeClases, 0, BIBLIOTECA_CONOCIMIENTO_ITEM);
+      return next;
+    }
+    next.push(BIBLIOTECA_CONOCIMIENTO_ITEM);
+    return next;
+  };
+
+  return menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      return [node];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertInChildren(children) }];
+  });
+};
+
+/** Inserta o corrige el ítem si el menú dinámico de permisos aún no lo trae. */
+export const ensureActividadesCompetenciaMenu = (menu: TMenuConfig): TMenuConfig => {
+  const insertInChildren = (children: TMenuConfig): TMenuConfig => {
+    if (children.some((child) => child.path === ACTIVIDADES_COMPETENCIA_PATH)) {
+      return children.map((child) =>
+        child.path === ACTIVIDADES_COMPETENCIA_PATH
+          ? {
+              ...child,
+              title: ACTIVIDADES_COMPETENCIA_ITEM.title,
+              requiredPermissions: mergeRequiredPermissions(
+                child.requiredPermissions,
+                ACTIVIDADES_COMPETENCIA_ITEM.requiredPermissions
+              )
+            }
+          : child
+      );
+    }
+    const next = [...children];
+    const after = next.findIndex((child) => child.path === '/ambiente-virtual/instructor/mis-actividades');
+    if (after >= 0) {
+      next.splice(after + 1, 0, ACTIVIDADES_COMPETENCIA_ITEM);
+      return next;
+    }
+    const beforeClases = next.findIndex((child) => child.path === '/ambiente-virtual/mis-clases');
+    if (beforeClases >= 0) {
+      next.splice(beforeClases, 0, ACTIVIDADES_COMPETENCIA_ITEM);
+      return next;
+    }
+    next.push(ACTIVIDADES_COMPETENCIA_ITEM);
+    return next;
+  };
+
+  return menu.flatMap((node) => {
+    const children = node.children;
+    if (!children?.length) return [node];
+    if (esRaizAulaVirtualRol(node)) {
+      const rest = children.filter((child) => child.path !== ACTIVIDADES_COMPETENCIA_PATH);
+      if (rest.length === 0 && (!node.path || node.path === '#')) return [];
+      return [{ ...node, children: rest }];
+    }
+    if (!esGrupoAmbienteVirtual(node)) return [node];
+    return [{ ...node, children: insertInChildren(children) }];
+  });
+};
 
 export const MENU_SIDEBAR: TMenuConfig = [
   {
+    title: 'Dashboard',
+    icon: 'home',
+    path: '/'
+  },
+  {
+    title: 'Seguimiento Aspirantes',
+    icon: 'user-tick',
+    path: '/seguimiento-aspirantes',
+    requiredPermissions: ['GESTION_SEGUIMIENTO_ASPIRANTES']
+  },
+  {
+    title: 'Solicitudes de Planes',
+    icon: 'dollar',
+    path: '/solicitudes-planes',
+    requiredPermissions: ['GESTION_SOLICITUDES_PLANES']
+  },
+  {
+    title: 'Configuración WhatsApp',
+    icon: 'whatsapp',
+    path: '/telecom-config',
+    requiredPermissions: ['GESTION_TELECOM_CONFIG']
+  },
+  {
+    title: 'Horario',
+    icon: 'calendar-tick',
+    path: '/ambiente-virtual/horario',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+  },
+  {
     title: 'Gestión Académica',
     icon: 'teacher',
-    requiredPermissions: ['GESTION_USUARIO'],
+    requiredPermissions: ['GESTION_ACADEMICA'],
+    children: [
+          {
+            title: 'Planeación',
+            path: '/gestion-academica/configuracion/redes',
+            requiredPermissions: ['GESTION_PLANEACION']
+          },
+          {
+            title: 'Periodos',
+            path: '/gestion-academica/configuracion/periodos',
+            requiredPermissions: ['GESTION_PERIODOS'] //Cambiar por GESTION_PERIODOS
+          },
+          {
+            title: 'Jornadas',
+            path: '/gestion-academica/configuracion/jornadas',
+            requiredPermissions: ['GESTION_JORNADAS'] // Cambiar por GESTION_JORNADAS
+          },
+          {
+            title: 'Regionales',
+            path: '/regionales',
+            requiredPermissions: ['GESTION_REGIONAL'] //Cambiar por GESTION_REGIONALES
+          },
+          {
+            title: 'Centro Formación',
+            path: '/centrosFormacion',
+            requiredPermissions: ['GESTION_CENTROS_FORMACION'] //Cambiar por GESTION_CENTROS_FORMACION
+          },
+          {
+            title: 'Sedes',
+            path: '/sedesSena',
+            requiredPermissions: ['GESTION_SEDES'] //Cambiar por GESTION_SEDES
+          },
+          {
+            title: 'Ambientes',
+            path: '/ambientes',
+            requiredPermissions: ['GESTION_AMBIENTES'] //Cambiar por GESTION_AMBIENTES
+          },
+          {
+            title: 'Redes',
+            path: '/redes',
+            requiredPermissions: ['GESTION_REDES']
+          }
+    ]
+  },
+  {
+    title: 'Ambiente Virtual',
+    icon: 'devices',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ'],
     children: [
       {
-        title: 'Gestión Programas',
-        path: '/gestion-academica/configuracion/programas',
-        requiredPermissions: ['GESTION_USUARIO']
+        title: 'Mis formaciones',
+        path: '/ambiente-virtual/historial-raps',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
-        title: 'Periodos',
-        path: '/gestion-academica/configuracion/periodos',
-        requiredPermissions: ['GESTION_USUARIO']
+        title: 'Mis actividades',
+        path: '/ambiente-virtual/instructor/mis-actividades',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
-        title: 'Jornadas',
-        path: '/gestion-academica/configuracion/jornadas',
-        requiredPermissions: ['GESTION_USUARIO']
+        title: 'Gestión de actividades',
+        path: '/ambiente-virtual/gestion-actividades',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
       },
       {
-        title: 'Infraestructura',
-        path: '/gestion-academica/configuracion/infraestructura',
-        requiredPermissions: ['GESTION_USUARIO']
+        title: 'Biblioteca de conocimiento',
+        path: '/ambiente-virtual/biblioteca-conocimiento',
+        requiredPermissions: [
+          'AULA_VIRTUAL_INSTRUCTOR',
+          'AULA_VIRTUAL_APRENDIZ',
+          'AULA_VIRTUAL_APRENDIZ_BIBLIOTECA'
+        ]
+      },
+      {
+        title: 'Material de Apoyo',
+        path: '/ambiente-virtual/actividades-competencia',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR', 'AULA_VIRTUAL_APRENDIZ']
+      },
+      {
+        title: 'Mis clases',
+        path: '/ambiente-virtual/mis-clases',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      },
+      {
+        title: 'Mis Actividades',
+        path: '/ambiente-virtual/actividades',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
+      },
+      {
+        title: 'Grupos',
+        path: '/ambiente-virtual/grupos',
+        requiredPermissions: ['AULA_VIRTUAL_APRENDIZ']
       }
     ]
   },
-
+  {
+    title: 'Administrativo',
+    icon: 'teacher',
+    children: [
+      {
+        title: 'RMI',
+        path: '/rmi',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
+      {
+        title: 'GC',
+        path: '/gc',
+        requiredPermissions: ['GESTION_HORAS_INSTRUCTOR']
+      },
+    ]
+  },
   {
     title: 'Gestión de Usuarios',
     icon: 'users',
@@ -107,7 +420,38 @@ export const MENU_SIDEBAR: TMenuConfig = [
       }
     ]
   },
-
+  {
+    title: 'Gestión instructor',
+    icon: 'tablet-text-down',
+    requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR'],
+    children: [
+      {
+        title: 'Informe de Pago',
+        path: '/informeInstructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Actas',
+        path: '/actas',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Solicitudes Instructor',
+        path: '/solicitudes-instructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Mis Solicitudes',
+        path: '/mis-solicitudes-instructor',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Novedades',
+        path: '/instructor-lider',
+        requiredPermissions: ['AULA_VIRTUAL_INSTRUCTOR']
+      }
+    ]
+  },
   {
     title: 'Contabilidad',
     icon: 'chart-line',
@@ -165,6 +509,11 @@ export const MENU_SIDEBAR: TMenuConfig = [
       {
         title: 'Configuración de Empresa',
         path: '/empresa/configuracion-empresa',
+        requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
+      },
+      {
+        title: 'Migración de datos',
+        path: '/empresa/migracion-datos',
         requiredPermissions: ['GESTION_CONFIGURACION_EMPRESA']
       },
       {
@@ -553,7 +902,24 @@ export const MENU_SIDEBAR: TMenuConfig = [
       {
         title: 'Gestion Multimedia',
         path: '/multimedia/gestion-multimedia',
-        requiredPermissions: ['GESTION_NOMINA']
+        requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
+      },
+      {
+        title: 'Eventos',
+        path: '/gestion-eventos',
+        requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
+      }
+    ]
+  },
+
+  {
+    title: 'Formularios',
+    icon: 'tablet-text-down',
+    children: [
+      {
+        title: 'Gestión de Formularios',
+        path: '/formularios',
+        requiredPermissions: ['GESTION_USUARIO', 'AULA_VIRTUAL_INSTRUCTOR']
       }
     ]
   },

@@ -12,6 +12,7 @@ export interface PersonaInterface {
   apellido2?: string;
   apellido1?: string;
   idciudadNac?: string;
+  idciudadExpedicion?: string;
   celular?: string;
   email?: string;
   direccion?: string;
@@ -35,4 +36,6 @@ export interface PersonaInterface {
   celularExtra?: string;
   emailExtra?: string;
   tipoTitular?: string;
+  /** Texto del perfil profesional (contrato activo), editable desde la página de perfil */
+  perfilProfesional?: string;
 }

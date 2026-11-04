@@ -1,4 +1,5 @@
 export * from './Assets';
+export * from './clasesAsignadasLogica';
 export * from './Data';
 export * from './Devices';
 export * from './Dom';

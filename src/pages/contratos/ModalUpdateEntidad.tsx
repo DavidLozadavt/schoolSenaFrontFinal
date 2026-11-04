@@ -6,7 +6,7 @@ import { KeenIcon } from '@/components';
 interface ModalProps {
   open: boolean;
   onClose: () => void;
-  tipo: 'pension' | 'salud' | null;
+  tipo: 'pension' | 'salud' | 'arl' | 'caja_compensacion' | 'cesantias' | null;
   nombre: string;
   contrato: any;
   onSave: () => void;
@@ -31,6 +31,12 @@ const ModalUpdateEntidad = ({ open, onClose, tipo, nombre, contrato, onSave }: M
         filtradas = todas.filter(
           (e: any) => e.tipo?.toUpperCase() === 'EPS' || e.tipo?.toUpperCase() === 'SALUD'
         );
+      } else if (tipo === 'arl') {
+        filtradas = todas.filter((e: any) => e.tipo?.toUpperCase() === 'ARL');
+      } else if (tipo === 'caja_compensacion') {
+        filtradas = todas.filter((e: any) => e.tipo?.toUpperCase() === 'CAJA COMPENSACION');
+      } else if (tipo === 'cesantias') {
+        filtradas = todas.filter((e: any) => e.tipo?.toUpperCase() === 'CESANTIAS');
       } else {
         filtradas = todas;
       }
@@ -56,9 +62,15 @@ const ModalUpdateEntidad = ({ open, onClose, tipo, nombre, contrato, onSave }: M
     try {
       setLoading(true);
 
+      // Mapear los tipos del frontend a los tipos del backend
+      let tipoBackend = tipo.toUpperCase();
+      if (tipo === 'caja_compensacion') {
+        tipoBackend = 'CAJA COMPENSACION';
+      }
+
       await axios.post(`actualizar_entidad/${contrato.id}`, {
         entidad_id: selectedEntidad,
-        tipo: tipo.toUpperCase()
+        tipo: tipoBackend
       });
 
       onSave();
@@ -75,7 +87,20 @@ const ModalUpdateEntidad = ({ open, onClose, tipo, nombre, contrato, onSave }: M
     <Modal open={open} onClose={onClose}>
       <ModalContent className="max-w-[500px] top-[15%] p-4">
         <ModalHeader>
-          <ModalTitle>Actualizar entidad {tipo === 'pension' ? 'Pensión' : 'Salud'}</ModalTitle>
+          <ModalTitle>
+            Actualizar entidad{' '}
+            {tipo === 'pension'
+              ? 'Pensión'
+              : tipo === 'salud'
+                ? 'Salud'
+                : tipo === 'arl'
+                  ? 'ARL'
+                  : tipo === 'caja_compensacion'
+                    ? 'Caja de Compensación'
+                    : tipo === 'cesantias'
+                      ? 'Cesantías'
+                      : ''}
+          </ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={onClose}>
             <KeenIcon icon="cross" />
           </button>
@@ -94,7 +119,20 @@ const ModalUpdateEntidad = ({ open, onClose, tipo, nombre, contrato, onSave }: M
 
           <div className="px-4">
             <label className="block text-sm font-medium text-gray-600 mb-1">
-              Seleccione la nueva entidad de <span>{tipo === 'pension' ? 'pensión' : 'salud'}</span>
+              Seleccione la nueva entidad de{' '}
+              <span>
+                {tipo === 'pension'
+                  ? 'pensión'
+                  : tipo === 'salud'
+                    ? 'salud'
+                    : tipo === 'arl'
+                      ? 'ARL'
+                      : tipo === 'caja_compensacion'
+                        ? 'caja de compensación'
+                        : tipo === 'cesantias'
+                          ? 'cesantías'
+                          : ''}
+              </span>
               :
             </label>
 

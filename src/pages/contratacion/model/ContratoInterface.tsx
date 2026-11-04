@@ -1,4 +1,5 @@
 export interface ContratoInterface {
+  idNivelEducativo: any;
   salario_id?: any;
   id?: number;
   fechaContratacion: any;
@@ -6,6 +7,10 @@ export interface ContratoInterface {
   perfilProfesional: string;
   otrosi: string;
   periodoPago?: string;
+  /** Enum backend: NORMAL | SALARIO INTEGRAL | COMISIONES */
+  formaPago?: string;
+  supervisorContrato?: string;
+  cargoSupervisor?: string;
   idpersona?: number;
   idtipoContrato: string;
   fechaSistema: string;
@@ -32,4 +37,8 @@ export interface ContratoInterface {
   idTarifaRiesgo?: string;
   tipoSalario?:string;
   idGrupoNomina?: string;
+  horasmes?: string;
+  idCentroFormacion?: string;
+  /** Número de documento propio del contrato */
+  numeroDocumentoContrato?: string;
 }

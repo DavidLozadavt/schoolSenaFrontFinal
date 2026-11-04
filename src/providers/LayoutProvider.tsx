@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+ 
 import { createContext, type PropsWithChildren, useContext, useState } from 'react';
 
 import { getData, setData } from '../utils';
@@ -64,7 +64,7 @@ const LayoutProvider = ({ children }: PropsWithChildren) => {
     setData(LAYOUTS_CONFIGS_KEY, Object.fromEntries(storedLayouts));
   };
 
-  const [currentLayout, setCurrentLayout] = useState();
+  const [currentLayout, setCurrentLayout] = useState<any>(null);
 
   return (
     <LayoutContext.Provider

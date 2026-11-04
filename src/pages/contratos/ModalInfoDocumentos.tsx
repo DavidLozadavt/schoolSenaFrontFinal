@@ -78,7 +78,7 @@ const ModalInfoDocumentos = ({ open, onClose }: ModalProps) => {
 
         <ModalBody className="grid gap-5 px-0 py-5">
           <div className="p-2">
-            <span className="badge text-sm mb-3 w-full badge-outline badge-info justify-start">
+            <span className="flex items-center text-sm mb-3 w-full px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
               <KeenIcon icon="information-2" className="mr-2" />
               Selecciona un tipo de contrato para ver los documentos necesarios
             </span>

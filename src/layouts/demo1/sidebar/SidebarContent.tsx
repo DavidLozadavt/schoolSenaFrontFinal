@@ -1,4 +1,4 @@
-import { SidebarMenu } from './';
+import { SidebarMenu } from './SidebarMenu';
 
 interface Props {
   height?: number;
@@ -6,9 +6,9 @@ interface Props {
 
 const SidebarContent = ({ height = 0 }: Props) => {
   return (
-    <div className="sidebar-content flex grow shrink-0 pt-2 lg:pt-0 pe-2">
+    <div className="sidebar-content flex min-h-0 flex-1 flex-col pe-2 lg:pt-1">
       <div
-        className="grow shrink-0 flex ps-2 lg:ps-5 pe-3 scrollable-y-hover"
+        className="flex min-h-0 grow shrink-0 flex-col ps-2 pt-1 lg:ps-5 lg:pt-0 pe-3 scrollable-y-hover"
         style={{
           ...(height > 0 && { height: `${height}px` })
         }}

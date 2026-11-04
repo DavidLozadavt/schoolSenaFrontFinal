@@ -19,6 +19,7 @@ import { BancoModal } from '../contratacion/BancoModal';
 import { RiesgosProfesionalesModal } from '../contratacion/RiesgosProfesionalesModal';
 import { RolModal } from '../contratacion/RolModal';
 import { TipoContratoModal } from '../contratacion/ModalTipoContrato';
+import { normalizeContratoForUi } from './model/ContratoInterface';
 
 interface FormErrors {
   [key: string]: string;
@@ -255,7 +256,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     apellido2: ''
   });
 
-  const [formDataContrato, setFormDataContrato] = useState<ContratoInterface>({
+  const [formDataContrato, setFormDataContrato] = useState<any>({
     salario_id: '',
     fechaContratacion: '',
     perfilProfesional: '',
@@ -300,7 +301,14 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     setLoading(true);
     try {
       const response = await axios.get(`contrato_by_id/${id}`);
-      setContrato(response.data);
+      const raw = response.data;
+      const body =
+        raw && typeof raw === 'object'
+          ? (raw as Record<string, unknown>).data ??
+            (raw as Record<string, unknown>).contrato ??
+            raw
+          : raw;
+    setContrato(normalizeContratoForUi(body));
     } catch (error) {
       setError('Error al cargar el contrato');
     } finally {
@@ -390,7 +398,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
           contrato.salario.valor
         );
 
-        setFormDataContrato((prev) => ({
+        setFormDataContrato((prev:any) => ({
           ...prev,
           sueldo: contrato.salario.valor.toString(),
           salario_id: contrato.salario.id?.toString(),
@@ -471,7 +479,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
     const { name } = e.target;
     let value = e.target.value?.toUpperCase?.() ?? e.target.value;
 
-    setFormDataContrato((prevState) => {
+    setFormDataContrato((prevState:any) => {
       const updated = {
         ...prevState,
         [name]: value
@@ -591,7 +599,7 @@ const UpdateContractPage = ({ open, onClose, onSave }: ModalProps) => {
   const handleCurrencyChange = (e: any) => {
     const { name, value } = e.target;
     const numericValue = parseCurrency(value);
-    setFormDataContrato((prev) => ({
+    setFormDataContrato((prev:any) => ({
       ...prev,
       [name]: numericValue
     }));

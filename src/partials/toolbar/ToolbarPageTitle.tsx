@@ -12,7 +12,7 @@ const ToolbarPageTitle = ({ text }: IToolbarPageTitleProps) => {
   const menuItem = useMenuCurrentItem(pathname, menuConfig);
 
   return (
-    <h1 className="text-xl font-semibold leading-none text-gray-900">{text ?? menuItem?.title}</h1>
+    <h1 className="text-xl font-semibold leading-none text-gray-900 dark:text-white">{text ?? menuItem?.title}</h1>
   );
 };
 

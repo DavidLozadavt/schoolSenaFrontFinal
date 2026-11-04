@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Drawer } from '@/components';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useResponsive, useViewport } from '@/hooks';
 import { useDemo1Layout } from '../';
 import { SidebarContent, SidebarHeader } from './';
@@ -9,26 +9,30 @@ import { getHeight } from '@/utils';
 import { usePathname } from '@/providers';
 
 const Sidebar = () => {
-  const selfRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [scrollableHeight, setScrollableHeight] = useState<number>(0);
   const scrollableOffset = 40;
   const [viewportHeight] = useViewport();
   const { pathname, prevPathname } = usePathname();
 
-  useEffect(() => {
-    if (headerRef.current) {
-      const headerHeight = getHeight(headerRef.current);
-      const availableHeight = viewportHeight - headerHeight - scrollableOffset;
-      setScrollableHeight(availableHeight);
-    } else {
-      setScrollableHeight(viewportHeight);
-    }
-  }, [viewportHeight]);
-
   const desktopMode = useResponsive('up', 'lg');
   const { mobileSidebarOpen, setSidebarMouseLeave, setMobileSidebarOpen } = useDemo1Layout();
   const { layout } = useDemo1Layout();
+
+  useLayoutEffect(() => {
+    if (!desktopMode) {
+      setScrollableHeight(0);
+      return;
+    }
+    const measure = () => {
+      const headerHeight = headerRef.current ? getHeight(headerRef.current) : 0;
+      const availableHeight = viewportHeight - headerHeight - scrollableOffset;
+      setScrollableHeight(Math.max(0, availableHeight));
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(raf);
+  }, [viewportHeight, desktopMode, layout.options.sidebar.collapse]);
   const themeClass: string =
     layout.options.sidebar.theme === 'dark' || pathname === '/dark-sidebar'
       ? 'dark [&.dark]:bg-coal-600'
@@ -49,11 +53,10 @@ const Sidebar = () => {
   const renderContent = () => {
     return (
       <div
-        ref={selfRef}
         onMouseLeave={handleMouseLeave}
         onMouseEnter={handleMouseEnter}
         className={clsx(
-          'sidebar lg:fixed lg:z-20 lg:top-0 lg:bottom-0 lg:start-0 lg:translate-x-0 flex flex-col items-stretch shrink-0 bg-light lg:border lg:border-r-gray-200',
+          'sidebar lg:fixed lg:z-[15] lg:top-0 lg:bottom-0 lg:start-0 lg:translate-x-0 flex min-h-0 flex-col items-stretch shrink-0 bg-light lg:border lg:border-r-gray-200',
           themeClass
         )}
       >

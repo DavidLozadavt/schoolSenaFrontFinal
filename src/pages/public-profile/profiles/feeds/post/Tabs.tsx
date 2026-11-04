@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+ 
 import { KeenIcon } from '@/components';
 
 interface ITabsProps {

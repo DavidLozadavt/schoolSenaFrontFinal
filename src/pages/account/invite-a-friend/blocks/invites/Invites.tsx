@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+ 
 import React, { useEffect, useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';

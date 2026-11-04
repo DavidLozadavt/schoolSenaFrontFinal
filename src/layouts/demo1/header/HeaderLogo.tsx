@@ -4,6 +4,9 @@ import { toAbsoluteUrl } from '@/utils';
 
 import { useDemo1Layout } from '../';
 
+const logoLightSrc = toAbsoluteUrl('/media/app/logoweb.png');
+const logoDarkSrc = toAbsoluteUrl('/media/app/logoweb-dark.png');
+
 const HeaderLogo = () => {
   const { setMobileSidebarOpen, setMobileMegaMenuOpen, megaMenuEnabled } = useDemo1Layout();
 
@@ -17,8 +20,17 @@ const HeaderLogo = () => {
 
   return (
     <div className="flex gap-1 lg:hidden items-center">
-      <Link to="/" className="shrink-0">
-        <img src={toAbsoluteUrl('/media/app/mini-logo.svg')} className="h-[25px]" alt="mini-logo" />
+      <Link to="/" className="shrink-0 relative block">
+        <img
+          src={logoLightSrc}
+          className="h-[36px] w-auto max-w-[165px] object-contain object-left dark:hidden"
+          alt="School"
+        />
+        <img
+          src={logoDarkSrc}
+          className="hidden h-[36px] w-auto max-w-[165px] object-contain object-left dark:block"
+          alt="School"
+        />
       </Link>
 
       <div className="flex items-center">

@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+ 
 import { useEffect, useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 

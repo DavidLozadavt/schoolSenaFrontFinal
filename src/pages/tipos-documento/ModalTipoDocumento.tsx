@@ -73,10 +73,10 @@ const ModalTipoDocumento = ({ open, onClose, documentmentType, onSave }: ModalPr
   };
 
   return (
-    <Modal open={open} onClose={() => { clearFields(); onClose(); }}>
+    <Modal open={open} onClose={() => { clearFields(); onClose(); }} zIndex={110}>
       <ModalContent className="max-w-[600px] top-[15%] p-4">
         <ModalHeader>
-          <ModalTitle>{documentmentType ? 'Editar Tipo de Pago' : 'Nuevo Tipo de Documento'}</ModalTitle>
+          <ModalTitle>{documentmentType ? 'Editar Tipo de Documento' : 'Nuevo Tipo de Documento'}</ModalTitle>
           <button className="btn btn-sm btn-icon btn-light btn-clear shrink-0" onClick={() => { clearFields(); onClose(); }}>
             <KeenIcon icon="cross" />
           </button>

@@ -1,5 +1,12 @@
+import {
+  createContext,
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useMemo,
+  useState
+} from 'react';
 
-import { createContext, type PropsWithChildren, useContext, useState } from 'react';
 import { IMenuItemConfig, TMenuConfig } from '@/components/menu';
 
 export interface IMenusProps {
@@ -8,6 +15,7 @@ export interface IMenusProps {
   getMenuConfig: (name: string) => TMenuConfig | null;
   setCurrentMenuItem: (config: IMenuItemConfig | null) => void;
   getCurrentMenuItem: () => IMenuItemConfig | null;
+  clearMenuConfigs: () => void;
 }
 
 const initialProps: IMenusProps = {
@@ -15,36 +23,61 @@ const initialProps: IMenusProps = {
   setMenuConfig: () => {},
   getMenuConfig: () => null,
   setCurrentMenuItem: () => {},
-  getCurrentMenuItem: () => null
+  getCurrentMenuItem: () => null,
+  clearMenuConfigs: () => {}
 };
 
 const MenuContext = createContext<IMenusProps>(initialProps);
+
 const useMenus = () => useContext(MenuContext);
 
 const MenusProvider = ({ children }: PropsWithChildren) => {
+  const [configs, setConfigs] = useState<Map<string, TMenuConfig | null>>(() => new Map());
   const [currentMenuItem, setCurrentMenuItem] = useState<IMenuItemConfig | null>(null);
-  const configs = initialProps.configs;
 
-  const setMenuConfig = (name: string, config: TMenuConfig | null) => {
-    configs.set(name, config);
-  };
+  const setMenuConfig = useCallback((name: string, config: TMenuConfig | null) => {
+    setConfigs((prev) => {
+      const next = new Map(prev);
 
-  const getCurrentMenuItem = (): IMenuItemConfig | null => {
-    return currentMenuItem;
-  };
+      if (config === null) {
+        next.delete(name);
+      } else {
+        next.set(name, config);
+      }
 
-  const getMenuConfig = (name: string): TMenuConfig | null => {
-    return configs.get(name) ?? null;
-  };
+      return next;
+    });
+  }, []);
 
-  return (
-    <MenuContext.Provider
-      value={{ configs, setMenuConfig, getMenuConfig, setCurrentMenuItem, getCurrentMenuItem }}
-    >
-      {children}
-    </MenuContext.Provider>
+  const getMenuConfig = useCallback(
+    (name: string): TMenuConfig | null => {
+      return configs.get(name) ?? null;
+    },
+    [configs]
   );
+
+  const getCurrentMenuItem = useCallback((): IMenuItemConfig | null => {
+    return currentMenuItem;
+  }, [currentMenuItem]);
+
+  const clearMenuConfigs = useCallback(() => {
+    setConfigs(new Map());
+    setCurrentMenuItem(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      configs,
+      setMenuConfig,
+      getMenuConfig,
+      setCurrentMenuItem,
+      getCurrentMenuItem,
+      clearMenuConfigs
+    }),
+    [configs, setMenuConfig, getMenuConfig, currentMenuItem, getCurrentMenuItem, clearMenuConfigs]
+  );
+
+  return <MenuContext.Provider value={value}>{children}</MenuContext.Provider>;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export { MenusProvider, useMenus };

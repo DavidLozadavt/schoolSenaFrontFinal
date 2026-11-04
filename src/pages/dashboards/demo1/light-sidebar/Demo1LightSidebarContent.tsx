@@ -168,7 +168,6 @@
 //     </div>
 //   );
 // };
-
 import {
   ChannelStats,
   EarningsChart,
@@ -177,10 +176,48 @@ import {
   TeamMeeting,
   Teams
 } from './blocks';
+import MultimediaCapsulas from '@/components/capsulas/MultimediaCapsulas';
+import EventsDashboard from '@/components/capsulas/EventsDashboard';
+import { KeenIcon } from '@/components/keenicons';
 
 const Demo1LightSidebarContent = () => {
   return (
     <div className="grid gap-5 lg:gap-7.5">
+      {/* Historias & Reels Carousel */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-primary/10 flex items-center justify-center border border-primary/20 shadow-xl shadow-primary/5">
+              <KeenIcon icon="youtube" className="text-primary text-2xl" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-tighter italic leading-none">C{"\u00E1"}psulas SENA</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Contenido Multimedia Reciente
+              </p>
+            </div>
+          </div>
+        </div>
+        <MultimediaCapsulas />
+      </div>
+
+      {/* Eventos Section */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-xl shadow-emerald-500/5">
+              <KeenIcon icon="calendar" className="text-emerald-500 text-2xl" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-tighter italic leading-none">Eventos Pr{"\u00F3"}ximos</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">Agenda Institucional y Formativa</p>
+            </div>
+          </div>
+        </div>
+        <EventsDashboard />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-y-5 lg:gap-7.5 items-stretch">
         <div className="lg:col-span-1">
           <div className="grid grid-cols-2 gap-5 lg:gap-7.5 h-full items-stretch">
@@ -217,3 +254,4 @@ const Demo1LightSidebarContent = () => {
 };
 
 export { Demo1LightSidebarContent };
+
