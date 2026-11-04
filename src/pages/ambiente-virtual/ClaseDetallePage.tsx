@@ -3305,39 +3305,31 @@ const ClaseDetallePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Biblioteca de conocimiento (programa): aprendiz solo lectura; instructor CRUD según creador */}
-              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario === 'aprendiz' && (
+              {/* Biblioteca de conocimiento: GENERAL (Competencia → RAP). No se filtra por ficha. */}
+              {activeMenu === 'material-apoyo' && modoCalendario === 'aprendiz' && (
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</h3>
                     <p className="text-xs text-gray-600 dark:text-white">
-                      Recursos de consulta de todo tu programa de formación (sin entrega ni calificación). El RAP actual es solo referencia.
+                      Recursos generales de consulta (sin entrega ni calificación). Independiente de la ficha de la clase.
                     </p>
                   </div>
                   <MaterialApoyoAprendiz
-                    fichaCodigo={ficha?.codigo}
-                    rapContextLabel={materialApoyoRapContexto || undefined}
+                    modoBibliotecaGlobal
+                    hideGroupHeaders
                     emptyMessage="No hay recursos en la biblioteca de conocimiento para tu programa."
-                    hideGroupHeaders={false}
                   />
                 </div>
               )}
-              {activeMenu === 'material-apoyo' && idFichaParaClase > 0 && modoCalendario !== 'aprendiz' && (
-                <MaterialApoyoFichaView
-                  idFicha={idFichaParaClase}
-                  idMateria={idMateriaClaseProp}
-                  fichaCodigo={ficha?.codigo}
-                  rapContextLabel={materialApoyoRapContexto || undefined}
-                  idRapContext={materialApoyoIdRapContexto}
-                />
-              )}
-              {activeMenu === 'material-apoyo' && idFichaParaClase <= 0 && (
-                <div className="text-center py-12 rounded-xl border border-dashed border-gray-200 dark:border-gray-600">
-                  <KeenIcon icon="document" className="text-4xl text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</p>
-                  <p className="text-xs text-gray-600 dark:text-white px-4">
-                    No hay ficha cargada para esta clase. Vuelve a entrar desde el detalle de la ficha o recarga la página.
-                  </p>
+              {activeMenu === 'material-apoyo' && modoCalendario !== 'aprendiz' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Biblioteca de conocimiento</h3>
+                    <p className="text-xs text-gray-600 dark:text-white">
+                      Recursos generales de consulta. Independiente de la ficha de la clase.
+                    </p>
+                  </div>
+                  <MaterialApoyoFichaView modoGeneral />
                 </div>
               )}
 

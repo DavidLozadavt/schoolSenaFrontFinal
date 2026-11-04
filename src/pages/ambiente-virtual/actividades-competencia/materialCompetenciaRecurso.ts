@@ -20,10 +20,10 @@ import type {
 export const DOCUMENTO_COMPETENCIA_EXTENSIONS = [...MATERIAL_DOCUMENTO_EXTENSIONS, 'csv'] as const;
 
 export const DOCUMENTO_COMPETENCIA_ACCEPT =
-  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.sql,.zip,.rar,.csv';
+  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.sql,.txt,.csv,.zip,.rar';
 
 export const DOCUMENTO_COMPETENCIA_FORMATOS_LABEL =
-  'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, CSV, ZIP o RAR. Máximo 50 MB.';
+  'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, TXT, CSV, ZIP o RAR. Máximo 50 MB.';
 
 export const MULTIMEDIA_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi', 'mp3'] as const;
 

@@ -307,6 +307,9 @@ const MaterialCompetenciaAprendizView: React.FC = () => {
         it.competencia?.nombre,
         it.competenciaNombre,
         it.competencia?.codigo,
+        it.ficha?.codigo,
+        it.ficha?.etiqueta,
+        it.ficha?.jornada,
         tipoMaterialDisplay(it.tipoMaterial),
         etiquetaTipoRecurso(it),
         ...todos.map((r) => `${nombreRecurso(r)} ${r.formato} ${r.urlExterna}`),
@@ -635,6 +638,7 @@ const MaterialCompetenciaAprendizView: React.FC = () => {
                               <div className="min-w-0 flex-1">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-300">
                                   Material
+                                  {mat.ficha?.codigo ? ` · Ficha ${mat.ficha.codigo}` : ''}
                                 </p>
                                 <TextoTruncado
                                   texto={mat.titulo || '—'}

@@ -14,6 +14,8 @@ export const MATERIAL_DOCUMENTO_EXTENSIONS = [
   'ppt',
   'pptx',
   'sql',
+  'txt',
+  'csv',
   'zip',
   'rar',
 ] as const;
@@ -21,16 +23,71 @@ export const MATERIAL_DOCUMENTO_EXTENSIONS = [
 export type MaterialDocumentoExtension = (typeof MATERIAL_DOCUMENTO_EXTENSIONS)[number];
 
 export const MATERIAL_DOCUMENTO_ACCEPT =
-  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.sql,.zip,.rar';
+  [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.ppt',
+    '.pptx',
+    '.sql',
+    '.txt',
+    '.csv',
+    '.zip',
+    '.rar',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'text/plain',
+    'text/csv',
+    'application/csv',
+    'application/sql',
+  ].join(',');
 
 export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+/** Alias explícito para video de Biblioteca (mismo tope académico). */
+export const MAX_VIDEO_SIZE_MB = MAX_FILE_SIZE_MB;
+export const MAX_VIDEO_SIZE_BYTES = MAX_FILE_SIZE_BYTES;
 
-export const FILE_SIZE_EXCEEDED_MESSAGE =
-  'El archivo supera el límite máximo permitido de 50 MB.';
+export function fileSizeInMb(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
+
+export function fileSizeExceededMessage(
+  _file?: File,
+  _kind: 'video' | 'documento' | 'archivo' = 'archivo'
+): string {
+  return FILE_SIZE_EXCEEDED_MESSAGE;
+}
+
+export const FILE_SIZE_EXCEEDED_MESSAGE = 'El archivo supera el máximo permitido de 50 MB.';
+
+/** Log de desarrollo: nombre, MIME, bytes y MB del archivo seleccionado. */
+export function logSelectedAcademicFile(file: File, context: string): void {
+  if (!import.meta.env.DEV) return;
+  const sizeMB = Number(fileSizeInMb(file.size));
+  console.info(`[Biblioteca] ${context}`, {
+    name: file.name,
+    size: file.size,
+    type: file.type || '(vacío)',
+    sizeMB,
+    limitMB: MAX_FILE_SIZE_MB,
+    exceedsLimit: file.size > MAX_FILE_SIZE_BYTES,
+  });
+}
 
 export const MATERIAL_DOCUMENTO_FORMATOS_LABEL =
-  'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, ZIP, RAR. Máximo 50 MB.';
+  'Formatos aceptados: PDF, Word, Excel, PowerPoint, SQL, TXT, CSV, ZIP, RAR. Máximo 50 MB.';
 
 /** @deprecated Usar MAX_FILE_SIZE_BYTES */
 export const MATERIAL_DOCUMENTO_MAX_BYTES = MAX_FILE_SIZE_BYTES;
@@ -42,7 +99,7 @@ export const ACTIVIDAD_DOCUMENTO_FORMATOS_LABEL =
   'Formatos aceptados: PDF, Word (.doc, .docx). Máximo 50 MB.';
 
 export const VIDEO_ACCEPT =
-  'video/mp4,video/webm,video/quicktime,video/x-msvideo,.mp4,.webm,.mov,.avi';
+  'video/mp4,application/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,.mp4,.webm,.mov,.avi';
 
 export const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi'] as const;
 
@@ -68,9 +125,12 @@ export function isAllowedMaterialDocumentoExtension(ext: string): boolean {
 }
 
 /** Valida tamaño máximo de archivos académicos; null si es válido. */
-export function validateAcademicFileSize(file: File): string | null {
+export function validateAcademicFileSize(
+  file: File,
+  kind: 'video' | 'documento' | 'archivo' = 'archivo'
+): string | null {
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return FILE_SIZE_EXCEEDED_MESSAGE;
+    return fileSizeExceededMessage(file, kind);
   }
   return null;
 }
@@ -176,9 +236,94 @@ export function validateActividadDocumentoFile(file: File): string | null {
 export function validateVideoFile(file: File): string | null {
   const ext = extensionFromFileName(file.name);
   if (!VIDEO_EXTENSIONS.includes(ext as (typeof VIDEO_EXTENSIONS)[number])) {
-    return 'Tipo de video no permitido. Solo se permiten: MP4, WebM, MOV o AVI.';
+    return 'Formato de video no permitido. Solo se permiten: MP4, WebM, MOV o AVI.';
   }
-  return validateAcademicFileSize(file);
+  const mime = String(file.type ?? '').trim().toLowerCase();
+  if (mime && /^(text\/|image\/|application\/json|application\/xml)/.test(mime)) {
+    return 'Formato de video no permitido. Solo se permiten: MP4, WebM, MOV o AVI.';
+  }
+  return validateAcademicFileSize(file, 'video');
+}
+
+const firstErrorString = (value: unknown): string | undefined => {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (Array.isArray(value)) {
+    const found = value.find((v) => typeof v === 'string' && v.trim());
+    return typeof found === 'string' ? found : undefined;
+  }
+  return undefined;
+};
+
+/** Extrae el primer mensaje útil de un error de carga (422 / 413 / PHP upload). */
+export function formatMaterialUploadError(
+  err: unknown,
+  opts?: { videoFile?: File | null; documentoFile?: File | null }
+): string {
+  const ax = err as {
+    response?: {
+      status?: number;
+      data?: {
+        errors?: Record<string, string[] | string>;
+        error?: string;
+        message?: string;
+      };
+    };
+    message?: string;
+  };
+  const videoFile = opts?.videoFile ?? null;
+  const documentoFile = opts?.documentoFile ?? null;
+  if (ax.response?.status === 413) {
+    if (videoFile && videoFile.size > MAX_VIDEO_SIZE_BYTES) {
+      return fileSizeExceededMessage(videoFile, 'video');
+    }
+    if (documentoFile && documentoFile.size > MAX_FILE_SIZE_BYTES) {
+      return fileSizeExceededMessage(documentoFile, 'documento');
+    }
+    return `El archivo supera el máximo permitido de ${MAX_FILE_SIZE_MB} MB.`;
+  }
+  const errs = ax.response?.data?.errors;
+  if (errs && typeof errs === 'object') {
+    const videoMsg = firstErrorString(errs.video);
+    if (videoMsg) {
+      if (/failed to upload|uploaded/i.test(videoMsg)) {
+        if (videoFile && videoFile.size > MAX_VIDEO_SIZE_BYTES) {
+          return fileSizeExceededMessage(videoFile, 'video');
+        }
+        return 'El servidor no pudo recibir completamente el archivo.';
+      }
+      return videoMsg;
+    }
+    const docMsg = firstErrorString(errs.documento);
+    if (docMsg) {
+      if (/failed to upload|uploaded/i.test(docMsg)) {
+        if (documentoFile && documentoFile.size > MAX_FILE_SIZE_BYTES) {
+          return fileSizeExceededMessage(documentoFile, 'documento');
+        }
+        return 'El servidor no pudo recibir completamente el archivo.';
+      }
+      return docMsg;
+    }
+    const first = Object.values(errs)
+      .map((v) => firstErrorString(v))
+      .find((v): v is string => Boolean(v));
+    if (first) {
+      if (/failed to upload/i.test(first)) {
+        return 'El servidor no pudo recibir completamente el archivo.';
+      }
+      return first;
+    }
+  }
+  const msg = ax.response?.data?.error || ax.response?.data?.message || ax.message;
+  if (typeof msg === 'string' && msg.trim()) {
+    if (/failed to upload/i.test(msg)) {
+      return 'El servidor no pudo recibir completamente el archivo.';
+    }
+    if (/storage|unable to write|disk/i.test(msg)) {
+      return 'No fue posible guardar el archivo.';
+    }
+    return msg;
+  }
+  return 'Error al guardar';
 }
 
 /** Valida archivo antes de subir; null si es válido. */
@@ -187,7 +332,7 @@ export function validateMaterialDocumentoFile(file: File): string | null {
   const mime = String(file.type ?? '').trim().toLowerCase();
 
   if (!isAllowedMaterialDocumentoExtension(ext)) {
-    return `Tipo de archivo no permitido. Solo se permiten: ${MATERIAL_DOCUMENTO_FORMATOS_LABEL}.`;
+    return 'El formato seleccionado no está permitido.';
   }
 
   const genericMime = mime === '' || mime === 'application/octet-stream';
@@ -200,7 +345,7 @@ export function validateMaterialDocumentoFile(file: File): string | null {
     }
   }
 
-  const sizeErr = validateAcademicFileSize(file);
+  const sizeErr = validateAcademicFileSize(file, 'documento');
   if (sizeErr) {
     return sizeErr;
   }
@@ -223,6 +368,10 @@ export function materialDocumentoTypeLabel(ext: string): string {
       return 'PowerPoint';
     case 'sql':
       return 'SQL';
+    case 'txt':
+      return 'TXT';
+    case 'csv':
+      return 'CSV';
     case 'zip':
       return 'ZIP';
     case 'rar':

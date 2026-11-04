@@ -33,9 +33,30 @@ export interface MaterialCompetenciaRecursoItem {
   legacy?: boolean;
 }
 
+export interface FichaMaterialCompetencia {
+  id: number;
+  codigo?: string | null;
+  programa?: string | null;
+  jornada?: string | null;
+  etiqueta?: string;
+}
+
+export interface ClaseReferenciaMaterial {
+  idFicha: number;
+  codigo?: string | null;
+  programa?: string | null;
+  jornada?: string | null;
+  etiqueta?: string;
+  horaInicial?: string | null;
+  horaFinal?: string | null;
+  idDia?: number | null;
+}
+
 export interface MaterialCompetenciaItem {
   id: number;
   idCompetencia: number;
+  idFicha?: number | null;
+  ficha?: FichaMaterialCompetencia | null;
   origen: MaterialCompetenciaOrigen | string;
   origenLabel?: string;
   titulo: string;

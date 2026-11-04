@@ -8,7 +8,6 @@ import { MisActividadesAvatarFallback } from '@/components/user/MisActividadesAv
 import {
   filterOptionNormalized,
   compactReactSelectClassNames,
-  compactReactSelectNoOptions,
 } from '@/components/forms/compactReactSelect';
 import Select from 'react-select';
 import { useSettings } from '@/providers';
@@ -18,7 +17,14 @@ import {
   materialDocumentoBadgeClass,
   materialDocumentoTypeLabel,
 } from './materialDocumentoSupport';
-import { tipoMaterialDisplay } from './tipoMaterialApoyo';
+import { tipoMaterialBadgeClass, tipoMaterialDisplay } from './tipoMaterialApoyo';
+import type { CSSObjectWithLabel } from 'react-select';
+import {
+  applySelectMenuWidth,
+  etiquetaAcademica,
+  propsSelectAcademico,
+  type SelectAcademicoOption,
+} from './etiquetaAcademicaSelect';
 
 interface MaterialApoyoCreador {
   idPersona?: number | null;
@@ -41,11 +47,13 @@ interface MaterialApoyoAprendizItem {
   idMateria?: number;
   materiaNombre?: string | null;
   competenciaNombre?: string | null;
+  competenciaCodigo?: string | null;
   idCompetencia?: number | null;
   idFicha?: number;
   fichaCodigo?: string | null;
   idRap?: number | null;
   rapNombre?: string | null;
+  rapCodigo?: string | null;
   idPersona?: number | null;
   creador?: MaterialApoyoCreador | null;
   created_at?: string | null;
@@ -156,14 +164,15 @@ const selectClassNamesBiblioteca = {
         ? 'border-primary dark:border-primary ring-1 ring-primary/20 dark:ring-primary/30'
         : 'dark:border-gray-500 hover:dark:border-gray-400'
     ),
-  valueContainer: () => 'text-gray-900 dark:text-white text-sm',
-  singleValue: () => 'text-gray-900 dark:!text-white text-sm',
-  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm',
+  valueContainer: () => 'text-gray-900 dark:text-white text-sm overflow-hidden min-w-0',
+  singleValue: () =>
+    'text-gray-900 dark:!text-white text-sm !whitespace-nowrap overflow-hidden text-ellipsis max-w-full',
+  placeholder: () => 'text-gray-400 dark:!text-white/90 text-sm truncate',
   input: () => 'text-gray-900 dark:!text-white text-sm',
   menu: () => `${compactReactSelectClassNames.menu()} dark:text-white`,
   menuList: () => `${compactReactSelectClassNames.menuList()} dark:text-white`,
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
-    `${compactReactSelectClassNames.option(state)} dark:!text-white ${
+    `${compactReactSelectClassNames.option(state)} dark:!text-white !whitespace-normal break-words leading-snug py-1.5 ${
       state.isSelected ? '!text-white' : ''
     }`,
   dropdownIndicator: () =>
@@ -173,14 +182,24 @@ const selectClassNamesBiblioteca = {
 };
 
 const selectStylesBibliotecaLight = {
-  singleValue: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
-  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
-  input: (base: Record<string, unknown>) => ({ ...base, color: 'inherit' }),
+  singleValue: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({
+    ...base,
+    color: 'inherit',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  }),
+  placeholder: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: 'inherit' }),
+  input: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: 'inherit' }),
+  valueContainer: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, overflow: 'hidden' }),
+  menuPortal: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, zIndex: 400 }),
+  menu: (base: CSSObjectWithLabel) => applySelectMenuWidth(base),
 };
 
 /** react-select aplica color inline; en oscuro forzar blanco y borde siempre visible. */
 const selectStylesBibliotecaDark = {
-  control: (base: Record<string, unknown>, state: { isFocused: boolean; menuIsOpen: boolean }) => ({
+  control: (base: CSSObjectWithLabel, state: { isFocused: boolean; menuIsOpen: boolean }): CSSObjectWithLabel => ({
     ...base,
     backgroundColor: '#0F1014',
     borderColor: state.isFocused || state.menuIsOpen ? '#6366f1' : '#6B7280',
@@ -189,23 +208,25 @@ const selectStylesBibliotecaDark = {
     color: '#ffffff',
     boxShadow: state.isFocused ? '0 0 0 1px rgba(99, 102, 241, 0.25)' : 'none',
   }),
-  singleValue: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
-  placeholder: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.92)' }),
-  input: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
-  menu: (base: Record<string, unknown>) => ({
+  singleValue: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: '#ffffff' }),
+  placeholder: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: 'rgba(255,255,255,0.92)' }),
+  input: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: '#ffffff' }),
+  menuPortal: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, zIndex: 400 }),
+  menu: (base: CSSObjectWithLabel) =>
+    applySelectMenuWidth(base, {
+      backgroundColor: '#0F1014',
+      color: '#ffffff',
+    }),
+  menuList: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, backgroundColor: '#0F1014' }),
+  option: (base: CSSObjectWithLabel, state: { isFocused: boolean; isSelected: boolean }): CSSObjectWithLabel => ({
     ...base,
-    backgroundColor: '#0F1014',
     color: '#ffffff',
-  }),
-  menuList: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#0F1014' }),
-  option: (base: Record<string, unknown>, state: { isFocused: boolean; isSelected: boolean }) => ({
-    ...base,
-    color: '#ffffff',
+    whiteSpace: 'normal',
     backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#374151' : '#0F1014',
   }),
-  dropdownIndicator: (base: Record<string, unknown>) => ({ ...base, color: '#ffffff' }),
-  clearIndicator: (base: Record<string, unknown>) => ({ ...base, color: 'rgba(255,255,255,0.9)' }),
-  indicatorSeparator: (base: Record<string, unknown>) => ({ ...base, backgroundColor: '#4B5563' }),
+  dropdownIndicator: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: '#ffffff' }),
+  clearIndicator: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, color: 'rgba(255,255,255,0.9)' }),
+  indicatorSeparator: (base: CSSObjectWithLabel): CSSObjectWithLabel => ({ ...base, backgroundColor: '#4B5563' }),
 };
 
 const idCompetenciaDeItem = (it: MaterialApoyoAprendizItem): number | null => {
@@ -288,7 +309,6 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
     setError(null);
     try {
       const params: Record<string, string> = {};
-      if (idFicha && idFicha > 0) params.idFicha = String(idFicha);
       if (idRap && idRap > 0) params.idRap = String(idRap);
       const res = await axios.get<MaterialApoyoAprendizItem[]>('ambiente-virtual/material-apoyo', { params });
       setItems(Array.isArray(res.data) ? res.data : []);
@@ -301,7 +321,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [idFicha, idRap]);
+  }, [idRap]);
 
   useEffect(() => {
     void cargar();
@@ -314,21 +334,24 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       : 'No hay material de apoyo disponible para este RAP.');
 
   const opcionesCompetencia = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, SelectAcademicoOption>();
     items.forEach((it) => {
       const idComp = idCompetenciaDeItem(it);
       const nombre = it.competenciaNombre || it.materiaNombre;
       if (idComp && idComp > 0 && nombre) {
-        map.set(idComp, nombre);
+        map.set(idComp, {
+          value: idComp,
+          label: etiquetaAcademica(it.competenciaCodigo, nombre),
+          codigo: it.competenciaCodigo ?? undefined,
+          nombre,
+        });
       }
     });
-    return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((x, y) => x.label.localeCompare(y.label));
+    return Array.from(map.values()).sort((x, y) => x.label.localeCompare(y.label, 'es'));
   }, [items]);
 
   const opcionesRapFiltro = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, SelectAcademicoOption>();
     items
       .filter((it) => {
         if (!competenciaSel) return true;
@@ -336,12 +359,17 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
       })
       .forEach((it) => {
         const id = it.idRap;
-        const label = it.rapNombre || it.materiaNombre;
-        if (id && label) map.set(id, label);
+        const nombre = it.rapNombre || it.materiaNombre;
+        if (id && nombre) {
+          map.set(id, {
+            value: id,
+            label: etiquetaAcademica(it.rapCodigo, nombre),
+            codigo: it.rapCodigo ?? undefined,
+            nombre,
+          });
+        }
       });
-    return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((x, y) => x.label.localeCompare(y.label));
+    return Array.from(map.values()).sort((x, y) => x.label.localeCompare(y.label, 'es'));
   }, [items, competenciaSel]);
 
   const filtered = useMemo(() => {
@@ -370,8 +398,10 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           item.titulo,
           item.descripcion,
           item.rapNombre,
+          item.rapCodigo,
           item.materiaNombre,
           item.competenciaNombre,
+          item.competenciaCodigo,
           item.creador?.nombreCompleto,
           item.creador?.email,
           tipoMaterialDisplay(item.tipoMaterial),
@@ -435,8 +465,13 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
 
         const tituloFull = item.titulo || '-';
         const descripcionFull = item.descripcion || 'Sin descripción.';
-        const rapFull = item.rapNombre || 'Sin RAP';
-        const competenciaFull = item.competenciaNombre || item.materiaNombre || '';
+        const rapFull = item.rapNombre
+          ? etiquetaAcademica(item.rapCodigo, item.rapNombre)
+          : 'Sin RAP';
+        const competenciaFuente = item.competenciaNombre || item.materiaNombre || '';
+        const competenciaFull = competenciaFuente
+          ? etiquetaAcademica(item.competenciaCodigo, competenciaFuente)
+          : '';
         const materiaEtiqueta = item.materiaNombre || '';
         const nombreCreador = item.creador?.nombreCompleto?.trim() || 'Instructor';
         const fotoCreador =
@@ -509,7 +544,9 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2 min-w-0">
-                  <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-900 dark:bg-violet-900/35 dark:text-violet-100">
+                  <span
+                    className={`inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold ${tipoMaterialBadgeClass(item.tipoMaterial)}`}
+                  >
                     {tipoMaterialDisplay(item.tipoMaterial)}
                   </span>
                   {chips.map((c) => (
@@ -573,9 +610,9 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                       }
                       abrirMenuRecursos(item.id, e.currentTarget);
                     }}
-                    className="inline-flex justify-center px-4 py-2 rounded-lg text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/35 dark:text-blue-100 dark:hover:bg-blue-900/50 w-full lg:w-auto"
+                    className="inline-flex justify-center whitespace-nowrap px-2.5 py-1 rounded-md text-[11px] font-medium border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/25 dark:text-blue-200 dark:hover:bg-blue-900/40 w-full lg:w-auto"
                   >
-                    Ver recursos
+                    Ver
                   </button>
                 ) : (
                   <span className="text-sm font-medium text-gray-600 dark:text-white text-center lg:text-right">
@@ -617,6 +654,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           <div>
             <label className={clsLabelFiltro}>Competencia</label>
             <Select
+              {...propsSelectAcademico}
               isClearable
               placeholder="Todas las competencias"
               options={opcionesCompetencia}
@@ -625,24 +663,21 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
                 setCompetenciaSel(opt?.value ?? null);
                 setRapFiltroSel(null);
               }}
-              isDisabled={opcionesCompetencia.length === 0}
               classNames={selectClassNamesBiblioteca}
               styles={selectStyles}
-              noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
           <div>
             <label className={clsLabelFiltro}>RAP</label>
             <Select
+              {...propsSelectAcademico}
               isClearable
               placeholder="Todos los RAP"
               options={opcionesRapFiltro}
               value={opcionesRapFiltro.find((o) => o.value === rapFiltroSel) ?? null}
               onChange={(opt) => setRapFiltroSel(opt?.value ?? null)}
-              isDisabled={opcionesRapFiltro.length === 0}
               classNames={selectClassNamesBiblioteca}
               styles={selectStyles}
-              noOptionsMessage={compactReactSelectNoOptions}
             />
           </div>
         </div>
@@ -651,7 +686,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
           onChange={(e) => setSearch(e.target.value)}
           type="text"
           className="input material-apoyo-aprendiz-search w-full text-sm font-medium text-gray-900 placeholder:text-gray-500 dark:bg-[#111827] dark:!text-white dark:border-gray-600"
-          placeholder="Buscar por título, descripción, competencia, RAP, materia o recurso..."
+          placeholder="Buscar por título, descripción, competencia, RAP, materia, instructor o recurso..."
         />
       </div>
 
@@ -667,7 +702,7 @@ const MaterialApoyoAprendiz: React.FC<MaterialApoyoAprendizProps> = ({
             No se encontraron materiales con ese criterio.
           </p>
         </div>
-      ) : hideGroupHeaders ? (
+      ) : hideGroupHeaders || modoBibliotecaGlobal ? (
         <div className="rounded-xl border border-gray-200 bg-white dark:bg-coal-400 dark:border-gray-700">
           {renderRows(filtered)}
         </div>

@@ -6,12 +6,13 @@ import {
   compactReactSelectWrapClassNames,
 } from '@/components/forms/compactReactSelect';
 import { materialCompetenciaService } from './materialCompetenciaService';
-import type { CompetenciaAccesible, MaterialCompetenciaItem } from './materialCompetencia.types';
+import type { CompetenciaAccesible, FichaMaterialCompetencia, MaterialCompetenciaItem } from './materialCompetencia.types';
 
 interface ModalMoverMaterialCompetenciaProps {
   open: boolean;
   material: MaterialCompetenciaItem | null;
   competenciaActual: CompetenciaAccesible;
+  fichaActual: FichaMaterialCompetencia;
   onClose: () => void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -33,17 +34,24 @@ const selectClassNames = {
 const etiquetaCompetencia = (c: CompetenciaAccesible) =>
   c.codigo ? `${c.codigo} · ${c.nombreMateria}` : c.nombreMateria;
 
+const etiquetaFicha = (f: FichaMaterialCompetencia) =>
+  f.etiqueta || [f.codigo || f.id, f.programa, f.jornada?.toUpperCase()].filter(Boolean).join(' · ');
+
 const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps> = ({
   open,
   material,
   competenciaActual,
+  fichaActual,
   onClose,
   onSuccess,
   onError,
 }) => {
   const [competencias, setCompetencias] = useState<CompetenciaAccesible[]>([]);
   const [idDestino, setIdDestino] = useState<number | null>(null);
+  const [fichas, setFichas] = useState<FichaMaterialCompetencia[]>([]);
+  const [idFichaDestino, setIdFichaDestino] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingFichas, setLoadingFichas] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
@@ -56,7 +64,9 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
 
   useEffect(() => {
     if (!open) return;
-    setIdDestino(null);
+    setIdDestino(competenciaActual.id);
+    setIdFichaDestino(null);
+    setFichas([]);
     setErrorCarga(null);
     setSaving(false);
     let cancelled = false;
@@ -67,7 +77,7 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
         if (cancelled) return;
         const vistos = new Set<number>();
         const unicas = res.data.filter((c) => {
-          if (!c.id || c.id === competenciaActual.id || vistos.has(c.id)) return false;
+          if (!c.id || vistos.has(c.id)) return false;
           vistos.add(c.id);
           return true;
         });
@@ -87,6 +97,35 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
     };
   }, [open, competenciaActual.id]);
 
+  useEffect(() => {
+    if (!open || !idDestino) {
+      setFichas([]);
+      setIdFichaDestino(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingFichas(true);
+    setIdFichaDestino(null);
+    (async () => {
+      try {
+        const lista = await materialCompetenciaService.listarFichas(idDestino);
+        if (cancelled) return;
+        setFichas(lista);
+        const otra = lista.find((f) => !(idDestino === competenciaActual.id && f.id === fichaActual.id));
+        setIdFichaDestino(otra?.id ?? (lista.length === 1 ? lista[0].id : null));
+      } catch {
+        if (cancelled) return;
+        setFichas([]);
+        setIdFichaDestino(null);
+      } finally {
+        if (!cancelled) setLoadingFichas(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, idDestino, competenciaActual.id, fichaActual.id]);
+
   const opciones = useMemo(
     () => competencias.map((c) => ({ value: c.id, label: etiquetaCompetencia(c) })),
     [competencias]
@@ -98,11 +137,17 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
   };
 
   const handleMover = async () => {
-    if (!material || !idDestino || saving || origenBloqueado) return;
+    if (!material || !idDestino || !idFichaDestino || saving) return;
+    if (origenBloqueado && idDestino !== competenciaActual.id) return;
     setSaving(true);
     try {
-      const res = await materialCompetenciaService.mover(competenciaActual.id, material.id, idDestino);
-      onSuccess(res.message || 'Material movido correctamente a la competencia seleccionada.');
+      const res = await materialCompetenciaService.mover(
+        competenciaActual.id,
+        material.id,
+        idDestino,
+        idFichaDestino
+      );
+      onSuccess(res.message || 'Material movido correctamente a la competencia y ficha seleccionadas.');
       onClose();
     } catch (err) {
       onError(materialCompetenciaService.errorMessage(err, 'No se pudo mover el material.'));
@@ -111,13 +156,15 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
     }
   };
 
-  const destinoValido = Boolean(idDestino && idDestino !== competenciaActual.id && !origenBloqueado);
+  const mismoDestino = idDestino === competenciaActual.id && idFichaDestino === fichaActual.id;
+  const bloqueoCompetencia = Boolean(origenBloqueado && idDestino !== competenciaActual.id);
+  const destinoValido = Boolean(idDestino && idFichaDestino && !mismoDestino && !bloqueoCompetencia);
 
   return (
     <Modal open={open} onClose={handleClose}>
       <ModalContent className="max-w-lg w-[calc(100%-1.5rem)]">
         <ModalHeader>
-          <ModalTitle>Mover material a otra competencia</ModalTitle>
+          <ModalTitle>Mover material</ModalTitle>
         </ModalHeader>
         <ModalBody>
           <div className="space-y-4">
@@ -132,21 +179,24 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
 
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-300">
-                Competencia actual
+                Competencia y ficha actuales
               </p>
               <p className="text-sm text-gray-800 dark:text-gray-100 break-words">
                 {etiquetaCompetencia(competenciaActual)}
               </p>
+              <p className="text-xs text-gray-600 dark:text-gray-200 mt-0.5">
+                {etiquetaFicha(fichaActual)}
+              </p>
             </div>
 
-            {origenBloqueado ? (
+            {bloqueoCompetencia ? (
               <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                 {origenBloqueado}
               </div>
             ) : (
               <p className="text-xs text-gray-600 dark:text-gray-200">
-                El material será trasladado a la competencia seleccionada. Sus documentos, videos, enlaces y
-                demás recursos se conservarán.
+                El material se mueve a la competencia y ficha de destino. No se duplica. La fecha y el
+                horario no forman parte de la asignación.
               </p>
             )}
 
@@ -160,16 +210,41 @@ const ModalMoverMaterialCompetencia: React.FC<ModalMoverMaterialCompetenciaProps
                 value={opciones.find((o) => o.value === idDestino) ?? null}
                 onChange={(opt) => setIdDestino(opt?.value ?? null)}
                 classNames={selectClassNames}
-                isDisabled={loading || saving || Boolean(origenBloqueado)}
+                isDisabled={loading || saving}
                 isSearchable
                 noOptionsMessage={() =>
-                  loading ? 'Cargando...' : competencias.length === 0 ? 'No hay otras competencias disponibles' : compactReactSelectNoOptions()
+                  loading ? 'Cargando...' : competencias.length === 0 ? 'No hay competencias disponibles' : compactReactSelectNoOptions()
                 }
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
                 menuPosition="fixed"
                 styles={{ menuPortal: (base) => ({ ...base, zIndex: 130 }) }}
               />
               {errorCarga ? <p className="text-xs text-red-600 dark:text-red-300 mt-1">{errorCarga}</p> : null}
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-white mb-1 block">
+                Ficha de destino
+              </label>
+              <Select
+                placeholder={loadingFichas ? 'Cargando fichas...' : 'Seleccione una ficha'}
+                options={fichas.map((f) => ({ value: f.id, label: etiquetaFicha(f) }))}
+                value={
+                  fichas
+                    .map((f) => ({ value: f.id, label: etiquetaFicha(f) }))
+                    .find((o) => o.value === idFichaDestino) ?? null
+                }
+                onChange={(opt) => setIdFichaDestino(opt?.value ?? null)}
+                classNames={selectClassNames}
+                isDisabled={loading || loadingFichas || saving || !idDestino}
+                isSearchable
+                noOptionsMessage={() =>
+                  loadingFichas ? 'Cargando...' : fichas.length === 0 ? 'No hay fichas compatibles' : compactReactSelectNoOptions()
+                }
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
+                menuPosition="fixed"
+                styles={{ menuPortal: (base) => ({ ...base, zIndex: 130 }) }}
+              />
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
