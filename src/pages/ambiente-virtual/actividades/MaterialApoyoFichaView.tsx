@@ -160,10 +160,18 @@ const selectClassNamesBiblioteca = {
 const clsBtnPagina =
   'inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none dark:border-gray-600 dark:bg-coal-500 dark:text-gray-200 dark:hover:bg-coal-400';
 
+const idPositivo = (value: unknown): number | null => {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+};
+
 const idCompetenciaDeItem = (it: MaterialApoyoFichaItem): number | null => {
-  const fromRap = it.rap?.idCompetencia;
-  if (fromRap && fromRap > 0) return fromRap;
-  if (it.idCompetencia && it.idCompetencia > 0) return it.idCompetencia;
+  const fromRap = idPositivo(it.rap?.idCompetencia);
+  if (fromRap) return fromRap;
+  const fromItem = idPositivo(it.idCompetencia);
+  if (fromItem) return fromItem;
   return null;
 };
 
@@ -425,9 +433,10 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
     });
     if (esBibliotecaGeneral) {
       raps.forEach((rap) => {
-        if (rap.idCompetencia && rap.idCompetencia > 0 && rap.nombreCompetencia) {
-          map.set(rap.idCompetencia, {
-            value: rap.idCompetencia,
+        const idComp = idPositivo(rap.idCompetencia);
+        if (idComp && rap.nombreCompetencia) {
+          map.set(idComp, {
+            value: idComp,
             label: etiquetaAcademica(rap.codigoCompetencia, rap.nombreCompetencia),
             codigo: rap.codigoCompetencia ?? undefined,
             nombre: rap.nombreCompetencia,
@@ -446,7 +455,7 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
         return idCompetenciaDeItem(it) === competenciaSel;
       })
       .forEach((it) => {
-        const id = it.idRap ?? it.rap?.id;
+        const id = idPositivo(it.idRap ?? it.rap?.id);
         const nombre = it.rap?.nombre || it.materiaNombre;
         if (id && nombre) {
           map.set(id, {
@@ -459,11 +468,15 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
       });
     if (esBibliotecaGeneral) {
       raps
-        .filter((rap) => !competenciaSel || rap.idCompetencia === competenciaSel)
+        .filter(
+          (rap) =>
+            !competenciaSel || idPositivo(rap.idCompetencia) === idPositivo(competenciaSel)
+        )
         .forEach((rap) => {
-          if (rap.id && rap.nombre) {
-            map.set(rap.id, {
-              value: rap.id,
+          const idRap = idPositivo(rap.id);
+          if (idRap && rap.nombre) {
+            map.set(idRap, {
+              value: idRap,
               label: etiquetaAcademica(rap.codigo, rap.nombre),
               codigo: rap.codigo ?? undefined,
               nombre: rap.nombre,
@@ -508,10 +521,12 @@ const MaterialApoyoFichaView: React.FC<MaterialApoyoFichaViewProps> = ({
 
   const itemsFiltrados = useMemo(() => {
     const q = search.trim();
+    const selectedCompetencia = idPositivo(competenciaSel);
+    const selectedRap = idPositivo(rapFiltroSel);
     return items.filter((it) => {
       const idComp = idCompetenciaDeItem(it);
-      if (competenciaSel && idComp !== competenciaSel) return false;
-      if (rapFiltroSel && (it.idRap ?? it.rap?.id) !== rapFiltroSel) return false;
+      if (selectedCompetencia && idComp !== selectedCompetencia) return false;
+      if (selectedRap && idPositivo(it.idRap ?? it.rap?.id) !== selectedRap) return false;
 
       if (!q) return true;
       const recursosTokens = [
