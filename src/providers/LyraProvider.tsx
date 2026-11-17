@@ -14,6 +14,18 @@ interface Business {
     direccion?: string;
 }
 
+/** Formulario que Nexo arma en la conversación (campo `form_draft` de Lyra). */
+export interface FormDraft {
+    id: number | null;
+    titulo: string | null;
+    estado: string;
+    guardado: boolean;                 // lo que se ve es exactamente lo guardado en School
+    nuevo: boolean;                    // todavía no existe en School
+    ruta: string | null;               // constructor del formulario
+    texto: string;                     // la respuesta sin la lista (la lista la pinta la tarjeta)
+    preguntas: { n: number; titulo: string; tipo: string; obligatoria: boolean; opciones: string[]; foco: boolean }[];
+}
+
 export interface Message {
     role: 'user' | 'assistant';
     content: string;
@@ -24,6 +36,8 @@ export interface Message {
     isZeroResult?: boolean;
     navStatus?: 'pending' | 'ok' | 'failed';  // Resultado de una navegación pedida a Lyra
     navTitle?: string;
+    retry?: string;                    // Texto del mensaje que falló, para reintentarlo
+    formDraft?: FormDraft;
 }
 
 interface LyraContextType {
